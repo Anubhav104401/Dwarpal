@@ -1,0 +1,41 @@
+# Dwarpal: local development infrastructure (the databases the services need).
+#   start:  docker compose -f infra/compose/compose.yaml up -d --wait
+#   stop:   docker compose -f infra/compose/compose.yaml down      (add -v to delete the data too)
+
+name: dwarpal
+
+services:
+  postgres:
+    image: postgres:18.6-alpine3.24
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dwarpal}
+      POSTGRES_USER: ${POSTGRES_USER:-dwarpal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dwarpal-local-only}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:9.1.2-alpine3.24
+    command: ["valkey-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:${VALKEY_PORT:-6379}:6379"
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  valkeydata:

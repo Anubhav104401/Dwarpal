@@ -1,0 +1,10 @@
+[project]
+name = "dwarpal-api"
+version = "0.1.0"
+description = "Dwarpal API: relying-party, flow and console APIs, decision engine, signed age tokens."
+requires-python = ">=3.13,<3.14"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"

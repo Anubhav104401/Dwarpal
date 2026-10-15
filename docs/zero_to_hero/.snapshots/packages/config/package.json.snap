@@ -1,0 +1,9 @@
+{
+  "name": "@dwarpal/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared TypeScript settings for every Dwarpal app and package.",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json"
+  }
+}

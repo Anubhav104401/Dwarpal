@@ -1,0 +1,60 @@
+# Dwarpal — root of the Python workspace.
+# This file is not a package itself: it lists the workspace members,
+# the shared developer tools, and the settings those tools use.
+
+[tool.uv]
+required-version = ">=0.13.1"
+default-groups = ["dev", "docs"]
+
+[tool.uv.workspace]
+members = ["services/*", "libs/*", "ml"]
+
+[dependency-groups]
+dev = [
+  "mypy==2.4.0",
+  "pytest==9.1.1",
+  "ruff==0.17.0",
+]
+docs = [
+  "markdown==3.11.1",
+  "pygments==2.21.0",
+  "types-markdown==3.10.2.20261007",
+  "types-pygments==2.21.0.20260819",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+include = ["*.py", "*.pyi", "**/pyproject.toml"]
+extend-exclude = ["docs/zero_to_hero/.snapshots"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "PTH", "S", "N", "RUF", "DTZ", "PERF", "RET"]
+
+[tool.ruff.lint.per-file-ignores]
+"tasks.py" = ["S603"]
+"**/tests/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unreachable = true
+explicit_package_bases = true
+exclude = ['[/\\]\.snapshots[/\\]']
+mypy_path = "services/api/src,services/inference/src,libs/contracts/src,libs/vision/src,ml/src,docs/zero_to_hero"
+files = [
+  "tasks.py",
+  "docs/zero_to_hero",
+  "services/api/src",
+  "services/inference/src",
+  "libs/contracts/src",
+  "libs/vision/src",
+  "ml/src",
+]
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["docs/zero_to_hero/tests", "services", "libs", "ml"]
+pythonpath = ["docs/zero_to_hero"]
+addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+xfail_strict = true

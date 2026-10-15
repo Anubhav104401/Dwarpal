@@ -1,0 +1,11 @@
+# Store every text file with Linux line endings, whatever computer it was edited on.
+* text=auto eol=lf
+
+# Never treat these as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff2 binary
+*.onnx binary

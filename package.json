@@ -1,0 +1,21 @@
+{
+  "name": "dwarpal",
+  "private": true,
+  "description": "Dwarpal: privacy-first AI age assurance. Root of the JavaScript/TypeScript workspace.",
+  "packageManager": "pnpm@12.11.2",
+  "engines": {
+    "node": ">=24.11.0 <25"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "turbo": "2.11.8"
+  }
+}

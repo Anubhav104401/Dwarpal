@@ -1,0 +1,29 @@
+title = "Dwarpal — Zero to Hero"
+subtitle = "Building a privacy-first AI age-assurance system, starting from absolutely nothing"
+output = "zero_to_hero.html"
+abbreviations = "abbreviations.md"
+chapters = [
+  "chapters/00_front_matter.md",
+  "chapters/01_part0_basics.md",
+  "chapters/02_part1_problem.md",
+  "chapters/03_part2_ai.md",
+  "chapters/04_part3_thinking.md",
+  "chapters/05_part4_tools.md",
+  "chapters/06_part5_build.md",
+  "chapters/90_how_this_book_is_built.md",
+  "chapters/98_ledger.md",
+  "chapters/99_glossary.md",
+]
+
+[coverage]
+include = [
+  "**/*.py", "**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs", "**/*.css", "**/*.html",
+  "**/*.toml", "**/*.yaml", "**/*.yml", "**/*.json", "**/*.sql", "**/*.sh", "**/*.ps1",
+  "**/*.txt", "**/Dockerfile", "**/Caddyfile", "**/.env.example",
+  "**/.gitignore", "**/.gitattributes", "**/.editorconfig", "**/.python-version",
+]
+exclude = ["docs/zero_to_hero/zero_to_hero.html", "**/pnpm-lock.yaml", "**/package-lock.json", "**/uv.lock"]
+prune = [
+  ".git", ".venv", "node_modules", "__pycache__", ".next", ".turbo", "dist",
+  ".datasets", "mlruns", ".mypy_cache", ".ruff_cache", ".pytest_cache", ".snapshots", ".claude",
+]

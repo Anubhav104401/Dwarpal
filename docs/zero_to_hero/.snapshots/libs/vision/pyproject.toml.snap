@@ -1,0 +1,10 @@
+[project]
+name = "dwarpal-vision"
+version = "0.1.0"
+description = "Face decoding, detection, alignment and quality checks shared by training and serving."
+requires-python = ">=3.13,<3.14"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"
