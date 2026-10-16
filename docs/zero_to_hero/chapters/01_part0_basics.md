@@ -167,7 +167,7 @@ Host: api.dwarpal.example
 Authorization: Bearer dk_test_EXAMPLEKEY000000000000
 Content-Type: application/json
 
-{"policy": "uk_osa_18_standard", "return_url": "https://shop.example/age-ok"}
+{"policy": "uk_osa_18", "return_url": "https://shop.example/age-check/complete"}
 ```
 
 **The common methods:**
@@ -185,7 +185,7 @@ Content-Type: application/json
 HTTP/1.1 201 Created
 Content-Type: application/json
 
-{"id": "vs_01JA8...", "url": "https://verify.dwarpal.example/s/vs_01JA8...", "status": "pending"}
+{"id": "vs_01JA8...", "url": "https://verify.dwarpal.example/v/vs_01JA8...#cs=...", "status": "created"}
 ```
 
 | Code | Name | Means |
@@ -253,13 +253,13 @@ When programs exchange data, they need a shared format. The most common is **JSO
 | Boolean | `true` / `false` | Yes or no |
 | Null | `null` | "Nothing here" |
 | Array | `[1, 2, 3]` | An ordered list |
-| Object | `{"age_over": 18}` | Labelled values ("key": value) |
+| Object | `{"min_age": 18}` | Labelled values ("key": value) |
 
 ```json
 {
   "id": "vs_01JA8XQ2",
   "outcome": "pass",
-  "age_over": 18,
+  "age_over_18": true,
   "methods": ["face_estimation", "liveness_active"]
 }
 ```
@@ -274,8 +274,8 @@ The most common kind is a **relational database**. It stores data in **tables**,
 
 | id | policy | outcome | created_at |
 | :-- | :-- | :-- | :-- |
-| vs_01JA8XQ2 | uk_osa_18_standard | pass | 2026-10-15 10:02 |
-| vs_01JA8XR7 | uk_osa_18_standard | step_up | 2026-10-15 10:03 |
+| vs_01JA8XQ2 | uk_osa_18 | pass | 2026-10-15 10:02 |
+| vs_01JA8XR7 | uk_osa_18 | step_up | 2026-10-15 10:03 |
 
 Each row is one thing (here, one verification session). Each column is one property of it. You talk to it in **SQL**:
 

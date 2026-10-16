@@ -1,0 +1,83 @@
+---
+fingerprint: 459980b14dece9dc
+---
+Tests for the vision library. They use one real face: the public-domain NASA portrait of astronaut Eileen Collins described in `fixtures/README.md`. Its faces and pixels are known, so every check can be compared against a known right answer.
+
+!!! why "Why test with a real face instead of a drawing?"
+    The detector is a neural network trained on photographs. A cartoon or a solid-colour square would only test that "nothing is found". A real, clear portrait lets the tests check the things that matter: exactly one face is found, the alignment lands the eyes in the right places, and the quality checks accept a good frame but name the problem in a bad one.
+
+@@ 1
+The module docstring, pointing to where the test picture comes from.
+
+@@ 3
+The project-wide type-hint setting.
+
+@@ 5-6
+`struct` builds fake image headers (line 20); `Path` locates the fixture and model files.
+
+@@ 8-10
+OpenCV (to blur a picture on purpose), NumPy (to darken one) and pytest.
+
+@@ 12-13
+The functions under test, plus the alignment `template` used to check where the eyes end up.
+
+@@ 15
+The test picture's location: the `fixtures` folder next to this file.
+
+@@ 16
+The YuNet model file. From this file, `parents[3]` climbs `tests → vision → libs → repository root`. The model must have been downloaded by `infra/scripts/fetch_models.py`, as CI does before running tests.
+
+@@ 19-20
+**`png_header`** — builds the first bytes of a PNG file claiming any width and height, with no picture data behind them. It lets the tests try "huge" images without creating any. The bytes are:
+
+- the 8-byte PNG signature;
+- the IHDR chunk's length (13) and its name;
+- the width and height as two big-endian 4-byte numbers;
+- the remaining header fields (bit depth 8, colour type 2 = RGB, and three zero settings).
+
+@@ 23-25
+A **fixture** — a ready-made value that pytest hands to any test that names it as a parameter. Here it is a `FaceDetector`. `scope="module"` creates it **once** for all the tests in this file, instead of reloading the model for every test.
+
+@@ 28-30
+Another module-wide fixture: the test picture's bytes, read once.
+
+@@ 33-35
+**Sizes come from headers.** The real JPEG reports 512 × 512, and a fabricated PNG header reports exactly what it claims. No pixel is decoded in either case.
+
+@@ 38-44
+**Unwelcome inputs are refused, with the right message.**
+
+- A GIF (its magic number starts `GIF89a`) is refused because only JPEG and PNG are allowed.
+- A PNG header claiming 50,000 × 50,000 pixels — a decompression bomb — is refused *before* decoding, and the message names the dimensions.
+- 101 bytes with a limit of 100 are refused before anything else is looked at. `bytes(101)` makes 101 zero bytes: their content doesn't matter, because the size check comes first. This proves that a caller's own `max_bytes` is really used.
+
+`pytest.raises(…, match=…)` passes only if that exact kind of error is raised **and** its message contains the given text.
+
+@@ 47-51
+**Detection.** The portrait contains exactly one face, the detector is confident about it (score above 0.8), and it is large enough (eyes more than 40 pixels apart).
+
+@@ 54-61
+**Alignment lands the eyes where the template says.**
+
+1. Align the face into a 224 × 224 crop.
+2. Run the detector *again* on that crop.
+3. Check that the eyes it finds there are within 8 pixels of the template positions.
+
+This tests the whole chain — detection, transform, warping — against its purpose, not against its internals. The message after the comma in `assert again, "…"` is shown if the check fails, explaining what went wrong.
+
+@@ 64-66
+The test's name says exactly what it proves. The formatter split the signature over three lines because it is long.
+
+@@ 67-69
+**A good frame has no flags.**
+
+@@ 70-71
+**Too dark.** Multiplying every pixel by 0.12 makes the picture about eight times darker. `astype(np.uint8)` turns the results back into whole numbers from 0 to 255. The same face boxes are reused, so only the lighting changed. The `too_dark` flag must appear.
+
+@@ 72-73
+**Too blurry.** A strong Gaussian blur (spread 6 pixels) wipes out fine detail, so the `too_blurry` flag must appear.
+
+OpenCV's blur function is described to mypy as returning "an array of some kind of number", which is vaguer than the "array of bytes 0–255" that `assess` asks for. `np.asarray(..., dtype=np.uint8)` states the exact type. The pixels are already bytes, so NumPy makes no copy; the call only tells the type checker what is true (§4.9).
+
+@@ 74
+**No face.** With an empty list of faces, the only flag is `no_face`.

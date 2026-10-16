@@ -104,7 +104,7 @@ Then it walks the whole project folder, finds every code file, and prints the [C
 
 Notes are pinned to **line numbers**. Add one line at the top of a file and every note below it now points one line too high. In the first days of this book, fixing that meant renumbering notes by hand — slow and error-prone.
 
-So the builder learned a trick. Whenever a walkthrough is **stamped**, the builder also saves a **snapshot**: a copy of the source file exactly as it was explained. Later, `--reanchor` compares the snapshot with the current file and works out where every unchanged line has moved:
+So the builder learned a trick. Whenever a walkthrough is **stamped** or **re-anchored**, the builder also saves a **snapshot**: a copy of the source file exactly as the walkthrough's line numbers describe it. Later, `--reanchor` compares the snapshot with the current file, works out where every line has gone, and then moves the snapshot forward:
 
 - a note whose lines are all **unchanged** simply moves with them — no human needed;
 - a note whose lines were **edited** moves to the new code that replaced them, and its text is prefixed with `TODO(review)`. It then counts as *not explained* until someone re-reads it and removes the prefix;
@@ -113,10 +113,15 @@ So the builder learned a trick. Whenever a walkthrough is **stamped**, the build
 !!! kid "Explain like I'm six — seats in a theatre"
     Imagine a theatre where every seat has a name card. The theatre adds two new rows at the front. Every old seat now has a new number, but the *people* haven't changed — so you move each name card to its person's new seat number. If someone swapped seats with a stranger, you put a sticky note on their card: *"please check this one"*.
 
-How does the builder know which lines are "the same"? Python's built-in **difflib** module finds the longest runs of lines that appear in both versions, in the same order — the same idea behind the "diff" view of any code-review tool.
+How does the builder know which lines are "the same"? Python's built-in **difflib** module finds the longest runs of lines that appear in both versions, in the same order — the same idea behind the "diff" view of any code-review tool. It describes the change as a list of **operations**: these lines are *equal*, these were *replaced*, these *deleted*, these *inserted*. Inside a replaced block, the old and new lines are lined up side by side, so an edit that keeps the number of lines keeps every note exactly in place.
 
 !!! key "Key idea"
     Moving notes is automatic. **Approving** them is not: only a person can confirm that an explanation still matches the code. That is why `--reanchor` never stamps, and why changed notes are marked `TODO(review)`.
+
+    The two records kept for each file have different jobs. The **snapshot** says which version of the code the line numbers refer to. The **fingerprint** says which version a person last *approved*.
+
+!!! real "Real world — the checker had a bug, and its tests caught the fix"
+    During Phase 1, re-anchoring the same file twice without stamping in between scrambled its notes. The snapshot was only saved by `--stamp`, so the second run compared the wrong two versions. The fix: `--reanchor` now moves the snapshot forward too. A new test in `tests/test_build.py` re-anchors twice in a row, so the bug can't quietly return.
 
 ## X.7 Building the book yourself
 
@@ -133,7 +138,7 @@ How does the builder know which lines are "the same"? Python's built-in **diffli
 Three helper commands keep walkthroughs in step with the code:
 
 - `build.py --new path/to/file.py` creates a walkthrough skeleton with an empty `TODO` note for every non-blank line, and a first snapshot;
-- `build.py --reanchor path/to/file.py` moves the notes to follow edits made since the last stamp (§X.6);
+- `build.py --reanchor path/to/file.py` moves the notes to follow edits made since the last snapshot (§X.6);
 - `build.py --stamp path/to/file.py` records the file's current fingerprint and snapshot, after its explanations have been reviewed.
 
 ## X.8 Python words you'll meet in `build.py`

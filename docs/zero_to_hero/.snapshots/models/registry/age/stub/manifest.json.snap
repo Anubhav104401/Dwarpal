@@ -1,0 +1,13 @@
+{
+  "name": "age",
+  "version": "stub",
+  "serves": "stub-age-*",
+  "calibrated": false,
+  "note": "Stand-in thresholds for the Phase 1 walking skeleton. They are NOT produced by risk control; Phase 2 replaces this manifest with calibrated values. Uncalibrated models may only decide test-mode sessions.",
+  "thresholds": [
+    { "min_age": 13, "risk_budget": 0.02, "tau_pass": 0.95, "tau_fail": 0.05 },
+    { "min_age": 16, "risk_budget": 0.02, "tau_pass": 0.95, "tau_fail": 0.05 },
+    { "min_age": 18, "risk_budget": 0.02, "tau_pass": 0.95, "tau_fail": 0.05 },
+    { "min_age": 21, "risk_budget": 0.02, "tau_pass": 0.95, "tau_fail": 0.05 }
+  ]
+}

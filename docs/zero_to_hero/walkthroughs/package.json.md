@@ -1,5 +1,5 @@
 ---
-fingerprint: 11811b541ba15ace
+fingerprint: fbf82de55d2fc65c
 ---
 The **root `package.json`** — for the JavaScript side of the project, it plays the role the root `pyproject.toml` plays for Python. It is written in **JSON** (§0.11): curly braces hold labelled values, square brackets hold lists, and every key and text value is in double quotes. JSON has no comments, which is why the explanations live here.
 
@@ -40,18 +40,24 @@ The **root `package.json`** — for the JavaScript side of the project, it plays
 `"typecheck": "turbo run typecheck"` — run each package's TypeScript type check, through Turborepo.
 
 @@ 15
-`"test": "turbo run test"` — run each package's tests, through Turborepo.
+`"test": "turbo run test"` — run each package's unit tests, through Turborepo.
 
 @@ 16
+`"e2e": "turbo run e2e"` — run the end-to-end test (added in Phase 1). It is a separate command because it needs much more than the unit tests: Docker, the Python services, and a real browser. Through Turborepo, the packages it depends on — the SDK and both web apps — are built first.
+
+@@ 17
 `}` — the end of the scripts.
 
-@@ 17-20
+@@ 18-21
 `"devDependencies"` — tools needed to *work on* the project, not to run it. Each is pinned to an exact version (no `^` or `~`, which would allow automatic upgrades):
 
 - `@biomejs/biome` 2.5.15 — the formatter and linter;
-- `turbo` 2.11.8 — the task runner.
+- `turbo` 2.11.7 — the task runner.
+
+!!! real "Real world — why turbo went *down* a version"
+    Phase 0 pinned turbo 2.11.8, which had been published only two days earlier. In Phase 1 the workspace gained a **release cooldown** (`pnpm-workspace.yaml`): no package version younger than seven days may be installed. The new rule immediately refused 2.11.8, so turbo stepped back to 2.11.7, released a week before that.
 
 `@biomejs/` is a **scope**: a namespace on npm owned by one organisation, so nobody else can publish under that name.
 
-@@ 21
+@@ 22
 `}` — the end of the file.

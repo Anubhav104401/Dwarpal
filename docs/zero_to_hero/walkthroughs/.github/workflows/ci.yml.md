@@ -1,5 +1,5 @@
 ---
-fingerprint: e05d3bb5df5fdf9a
+fingerprint: da800ea5bc670417
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -54,52 +54,88 @@ The exact version tag is pinned: a newer release can only arrive through a delib
 `run: uv sync --locked` — install Python 3.13 and every locked package. `--locked` means: **fail** if `uv.lock` doesn't exactly match the `pyproject.toml` files. Someone who changed a dependency but forgot to update the lockfile is told immediately.
 
 @@ 27
+`run: uv run infra/scripts/fetch_models.py` — download the third-party model files the tests need (the YuNet face detector, §5.1) and **verify each one's SHA-256 fingerprint** before using it. Model files are never stored in Git (`.gitignore`), so every fresh machine — including CI's — fetches them this way. Added in Phase 1.
+
+@@ 28
 `run: uv run tasks.py check` — the same single command developers run locally (§5.0.3): lint, types, tests and the book in strict mode. CI and developers can never disagree about what "passing" means.
 
-@@ 29
+@@ 30
 `javascript:` — the second job, running at the same time on its own machine.
 
-@@ 30-32
-Its title, the same pinned Ubuntu machine, and the same 15-minute limit.
-
-@@ 33
-`steps:` — this job's steps.
+@@ 31-33
+Its title, the same pinned Ubuntu machine, and the same 15-minute limit. Since Phase 1 the job also *builds* everything, hence "builds" in its name.
 
 @@ 34
-Download the code, as in the first job.
-
-@@ 35
-`pnpm/action-setup@v6.1.0` — installs **pnpm**. No version is given here, because the action reads the `packageManager` field of `package.json` (pnpm 12.11.2), so the version lives in one place only.
-
-@@ 36-39
-`actions/setup-node@v7.1.0` — installs **Node.js 24** (the LTS line in `package.json`). `cache: pnpm` keeps pnpm's package store between runs.
-
-@@ 40
-`run: pnpm install --frozen-lockfile` — install exactly what `pnpm-lock.yaml` says, and **fail** if the lockfile is out of date. This is the JavaScript twin of `uv sync --locked`.
-
-@@ 41
-`run: pnpm lint` — Biome's formatting and lint checks.
-
-@@ 42
-`run: pnpm typecheck` — TypeScript checks for every package (none exist yet).
-
-@@ 43
-`run: pnpm test` — JavaScript tests for every package (none exist yet).
-
-@@ 45
-`infrastructure:` — the third job: proving the development databases start correctly on a completely clean machine.
-
-@@ 46-48
-Its title, machine and a 10-minute limit.
-
-@@ 49
 `steps:` — this job's steps.
 
-@@ 50
+@@ 35
+Download the code, as in the first job.
+
+@@ 36
+`pnpm/action-setup@v6.1.0` — installs **pnpm**. No version is given here, because the action reads the `packageManager` field of `package.json` (pnpm 12.11.2), so the version lives in one place only.
+
+@@ 37-40
+`actions/setup-node@v7.1.0` — installs **Node.js 24** (the LTS line in `package.json`). `cache: pnpm` keeps pnpm's package store between runs.
+
+@@ 41
+`run: pnpm install --frozen-lockfile` — install exactly what `pnpm-lock.yaml` says, and **fail** if the lockfile is out of date. This is the JavaScript twin of `uv sync --locked`.
+
+@@ 42
+`run: pnpm lint` — Biome's formatting and lint checks.
+
+@@ 43
+`run: pnpm typecheck` — TypeScript checks for every package: the SDK, both web apps and the end-to-end tests (added in Phase 1).
+
+@@ 44
+`run: pnpm test` — JavaScript unit tests for every package (Vitest, §4.20).
+
+@@ 45
+`run: pnpm build` — build every package with Turborepo: the SDK compiles to plain JavaScript, and both Next.js apps make their production builds. A build that only fails on a clean machine is caught here, not on deployment day.
+
+@@ 47-50
+**The end-to-end job** (added in Phase 1): the whole system, in a real browser, exactly as a person would use it — the demo shop, the verify page, the API and the inference service, with a fake camera. It gets 20 minutes, because it installs a browser and builds everything first.
+
+@@ 51-52
+Its steps start, like every job, by checking out the code.
+
+@@ 53-56
+Install uv, as in the Python job: the API and the inference service are Python programs.
+
+@@ 57-61
+Install pnpm and Node.js 24, as in the JavaScript job: the web apps and the test runner are JavaScript programs.
+
+@@ 62
+`uv sync --locked` — install the Python side exactly as the lockfile says.
+
+@@ 63
+Download the face-detection model, which the inference service needs (§5.1.1).
+
+@@ 64
+Install the JavaScript side exactly as its lockfile says.
+
+@@ 65
+Download the Chromium browser that Playwright drives (§4.20). `--with-deps` also installs the system libraries a browser needs on a bare Linux machine, such as fonts.
+
+@@ 66
+`pnpm e2e` — run the end-to-end test. Its configuration starts the databases with Docker Compose, prepares a demo project, and launches all four services itself (`e2e/playwright.config.ts`).
+
+@@ 67-72
+Only **if a step failed** (`if: failure()`), upload the test's results — screenshots and Playwright's step-by-step **trace** — as an **artifact**: a file bundle attached to the CI run, kept for 7 days. A failure on a machine nobody can log into is then still easy to investigate.
+
+@@ 74
+`infrastructure:` — the third job: proving the development databases start correctly on a completely clean machine.
+
+@@ 75-77
+Its title, machine and a 10-minute limit.
+
+@@ 78
+`steps:` — this job's steps.
+
+@@ 79
 Download the code.
 
-@@ 51
+@@ 80
 Start PostgreSQL and Valkey and **wait until both report healthy**. If either image can't be downloaded, or either health check never passes, this step fails. GitHub's Ubuntu machines come with Docker already installed.
 
-@@ 52
+@@ 81
 Stop the containers and delete their data volumes, leaving the machine clean. GitHub discards the machine anyway, but cleaning up after yourself is a good habit.

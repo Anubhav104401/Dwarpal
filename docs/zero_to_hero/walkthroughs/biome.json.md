@@ -1,5 +1,5 @@
 ---
-fingerprint: 35c61933a6cc9bb1
+fingerprint: 7f76d00f9f0589b9
 ---
 `biome.json` configures **Biome**, the formatter and linter for the JavaScript, TypeScript, JSON and CSS side of the project — the counterpart of Ruff on the Python side (§4.4).
 
@@ -37,14 +37,17 @@ So Biome never wastes time formatting `node_modules` or build outputs, and the l
 
 The setting is written `"preset": "recommended"`. The first version said `"recommended": true`, but Biome 2.5 reported that form as deprecated, and `biome migrate --write` rewrote it automatically (§4.4).
 
-@@ 23-28
+@@ 23-27
+`"css"` → `"parser"` → `"tailwindDirectives": true` (added in Phase 1) — let Biome read the special instructions that **Tailwind CSS** adds to stylesheets, such as `@theme` (§4.18). Without this, Biome stopped at the first one with "Tailwind-specific syntax is disabled", and couldn't check or format the web apps' styles at all.
+
+@@ 28-33
 `"javascript"` → `"formatter"`:
 
 - `"quoteStyle": "double"` — use `"double quotes"` for strings. It matches JSON (which only allows double quotes) and our Python style.
 - `"semicolons": "always"` — end statements with `;`. JavaScript can usually guess where a statement ends, but in a few rare situations it guesses wrong. Writing every semicolon removes those surprises.
 
-@@ 29-35
+@@ 34-40
 `"assist"` → `"actions"` → `"source"` → `"organizeImports": "on"` — keep `import` lines sorted and grouped automatically, the same job Ruff's `I` rules do for Python.
 
-@@ 36
+@@ 41
 `}` — the end of the file.

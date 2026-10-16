@@ -10,8 +10,8 @@
 | Phase | Name | Status |
 | :-: | :-- | :-- |
 | 0 | Foundations — repository, toolchains, quality gates, CI | ✅ complete locally — [report](../reports/phase-0.md) (remote CI pending first push) |
-| 1 | Walking skeleton — end to end with a stub model | ⏳ next |
-| 2 | ML core — data, training, evaluation, risk control, v1 model | ⏳ |
+| 1 | Walking skeleton — end to end with a stub model | ✅ complete locally — [report](../reports/phase-1.md) (remote CI pending first push) |
+| 2 | ML core — data, training, evaluation, risk control, v1 model | ⏳ next |
 | 3 | Liveness and anti-spoofing | ⏳ |
 | 4 | Platform — tenancy, auth, policies, webhooks, audit | ⏳ |
 | 5 | Front-end excellence — design system, site, flow, console, SDKs | ⏳ |

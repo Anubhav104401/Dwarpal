@@ -169,7 +169,7 @@ Outcomes: `pass` · `step_up` (estimation unsure → stronger method) · `fail` 
 | Reusable credential in the user's browser (SD-JWT VC, batch-issued for unlinkability) | ✅ | ✅✅ | v2 "Age Pass" |
 | Zero-knowledge proofs (e.g. Google's open-sourced longfellow-zk) | ✅ | ✅✅✅ | Research watch-list |
 
-**Token claims (minimal):** `iss`, `aud` (the RP project), `iat`/`exp` (short), `jti` (one-time), `nonce` (from the RP), `sid` (session), `age_over: 18`, `outcome: "pass"`, `assurance`, `methods`, `policy_version`, `model_version`. **Never:** estimated age, image data, any stable user identifier.
+**Token claims (minimal):** `iss`, `aud` (the RP project), `iat`/`exp` (short), `jti` (one-time), `nonce` (from the RP), `sid` (session), `age_over_18: true` (ADR-0020), `outcome: "pass"`, `assurance`, `methods`, `policy_version`, `model_version`. **Never:** estimated age, image data, any stable user identifier.
 
 **Integration flow (the Stripe Identity / OAuth-code pattern):**
 1. RP backend `POST /v1/verification-sessions` (secret API key) → `{id, client_secret, url}`.

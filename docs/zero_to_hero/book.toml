@@ -10,6 +10,7 @@ chapters = [
   "chapters/04_part3_thinking.md",
   "chapters/05_part4_tools.md",
   "chapters/06_part5_build.md",
+  "chapters/07_part5_phase1.md",
   "chapters/90_how_this_book_is_built.md",
   "chapters/98_ledger.md",
   "chapters/99_glossary.md",
@@ -20,10 +21,10 @@ include = [
   "**/*.py", "**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs", "**/*.css", "**/*.html",
   "**/*.toml", "**/*.yaml", "**/*.yml", "**/*.json", "**/*.sql", "**/*.sh", "**/*.ps1",
   "**/*.txt", "**/Dockerfile", "**/Caddyfile", "**/.env.example",
-  "**/.gitignore", "**/.gitattributes", "**/.editorconfig", "**/.python-version",
+  "**/.gitignore", "**/.gitattributes", "**/.editorconfig", "**/.python-version", "**/*.mako",
 ]
-exclude = ["docs/zero_to_hero/zero_to_hero.html", "**/pnpm-lock.yaml", "**/package-lock.json", "**/uv.lock"]
+exclude = ["docs/zero_to_hero/zero_to_hero.html", "**/pnpm-lock.yaml", "**/package-lock.json", "**/uv.lock", "**/next-env.d.ts"]
 prune = [
   ".git", ".venv", "node_modules", "__pycache__", ".next", ".turbo", "dist",
-  ".datasets", "mlruns", ".mypy_cache", ".ruff_cache", ".pytest_cache", ".snapshots", ".claude",
+  ".datasets", "mlruns", ".mypy_cache", ".ruff_cache", ".pytest_cache", ".hypothesis", ".snapshots", ".claude", "test-results", "playwright-report",
 ]

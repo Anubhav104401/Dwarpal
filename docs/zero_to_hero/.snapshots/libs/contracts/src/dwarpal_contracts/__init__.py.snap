@@ -1,1 +1,23 @@
 """Data models shared across Dwarpal services, so their messages can never drift apart."""
+
+from dwarpal_contracts.face import (
+    MAX_FRAME_BYTES,
+    MAX_FRAMES,
+    POLICY_AGES,
+    AgeEstimate,
+    FaceAnalysis,
+    FaceRequestMeta,
+    FrameMeta,
+    FrameReport,
+)
+
+__all__ = [
+    "MAX_FRAMES",
+    "MAX_FRAME_BYTES",
+    "POLICY_AGES",
+    "AgeEstimate",
+    "FaceAnalysis",
+    "FaceRequestMeta",
+    "FrameMeta",
+    "FrameReport",
+]

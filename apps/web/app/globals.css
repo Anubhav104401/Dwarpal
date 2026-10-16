@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-300: oklch(0.86 0.12 75);
+  --color-brand-400: oklch(0.8 0.15 68);
+  --color-brand-500: oklch(0.75 0.17 60);
+  --color-brand-600: oklch(0.67 0.17 52);
+
+  --animate-march: march 0.9s linear infinite;
+  --animate-rise: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes march {
+    to {
+      stroke-dashoffset: -32;
+    }
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+:root {
+  color-scheme: light dark;
+}

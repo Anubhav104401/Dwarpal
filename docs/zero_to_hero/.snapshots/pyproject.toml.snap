@@ -11,9 +11,13 @@ members = ["services/*", "libs/*", "ml"]
 
 [dependency-groups]
 dev = [
+  "httpx==0.28.1",
+  "hypothesis==6.169.4",
   "mypy==2.4.0",
   "pytest==9.1.1",
   "ruff==0.17.0",
+  "testcontainers==4.15.0",
+  "types-docker==7.2.0.20261006",
 ]
 docs = [
   "markdown==3.11.1",
@@ -27,6 +31,7 @@ line-length = 120
 target-version = "py313"
 include = ["*.py", "*.pyi", "**/pyproject.toml"]
 extend-exclude = ["docs/zero_to_hero/.snapshots"]
+src = ["services/api/src", "services/inference/src", "libs/contracts/src", "libs/vision/src", "ml/src", "docs/zero_to_hero"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "PTH", "S", "N", "RUF", "DTZ", "PERF", "RET"]
@@ -44,11 +49,15 @@ exclude = ['[/\\]\.snapshots[/\\]']
 mypy_path = "services/api/src,services/inference/src,libs/contracts/src,libs/vision/src,ml/src,docs/zero_to_hero"
 files = [
   "tasks.py",
+  "infra/scripts",
   "docs/zero_to_hero",
   "services/api/src",
+  "services/api/tests",
   "services/inference/src",
+  "services/inference/tests",
   "libs/contracts/src",
   "libs/vision/src",
+  "libs/vision/tests",
   "ml/src",
 ]
 

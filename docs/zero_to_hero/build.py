@@ -7,7 +7,7 @@ are turned into ONE self-contained HTML file.
     python build.py --strict         build, then fail if any source line is unexplained or stale
     python build.py --new PATH       write a walkthrough skeleton for a source file
     python build.py --stamp PATH     after reviewing a walkthrough, record PATH's fingerprint and a snapshot
-    python build.py --reanchor PATH  move a walkthrough's line numbers to follow edits made since its stamp
+    python build.py --reanchor PATH  move a walkthrough's line numbers to follow edits made since its last snapshot
 """
 
 from __future__ import annotations
@@ -50,6 +50,13 @@ class Note:
 
 
 type Segment = tuple[int, int, Note | None]
+
+
+@dataclass(frozen=True)
+class Place:
+    first: int
+    last: int
+    edited: bool
 
 
 @dataclass
@@ -145,15 +152,19 @@ def segments(notes: list[Note], total: int) -> tuple[list[Segment], list[str]]:
     return result, problems
 
 
-def line_mapping(old: list[str], new: list[str]) -> dict[int, int]:
-    mapping = {0: 0, len(old) + 1: len(new) + 1}
-    for block in difflib.SequenceMatcher(a=old, b=new, autojunk=False).get_matching_blocks():
-        for offset in range(block.size):
-            mapping[block.a + offset + 1] = block.b + offset + 1
+def line_mapping(old: list[str], new: list[str]) -> dict[int, Place]:
+    mapping: dict[int, Place] = {}
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=old, b=new, autojunk=False).get_opcodes():
+        if tag not in ("equal", "replace"):
+            continue
+        for k in range(i2 - i1):
+            first = j1 + min(k, j2 - j1 - 1)
+            last = j2 - 1 if k == i2 - i1 - 1 else first
+            mapping[i1 + k + 1] = Place(first + 1, last + 1, edited=tag == "replace")
     return mapping
 
 
-def reanchor_text(text: str, mapping: dict[int, int]) -> tuple[str, list[str]]:
+def reanchor_text(text: str, mapping: dict[int, Place]) -> tuple[str, list[str]]:
     output: list[str] = []
     report: list[str] = []
     dropping = review = False
@@ -161,25 +172,20 @@ def reanchor_text(text: str, mapping: dict[int, int]) -> tuple[str, list[str]]:
         mark = NOTE_MARK.match(line)
         if mark:
             start, end = int(mark[1]), int(mark[2] or mark[1])
-            kept = [mapping[n] for n in range(start, end + 1) if n in mapping]
-            if kept:
-                low, high = min(kept), max(kept)
-                review = len(kept) != end - start + 1 or high - low + 1 != len(kept)
-            else:
-                low = mapping[max(k for k in mapping if k < start)] + 1
-                high = mapping[min((k for k in mapping if k > end), default=max(mapping))] - 1
-                review = True
-            dropping = low > high
+            places = [mapping[n] for n in range(start, end + 1) if n in mapping]
+            dropping = not places
             if dropping:
                 report.append(f"@@ {start}-{end}: its lines were deleted, so the note was dropped")
                 continue
+            low, high = min(p.first for p in places), max(p.last for p in places)
+            review = high - low != end - start or any(p.edited for p in places)
             if review:
                 report.append(f"@@ {start}-{end} -> {low}-{high}: code changed, marked TODO(review)")
             output.append(f"@@ {low}" if low == high else f"@@ {low}-{high}")
         elif dropping:
             continue
         elif review and line.strip():
-            output.append(f"TODO(review) {line}")
+            output.append(line if line.startswith("TODO") else f"TODO(review) {line}")
             review = False
         else:
             output.append(line)
@@ -264,6 +270,7 @@ class Book:
             has_walk = walk_file_for(rel).is_file()
             if rel not in self.coverage and has_walk:
                 self.render_walkthrough(rel)
+                self.problems.append(f"{rel}: its walkthrough is not placed in any chapter (add a !walk line)")
             elif rel not in self.coverage:
                 lines = source_lines(read_text(REPO_ROOT / rel))
                 self.coverage[rel] = Coverage(rel, len(lines), sum(1 for x in lines if x.strip()), 0, False)
@@ -306,6 +313,9 @@ class Book:
             extensions=[*EXTENSIONS, "toc"], extension_configs={**EXT_CONFIG, "toc": {"toc_depth": "1-3"}}
         )
         body = md.convert("\n\n".join(chapters) + "\n\n" + self.abbreviations)
+        walked = [arg for kind, arg in blocks.values() if kind == "walk"]
+        repeated = sorted({rel for rel in walked if walked.count(rel) > 1})
+        self.problems += [f"{rel}: its walkthrough is placed more than once" for rel in repeated]
         fragments = {k: self.render_walkthrough(arg) for k, (kind, arg) in blocks.items() if kind == "walk"}
         fragments |= {k: self.ledger_html() for k, (kind, _) in blocks.items() if kind == "ledger"}
         for key, fragment in fragments.items():
@@ -371,9 +381,11 @@ def reanchor_walkthrough(rel: str) -> int:
     if not snapshot.is_file() or not target.is_file():
         print(f"{rel}: needs a walkthrough and a snapshot (made by --new or --stamp)")
         return 1
-    mapping = line_mapping(source_lines(read_text(snapshot)), source_lines(read_text(REPO_ROOT / rel)))
+    current = read_text(REPO_ROOT / rel)
+    mapping = line_mapping(source_lines(read_text(snapshot)), source_lines(current))
     text, report = reanchor_text(read_text(target), mapping)
     write_text(target, text)
+    write_text(snapshot, current)
     print("\n".join([f"re-anchored {target}", *report]))
     return 0
 
@@ -383,7 +395,7 @@ def main() -> int:
     parser.add_argument("--strict", action="store_true", help="fail on unexplained, stale or missing walkthroughs")
     parser.add_argument("--new", metavar="PATH", help="create a walkthrough skeleton for PATH")
     parser.add_argument("--stamp", metavar="PATH", help="record PATH's fingerprint and snapshot in its walkthrough")
-    parser.add_argument("--reanchor", metavar="PATH", help="move PATH's notes to follow edits since its last stamp")
+    parser.add_argument("--reanchor", metavar="PATH", help="move PATH's notes to follow edits since its last snapshot")
     args = parser.parse_args()
     commands = {"new": new_walkthrough, "stamp": stamp_walkthrough, "reanchor": reanchor_walkthrough}
     for name, command in commands.items():

@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
 import build
-from build import Note
+from build import Note, Place
 
 
 def test_source_lines_drops_only_the_final_newline() -> None:
@@ -43,9 +47,16 @@ def test_segments_reject_overlapping_and_out_of_range_notes() -> None:
     assert len(problems) == 2
 
 
-def test_line_mapping_follows_moved_lines_and_skips_changed_ones() -> None:
+def test_line_mapping_follows_moved_lines_and_skips_deleted_ones() -> None:
     mapping = build.line_mapping(["a", "b", "c"], ["new", "a", "c"])
-    assert mapping == {0: 0, 1: 2, 3: 3, 4: 4}
+    assert mapping == {1: Place(2, 2, edited=False), 3: Place(3, 3, edited=False)}
+
+
+def test_line_mapping_lines_up_edited_blocks_side_by_side() -> None:
+    grown = build.line_mapping(["a", "b", "c"], ["a", "B1", "B2", "c"])
+    assert grown == {1: Place(1, 1, edited=False), 2: Place(2, 3, edited=True), 3: Place(4, 4, edited=False)}
+    shrunk = build.line_mapping(["a", "b1", "b2", "c"], ["a", "B", "c"])
+    assert shrunk[2] == shrunk[3] == Place(2, 2, edited=True)
 
 
 def test_reanchor_moves_notes_and_flags_edited_code_for_review() -> None:
@@ -63,3 +74,49 @@ def test_reanchor_drops_notes_whose_code_was_deleted() -> None:
     )
     assert result == "@@ 1\nA.\n@@ 2\nC.\n"
     assert report == ["@@ 2-2: its lines were deleted, so the note was dropped"]
+
+
+def test_reanchor_keeps_an_edited_line_at_the_edge_of_a_note_covered() -> None:
+    mapping = build.line_mapping(["a", "b", "c"], ["a", "B", "c"])
+    result, report = build.reanchor_text("@@ 1-2\nA and b.\n@@ 3\nC.\n", mapping)
+    assert result == "@@ 1-2\nTODO(review) A and b.\n@@ 3\nC.\n"
+    assert report == ["@@ 1-2 -> 1-2: code changed, marked TODO(review)"]
+
+
+def test_reanchor_keeps_notes_in_place_when_an_edit_keeps_the_line_count() -> None:
+    mapping = build.line_mapping(["x", "a", "b", "c"], ["x", "A", "B", "C"])
+    result, _ = build.reanchor_text("@@ 2\nA.\n@@ 3-4\nTODO(review) B and c.\n", mapping)
+    assert result == "@@ 2\nTODO(review) A.\n@@ 3-4\nTODO(review) B and c.\n"
+
+
+def test_a_walkthrough_must_be_placed_in_the_book_exactly_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("REPO_ROOT", "BOOK_DIR"):
+        monkeypatch.setattr(build, name, tmp_path)
+    monkeypatch.setattr(build, "WALK_DIR", tmp_path / "walkthroughs")
+    for rel, text in [("a.py", "a = 1\n"), ("b.py", "b = 2\n"), ("abbr.md", ""), ("template.html", "{{BODY}}")]:
+        build.write_text(tmp_path / rel, text)
+    for rel in ("a.py", "b.py"):
+        build.write_text(build.walk_file_for(rel), "---\nfingerprint: x\n---\n")
+    build.write_text(tmp_path / "chapter.md", "!walk a.py\n\n!walk a.py\n\n!ledger\n")
+    rules = {"include": ["**/*.py"], "exclude": [], "prune": ["walkthroughs"]}
+    book = build.Book(
+        {"chapters": ["chapter.md"], "abbreviations": "abbr.md", "title": "", "subtitle": "", "coverage": rules}
+    )
+    book.build()
+    assert "a.py: its walkthrough is placed more than once" in book.problems
+    assert "b.py: its walkthrough is not placed in any chapter (add a !walk line)" in book.problems
+
+
+def test_reanchoring_twice_before_a_stamp_follows_both_edits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(build, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(build, "WALK_DIR", tmp_path / "walkthroughs")
+    monkeypatch.setattr(build, "SNAP_DIR", tmp_path / "snapshots")
+    source = tmp_path / "code.py"
+    source.write_text("a\nb\n", encoding="utf-8")
+    build.write_text(build.walk_file_for("code.py"), "---\nfingerprint: x\n---\n@@ 1\nA.\n@@ 2\nB.\n")
+    build.write_text(build.snapshot_for("code.py"), "a\nb\n")
+    for version in ("new\na\nb\n", "new\nnewer\na\nb\n"):
+        source.write_text(version, encoding="utf-8")
+        assert build.reanchor_walkthrough("code.py") == 0
+    assert build.read_text(build.walk_file_for("code.py")).endswith("@@ 3\nA.\n@@ 4\nB.\n")
+    assert build.read_text(build.snapshot_for("code.py")) == "new\nnewer\na\nb\n"

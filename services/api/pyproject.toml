@@ -3,7 +3,23 @@ name = "dwarpal-api"
 version = "0.1.0"
 description = "Dwarpal API: relying-party, flow and console APIs, decision engine, signed age tokens."
 requires-python = ">=3.13,<3.14"
-dependencies = []
+dependencies = [
+  "alembic==1.20.0",
+  "asyncpg==0.32.0",
+  "cryptography==50.0.2",
+  "dwarpal-contracts",
+  "fastapi==0.143.1",
+  "httpx==0.28.1",
+  "joserfc==1.7.5",
+  "pydantic-settings==2.16.0",
+  "python-multipart==0.0.32",
+  "redis==8.1.0",
+  "sqlalchemy[asyncio]==2.1.4",
+  "uvicorn==0.54.0",
+]
+
+[tool.uv.sources]
+dwarpal-contracts = { workspace = true }
 
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14"]

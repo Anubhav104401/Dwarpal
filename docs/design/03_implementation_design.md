@@ -364,12 +364,12 @@ All constants (K, limits, Δ) live in the policy or model manifest, never in cod
 ### 7.1 Signing keys and age tokens
 - **Keys.** Ed25519 via `cryptography`. Private keys are encrypted with AES-256-GCM under the deployment master key (`DWARPAL_MASTER_KEY`, 32 bytes, from the environment or a secrets file), with the `kid` as associated data.
 - **Rotation.** A new key every 30 days. The old key keeps verifying (it stays in the JWKS) for 7 days after retirement.
-- **Token format.** A JWS compact token with header `{alg: "EdDSA", kid, typ: "dwarpal-age+jwt"}`.
+- **Token format.** A JWS compact token with header `{alg: "Ed25519", kid, typ: "dwarpal-age+jwt"}` (the fully-specified algorithm name, ADR-0019).
 - **Claims:**
     - `iss`, `aud` (the project ID), `iat`, `nbf`, `exp` (policy TTL, default 600 s), `jti`;
     - `sid` (session), `nonce` (an optional RP value passed at session creation);
-    - `outcome`, `age_over` (N), `assurance`, `methods`, `policy` (id@version), `model` (version).
-- **Verification.** `@dwarpal/node` verifies the signature through a JWKS cache (respecting `Cache-Control`; it refetches on an unknown `kid`), then checks `aud`, `exp`, `outcome == "pass"` and `age_over ≥ required`.
+    - `outcome`, `age_over_N` (a boolean named after the policy's age, e.g. `age_over_18: true`; ADR-0020), `assurance`, `methods`, `policy` (id@version), `model` (version).
+- **Verification.** `@dwarpal/node` verifies the signature through a JWKS cache (jose's remote key set: kept for up to 10 minutes, refetched — at most every 30 s — when a token names an unknown `kid`), accepting only `Ed25519`, then checks `typ`, `iss`, `aud`, `exp`, `sid`, and that `age_over_<required>` is exactly `true` (ADR-0020).
 
 ### 7.2 Webhooks
 - **Events:** `verification_session.completed | expired | canceled`.

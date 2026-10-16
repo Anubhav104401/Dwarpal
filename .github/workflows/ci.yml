@@ -24,10 +24,11 @@ jobs:
           version: "0.13.1"
           enable-cache: true
       - run: uv sync --locked
+      - run: uv run infra/scripts/fetch_models.py
       - run: uv run tasks.py check
 
   javascript:
-    name: JavaScript - lint, types, tests
+    name: JavaScript - lint, types, tests, builds
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -41,6 +42,34 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm build
+
+  e2e:
+    name: End to end - a real browser through every service
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: "0.13.1"
+          enable-cache: true
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: uv sync --locked
+      - run: uv run infra/scripts/fetch_models.py
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dwarpal/e2e exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: e2e-results
+          path: e2e/test-results
+          retention-days: 7
 
   infrastructure:
     name: Compose - databases start healthy

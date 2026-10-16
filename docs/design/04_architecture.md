@@ -145,7 +145,7 @@ RP backend        RP page (SDK)        verify page          API                 
     │◄── page notifies backend (session id only) ─│                                   │                         │
     │ GET /v1/verification-sessions/{id} ─────────────────────────────────────────►│                          │
     │◄──────────── {outcome: pass, age_token: eyJ…} ────────────────────────────────│                          │
-    │ verify JWS via cached JWKS; check aud, exp, age_over ≥ 18 → grant access                               │
+    │ verify JWS via cached JWKS; check aud, exp, age_over_18 = true → grant access                          │
     │                                       worker: deliver webhook (HMAC) ◄────────── outbox row ───────────│
 ```
 

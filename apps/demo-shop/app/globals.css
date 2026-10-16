@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: ui-serif, "Iowan Old Style", Georgia, Cambria, "Times New Roman", serif;
+
+  --color-wine-300: oklch(0.72 0.12 15);
+  --color-wine-500: oklch(0.5 0.16 18);
+  --color-amber-glow: oklch(0.82 0.13 75);
+}
+
+:root {
+  color-scheme: dark;
+}

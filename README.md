@@ -9,7 +9,7 @@ Dwarpal lets any website ask **"is this live person over N?"** and get back a **
 - When it is unsure, it asks for a stronger check (an ID document, or India's Aadhaar Secure QR).
 - **It never stores a face**, and the website never learns the user's identity or estimated age.
 
-> **Status:** Phase 0 (foundations) of the [roadmap](docs/design/05_roadmap.md). Nothing is deployed yet.
+> **Status:** Phase 1 (walking skeleton) of the [roadmap](docs/design/05_roadmap.md) is complete: a demo shop, the hosted verify page, the API and the inference service work end to end with a stand-in age model ([report](docs/reports/phase-1.md)). Nothing is deployed yet.
 
 ## Why it exists
 
@@ -32,20 +32,31 @@ uv sync                                                    # Python 3.13 + every
 pnpm install                                               # JavaScript tools, from pnpm-lock.yaml
 docker compose -f infra/compose/compose.yaml up -d --wait  # PostgreSQL 18 + Valkey 9, healthy
 uv run tasks.py check                                      # lint, types, tests, and the book in strict mode
-pnpm lint                                                  # JavaScript/JSON lint and formatting check
+pnpm lint && pnpm typecheck && pnpm test                   # JavaScript lint, types and unit tests
 ```
+
+Run the whole system end to end — the demo shop, the verify page, the API and the inference service — in a real browser with a fake camera:
+
+```bash
+uv run infra/scripts/fetch_models.py                       # the face-detection model (once)
+pnpm --filter @dwarpal/e2e exec playwright install chromium  # the test browser (once)
+pnpm e2e                                                   # builds, starts every service, runs the journey
+```
+
+To click through it yourself, see the "Try it yourself" boxes in §5.1.3 and §5.1.5 of the book: they start each service by hand, and the demo shop's settings come from `apps/demo-shop/.env.example`.
 
 ## Repository map
 
 | Path | What lives there |
 | :-- | :-- |
-| `apps/` | Next.js apps — website + verify flow + console, and the demo shop (from Phase 1) |
-| `packages/` | TypeScript packages — design system, capture, SDKs, shared config |
+| `apps/` | Next.js apps — `web` (the hosted verify page; later the website and console) and `demo-shop` (Amber Cellars) |
+| `packages/` | TypeScript packages — `sdk-node` (`@dwarpal/node`) and shared config; later the design system and browser SDK |
 | `services/api` | FastAPI modular monolith — RP/flow/console APIs, decision engine, tokens |
 | `services/inference` | FastAPI + ONNX Runtime — the face pipeline (in memory only) |
 | `libs/` | Python code shared by services and ML (`contracts`, `vision`) |
 | `ml/` | Datasets, training, evaluation, risk control, export, model cards |
-| `infra/` | Docker Compose, Caddy, observability, Helm, scripts |
+| `infra/` | Docker Compose, scripts (model download, fake camera); later Caddy, observability and Helm |
+| `e2e/` | The end-to-end test: Playwright, Chromium and a fake camera |
 | `docs/` | Design documents, ADRs, the Zero-to-Hero book |
 
 ## Privacy promise (enforced by architecture, not just policy)

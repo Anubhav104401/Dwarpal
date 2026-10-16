@@ -1,0 +1,10 @@
+{
+  "extends": "@dwarpal/config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["playwright.config.ts", "tests"]
+}

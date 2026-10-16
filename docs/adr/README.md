@@ -24,3 +24,5 @@ Format: a lightweight version of [MADR](https://adr.github.io/madr/). Status val
 | [0016](0016-step-up-mrz-then-aadhaar.md) | Step-up verifiers: ID-document MRZ first, Aadhaar Secure QR second | Accepted |
 | [0017](0017-generated-zero-to-hero-book.md) | Living documentation: a generated Zero-to-Hero book with fingerprinted walkthroughs | Accepted |
 | [0018](0018-licence-policy.md) | Licence policy: only permissive components in the runtime path | Accepted |
+| [0019](0019-fully-specified-ed25519-alg.md) | Sign age tokens with the fully-specified JOSE algorithm `Ed25519` (RFC 9864) — refines 0008 | Accepted |
+| [0020](0020-boolean-age-over-claims.md) | State the age result as a boolean claim named after its age, `age_over_18: true` — refines 0008 | Accepted |

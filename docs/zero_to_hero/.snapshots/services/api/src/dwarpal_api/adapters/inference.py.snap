@@ -1,0 +1,31 @@
+"""The API's client for the inference service. Any failure becomes "no analysis", which can never become a pass."""
+
+from __future__ import annotations
+
+import httpx
+from pydantic import ValidationError
+
+from dwarpal_contracts import FaceAnalysis, FaceRequestMeta
+
+
+class InferenceClient:
+    def __init__(self, client: httpx.AsyncClient) -> None:
+        self._client = client
+
+    async def analyze_face(self, meta: FaceRequestMeta, frames: list[bytes]) -> FaceAnalysis | None:
+        files = {
+            f"frame_{frame.index}": (f"frame_{frame.index}.jpg", data, "image/jpeg")
+            for frame, data in zip(meta.frames, frames, strict=True)
+        }
+        try:
+            response = await self._client.post(
+                "/internal/v1/analyze/face", data={"meta": meta.model_dump_json()}, files=files
+            )
+        except httpx.HTTPError:
+            return None
+        if response.status_code != 200:
+            return None
+        try:
+            return FaceAnalysis.model_validate_json(response.content)
+        except ValidationError:
+            return None
