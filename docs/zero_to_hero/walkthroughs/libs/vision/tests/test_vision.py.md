@@ -1,5 +1,5 @@
 ---
-fingerprint: 459980b14dece9dc
+fingerprint: c492bfe4714cd37e
 ---
 Tests for the vision library. They use one real face: the public-domain NASA portrait of astronaut Eileen Collins described in `fixtures/README.md`. Its faces and pixels are known, so every check can be compared against a known right answer.
 
@@ -19,7 +19,7 @@ The project-wide type-hint setting.
 OpenCV (to blur a picture on purpose), NumPy (to darken one) and pytest.
 
 @@ 12-13
-The functions under test, plus the alignment `template` used to check where the eyes end up.
+The functions under test — including `to_model_input`, added in Phase 2 — plus the alignment `template` used to check where the eyes end up.
 
 @@ 15
 The test picture's location: the `fixtures` folder next to this file.
@@ -81,3 +81,12 @@ OpenCV's blur function is described to mypy as returning "an array of some kind 
 
 @@ 74
 **No face.** With an empty list of faces, the only flag is `no_face`.
+
+@@ 77-79
+**Faces become one batch.** Align the portrait's face, and make a mirrored copy, to have two different faces.
+
+@@ 80-83
+The batch has the model's shape — 2 faces, 3 colours, 224 × 224 — in 32-bit decimals, laid out in one unbroken block of memory (`C_CONTIGUOUS`), which ONNX Runtime needs.
+
+@@ 84-85
+**The pixels are unchanged, only reordered**: the batch's first colour plane (red) is exactly the face's third OpenCV channel, and its third (blue) is the first. Getting this order wrong is the classic colour bug: a model trained on red-green-blue that is fed blue-green-red sees people with blue skin, and quietly gets worse.

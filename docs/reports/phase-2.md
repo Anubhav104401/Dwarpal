@@ -1,6 +1,6 @@
 # Phase 2 report — ML core
 
-**Dates:** from 16 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** 🚧 in progress (steps 1–6 of 7 done; next: ONNX export and the model manifest)
+**Dates:** from 16 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** ✅ steps 1–7 done locally; open questions below (remote CI pending the next push)
 
 **Goal (from the roadmap):** replace the stub age model with a trained, calibrated one whose thresholds carry a statistical guarantee per age and group.
 
@@ -19,7 +19,8 @@
 | Evaluation | `evaluate.py`: band-MAE/in-band per band, group, sex; clear minors (band entirely < N) rated ≥ N and clear adults (band ≥ N+3) rated < N at N = 13, 16, 18, 21, with two-sided Clopper–Pearson 95 % intervals; ECE of P(age ≥ b) at FairFace band edges, before/after temperature fitted on val; worst/best group ratios; logits cached per run; **test split locked after one evaluation** |
 | Gates | `ml/gates.toml` (provisional, FairFace-measurable): band-MAE ≤ 2.0; children < 10 rated 18+ upper ≤ 5 %; worst group's upper ≤ 10 %; group band-MAE ratio ≤ 1.25; mean ECE ≤ 0.05 |
 | Exact-age calibration | UTKFace adapter (tar.gz repacked to zip; labels from file names; calib/test 50/50); `subject = "only"` preparation (photos with a second clear face set aside); dataset photos decoded with roomier limits then shrunk to 1,920 px; `dedup --against fairface`; risk control with per-age fallback (`by_group`); `calibrate.py`: strictest certifiable budget from 2 % to 20 %, every refusal recorded, decisions checked on the test half once |
-| Book | Part 2 §2.1, 2.2, 2.4–2.8, 2.10–2.17 written in full; §5.2.1–5.2.6 with every new file walked through |
+| Export and serving | `export.py`: model + temperature + softmax exported to ONNX (opset 18, dynamic batch 1–64); parity vs PyTorch; serving-path drift; CPU latency; registry manifest `models/registry/age/age-convnext-tiny-2026.10.17/manifest.json` (thresholds at certified budgets, provenance, licences, checks; `calibrated: false`, non-commercial research only). Shared `dwarpal_vision.to_model_input`. Inference `OnnxAgeBackend` (fingerprint-checked, fail closed), `DWARPAL_INFERENCE_AGE_BACKEND=onnx`; stub remains the default |
+| Book | Part 2 §2.1, 2.2, 2.4–2.8, 2.10–2.17, 2.19 written in full; §5.2.1–5.2.7 with every new file walked through |
 
 ## What was measured
 
@@ -37,6 +38,7 @@
 | **ConvNeXt-Tiny on the locked test split** (evaluated once) | 10,941 faces, temperature 0.884 (fitted on val): band-MAE **1.83**, in band 55.7 %; children < 10 rated 18+ **1.74 %** (27/1,553; 95 % up to 2.52 %); adults 30+ rated < 18 0.65 %; ECE 0.0188 → 0.0177; group band-MAE 1.68–2.04 (ratio 1.21); by sex 1.95 (f) / 1.72 (m); at 13: 10.6 % of children < 10 rated 13+. **Gates: 4 pass, 1 fails** — worst group (Middle Eastern, 6/126 = 4.8 %) upper bound 10.08 % > 10 % |
 | UTKFace data | 24,079 photos (8 malformed names and 22 ages > 100 skipped) → 23,477 faces (519 several faces, 83 none) → 539 copies removed (533 within UTKFace, 324 of them with a different age; 6 copies of FairFace photos) → calib 11,301 · test 11,637. Teens 13/14/15/16/17: 82/164/180/253/159 in all; smallest group cells 1–15 |
 | **ConvNeXt-Tiny on UTKFace (exact ages)** | Test MAE **4.96 years** (0–12: 1.6, 13–17: 3.3, 18–24: 2.9, 60+: 9.6). Certified per age only (no group cell reaches 149): **18 → 7.5 %**, τ_pass 0.964, τ_fail 0.384; 21 → 7.5 %; 13 and 16 → 15 %. Test half at 18: 13–17 passed **2.9 %** (12/416, up to 5.0 %; 13: 0 %, 14: 0 %, 15: 3.7 %, 16: 2.7 %, 17: 6.4 %), under-13 0.4 %; adults 18–20: 13 % pass / 77 % step-up / 9 % fail; 21–24: 30 % pass; 25–29: 56 %; 30+: 94 %. Every age within its certified budget |
+| Export checks | Parity: largest probability gap 8.3e-7 over 512 faces (tolerance 1e-4). Serving path vs training path: 0.16 years mean (0.45 p95), 0.003 in P(18+). CPU, 1 thread, 5 faces: p50 668 ms, p95 697 ms (NFR-05: ≤ 1.5 s per submission on 4 vCPU). Whole service pipeline, 5 frames, 4 threads: 239 ms |
 
 ## Findings
 
@@ -58,5 +60,6 @@
 1. **More exact-age data.** UTKFace allows per-age certification at 7.5 % for 18; NFR-01's 2 % per age *and* group needs ≥ 149 teenagers per age per group in the calibration half alone — several thousand teenagers in all, with documented (not estimated) ages. Candidates: APPA-REAL, IMDB-Clean (licences to check), AgeDB/LAGENDA (on request), or consented collection.
 2. **Per-cell or simultaneous confidence.** ADR-0006 promises 95 % confidence *per cell*. With ~35 cells, a guarantee for all cells at once (Bonferroni: δ/35 per cell) needs about 325 people per cell for ε = 2 %, instead of 149.
 3. **ImageNet-trained weights.** ConvNeXt-Tiny's weights are Apache-2.0, but whether ImageNet's research-only terms reach trained weights is legally unsettled; to judge before any commercial launch.
-4. **Release gates.** `ml/gates.toml` values are proposals; the group gate's 10 % and the use of upper bounds need the owner's confirmation, and the exact-age gates of NFR-01/NFR-04 replace them once exact-age data is approved.
-5. **Laptop heat.** Long runs keep the RTX 4070 at ~86 °C and ~80–100 W. Options: shorter runs (8 epochs suffice for the pretrained recipe), a cooling pad / performance fan profile, or a GPU power cap (an owner decision).
+4. **Policies vs certified budgets.** API presets all ask for 2 %; the model certifies 7.5 % (18, 21) and 15 % (13, 16), so with its manifest every preset is `policy_not_supported` until either better data certifies 2 % or the owner adds presets at the certified budgets (test mode only).
+5. **Release gates.** `ml/gates.toml` values are proposals; the group gate's 10 % and the use of upper bounds need the owner's confirmation, and the exact-age gates of NFR-01/NFR-04 replace them once exact-age data is approved.
+6. **Laptop heat.** Long runs keep the RTX 4070 at ~86 °C and ~80–100 W. Options: shorter runs (8 epochs suffice for the pretrained recipe), a cooling pad / performance fan profile, or a GPU power cap (an owner decision).

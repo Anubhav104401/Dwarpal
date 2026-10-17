@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 import pytest
 
-from dwarpal_vision import DecodeError, FaceDetector, align_face, assess, decode_image, image_size
+from dwarpal_vision import DecodeError, FaceDetector, align_face, assess, decode_image, image_size, to_model_input
 from dwarpal_vision.align import template
 
 FIXTURE = Path(__file__).parent / "fixtures" / "astronaut.jpg"
@@ -72,3 +72,14 @@ def test_quality_accepts_a_good_frame_and_names_what_is_wrong_with_bad_ones(
     blurred = np.asarray(cv2.GaussianBlur(image, (0, 0), 6), dtype=np.uint8)
     assert "too_blurry" in assess(blurred, faces).flags
     assert assess(image, []).flags == ("no_face",)
+
+
+def test_faces_become_one_rgb_batch_with_pixels_unchanged(detector: FaceDetector, portrait: bytes) -> None:
+    image = decode_image(portrait)
+    face = align_face(image, detector.detect(image)[0])
+    batch = to_model_input([face, face[:, ::-1]])
+    assert batch.shape == (2, 3, 224, 224)
+    assert batch.dtype == np.float32
+    assert batch.flags["C_CONTIGUOUS"]
+    assert np.array_equal(batch[0, 0], face[:, :, 2].astype(np.float32))
+    assert np.array_equal(batch[0, 2], face[:, :, 0].astype(np.float32))

@@ -1,5 +1,5 @@
 ---
-fingerprint: 83f8cdd81731e5c1
+fingerprint: 74d423cdbbc65cd4
 ---
 The inference service's **settings**, read from environment variables. The same code can then run on a laptop, in CI and in production — only the environment changes (the "12-factor" principle, Stage 4 §9).
 
@@ -28,10 +28,13 @@ The repository root, found from this file's own location (`parents[4]` climbs `d
 `detector_file` — YuNet's file, relative to `models_dir`, exactly as listed in `models/third_party.json`.
 
 @@ 18
-`age_backend` — which age model to use. Today only `"stub"` is allowed (`Literal`), so a typo like `"stubb"` is rejected at start-up. Phase 2 adds `"onnx"`.
+`age_backend` — which age model to use: `"stub"` (the stand-in, still the default) or `"onnx"` (a trained model, added in Phase 2). `Literal` means only these words are accepted, so a typo like `"onx"` is rejected at start-up.
 
 @@ 19-20
 The stand-in model's fixed age and spread, in years. Tests and the end-to-end demo choose them, for example 30 for an adult or 15 for a minor.
 
-@@ 21
+@@ 21-22
+For the ONNX backend: the model's folder inside `models/` (by default the first trained model, `age-convnext-tiny-2026.10.17`), and how many processor threads each request may use.
+
+@@ 23
 `workers` — how many analyses may run at the same time. The rest wait or are told to retry (back-pressure, Stage 3 §5.4).

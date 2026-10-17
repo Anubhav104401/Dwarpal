@@ -1,0 +1,98 @@
+{
+  "name": "age",
+  "version": "age-convnext-tiny-2026.10.17",
+  "serves": "age-convnext-tiny-2026.10.17",
+  "calibrated": false,
+  "note": "Thresholds are risk-controlled on exact ages, but per age only, at the budgets listed, on ages that were estimated rather than documented. The release standard (NFR-01: 2 % per age and group) is not met, so this model may decide test-mode sessions only.",
+  "permitted_use": "non-commercial research only",
+  "model": {
+    "file": "model.onnx",
+    "sha256": "fd92579ca31c11f1a20f5f6b34f1ba0a7e0c05a05b8e663d185a8dc3425fd29c",
+    "bytes": 112504286,
+    "opset": 18,
+    "input": "pixels: float32 [faces, 3, 224, 224], RGB, 0-255, aligned by dwarpal_vision.align_face",
+    "output": "probabilities: float32 [faces, 101], P(age = 0 ... 100), temperature-corrected",
+    "temperature": 0.8837701510488792
+  },
+  "training": {
+    "run": "20261017-034726-convnext_tiny.in12k_ft_in1k",
+    "backbone": "convnext_tiny.in12k_ft_in1k",
+    "pretrained": {
+      "name": "convnext-tiny-in12k-ft-in1k",
+      "sha256": "a1aefa409b513cf209b085424eb3efffe4e4a9f511491bc2c12ea35209e6bb95",
+      "licence": "Apache-2.0, per the model card at the pinned revision; approved by the owner for training on 2026-10-17. Trained by timm on ImageNet-12k and ImageNet-1k, whose own terms allow non-commercial research only; whether such terms carry over to trained weights is legally unsettled"
+    },
+    "dataset": {
+      "name": "fairface",
+      "licence": "CC BY 4.0",
+      "age_source": "estimated by crowd annotators looking at each photo"
+    },
+    "git": {
+      "commit": "7ff708e1fdfbbf147bd6902c6c313fe1b74a68c0",
+      "uncommitted_changes": true
+    }
+  },
+  "calibration": {
+    "dataset": "utkface",
+    "licence": "non-commercial research only",
+    "age_source": "estimated by the DEX age estimator, then checked by a person",
+    "faces": 11301
+  },
+  "thresholds": [
+    {
+      "min_age": 13,
+      "risk_budget": 0.15,
+      "tau_pass": 0.8092170843006845,
+      "tau_fail": 0.7080484174317903,
+      "minor_bound": 0.1353119711320861,
+      "adult_bound": 0.00997346009277312,
+      "cells": "age"
+    },
+    {
+      "min_age": 16,
+      "risk_budget": 0.15,
+      "tau_pass": 0.7607091917298063,
+      "tau_fail": 0.5290281493724256,
+      "minor_bound": 0.14840228556803314,
+      "adult_bound": 0.009960197771478102,
+      "cells": "age"
+    },
+    {
+      "min_age": 18,
+      "risk_budget": 0.075,
+      "tau_pass": 0.963791728615207,
+      "tau_fail": 0.38425039448001275,
+      "minor_bound": 0.07046111727016405,
+      "adult_bound": 0.009921916339671814,
+      "cells": "age"
+    },
+    {
+      "min_age": 21,
+      "risk_budget": 0.075,
+      "tau_pass": 0.9269127668152439,
+      "tau_fail": 0.24387417030003627,
+      "minor_bound": 0.0641985427052436,
+      "adult_bound": 0.00992654235452334,
+      "cells": "age"
+    }
+  ],
+  "checks": {
+    "parity": {
+      "faces": 512,
+      "largest_probability_gap": 8.344650268554688e-07,
+      "tolerance": 0.0001,
+      "passed": true
+    },
+    "serving_path": {
+      "faces": 512,
+      "mean_age_gap_years": 0.16164144199169372,
+      "age_gap_95th_percentile_years": 0.45058558431687745,
+      "mean_gap_in_chance_of_18_or_over": 0.0027445937978996925
+    },
+    "cpu_latency": {
+      "faces_per_call": 5,
+      "p50_ms": 667.8929000045173,
+      "p95_ms": 696.6378499950224
+    }
+  }
+}

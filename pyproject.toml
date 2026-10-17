@@ -16,6 +16,7 @@ dev = [
   "httpx==0.28.1",
   "hypothesis==6.168.5",
   "mypy==2.4.0",
+  "onnx==1.23.2",
   "pytest==9.1.1",
   "ruff==0.17.0",
   "scipy-stubs==1.18.1.1",
@@ -69,6 +70,11 @@ files = [
 [[tool.mypy.overrides]]
 module = ["timm.*"]
 implicit_reexport = true
+
+# ONNX Runtime and ONNX ship no complete type information.
+[[tool.mypy.overrides]]
+module = ["onnxruntime.*", "onnx.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "9.0"

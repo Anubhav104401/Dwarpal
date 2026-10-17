@@ -11,15 +11,21 @@ from pydantic import ValidationError
 from starlette.datastructures import UploadFile
 
 from dwarpal_contracts import MAX_FRAME_BYTES, MAX_FRAMES, FaceAnalysis, FaceRequestMeta
-from dwarpal_inference.backends import StubAgeBackend
+from dwarpal_inference.backends import AgeBackend, OnnxAgeBackend, StubAgeBackend
 from dwarpal_inference.pipeline import FacePipeline
 from dwarpal_inference.settings import Settings
 from dwarpal_vision import FaceDetector
 
 
+def build_age_backend(settings: Settings) -> AgeBackend:
+    if settings.age_backend == "onnx":
+        return OnnxAgeBackend(settings.models_dir / settings.age_model, settings.age_threads)
+    return StubAgeBackend(settings.stub_age, settings.stub_spread)
+
+
 def build_pipeline(settings: Settings) -> FacePipeline:
     detector = FaceDetector(settings.models_dir / settings.detector_file)
-    return FacePipeline(detector, StubAgeBackend(settings.stub_age, settings.stub_spread))
+    return FacePipeline(detector, build_age_backend(settings))
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

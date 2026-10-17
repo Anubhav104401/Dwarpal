@@ -15,7 +15,9 @@ class Settings(BaseSettings):
 
     models_dir: Path = REPO_ROOT / "models"
     detector_file: str = "third_party/face_detection_yunet_2023mar.onnx"
-    age_backend: Literal["stub"] = "stub"
+    age_backend: Literal["stub", "onnx"] = "stub"
     stub_age: float = 30.0
     stub_spread: float = 2.5
+    age_model: str = "registry/age/age-convnext-tiny-2026.10.17"
+    age_threads: int = 1
     workers: int = 4

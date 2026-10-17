@@ -8,6 +8,7 @@ dependencies = [
   "dwarpal-contracts",
   "dwarpal-vision",
   "fastapi==0.143.0",
+  "onnxruntime==1.31.0",
   "pydantic-settings==2.15.0",
   "python-multipart==0.0.32",
   "uvicorn==0.54.0",

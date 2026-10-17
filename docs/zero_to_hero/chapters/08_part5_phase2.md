@@ -12,7 +12,7 @@ It is built in this order, and this chapter grows in the same order:
 | 4 | Training the age model | §5.2.4 ✅ |
 | 5 | Evaluation and fairness | §5.2.5 ✅ |
 | 6 | Exact ages and the safety lines: UTKFace, calibration | §5.2.6 ✅ |
-| 7 | Export to ONNX, and the model's manifest | — |
+| 7 | Export to ONNX, and the model's manifest | §5.2.7 ✅ |
 
 The ML code lives in the `ml/` package, created empty in Phase 0 (§5.0.2). It now uses **httpx** for downloads, **SciPy** for statistics, the project's own vision library, so that training prepares faces exactly as serving does, and **PyTorch** with **timm** for training (its `pyproject.toml` walkthrough, in §5.0.2, describes them all). Data never enters the repository: downloads and manifests live in `.datasets/`, which Git ignores.
 
@@ -333,3 +333,44 @@ Changes to files walked through earlier are explained in their walkthroughs (`ml
     `uv run --package dwarpal-ml python -m dwarpal_ml.calibrate .runs/<run> utkface`
 
     Read `calibration-utkface.json` in the run's folder to see every budget that was refused, and why.
+
+### 5.2.7 From trained model to served model
+
+The last step turns the trained, calibrated model into what the inference service runs (§2.19), proves that nothing changed on the way, and gives the model a manifest in the registry.
+
+```
+.runs/<run>/ ─► export.py ─► models/registry/age/age-convnext-tiny-2026.10.17/model.onnx      (110 MB, not in Git)
+                         ─►                                           …/manifest.json   (thresholds, provenance, checks)
+inference service ─► DWARPAL_INFERENCE_AGE_BACKEND=onnx ─► OnnxAgeBackend: fingerprint check ─► ONNX Runtime
+API               ─► DWARPAL_AGE_MANIFEST=registry/age/age-convnext-tiny-2026.10.17/manifest.json
+```
+
+Both services still default to the stand-in model. Switching to the trained one is two settings, and only for test mode: the manifest says `calibrated: false`, because the thresholds don't yet meet the release standard (§5.2.6), and the API refuses live sessions with such a model.
+
+#### One conversion for training's checks and for serving
+
+!walk libs/vision/src/dwarpal_vision/batch.py
+
+#### The export
+
+!walk ml/src/dwarpal_ml/export.py
+
+#### The manifest
+
+!walk models/registry/age/age-convnext-tiny-2026.10.17/manifest.json
+
+The inference service's changes — the ONNX backend, its settings, and its tests — are explained in their walkthroughs (`services/inference/src/dwarpal_inference/backends.py`, `settings.py`, `main.py`, `tests/test_inference.py`), alongside the vision library's new export and test.
+
+!!! real "Real world — the served model"
+    - **Parity**: the ONNX file and PyTorch agree to within 0.0000008 on every probability of 512 validation faces.
+    - **The service's way of aligning** (straight from the photo, at 224 pixels) against training's (at 256, then shrunk): 0.16 years apart on average, and 0.003 in the probability of being 18 or over.
+    - **Speed on the processor**: a burst of 5 faces in 0.67 s typical, 0.70 s slow case, on a single thread. Through the whole service pipeline — decode, detect, check quality, align, estimate — a 5-frame burst took 239 ms with 4 threads.
+    - **The export crashed once, on an emoji.** PyTorch's exporter prints progress messages containing ✅, which the Windows console's old character set can't display. Turned off; the lesson is that tools are tested on someone else's computer.
+    - **A real verdict.** Through the service, the test portrait — an astronaut photographed in her forties — was estimated at 25.4 years, with P(18 or over) = 0.937. At the 18 line of 0.964, the system would send her to step-up: not a pass, not a refusal. That is the strict line doing its job while the model is uncertain.
+
+!!! try "Try it yourself"
+    With the model exported, start the inference service with it:
+
+    `DWARPAL_INFERENCE_AGE_BACKEND=onnx uv run --package dwarpal-inference uvicorn dwarpal_inference.main:create_app --factory --port 8001`
+
+    and the API with its manifest (`DWARPAL_AGE_MANIFEST=registry/age/age-convnext-tiny-2026.10.17/manifest.json`), then use a **test** key in the demo shop (§5.1.5). A live key is refused: the model isn't calibrated to the release standard yet.

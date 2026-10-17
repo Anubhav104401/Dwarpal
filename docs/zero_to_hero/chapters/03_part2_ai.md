@@ -25,7 +25,7 @@
 | 2.16 Measuring fairness ✅ | Per-group error rates, gaps, and release gates |
 | 2.17 Faces: detection, landmarks, alignment ✅ | Finding the face, finding the eyes and nose, straightening the picture |
 | 2.18 Liveness and anti-spoofing models | How a model tells a real face from a photo of a face |
-| 2.19 Making models fast | ONNX, quantisation, distillation — the same answers, in a fraction of the time |
+| 2.19 Making models fast ✅ | ONNX, quantisation, distillation — the same answers, in a fraction of the time |
 
 ## 2.1 What "learning" means for a machine
 
@@ -262,3 +262,15 @@ The most important rule of this whole section is simple: **the faces a model lea
 
 !!! honest "Honest limitation"
     The detector can miss faces, especially very dark, very small or sharply turned ones. In FairFace it found a face in all but 53 of 97,698 photos, but those 53 are not a random sample: missed faces are more often the hard cases. A missed face at serving time asks the person to try again with better light, so nobody is silently judged on a bad picture.
+
+## 2.19 Making models fast
+
+Training happens once, on a GPU, and can take an hour. Serving happens for every person, on ordinary servers, and must take well under a second. So a trained model is usually turned into a form built for running, not learning.
+
+**Exporting to ONNX.** PyTorch is a workshop: it keeps track of everything needed to *change* the model — gradients, optimisers, the record for the backward pass (§2.6). Serving needs none of it. **ONNX** (Open Neural Network Exchange) is a standard file format that records just the finished network: its layers in order, and every knob's value. A small, fast engine — **ONNX Runtime** — runs it, without PyTorch's 2 GB. Exporting is not allowed to change the answers, and that is checked, not assumed: Dwarpal's first exported model agreed with PyTorch to within 0.0000008 on every probability of 512 faces (§5.2.7).
+
+**Threads and batches.** A processor has several cores; a model's arithmetic can be split across them (**threads**), or several faces can be processed together (**batching**), which uses each core more efficiently. The service judges a whole burst of 5 frames at once, as one batch. On one thread of this project's laptop, a burst takes about 0.7 seconds; the design's budget (NFR-05) is 1.5 seconds for a whole submission on 4 virtual CPUs.
+
+**Quantisation** (not done yet). The knobs are stored as 32-bit decimals. Most of them work almost as well rounded to 8-bit whole numbers (**INT8**): a quarter of the memory, and often two to four times faster on a processor. The rounding can shift answers slightly, so — like the export — a quantised model must be checked against the original before it is trusted, including at the safety lines.
+
+**Distillation** (not done yet). A large, accurate "teacher" model can train a smaller, faster "student" by showing it its own probability distributions rather than just the labels. The student often keeps most of the teacher's accuracy at a fraction of the cost.
