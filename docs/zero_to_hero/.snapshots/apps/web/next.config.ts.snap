@@ -10,7 +10,8 @@ const contentSecurityPolicy = [
   "media-src 'self' blob:",
   "font-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  `script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval'" : ""}`,
+  // 'wasm-unsafe-eval' lets the browser compile WebAssembly (MediaPipe) — and only that: no eval of JavaScript.
+  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${development ? " 'unsafe-eval'" : ""}`,
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'self'",

@@ -1,5 +1,5 @@
 ---
-fingerprint: bb0dac69938d8e82
+fingerprint: e92d28121f981e06
 ---
 The verify page's **Next.js configuration**, and above all its **security headers**: instructions sent with every page that tell the browser what this page may and may not do. The verify page handles a camera, a one-time secret and a flow token, so it gets the strictest rules the app can work with.
 
@@ -15,7 +15,7 @@ The type of a Next.js configuration, so mistakes in it are caught by the type ch
 @@ 4
 `development` — true when running the development server.
 
-@@ 6-18
+@@ 6-19
 The **Content Security Policy** (CSP): a list of rules about where the page may load things from and send things to. Each rule is one text, and `.join("; ")` puts them into one header value. `'self'` means "this page's own origin".
 
 | Rule | Means |
@@ -37,7 +37,9 @@ Line 13 adds `'unsafe-eval'` only in development, where React's live reloading n
 !!! warn "Careful — honest about a gap"
     `'unsafe-inline'` for scripts weakens the policy: if an attacker ever managed to inject a `<script>` into the page, the browser would run it. The strict fix is a **nonce** — a fresh random value per page, which every allowed script must carry. It needs per-request rendering, and it is scheduled for the security-hardening phase (Phase 7). The other rules, especially `connect-src`, already limit what any injected code could do.
 
-@@ 20-26
+One addition in Phase 3: `'wasm-unsafe-eval'` in `script-src`. MediaPipe's face landmarker runs as **WebAssembly**, a fast, compact program format browsers run beside JavaScript. A strict policy forbids compiling it; this word allows compiling WebAssembly *and nothing else*. Unlike `'unsafe-eval'`, it never lets text be run as JavaScript, so the protection against injected scripts stays intact.
+
+@@ 21-27
 The **security headers**, as a list of name and value pairs:
 
 - the CSP from above;
@@ -46,20 +48,20 @@ The **security headers**, as a list of name and value pairs:
 - `X-Content-Type-Options: nosniff` — the browser must trust the declared type of each file, and never guess. Guessing has let attackers disguise scripts as images;
 - `Cross-Origin-Opener-Policy: same-origin` — a window opened by another site can't hold a handle on this page.
 
-@@ 28
+@@ 29
 The configuration object, checked against `NextConfig`.
 
-@@ 29
+@@ 30
 `poweredByHeader: false` — don't announce "X-Powered-By: Next.js" in every response. Telling strangers exactly which software runs a site helps no one but attackers.
 
-@@ 30
+@@ 31
 `reactStrictMode: true` — in development, React runs certain parts twice on purpose, to bring hidden bugs to the surface (see `verify-flow.tsx`).
 
-@@ 31-33
+@@ 32-34
 `headers()` — Next.js asks this function which headers to add. The answer: on every path (`/:path*` matches all of them), the security headers above.
 
-@@ 34
+@@ 35
 The end of the object.
 
-@@ 36
+@@ 37
 Hand the configuration to Next.js.

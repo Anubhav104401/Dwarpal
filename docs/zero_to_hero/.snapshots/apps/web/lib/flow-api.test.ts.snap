@@ -31,7 +31,14 @@ describe("FlowClient", () => {
           attempts_remaining: 3,
         },
       }),
-      answer(200, { challenge_id: "challenge-1", nonce: "n", poses: [], colours: [], expires_in: 120 }),
+      answer(200, {
+        challenge_id: "challenge-1",
+        nonce: "n",
+        poses: ["turn_left"],
+        colours: ["#3c78ff", "#ffd23c"],
+        step_ms: 600,
+        expires_in: 120,
+      }),
       answer(200, { outcome: "retry", reasons: ["too_dark"], attempts_remaining: 2 }),
     ];
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -40,8 +47,17 @@ describe("FlowClient", () => {
     });
     const client = new FlowClient(`${API}/`, SESSION);
     const session = await client.start(`${SESSION}_secret_x`);
-    const frame = { image: new Blob([new Uint8Array([255, 216, 255])], { type: "image/jpeg" }), tMs: 12.4 };
-    const result = await client.attempt([frame, { ...frame, tMs: 160.2 }]);
+    const challenge = await client.challenge();
+    const image = new Blob([new Uint8Array([255, 216, 255])], { type: "image/jpeg" });
+    const result = await client.attempt({
+      challengeId: challenge.id,
+      frames: [
+        { image, tMs: 12.4, phase: "baseline" },
+        { image, tMs: 1560.2, phase: "turn_left" },
+      ],
+      lightStartedMs: 3.1,
+      signals: { automation: false, virtualCamera: true, hiddenMs: 0, lightShown: true },
+    });
 
     expect(session).toMatchObject({ projectName: "Amber Cellars", minAge: 18, attemptsRemaining: 3 });
     expect(seen.map((request) => new URL(request.url).pathname)).toEqual([
@@ -53,11 +69,19 @@ describe("FlowClient", () => {
     expect(seen[1]?.headers.get("authorization")).toBe("Bearer flow-token");
     const form = await seen[2]?.formData();
     expect(form?.get("challenge_id")).toBe("challenge-1");
+    expect(challenge).toEqual({
+      id: "challenge-1",
+      poses: ["turn_left"],
+      colours: ["#3c78ff", "#ffd23c"],
+      stepMs: 600,
+    });
     expect(JSON.parse(String(form?.get("meta")))).toEqual({
       frames: [
-        { index: 0, t_ms: 12 },
-        { index: 1, t_ms: 160 },
+        { index: 0, t_ms: 12, phase: "baseline" },
+        { index: 1, t_ms: 1560, phase: "turn_left" },
       ],
+      light_started_ms: 3,
+      signals: { automation: false, virtual_camera: true, hidden_ms: 0, light_shown: true },
     });
     expect(form?.get("frame_1")).toBeInstanceOf(Blob);
     expect(result).toEqual({ outcome: "retry", reasons: ["too_dark"], attemptsRemaining: 2 });

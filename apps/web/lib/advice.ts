@@ -12,6 +12,10 @@ const TIPS: Record<string, string> = {
   low_confidence: "We couldn't see your face clearly. Uncover your face and try again.",
   inconsistent_frames: "Keep still and stay in view while the photos are taken.",
   analysis_unavailable: "The checker is busy right now. Please try again in a moment.",
+  // Liveness: deliberately the same words whichever check it was, so nobody can learn which one to fool.
+  liveness_check_failed:
+    "Follow the prompts on screen: turn your head when asked, and keep your face in view.",
+  liveness_unavailable: "We couldn't complete the check. Please try again.",
 };
 
 export const DEFAULT_TIP = "The photos didn't work out. Please try again in good, even light.";

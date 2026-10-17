@@ -6,7 +6,12 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!docs/zero_to_hero/**/*.html", "!docs/zero_to_hero/.snapshots"]
+    "includes": [
+      "**",
+      "!docs/zero_to_hero/**/*.html",
+      "!docs/zero_to_hero/.snapshots",
+      "!models/registry/**/manifest.json"
+    ]
   },
   "formatter": {
     "enabled": true,

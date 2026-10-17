@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode, urlsplit
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from dwarpal_api.adapters.inference import InferenceClient
@@ -16,6 +16,7 @@ from dwarpal_api.adapters.signing import KeyRing
 from dwarpal_api.adapters.store import FlowStore
 from dwarpal_api.adapters.tables import IssuedToken, Project, VerificationAttempt, VerificationSession
 from dwarpal_api.domain import ids
+from dwarpal_api.domain.challenges import new_challenge
 from dwarpal_api.domain.decision import Decision, Outcome, decide
 from dwarpal_api.domain.keys import generate_client_secret, matches
 from dwarpal_api.domain.policy import ModelManifest, UncalibratedPolicyError, UnknownPolicyError, get_policy
@@ -143,7 +144,9 @@ async def issue_challenge(svc: Services, session_id: uuid.UUID) -> dict[str, Any
         raise ApiError(409, "session_not_in_progress", f"this session is {row.status}")
     budget = get_policy(row.policy_id).max_face_attempts * CHALLENGES_PER_ATTEMPT
     settings = svc.settings
-    challenge = await svc.store.issue_challenge(row.id, settings.challenge_ttl_s, budget, settings.session_ttl_s)
+    challenge = await svc.store.issue_challenge(
+        row.id, new_challenge(), settings.challenge_ttl_s, budget, settings.session_ttl_s
+    )
     if challenge is None:
         raise ApiError(429, "too_many_challenges", "this session has used all of its challenges")
     return challenge
@@ -161,6 +164,8 @@ def attempt_scores(analysis: FaceAnalysis | None, decision: Decision) -> dict[st
         "p_over": decision.p_over,
         "tau": decision.tau_effective,
         "analysis_ms": round(analysis.duration_ms, 1),
+        # Which liveness check fired is kept here, for the people who run Dwarpal, and never shown to the user.
+        "liveness": analysis.liveness.model_dump() if analysis.liveness else None,
     }
 
 
@@ -170,9 +175,11 @@ async def submit_face_attempt(
     async with svc.sessions() as session:
         if (await load_session(session, session_id)).status != Status.IN_PROGRESS:
             raise ApiError(409, "session_not_in_progress", "this session is not accepting attempts")
-    if not await svc.store.take_challenge(challenge_id, session_id):
+    challenge = await svc.store.take_challenge(challenge_id, session_id)
+    if challenge is None:
         raise ApiError(409, "challenge_invalid", "the challenge is unknown, expired or already used")
-    analysis = await svc.inference.analyze_face(meta, frames)
+    # The frames are judged against what the server asked for, never against what the browser says it was asked.
+    analysis = await svc.inference.analyze_face(meta.model_copy(update={"challenge": challenge}), frames)
     async with svc.sessions() as session:
         row = await load_session(session, session_id, lock=True)
         now = svc.now()
@@ -182,7 +189,23 @@ async def submit_face_attempt(
             raise ApiError(409, "session_not_in_progress", f"this session is {row.status}")
         policy = get_policy(row.policy_id)
         model_ok = analysis is not None and svc.manifest.serves_model(analysis.model_version)
-        decision = decide(policy, svc.manifest.thresholds_for(policy), analysis, row.attempts_count, model_ok)
+        failures = await session.scalar(
+            select(func.count())
+            .select_from(VerificationAttempt)
+            .where(
+                VerificationAttempt.session_id == row.id,
+                VerificationAttempt.reasons.contains(["liveness_check_failed"]),
+            )
+        )
+        decision = decide(
+            policy,
+            svc.manifest.thresholds_for(policy),
+            analysis,
+            row.attempts_count,
+            model_ok,
+            liveness_failures=failures or 0,
+            livemode=row.livemode,
+        )
         session.add(
             VerificationAttempt(
                 id=svc.new_id(),

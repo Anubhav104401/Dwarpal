@@ -1,5 +1,5 @@
 ---
-fingerprint: becdc5c12158b599
+fingerprint: 6fc0a970521e6454
 ---
 The inference service's **HTTP interface**, built with **FastAPI**. It is internal only: in deployment it sits on a private network with no route from the internet and no way out (§3.8, "the clean room").
 
@@ -38,6 +38,8 @@ Our own pieces:
 
 @@ 26-28
 **`build_pipeline`** — load the detector from the model file, attach the chosen age model, and return a ready pipeline.
+
+`trust_labels` is on only when the setting `liveness` is `"labels"` — the test mode in which liveness reads each frame's phase label instead of measuring the head (§5.3). The settings refuse that mode unless the stand-in age model is in use, so it can never reach a real deployment.
 
 @@ 31
 **`create_app`** — an **app factory**: a function that builds a fresh application. It takes optional settings, which tests use. Uvicorn calls it with `--factory`, so importing this module never starts loading models as a side effect.

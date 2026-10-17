@@ -12,16 +12,24 @@ test("an adult passes the age check and is let into the cellar", async ({ page }
   await page.screenshot({ path: info.outputPath("1-intro.png"), animations: "disabled" });
 
   await page.getByRole("button", { name: "Start the camera" }).click();
-  await expect(page.getByRole("button", { name: "Take photos" })).toBeEnabled();
+  // Enabled once the guidance is satisfied, or after its grace period: it advises, the server decides.
+  await expect(page.getByRole("button", { name: "Start", exact: true })).toBeEnabled({ timeout: 15_000 });
   await page.screenshot({ path: info.outputPath("2-camera.png"), animations: "disabled" });
-  await page.getByRole("button", { name: "Take photos" }).click();
-  await expect(page.getByRole("heading", { name: "You're all set" })).toBeVisible({ timeout: 20_000 });
-  await page.screenshot({ path: info.outputPath("3-passed.png"), animations: "disabled" });
+  await page.getByRole("button", { name: "Start", exact: true }).click();
+  // The screen colours, then each pose: the still portrait never turns, so each pose waits out its 5 seconds.
+  await expect(page.getByText("Keep looking at the screen.").first()).toBeVisible();
+  await page.screenshot({ path: info.outputPath("3-light.png"), animations: "disabled" });
+  await expect(page.getByText(/^(Slowly turn your head|Tilt your head up)/).first()).toBeVisible({
+    timeout: 10_000,
+  });
+  await page.screenshot({ path: info.outputPath("4-pose.png"), animations: "disabled" });
+  await expect(page.getByRole("heading", { name: "You're all set" })).toBeVisible({ timeout: 45_000 });
+  await page.screenshot({ path: info.outputPath("5-passed.png"), animations: "disabled" });
 
   await page.getByRole("button", { name: /^Continue to / }).click();
   await expect(page).toHaveURL(`${SHOP}/cellar`);
   await expect(page.getByRole("status")).toContainText("Age verified");
-  await page.screenshot({ path: info.outputPath("4-cellar.png"), fullPage: true, animations: "disabled" });
+  await page.screenshot({ path: info.outputPath("6-cellar.png"), fullPage: true, animations: "disabled" });
 });
 
 test("the cellar stays closed to anyone without a pass", async ({ page }) => {

@@ -24,7 +24,7 @@
 | 2.15 Over-fitting and domain shift ✅ | Why a model can ace its exam and fail in real life (photos vs. webcams) |
 | 2.16 Measuring fairness ✅ | Per-group error rates, gaps, and release gates |
 | 2.17 Faces: detection, landmarks, alignment ✅ | Finding the face, finding the eyes and nose, straightening the picture |
-| 2.18 Liveness and anti-spoofing models | How a model tells a real face from a photo of a face |
+| 2.18 Liveness and anti-spoofing ✅ | How a system tells a real, present face from a photo, a replay or an injected camera feed |
 | 2.19 Making models fast ✅ | ONNX, quantisation, distillation — the same answers, in a fraction of the time |
 
 ## 2.1 What "learning" means for a machine
@@ -262,6 +262,57 @@ The most important rule of this whole section is simple: **the faces a model lea
 
 !!! honest "Honest limitation"
     The detector can miss faces, especially very dark, very small or sharply turned ones. In FairFace it found a face in all but 53 of 97,698 photos, but those 53 are not a random sample: missed faces are more often the hard cases. A missed face at serving time asks the person to try again with better light, so nobody is silently judged on a bad picture.
+
+## 2.18 Liveness and anti-spoofing
+
+An age model answers one question: *how old does this face look?* It never asks whether the face belongs to a living person standing in front of the camera. A child who holds up a photo of their mother, plays a video of an older sibling, or feeds a computer-generated face into the browser could get an adult's verdict from a perfectly accurate age model. Checking that the face is real and present is called **liveness detection**. Attempts to fool it are called **presentation attacks**, or **spoofing**.
+
+This is not a theoretical worry. In July 2025, people passed a large platform's age check using characters from a video game: the check asked them to open their mouth, and a game's photo mode could do that on cue (ADR-0007).
+
+### The attacks, from cheap to costly
+
+- **Print** — a photo held up to the camera. Costs nothing.
+- **Screen replay** — a video of someone else, played on a phone or tablet held up to the camera.
+- **Masks and make-up** — rare and expensive, but real.
+- **Rendering** — a computer-generated face, possibly moving in real time.
+- **Injection** — skipping the camera altogether: a **virtual camera** program, or a script that sends pictures straight to the server, can deliver any images at all, including a recording or a deepfake.
+
+No single check stops all of these. So the design uses **layers**, each cheap to add and each defeating a different kind of attack. An attacker must get past every layer at once.
+
+### Asking for something unpredictable
+
+The strongest idea is the **challenge**: ask the person to do something they couldn't have known in advance, and check that they did it. A photo can't turn its head when asked. A recording of someone turning left, then right, is useless if the server asks for *right, then up, then left* — chosen at random, only when the attempt begins.
+
+Two rules make a challenge work:
+
+1. **The server chooses it, and the server checks it.** If the page chose the poses, an attacker could change the page. If the page checked them, an attacker could skip the check. So the server issues the challenge, keeps its own copy, and judges the photos against that copy — whatever the page claims.
+2. **It must be measured, not believed.** Each photo comes labelled "this one was taken during *turn left*". A label is only a claim. The server measures the head in each photo itself: the same five landmarks used for alignment (§2.17) show which way the head points.
+
+!!! kid "Explain like I'm six — Simon says"
+    If you want to know whether someone is really in the room or is just a picture on the wall, play *Simon says*. "Simon says: turn left! Simon says: look up!" A picture can't play. And if you change the order every time, even a recording of someone playing won't fit.
+
+### The light from the screen
+
+A second, gentler challenge uses the screen as a lamp. For a couple of seconds it glows in a random run of colours — blue, then yellow, then teal. Skin a hand's width from a bright screen picks up a faint tint of each colour. If the tint on the face rises and falls in step with the colours, there was a real surface close to the screen. A photo or a video on another screen tends to respond differently.
+
+How closely two series of numbers move together is measured by **correlation**: +1 means perfectly in step, 0 means unrelated. The page records the colours; the server measures the tint of the cheeks and forehead in each photo, removes overall brightness (which changes for many other reasons), and computes the correlation.
+
+This signal is **weak**: in a bright room the screen's glow is faint, and a dim, careful replay can imitate it. So it is a **soft** signal — recorded and measured, but not allowed to decide anything until real-world measurements show how much it can be trusted.
+
+Flashing colours also carry a real risk: for people with **photosensitive epilepsy**, flashing light can trigger seizures. The accessibility standard WCAG says nothing should flash more than three times a second. Dwarpal's colours are calm, never saturated red, and change less than twice a second — and people who have asked their device for reduced motion see no colours at all.
+
+### Passive detection, and signs of injection
+
+**Passive presentation-attack detection** (PAD) uses a model trained on thousands of real faces and attacks to spot the tell-tale textures of paper, screens and masks in a single picture, without asking the person to do anything. It is a valuable layer, but it can be brittle — an attack type it never saw in training may pass. (Dwarpal's design includes one, but its model weights have not been approved yet, so that layer is still empty.)
+
+**Injection signs** look for evidence that the pictures never came from a live camera: the browser reporting that a program is driving it, a camera whose name belongs to virtual-camera software, the page being hidden during the check, or frames that are *too* identical — a live camera always adds a little noise. These hints come partly from the browser, which an attacker controls, so they can make a check stricter but never easier.
+
+### Keeping the attacker in the dark
+
+An attacker learns from failure. If the page said "your photo was detected as a printout", the next attempt would aim at exactly that check. So the outside world only ever hears vague reasons — "the check could not be completed" — while the full detail is stored for the people who run the system. A limit on attempts stops endless trial and error.
+
+!!! honest "Honest limitation"
+    Liveness raises the cost of cheating; it can't make cheating impossible. A determined attacker with real-time face-rendering software and a virtual camera is hard to stop, and nothing here stops a **proxy attack** — an adult who simply does the check for a child. Regulators acknowledge that residual risk. And every liveness check also turns away some honest people: someone who turns their head too little, or who uses a virtual camera for ordinary video calls. That **false-reject rate** must be measured on genuine attempts before the limits are final (§5.3).
 
 ## 2.19 Making models fast
 

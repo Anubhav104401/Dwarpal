@@ -1,5 +1,5 @@
 ---
-fingerprint: 3539465afade4b4b
+fingerprint: a55434c9a2b25e70
 ---
 The **Playwright configuration** — everything the end-to-end test needs before its first click: the databases, the tables, a demo project with a fresh key, a fake camera, a browser that uses that camera, and all four services running. With it, one command — `pnpm e2e` — tests the entire system from scratch, the same way on a laptop and in CI.
 
@@ -107,32 +107,35 @@ It starts from Playwright's ready-made "Desktop Chrome" settings (`...` copies t
 @@ 65
 Grant camera permission up front, so no permission prompt can block the test.
 
-@@ 66-72
-Three Chromium switches make the camera fake:
+@@ 66-74
+Four Chromium switches:
 
 - `--use-fake-ui-for-media-stream` — accept camera requests without showing a prompt;
+- `--disable-blink-features=AutomationControlled` — don't announce that a program is driving the browser (added in Phase 3). Normally Playwright's browser sets `navigator.webdriver`, which the verify page reports as an injection sign — and the session would be stepped up. An attacker's tool can hide it the same way, which is the point of the comment: the server treats the page's signals as hints, never as proof;
 - `--use-fake-device-for-media-stream` — use a pretend camera instead of real hardware;
 - `--use-file-for-fake-video-capture=…` — and play *this video file* as its picture.
 
 So the "person" in front of the camera is the test portrait, every time.
 
-@@ 73-75
+@@ 75-77
 The closing brackets.
 
-@@ 76
+@@ 78
 **The services**, started in this order:
 
-@@ 77-81
+@@ 79-85
 The inference service on port 8001, ready when `/readyz` answers. `DWARPAL_INFERENCE_STUB_AGE=30` makes the stand-in age model see a 30-year-old: an adult.
 
-@@ 82-85
+`DWARPAL_INFERENCE_LIVENESS=labels` (Phase 3): the fake camera plays a still portrait that can't turn its head, so liveness believes the frames' labels instead of measuring them — the test mode explained in §5.3. The inference service accepts it only together with the stand-in age model.
+
+@@ 86-89
 The API on port 8000, with its JSON logs.
 
-@@ 86
+@@ 90
 The verify page on port 3000 (its production build).
 
-@@ 87
+@@ 91
 The shop on port 3100, with the settings `prepare` returned.
 
-@@ 88-89
+@@ 92-93
 The closing brackets.

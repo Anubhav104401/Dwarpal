@@ -1,5 +1,5 @@
 ---
-fingerprint: 4c167d3430a1b333
+fingerprint: cc99b293d20dd2a8
 ---
 `book.toml` holds the book's **settings**. Keeping settings in a separate file, rather than inside `build.py`, means you can add a chapter or change the title **without touching any program code**. "Separate the *what* from the *how*" is one of the oldest good habits in software.
 
@@ -30,7 +30,7 @@ Python reads TOML with its built-in `tomllib`.
 @@ 4
 `abbreviations = "abbreviations.md"` is the file of hover definitions, which is attached to every chapter and walkthrough note when it is converted.
 
-@@ 5-18
+@@ 5-19
 `chapters = [ … ]` is the **reading order** of the book. Each line inside the brackets is one chapter file, and the order here is the order in the book. The numbers at the start of the file names only keep the folder tidy.
 
 The list grows as the project does:
@@ -41,10 +41,12 @@ The list grows as the project does:
 !!! try "Try it yourself"
     Move the `99_glossary.md` line to the top and run `uv run tasks.py book`: the glossary becomes the first chapter. Move it back afterwards.
 
-@@ 20
+Phase 3 added `09_part5_phase3.md`: liveness and anti-spoofing (§5.3).
+
+@@ 21
 `[coverage]` starts the group of settings for the **coverage check** — which project files must have a line-by-line explanation. In Python this group is read as `config["coverage"]`.
 
-@@ 21-26
+@@ 22-27
 `include = [ … ]` lists **glob patterns** for files that count as code. In a glob, `*` means "any characters within one name", and `**` means "any number of folders, including none". The patterns cover:
 
 - Python (`.py`);
@@ -59,14 +61,16 @@ The list grows as the project does:
 
 Markdown (`.md`) is deliberately not included: it is prose, not code.
 
-@@ 27
+@@ 28
 `exclude = [ … ]` lists patterns that are removed even if they matched `include`:
 
 - the generated book itself — explaining the explainer's output would loop forever;
 - **lockfiles** (`pnpm-lock.yaml`, `package-lock.json`, `uv.lock`) — thousands of machine-written lines. §0.17 explains what they are instead;
 - `next-env.d.ts` — a file Next.js writes for itself into each web app, and which is never committed (added in Phase 1, see `.gitignore`).
 
-@@ 28-31
+`apps/web/public/mediapipe/**` (added in Phase 3) — MediaPipe's WebAssembly loaders, copied in before each build: tens of thousands of lines of someone else's generated code.
+
+@@ 29-32
 `prune = [ … ]` lists **folder names the scanner never enters**, because they hold things we didn't write:
 
 - Git's own history (`.git`);

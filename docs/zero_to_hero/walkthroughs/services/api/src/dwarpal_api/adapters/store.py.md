@@ -1,5 +1,5 @@
 ---
-fingerprint: c124a0043dd74227
+fingerprint: 5e582ef8b13964b5
 ---
 The API's **short-term memory**, kept in **Valkey** (§4.11). Some facts only need to exist for minutes: "this browser may work on session X for the next 15 minutes", "this challenge may be used once in the next 2 minutes". Putting them in PostgreSQL would fill the database with rows that need cleaning up. Valkey stores each value with a **time to live** and deletes it by itself when the time runs out.
 
@@ -23,78 +23,81 @@ The tools: `hashlib` (SHA-256), `json` (storing challenges as text), `secrets` (
 @@ 11
 `Redis` — the **asyncio** client from the `redis` library. Valkey speaks exactly the same language as Redis, so the same client works.
 
-@@ 14-15
+@@ 13
+`Challenge` — the contract for what the person is asked to do (added in Phase 3). The store saves one and gives it back.
+
+@@ 16-17
 **`_hashed`** — the SHA-256 fingerprint of a token, written as 64 hexadecimal characters. The leading underscore marks a **private** helper, meant only for this file.
 
 Flow tokens are stored **hashed**, for the same reason as API keys: someone who could read Valkey's memory would find only fingerprints, which are useless for calling the API.
 
-@@ 18
+@@ 20
 **`FlowStore`** — the class that holds every Valkey operation the API needs. The rest of the code never talks to Valkey directly, so all the key names and expiry rules are in one file.
 
-@@ 19-20
+@@ 21-22
 It keeps the client it was given. Receiving the client from outside, instead of creating it here, lets tests and the app decide which Valkey to use.
 
-@@ 22-23
+@@ 24-25
 **`ping`** — Valkey's "are you there?" command. The readiness check uses it (`http/health.py`).
 
-@@ 25
+@@ 27
 **`open_flow`** — start a flow for a session, and return its token.
 
-@@ 26
+@@ 28
 32 secure random bytes as URL-safe text: the token the browser will send back with every flow request.
 
-@@ 27
+@@ 29
 Store "fingerprint → session ID" with `ex=ttl_s`: Valkey's `SET` command with an expiry in seconds. The `await` waits for Valkey's reply without blocking other requests.
 
-@@ 28
+@@ 30
 Return the token itself. It exists in plain form only in this reply and in the browser's memory.
 
-@@ 30
+@@ 32
 **`session_for`** — which session does this token belong to? `None` if the token is unknown or has expired.
 
-@@ 31-33
+@@ 33-35
 Look up the token's fingerprint. Nothing found means no access.
 
-@@ 34
+@@ 36
 Turn the stored text back into a UUID. The client may return the value as raw bytes or as text, depending on how it was configured, and `isinstance` handles both.
 
-@@ 36-38
-**`issue_challenge`** — create a one-time challenge for a session's next face attempt. Besides the session and the challenge's lifetime, it receives a **budget** — the most challenges this session may ever get — and how long to remember the count. It returns the challenge, or `None` when the budget is used up.
+@@ 38-40
+**`issue_challenge`** — store a one-time challenge for a session's next face attempt. It receives the `Challenge` to store (Phase 3: the poses and colours were chosen at random by `domain/challenges.py`), the challenge's lifetime, a **budget** — the most challenges this session may ever get — and how long to remember the count. It returns the issued challenge, or `None` when the budget is used up.
 
-@@ 39
+@@ 41
 The counter's key, one per session.
 
-@@ 40
+@@ 42
 Create the counter at 0, with its expiry — but only if it doesn't exist yet: `nx=True` is Valkey's `NX` option, "only if Not eXists". Later calls leave the existing counter, and its expiry, alone.
 
-@@ 41-42
+@@ 43-44
 `INCR` adds 1 and returns the new value, as a single **atomic** step: even if two requests arrive at the same instant, each sees a different number. Over budget? Return `None`.
 
 !!! why "Why a budget?"
     Each challenge allows one face attempt, and each attempt makes the inference service analyse up to 16 pictures. Without a limit, one session could request thousands of challenges and keep the AI busy for everyone else. The budget allows twice the policy's attempts (see `issue_challenge` in `app/verification.py`), which leaves room for a page reload or a lost connection.
 
-@@ 43-49
-The challenge itself:
+@@ 45-50
+The issued challenge:
 
 - `challenge_id` — 16 random bytes as text: the ticket's number;
-- `nonce` — another random value. "Nonce" means "number used once"; Phase 3 uses it to tie captured frames to this exact challenge;
-- `poses` and `colours` — empty for now. Phase 3 fills them with head movements to perform and screen colours to flash, which make replaying a video much harder. Sending the empty fields already means the verify page and the API agree on the shape from day one;
-- `expires_in` — how many seconds the challenge is valid.
-
-@@ 50
-The stored version adds the session's ID, so a challenge can't be used with a different session. `**challenge` copies every key and value of the challenge into the new dict.
+- `nonce` — another random value. "Nonce" means "number used once". Nothing checks it yet; it is there so that a later phase can tie the captured frames to this exact challenge;
+- `**challenge.model_dump()` — the challenge's own fields (`poses`, `colours`, `step_ms`). `model_dump()` turns a Pydantic model into a plain dict, and `**` copies every key and value into this one;
+- `expires_in` — how many seconds the browser has to use it.
 
 @@ 51
-Store it under its ID, with its expiry.
+The stored version adds the session's ID, so a challenge can't be used with a different session. `**issued` copies the issued challenge's keys in.
 
 @@ 52
-Return the challenge, without the session ID: the browser already knows its session.
+Store it under its ID, with its expiry.
 
-@@ 54
-**`take_challenge`** — use a challenge up. True only if it existed, hadn't expired, and belongs to this session.
+@@ 53
+Return the challenge, without the session ID: the browser already knows its session. The browser needs the poses and colours to show the prompts — knowing them in advance doesn't help an attacker much, because they are random and change every attempt.
 
 @@ 55
-`GETDEL` reads the value **and deletes it in one atomic step**. If the same challenge arrives twice at the same instant, only one request can get it — the other finds nothing. Reading first and deleting later would leave a tiny gap in which both could succeed.
+**`take_challenge`** — use a challenge up. It returns the stored `Challenge` only if it existed, hadn't expired, and belongs to this session; otherwise `None`.
 
 @@ 56
-Accept only if something was found *and* its session matches. The challenge is gone either way: a wrong guess burns it.
+`GETDEL` reads the value **and deletes it in one atomic step**. If the same challenge arrives twice at the same instant, only one request can get it — the other finds nothing. Reading first and deleting later would leave a tiny gap in which both could succeed.
+
+@@ 57-62
+Accept only if something was found *and* its session matches. The challenge is gone either way: a wrong guess burns it. Then rebuild the `Challenge` from what was stored — the *server's* copy, which is what the frames will be checked against, whatever the browser claims.

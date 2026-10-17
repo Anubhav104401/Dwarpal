@@ -1,5 +1,5 @@
 ---
-fingerprint: cd140e3e44b8a26b
+fingerprint: 8e5d9ea7efbce2df
 ---
 A small **command-line tool** for two jobs a developer needs before the API is useful:
 
@@ -16,88 +16,162 @@ The tests call the same two functions directly, so the commands developers run b
 
     The second command prints a project ID and a `dk_test_…` key. Keep the key: it is shown only once.
 
-@@ 1-5
-The docstring, with the two commands. `python -m dwarpal_api.cli` runs this module as a program; `--package dwarpal-api` tells uv which workspace package's environment to use.
+@@ 1-7
+The docstring, with the three commands. `python -m dwarpal_api.cli` runs this module as a program; `--package dwarpal-api` tells uv which workspace package's environment to use. The third, `liveness-report` (added in Phase 3), summarises the liveness results of recent face attempts; `--since` says from when.
 
-@@ 7
+@@ 9
 The project-wide type-hint setting.
 
-@@ 9-13
-`argparse` (reading command-line arguments, as in `build.py`), `asyncio` (running async code from a normal program), `sys` (the exit code), date tools, and `Path`.
+@@ 11-17
+`argparse` (reading command-line arguments, as in `build.py`), `asyncio` (running async code from a normal program), `statistics` (the median, for the report), `sys` (the exit code), `Counter` (counting how often each value appears), date tools, and `Path`.
 
-@@ 15-16
+@@ 18
+`Any` — the type for "a value of any type", used for the stored scores, which are free-form JSON.
+
+@@ 20-21
 Alembic's ready-made commands (`command.upgrade` and friends), and its `Config` object.
 
-@@ 18-22
-Our database helpers, the two tables the seed fills, the ID helpers, the key generator, and the settings.
+@@ 22
+SQLAlchemy's `select`, to read the attempts for the report.
 
-@@ 24
+@@ 24-28
+Our database helpers, the tables — the two the seed fills, and `VerificationAttempt`, which the report reads — the ID helpers, the key generator, and the settings.
+
+@@ 30
 `MIGRATIONS` — the folder holding `env.py` and the migrations, found next to this file. Installed packages have no `alembic.ini` file, so the configuration is built in code instead.
 
-@@ 25
+@@ 31
 `DEMO_ORIGINS` — the two local web addresses the demo project may send people back to: the verify page (port 3000) and the demo shop (port 3100).
 
-@@ 28
+@@ 34
 **`migration_config`** — build Alembic's configuration in code.
 
-@@ 29-30
+@@ 35-36
 An empty configuration, then the one required setting: where the migration scripts are.
 
-@@ 31-32
+@@ 37-38
 If a database address was given, pass it on. `env.py` reads it as `sqlalchemy.url`, and falls back to the API's settings when it is absent.
 
-@@ 33
+@@ 39
 Return the configuration.
 
-@@ 36-37
+@@ 42-43
 **`migrate`** — `command.upgrade(…, "head")` applies every migration not yet applied, up to the newest one (the "head" of the history). Running it again does nothing.
 
-@@ 40
+@@ 46
 **`seed_dev`** — create the demo project and a key. It returns the project's public ID and the key in plain text. `livemode` lets tests create a *live* key too, to prove that live sessions are refused while the model is uncalibrated.
 
-@@ 41-42
+@@ 47-48
 Read the clock once, in UTC and in milliseconds.
 
-@@ 43
+@@ 49
 A database engine for this one job.
 
-@@ 44
+@@ 50
 A new key: test by default.
 
-@@ 45-47
+@@ 51-53
 The project row: a new ID, the demo name, its allowed web addresses (the given ones, or the defaults), and the creation time.
 
-@@ 48-57
+@@ 54-63
 The key row: its own ID, the project it belongs to, its mode, its lookup and **digest** (never the key itself), a label, the creation time, and not revoked.
 
-@@ 58-62
+@@ 64-68
 Save both in one transaction. `flush()` sends the project to the database *before* the key is added: the key's foreign key must point at a project row that already exists.
 
-@@ 63
+@@ 69
 Close the engine's connections; this was a one-off job.
 
-@@ 64
+@@ 70
 Return the project's public ID (`prj_…`) and the plain key — the only moment the key exists in plain form.
 
-@@ 67
-**`main`** — what runs when the module is started as a program. `argv` lets tests pass arguments directly; normally it is `None`, and `argparse` reads the real command line.
+@@ 73-74
+**`liveness_summary`** (Phase 3) — turn a list of face attempts into a short, readable report. Each attempt is a pair: its outcome (such as `retry`) and its stored scores. It is a separate, plain function — no database — so a test can call it with made-up attempts.
 
-@@ 68-70
-Describe the tool, accept exactly one command — `migrate` or `seed-dev` — and read it. Anything else prints a helpful usage message and stops.
-
-@@ 71-74
-`migrate`: apply the migrations, say so, and return `0` (success).
+Its purpose is **measuring the liveness checks on real people**. If the owner makes, say, 30 genuine attempts, every failed pose challenge among them is a **false reject**: an honest person turned away. This report gives that rate, and the light measurements, from which the thresholds can be set (§5.3).
 
 @@ 75
-Otherwise, `seed-dev`: run the async seed with the normal settings. `asyncio.run` starts the async engine, runs the function to the end, and returns its result.
+Count the outcomes: how many passes, retries, rejections and so on. `Counter` does the counting.
 
 @@ 76
+Pick out the liveness part of each attempt's scores, skipping attempts that have none (for example, ones whose analysis failed). `scores.get("liveness")` gives `None` instead of an error when the key is missing.
+
+@@ 77
+Count the kinds of evidence: `images` (measured) or `labels` (the test mode). A report on genuine attempts should show only `images`.
+
+@@ 78
+The pose results, where there was one.
+
+@@ 79
+Count every problem name over all pose results — `wrong_order`, `not_shown:turn_left` and so on. The double `for` reads left to right: for each pose result, for each of its problems.
+
+@@ 80
+Count the injection signs the same way.
+
+@@ 81
+The light results that could actually be measured (`usable`).
+
+@@ 82
+The skin correlations among them, leaving out any that are missing.
+
+@@ 83
+How many pose challenges passed. `sum` of `True`/`False` values counts the `True`s, because Python treats `True` as 1.
+
+@@ 84-85
+Build the report line by line. The first: the number of attempts and each outcome with its count, most common first. `", ".join(…)` puts commas between the parts.
+
+@@ 86
+The evidence counts — or `none`. `or "none"` works because an empty text counts as false.
+
+@@ 87-92
+How many pose challenges passed, as a count and a percentage (`:.0%` formats 0.9 as `90%`), and the **false-reject rate if every attempt was genuine** — the share that failed. The extra part is added only if there were pose results (`if poses else ""`), which also avoids dividing by zero.
+
+@@ 93-94
+The pose problems and the injection signs, each with its count, or `none`.
+
+@@ 95-100
+How many attempts had a usable light measurement, and — if there were any skin correlations — their **median** (the middle value, which one odd attempt can't drag far) and their range. `:+.2f` prints a number with two decimals and always a sign, such as `+0.62`.
+
+@@ 101-102
+Close the list, and join the lines with line breaks into one text.
+
+@@ 105
+**`liveness_report`** — read the attempts from the database and summarise them. It is `async` because the database code is.
+
+@@ 106-107
+Connect to the database and open a session.
+
+@@ 108-114
+Fetch only two columns — the outcome and the scores — of every **face** attempt created at or after `since`. `.all()` returns the rows.
+
+@@ 115
+Close the connection.
+
+@@ 116
+Turn each row into an (outcome, scores) pair and summarise them.
+
+@@ 119
+**`main`** — what runs when the module is started as a program. `argv` lets tests pass arguments directly; normally it is `None`, and `argparse` reads the real command line.
+
+@@ 120-123
+Describe the tool, accept exactly one command — `migrate`, `seed-dev` or `liveness-report` — and the optional `--since`, and read them. `type=datetime.fromisoformat` converts the text (such as `2026-10-17T12:00`) into a date and time; a malformed one is refused with a message. Anything else prints a helpful usage message and stops.
+
+@@ 124-127
+`migrate`: apply the migrations, say so, and return `0` (success).
+
+@@ 128-131
+`liveness-report`: from `--since`, or from 24 hours ago if it was left out. A time typed without a time zone is taken as UTC (`replace(tzinfo=UTC)`), because the database stores times in UTC and can't compare them with a time that has none. Print the report and return `0`.
+
+@@ 132
+Otherwise, `seed-dev`: run the async seed with the normal settings. `asyncio.run` starts the async engine, runs the function to the end, and returns its result.
+
+@@ 133
 Print the project ID and the key, with a reminder to store the key now. `\n` inside the text starts a new line.
 
 The message uses only plain ASCII characters. An earlier version contained a long dash `—`, which came out as `�` when the output was saved to a file on Windows: Python then writes text with Windows' older character table, which other tools don't expect.
 
-@@ 77
+@@ 134
 Success.
 
-@@ 80-81
+@@ 137-138
 Run `main` only when the module is started as a program, and hand its result to the operating system as the **exit code**: `0` means success, anything else failure (§4.6).

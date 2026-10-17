@@ -10,6 +10,8 @@ from typing import Any
 
 from redis.asyncio import Redis
 
+from dwarpal_contracts import Challenge
+
 
 def _hashed(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -34,23 +36,27 @@ class FlowStore:
         return uuid.UUID(value.decode() if isinstance(value, bytes) else value)
 
     async def issue_challenge(
-        self, session_id: uuid.UUID, ttl_s: int, budget: int, budget_ttl_s: int
+        self, session_id: uuid.UUID, challenge: Challenge, ttl_s: int, budget: int, budget_ttl_s: int
     ) -> dict[str, Any] | None:
         counter = f"challenges:{session_id}"
         await self._client.set(counter, 0, ex=budget_ttl_s, nx=True)
         if await self._client.incr(counter) > budget:
             return None
-        challenge = {
+        issued = {
             "challenge_id": secrets.token_urlsafe(16),
             "nonce": secrets.token_urlsafe(16),
-            "poses": [],
-            "colours": [],
+            **challenge.model_dump(),
             "expires_in": ttl_s,
         }
-        stored = json.dumps({"session_id": str(session_id), **challenge})
-        await self._client.set(f"challenge:{challenge['challenge_id']}", stored, ex=ttl_s)
-        return challenge
+        stored = json.dumps({"session_id": str(session_id), **issued})
+        await self._client.set(f"challenge:{issued['challenge_id']}", stored, ex=ttl_s)
+        return issued
 
-    async def take_challenge(self, challenge_id: str, session_id: uuid.UUID) -> bool:
+    async def take_challenge(self, challenge_id: str, session_id: uuid.UUID) -> Challenge | None:
         stored = await self._client.getdel(f"challenge:{challenge_id}")
-        return stored is not None and json.loads(stored)["session_id"] == str(session_id)
+        if stored is None:
+            return None
+        issued = json.loads(stored)
+        if issued["session_id"] != str(session_id):
+            return None
+        return Challenge(poses=issued["poses"], colours=issued["colours"], step_ms=issued["step_ms"])

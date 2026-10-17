@@ -1,5 +1,5 @@
 ---
-fingerprint: 898c4977b8aee522
+fingerprint: 550aa6c0fda68fc8
 ---
 **Capture quality** — the first layer of the "onion" (§3.3, Choice 6). Before judging age, check that the frame is fit to be judged:
 
@@ -53,54 +53,66 @@ Average brightness of the face must lie between **22 %** and **92 %** of full wh
 @@ 27-35
 **`Quality` — the result of checking one frame**: the number of faces, and the main face's score, brightness, sharpness, eye distance and yaw. `flags` is a tuple of problem names, empty for a good frame.
 
-@@ 38
+@@ 36
+`pitch_ratio` — how far the head is tilted up or down (added in Phase 3, for the liveness challenge's "look up"). It has a default, `0.0`, so it must come last: Python requires fields with defaults to follow those without.
+
+@@ 39
 **`face_region`** — cut the face's rectangle out of the picture.
 
-@@ 39-40
+@@ 40-41
 The box from the detector, and the picture's height and width.
 
-@@ 41-42
+@@ 42-43
 **Clamp the box to the picture.** A face near the edge can have a box that pokes outside the photo — even negative coordinates. `max(0, …)` and `min(width, …)` keep every side inside. `int(…)` rounds down to whole pixels.
 
-@@ 43
+@@ 44
 **Slicing**: `image[top:bottom, left:right]` takes rows `top` to `bottom` and columns `left` to `right`. NumPy returns a *view* of the original pixels, with nothing copied.
 
-@@ 46
+@@ 47
 **`yaw_ratio` — how far is the head turned sideways?** When you look straight at the camera, your nose tip sits halfway between your eyes. Turn your head and it moves towards one eye.
 
-@@ 47
+@@ 48
 Unpack the three landmarks we need: the two eyes and the nose tip.
 
-@@ 48
+@@ 49
 The x position of the point halfway between the eyes.
 
-@@ 49
+@@ 50
 How far the nose is from that midpoint, **divided by the eye distance**. Dividing makes the measure independent of how big the face is in the picture: near or far, the same head turn gives the same number. Roughly, 0 means facing the camera and ±0.25 means clearly turned.
 
 `max(…, 1.0)` prevents dividing by zero if the two eye points ever coincide.
 
-@@ 52
-**`assess` — check one frame.** It receives the picture and the faces the detector found, most confident first.
+@@ 53
+**`pitch_ratio` — how far is the head tilted up or down?** The same idea as `yaw_ratio`, turned on its side. YuNet's five landmarks are the two eyes, the nose tip and the two mouth corners.
 
-@@ 53-54
-**No face at all** → the single flag `no_face`.
+@@ 54-55
+The height (y) of the point halfway between the eyes, and of the point halfway between the mouth corners. In pictures, y grows *downwards*: the mouth's y is larger than the eyes'.
 
-@@ 55
-Judge the main face: the most confident one.
-
-@@ 56-58
-Cut it out. If the clamped box is empty (a degenerate detection), treat it as no face.
+@@ 56
+Where the nose tip sits between eyes and mouth, as a fraction: 0 would be level with the eyes, 1 level with the mouth. Facing the camera it is usually about 0.5. **Look up**, and the nose tip appears to rise towards the eyes in the picture, so the ratio falls. Dividing by the eyes-to-mouth distance makes it independent of how big the face is. `max(…, 1.0)` prevents dividing by zero.
 
 @@ 59
-Convert to **greyscale**, keeping only how light each pixel is. Brightness and sharpness don't need colour.
+**`assess` — check one frame.** It receives the picture and the faces the detector found, most confident first.
 
-@@ 60
-**Brightness** — the average grey value (0–255), divided by 255 to give 0–1.
-
-@@ 61
-Resize the face to a standard 112 × 112 before measuring sharpness. Without this, a large face would look "sharper" than a small one just because it has more pixels. `INTER_AREA` is the best method for shrinking.
+@@ 60-61
+**No face at all** → the single flag `no_face`.
 
 @@ 62
+Judge the main face: the most confident one.
+
+@@ 63-65
+Cut it out. If the clamped box is empty (a degenerate detection), treat it as no face.
+
+@@ 66
+Convert to **greyscale**, keeping only how light each pixel is. Brightness and sharpness don't need colour.
+
+@@ 67
+**Brightness** — the average grey value (0–255), divided by 255 to give 0–1.
+
+@@ 68
+Resize the face to a standard 112 × 112 before measuring sharpness. Without this, a large face would look "sharper" than a small one just because it has more pixels. `INTER_AREA` is the best method for shrinking.
+
+@@ 69
 **Sharpness, measured by the variance of the Laplacian.**
 
 - The **Laplacian** is a filter that responds strongly wherever brightness changes suddenly — at edges and fine detail — and weakly in smooth areas.
@@ -109,10 +121,10 @@ Resize the face to a standard 112 × 112 before measuring sharpness. Without thi
 
 `cv2.CV_64F` keeps the results as precise decimals, so negative values aren't cut off. This is a classic, fast, well-understood blur measure.
 
-@@ 63
-How far the head is turned (line 46).
+@@ 70
+How far the head is turned (`yaw_ratio`, above).
 
-@@ 64-72
+@@ 71-79
 **Every check, by name**, as a dict of *flag name → did this check fail?*:
 
 - `multiple_faces` — a **second** face with a high score. Someone else in view could mean a helper, or a photo held up next to the user;
@@ -122,8 +134,8 @@ How far the head is turned (line 46).
 - `face_too_small` — eyes less than 40 pixels apart;
 - `not_frontal` — the head is turned too far.
 
-@@ 73
+@@ 80
 Keep the names of the checks that failed, in a stable order. The decision engine picks the most useful advice to show from these.
 
-@@ 74-76
-Return the full result. The brightness is clipped into 0–1 as a guarantee: it can't actually exceed 1, but the contracts insist on the range, and an explicit clip makes that certain.
+@@ 81-90
+Return the full result. The brightness is clipped into 0–1 as a guarantee: it can't actually exceed 1, but the contracts insist on the range, and an explicit clip makes that certain. The last value is the head's tilt, `pitch_ratio`, added in Phase 3.

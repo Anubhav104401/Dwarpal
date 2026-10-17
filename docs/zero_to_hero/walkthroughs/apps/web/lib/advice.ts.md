@@ -1,5 +1,5 @@
 ---
-fingerprint: caf3c31661a061c6
+fingerprint: e940cdbb23d6c781
 ---
 The API speaks in short **codes** such as `too_dark` or `session_not_open` — stable and precise, but not words to show a person. This file turns them into friendly sentences, in two kinds:
 
@@ -11,55 +11,57 @@ Keeping every sentence in one file has two benefits: the wording can be improved
 @@ 1
 The doc comment.
 
-@@ 3-15
+@@ 3-19
 **`TIPS`** — one tip per reason code the decision engine can give (§5.1.2, `ADVICE_ORDER`), plus the two extra ones that come from the decision rules: `inconsistent_frames` and `analysis_unavailable`. Each says what to *do*, in plain words: "Face a window or a lamp", not "insufficient illumination".
 
 `Record<string, string>` is TypeScript's type for "an object whose keys and values are all text".
 
-@@ 17
+Phase 3 adds two liveness tips. They are **deliberately vague**, the same words whichever liveness check failed (the comment on line 15): if the page said "your photo was detected", an attacker would learn exactly which check to work on next (ADR-0007). A genuine person needs only the instruction — follow the prompts, keep your face in view.
+
+@@ 21
 `DEFAULT_TIP` — for any reason this file doesn't know yet, such as a code added to the API later. The page never shows a raw code.
 
-@@ 19
+@@ 23
 **`tipFor`** — the tip for a list of reasons.
 
-@@ 20-25
+@@ 24-29
 Go through the reasons in order, and return the tip for the first one known. Looking a key up in a `Record` may find nothing — and the project's strict settings make TypeScript insist on the `!== undefined` check before the tip is used.
 
-@@ 26-27
+@@ 30-31
 None known: the general tip.
 
-@@ 29-32
+@@ 33-36
 **`Problem`** — a title and a longer explanation.
 
-@@ 34
+@@ 38
 **`PROBLEMS`** — the message for each code that can stop a check:
 
-@@ 35-38
+@@ 39-42
 `invalid_client_secret` — the link's secret is wrong or missing. Usually the link was copied incompletely.
 
-@@ 39-42
+@@ 43-46
 `session_not_found` — no such session: also a broken link, as far as the person is concerned.
 
-@@ 43-46
+@@ 47-50
 `session_not_open` — the check expired (after 30 minutes) or was cancelled.
 
-@@ 47-50
+@@ 51-54
 `too_many_challenges` — the session used up its challenge budget (§5.1.3).
 
-@@ 51-54
+@@ 55-58
 `camera_blocked` — the person refused camera access, or the browser blocks it. This code doesn't come from the API: the verify page makes it up itself when the browser refuses (see `verify-flow.tsx`).
 
-@@ 55-58
+@@ 59-62
 `camera_missing` — the device has no camera at all. Also the page's own code.
 
-@@ 59-62
+@@ 63-66
 `network_error` — the API couldn't be reached at all (`flow-api.ts`).
 
-@@ 63
+@@ 67
 The end of the list.
 
-@@ 65-68
+@@ 69-72
 `DEFAULT_PROBLEM` — for anything else, including server errors: apologise, and say what to try.
 
-@@ 70-72
+@@ 74-76
 **`problemFor`** — the message for a code. `??` falls back to the default when the code isn't in the list.

@@ -1,5 +1,5 @@
 ---
-fingerprint: acdbb62ada17aa6b
+fingerprint: ecb98be8db93f83c
 ---
 The **register of third-party model files**: AI models made by others that Dwarpal uses. Model files are never stored in Git (they are large, and their licences vary — ADR-0014, ADR-0018). This file records *exactly* which file to fetch, from where, under which licence, and the fingerprint it must have. `infra/scripts/fetch_models.py` reads it.
 
@@ -53,5 +53,20 @@ The licence, recorded with its one caveat. The model card says **Apache-2.0**, w
 @@ 22
 `source` — the model's page, with its full card.
 
-@@ 23-25
+@@ 23
+The end of the second entry.
+
+@@ 24-26
+The third entry (added in Phase 3): **MediaPipe Face Landmarker**, for the verify page. `use: "web"` — the browser loads it, so the fetcher downloads it by default, and the verify page's build copies it into place (`apps/web/scripts/mediapipe.mjs`).
+
+@@ 27-30
+Where it is stored and fetched from — Google's model storage, where the path's `float16/1` names one fixed version — its SHA-256 fingerprint and its size (3.7 MB).
+
+@@ 31
+Its licence, Apache-2.0, and how the download was checked: Google's server publishes an MD5 fingerprint of each stored file, and the download matched it — an independent check, as for the other two entries.
+
+@@ 32
+`source` — the model's documentation page.
+
+@@ 33-35
 The closing brackets of the entry, the list and the object.

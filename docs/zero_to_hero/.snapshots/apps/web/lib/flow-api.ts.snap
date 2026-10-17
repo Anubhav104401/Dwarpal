@@ -1,5 +1,8 @@
 /** The verify page's client for the Dwarpal flow API. After `start`, every call carries the session's flow token. */
 
+import type { LabelledFrame } from "./camera";
+import { type Challenge, readChallenge, type Signals } from "./challenge";
+
 export type SessionStatus = "in_progress" | "awaiting_step_up" | "completed";
 export type AttemptOutcome = "pass" | "fail" | "step_up" | "retry" | "reject";
 
@@ -18,9 +21,12 @@ export interface AttemptResult {
   attemptsRemaining: number;
 }
 
-export interface CapturedFrame {
-  image: Blob;
-  tMs: number;
+/** One attempt, as the camera captured it: the challenge it answers, the labelled frames, and the browser's signals. */
+export interface CapturedAttempt {
+  challengeId: string;
+  frames: readonly LabelledFrame[];
+  lightStartedMs: number | null;
+  signals: Signals;
 }
 
 export class FlowError extends Error {
@@ -66,14 +72,28 @@ export class FlowClient {
     };
   }
 
-  /** One face attempt: fetch a fresh challenge, then upload the burst with it. */
-  async attempt(frames: readonly CapturedFrame[]): Promise<AttemptResult> {
-    const challenge = await this.#post("/challenge", null);
+  /** A fresh, one-time challenge for the next attempt. */
+  async challenge(): Promise<Challenge> {
+    return readChallenge(await this.#post("/challenge", null));
+  }
+
+  /** Upload one attempt's frames, with what they answer and what the browser noticed. */
+  async attempt(captured: CapturedAttempt): Promise<AttemptResult> {
+    const { frames, signals } = captured;
     const form = new FormData();
-    form.set("challenge_id", asText(challenge.challenge_id));
+    form.set("challenge_id", captured.challengeId);
     form.set(
       "meta",
-      JSON.stringify({ frames: frames.map((frame, index) => ({ index, t_ms: Math.round(frame.tMs) })) }),
+      JSON.stringify({
+        frames: frames.map((frame, index) => ({ index, t_ms: Math.round(frame.tMs), phase: frame.phase })),
+        light_started_ms: captured.lightStartedMs === null ? null : Math.round(captured.lightStartedMs),
+        signals: {
+          automation: signals.automation,
+          virtual_camera: signals.virtualCamera,
+          hidden_ms: Math.round(signals.hiddenMs),
+          light_shown: signals.lightShown,
+        },
+      }),
     );
     frames.forEach((frame, index) => {
       form.set(`frame_${index}`, frame.image, `frame_${index}.jpg`);

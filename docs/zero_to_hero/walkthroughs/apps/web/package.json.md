@@ -1,5 +1,5 @@
 ---
-fingerprint: 44d67adef6b04290
+fingerprint: 28ccb5cb18af9906
 ---
 The package description of **`@dwarpal/web`** — the **hosted verify page**: the website a person is sent to by a shop, where they take the age check with their camera. It is built with **Next.js** (§4.17), the React framework chosen in ADR-0012.
 
@@ -18,10 +18,10 @@ Name, version, `private` (it is an app to run, never a library to publish) and a
 The scripts:
 
 @@ 8
-`dev` — Next.js's **development server** on port 3000: it rebuilds the page the moment a file is saved.
+`dev` — first copy MediaPipe's files into `public/` (`scripts/mediapipe.mjs`), then start Next.js's **development server** on port 3000, which rebuilds the page the moment a file is saved. `&&` runs the second command only if the first succeeded.
 
 @@ 9
-`build` — make an optimised **production build** into `.next/`.
+`build` — the same copying, then an optimised **production build** into `.next/`. (pnpm doesn't run `prebuild` scripts by default, so the copy step is written into the command itself.)
 
 @@ 10
 `start` — serve that production build on port 3000.
@@ -35,7 +35,7 @@ The scripts:
 @@ 13
 The end of the scripts.
 
-@@ 14-19
+@@ 14-20
 What the page needs to run, each pinned exactly:
 
 - `geist` — the **Geist** typeface, as font files inside the package (its licence, the SIL Open Font License, allows exactly this). The page serves the fonts itself, so a visitor's browser never contacts a font service;
@@ -44,8 +44,10 @@ What the page needs to run, each pinned exactly:
 
 Each version was at least seven days old when chosen — the workspace's cooldown rule (`pnpm-workspace.yaml`).
 
-@@ 20-29
+Added in Phase 3: `@mediapipe/tasks-vision` 1.1.0 — Google's **MediaPipe** vision tasks for the browser (Apache-2.0), which includes the face landmarker used for live guidance (`lib/landmarker.ts`). Version 1.1.1 existed, but was less than a week old.
+
+@@ 21-30
 What's needed only to develop and build it: the shared TypeScript settings; **Tailwind CSS** and its PostCSS plugin (§4.18); type descriptions of Node.js, React and React DOM; the TypeScript compiler; and Vitest.
 
-@@ 30
+@@ 31
 The closing brace.

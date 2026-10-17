@@ -234,7 +234,9 @@ def main(argv: list[str] | None = None) -> int:
         "cpu_latency": latency(session(target, threads=1), faces[0]),
     }
     built = manifest(args.run, args.calibration, args.version, target, checks)
-    (REGISTRY / args.version / "manifest.json").write_text(json.dumps(built, indent=2) + "\n", encoding="utf-8")
+    # "\n" line endings on every system, as the repository and its JSON formatter expect.
+    target_manifest = REGISTRY / args.version / "manifest.json"
+    target_manifest.write_text(json.dumps(built, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(json.dumps(checks, indent=2))
     return 0 if checks["parity"]["passed"] else 1
 

@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import cv2
 import docker
@@ -29,7 +29,7 @@ from dwarpal_api.adapters.tables import METADATA
 from dwarpal_api.cli import migrate, seed_dev
 from dwarpal_api.main import create_app as create_api
 from dwarpal_api.settings import Settings
-from dwarpal_contracts import FaceRequestMeta, FrameMeta
+from dwarpal_contracts import Challenge, ClientSignals, FaceRequestMeta, FrameMeta
 from dwarpal_inference.main import create_app as create_inference
 from dwarpal_inference.settings import Settings as InferenceSettings
 
@@ -80,9 +80,14 @@ class Harness:
 
 
 @asynccontextmanager
-async def harness(databases: tuple[str, str], stub_age: float = 30.0, livemode: bool = False) -> AsyncIterator[Harness]:
+async def harness(
+    databases: tuple[str, str],
+    stub_age: float = 30.0,
+    livemode: bool = False,
+    liveness: Literal["images", "labels"] = "labels",
+) -> AsyncIterator[Harness]:
     database_url, valkey_url = databases
-    inference = create_inference(InferenceSettings(stub_age=stub_age))
+    inference = create_inference(InferenceSettings(stub_age=stub_age, liveness=liveness))
     inference_transport = httpx.ASGITransport(app=inference)
     async with (
         inference.router.lifespan_context(inference),
@@ -112,9 +117,26 @@ async def start(h: Harness, created: dict[str, Any]) -> dict[str, str]:
     return {"Authorization": f"Bearer {response.json()['flow_token']}"}
 
 
-async def attempt(h: Harness, session: str, flow: dict[str, str], frames: list[bytes]) -> httpx.Response:
+def following(poses: list[str], count: int) -> list[FrameMeta]:
+    """Frame labels that follow some poses: a frontal baseline, then one frame per pose, in the order given."""
+    phases = ["baseline"] * (count - len(poses)) + poses
+    return [FrameMeta(index=i, t_ms=i * 120.0, phase=phase) for i, phase in enumerate(phases)]  # type: ignore[arg-type]
+
+
+async def attempt(
+    h: Harness,
+    session: str,
+    flow: dict[str, str],
+    frames: list[bytes],
+    poses: list[str] | None = None,
+    signals: ClientSignals | None = None,
+    claimed: Challenge | None = None,
+) -> httpx.Response:
+    """One face attempt. By default the frames' labels follow the challenge the server issued; an attack may label
+    them in another order (`poses`), report other browser signals, or claim a challenge of its own."""
     challenge = (await h.client.post(f"/v1/flow/sessions/{session}/challenge", headers=flow)).json()
-    meta = FaceRequestMeta(frames=[FrameMeta(index=i, t_ms=i * 120.0) for i in range(len(frames))])
+    labels = following(poses if poses is not None else challenge["poses"], len(frames))
+    meta = FaceRequestMeta(frames=labels, signals=signals or ClientSignals(), challenge=claimed)
     files = {f"frame_{i}": (f"frame_{i}.jpg", data, "image/jpeg") for i, data in enumerate(frames)}
     data = {"meta": meta.model_dump_json(), "challenge_id": challenge["challenge_id"]}
     return await h.client.post(f"/v1/flow/sessions/{session}/face-attempts", data=data, files=files, headers=flow)
@@ -125,7 +147,7 @@ async def test_an_adult_passes_and_the_website_can_verify_the_signed_token(datab
     async with harness(databases) as h:
         created = (await create(h)).json()
         flow = await start(h, created)
-        result = (await attempt(h, created["id"], flow, [PORTRAIT] * 4)).json()
+        result = (await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json()
         assert result["outcome"] == "pass"
         finished = (await h.client.post(f"/v1/flow/sessions/{created['id']}/finish", headers=flow)).json()
         assert finished["redirect_url"] == f"{RETURN_URL}?session_id={created['id']}"
@@ -151,7 +173,7 @@ async def test_an_adult_passes_and_the_website_can_verify_the_signed_token(datab
 async def test_a_clear_child_is_refused_and_the_token_says_so_unmistakably(databases: tuple[str, str]) -> None:
     async with harness(databases, stub_age=12.0) as h:
         created = (await create(h)).json()
-        result = (await attempt(h, created["id"], await start(h, created), [PORTRAIT] * 4)).json()
+        result = (await attempt(h, created["id"], await start(h, created), [PORTRAIT] * 6)).json()
         auth = {"Authorization": f"Bearer {h.key}"}
         session = (await h.client.get(f"/v1/verification-sessions/{created['id']}", headers=auth)).json()
         jwks = (await h.client.get("/.well-known/jwks.json")).json()
@@ -166,7 +188,7 @@ async def test_a_clear_child_is_refused_and_the_token_says_so_unmistakably(datab
 async def test_a_teenager_near_the_limit_must_use_a_stronger_check(databases: tuple[str, str]) -> None:
     async with harness(databases, stub_age=16.0) as h:
         created = (await create(h)).json()
-        result = (await attempt(h, created["id"], await start(h, created), [PORTRAIT] * 4)).json()
+        result = (await attempt(h, created["id"], await start(h, created), [PORTRAIT] * 6)).json()
     assert result["outcome"] == "step_up"
     assert result["reasons"] == ["age_uncertain"]
 
@@ -176,7 +198,7 @@ async def test_poor_frames_get_a_retry_and_then_a_step_up(databases: tuple[str, 
     async with harness(databases) as h:
         created = (await create(h)).json()
         flow = await start(h, created)
-        outcomes = [(await attempt(h, created["id"], flow, [blank_frame()] * 4)).json() for _ in range(3)]
+        outcomes = [(await attempt(h, created["id"], flow, [blank_frame()] * 6)).json() for _ in range(3)]
         auth = {"Authorization": f"Bearer {h.key}"}
         session = (await h.client.get(f"/v1/verification-sessions/{created['id']}", headers=auth)).json()
     assert [o["outcome"] for o in outcomes] == ["retry", "retry", "step_up"]
@@ -303,3 +325,44 @@ def test_the_migrations_build_exactly_the_tables_the_code_describes(databases: t
         return found
 
     assert asyncio.run(check()) == []
+
+
+@pytest.mark.anyio
+async def test_red_team_a_printed_photo_is_retried_then_rejected(databases: tuple[str, str]) -> None:
+    async with harness(databases, liveness="images") as h:
+        created = (await create(h)).json()
+        flow = await start(h, created)
+        first = (await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json()
+        second = (await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json()
+    assert (first["outcome"], first["reasons"]) == ("retry", ["liveness_check_failed"])
+    assert (second["outcome"], second["reasons"]) == ("reject", ["verification_failed"])
+
+
+@pytest.mark.anyio
+async def test_red_team_poses_in_the_wrong_order_fail(databases: tuple[str, str]) -> None:
+    async with harness(databases) as h:
+        created = (await create(h)).json()
+        flow = await start(h, created)
+        result = (await attempt(h, created["id"], flow, [PORTRAIT] * 6, poses=["turn_right"] * 3)).json()
+    assert (result["outcome"], result["reasons"]) == ("retry", ["liveness_check_failed"])
+
+
+@pytest.mark.anyio
+async def test_red_team_a_challenge_claimed_by_the_browser_is_ignored(databases: tuple[str, str]) -> None:
+    claimed = Challenge(poses=["turn_left"], colours=["#000000", "#ffffff"], step_ms=400)
+    async with harness(databases) as h:
+        created = (await create(h)).json()
+        flow = await start(h, created)
+        result = (await attempt(h, created["id"], flow, [PORTRAIT] * 4, poses=["turn_left"], claimed=claimed)).json()
+    assert (result["outcome"], result["reasons"]) == ("retry", ["liveness_check_failed"])
+
+
+@pytest.mark.anyio
+async def test_red_team_automation_and_virtual_cameras_go_to_step_up(databases: tuple[str, str]) -> None:
+    async with harness(databases) as h:
+        outcomes = []
+        for signals in (ClientSignals(automation=True), ClientSignals(virtual_camera=True)):
+            created = (await create(h)).json()
+            flow = await start(h, created)
+            outcomes.append((await attempt(h, created["id"], flow, [PORTRAIT] * 6, signals=signals)).json())
+    assert [(o["outcome"], o["reasons"]) for o in outcomes] == [("step_up", ["liveness_uncertain"])] * 2

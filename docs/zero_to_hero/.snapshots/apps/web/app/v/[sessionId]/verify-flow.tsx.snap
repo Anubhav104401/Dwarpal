@@ -4,7 +4,8 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 
 import { accentButton, card, primaryButton, Shell } from "@/components/shell";
 import { type Problem, problemFor, tipFor } from "@/lib/advice";
-import { type CapturedFrame, FlowClient, FlowError, type FlowSession } from "@/lib/flow-api";
+import type { Challenge } from "@/lib/challenge";
+import { type CapturedAttempt, FlowClient, FlowError, type FlowSession } from "@/lib/flow-api";
 
 import { CameraView } from "./camera-view";
 
@@ -141,14 +142,19 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
 
   const onCameraError = useCallback((error: unknown) => setStage(problemStage(error)), []);
 
-  const onCaptured = useCallback(async (session: FlowSession, frames: CapturedFrame[]) => {
+  const getChallenge = useCallback((): Promise<Challenge> => {
+    const client = flow.current;
+    return client === null ? Promise.reject(new Error("the check has not started")) : client.challenge();
+  }, []);
+
+  const onCaptured = useCallback(async (session: FlowSession, captured: CapturedAttempt) => {
     const client = flow.current;
     if (client === null) {
       return;
     }
     setStage({ kind: "checking", session });
     try {
-      const result = await client.attempt(frames);
+      const result = await client.attempt(captured);
       const updated = { ...session, attemptsRemaining: result.attemptsRemaining };
       setStage(
         result.outcome === "retry"
@@ -244,7 +250,8 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
         <section className={card}>
           <CameraView
             tip={stage.tip}
-            onCaptured={(frames) => onCaptured(session, frames)}
+            getChallenge={getChallenge}
+            onCaptured={(captured) => onCaptured(session, captured)}
             onCameraError={onCameraError}
           />
           <p className="mt-4 text-center text-xs text-zinc-500">

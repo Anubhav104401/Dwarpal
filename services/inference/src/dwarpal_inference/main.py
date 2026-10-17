@@ -25,7 +25,7 @@ def build_age_backend(settings: Settings) -> AgeBackend:
 
 def build_pipeline(settings: Settings) -> FacePipeline:
     detector = FaceDetector(settings.models_dir / settings.detector_file)
-    return FacePipeline(detector, build_age_backend(settings))
+    return FacePipeline(detector, build_age_backend(settings), trust_labels=settings.liveness == "labels")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

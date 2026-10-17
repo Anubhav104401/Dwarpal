@@ -19,6 +19,7 @@ next-env.d.ts
 test-results/
 playwright-report/
 e2e/.cache/
+apps/web/public/mediapipe/
 
 # Machine-learning data and weights (fetched by scripts, never committed)
 .datasets/
@@ -28,7 +29,7 @@ mlruns/
 *.onnx
 *.pt
 *.pth
-*.safetensors
+*.task
 
 # Secrets and local settings
 .env

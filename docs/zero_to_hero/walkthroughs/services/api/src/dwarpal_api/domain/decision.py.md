@@ -1,5 +1,5 @@
 ---
-fingerprint: 83b1198d05b97e25
+fingerprint: 77587b7bba7ad1f8
 ---
 The **decision engine** — the most important seventy lines in the project. It receives what the inference service found, and answers one of five words: **pass**, **fail**, **step up**, **retry** or **reject**. Everything else in the system exists to feed it good evidence, or to act on its answer.
 
@@ -91,6 +91,36 @@ Count every flag of every frame. The expression inside `Counter(...)` is a **gen
 `next(...)` returns the first value a generator produces: here, the first flag in `ADVICE_ORDER` that was counted at least once. If none was, it returns the **default** given after the comma: `"no_usable_frames"`.
 
 @@ 55-57
+**`liveness_problem`** (added in Phase 3) — check whether a real, present person took part, before the age is even looked at. It returns a `Decision` when there is a liveness problem, or `None` when there isn't. Its inputs:
+
+- `analysis` — the inference service's report, which now includes a `liveness` part;
+- `liveness_failures` — how many earlier attempts in this session already failed the liveness check;
+- `try_again` — the "not good enough" outcome `decide` worked out (`RETRY`, or `STEP_UP` on the last attempt);
+- `livemode` — whether this is a real session (live key) rather than a test.
+
+@@ 58-59
+The docstring states the rule that shapes everything here: the **reasons** sent outwards are vague on purpose. The full detail — which pose was missing, which injection sign fired — is kept in the stored scores, where the operator can read it but the person at the camera can't.
+
+@@ 60
+A short name for the liveness part of the report.
+
+@@ 61-62
+**No liveness evidence we can use** → try again, with `liveness_unavailable`. Three cases:
+
+- the report has no liveness part at all;
+- it has no pose check (no challenge was issued, or it was lost);
+- it is a **live** session, but the evidence is `"labels"` — the test mode that trusts the frames' own labels. That mode is for tests with the stand-in age model; a real session must never be decided on it, whatever the inference service was set to.
+
+@@ 63-64
+**The pose challenge failed** — the head didn't turn as asked, or not in the right order. The first time, the person may simply have been slow: `try_again`. If an earlier attempt already failed it too, **reject** the session. Two failures in a row looks like a photo or a replayed video, not a confused person.
+
+@@ 65-66
+**Signs of an injected camera** — browser automation, a virtual camera, a hidden page, identical frames (see `liveness.py`). These can have innocent causes (some people use virtual-camera software for video calls), so they never reject on their own: the session is **stepped up** to a stronger method with the reason `liveness_uncertain`.
+
+@@ 67
+No problem found: `None`, and the age checks may go ahead.
+
+@@ 70-78
 **`decide`** — the engine itself. Its inputs:
 
 - `policy` and `thresholds` — what is being checked, and the model's calibrated bars;
@@ -98,38 +128,46 @@ Count every flag of every frame. The expression inside `Counter(...)` is a **gen
 - `attempt_index` — which attempt this is, counting from 0;
 - `model_ok` — whether the report came from a model this manifest covers (the caller checks with `serves_model`).
 
-@@ 58
-First, work out what a "not good enough" answer should be: `STEP_UP` if this is the person's last allowed attempt, otherwise `RETRY`. With 3 attempts, indexes 0 and 1 give `RETRY` and index 2 gives `STEP_UP`. Computing it once keeps the five checks below short.
+Two inputs added in Phase 3, both with defaults so older callers keep working:
 
-@@ 59-60
+- `liveness_failures` — how many earlier attempts failed the liveness check;
+- `livemode` — whether this is a real session.
+
+@@ 79
+First, work out what a "not good enough" answer should be: `STEP_UP` if this is the person's last allowed attempt, otherwise `RETRY`. With 3 attempts, indexes 0 and 1 give `RETRY` and index 2 gives `STEP_UP`. Computing it once keeps the checks below short.
+
+@@ 80-81
 **Rule 1:** no analysis at all — the inference service was down, too slow, or sent something malformed.
 
-@@ 61-62
+@@ 82-83
 **Rule 2:** the report came from a model the thresholds weren't made for. Thresholds are only valid for the exact model they were calibrated on, so no decision is taken.
 
-@@ 63-64
+@@ 84-85
 **Rule 3:** no age estimate, or fewer than three usable frames. The reason is the main problem, so the person can fix it.
 
-@@ 65-67
+@@ 86-87
+**Liveness** (Phase 3) — after the quality check, before any use of the age. The `:=` operator (the "walrus") stores `liveness_problem`'s answer in `problem` *and* tests it in one line: if there is a problem, that is the decision. Checking quality first matters: a dark or blurry burst should get "move to the light", not a liveness failure that counts towards a rejection.
+
+@@ 88-90
 **Rule 4:** the frames disagree. `pstdev` is the **population standard deviation**: roughly, the typical distance of each value from the average. For estimates 30, 31 and 29 it is about 0.8 years; for 15, 45 and 30 it is about 12 years — too much. The `len(means) > 1` check comes first because a spread needs at least two values.
 
-@@ 68
+@@ 91
 Read `p`: the probability that the person is **at least the policy's age**, from the report's `p_over` dict. `.get(...)` returns `None` instead of crashing if that age is missing.
 
-@@ 69-70
+@@ 92-93
 **Rule 5:** a missing or **NaN** probability. NaN — "not a number" — is a special value that floating-point maths produces for undefined results such as 0 ÷ 0.
 
 !!! warn "Careful — the strangest value in computing"
     Every comparison with NaN is **false**: `NaN >= 0.95` is false, *and* `NaN < 0.95` is false. Code that says "pass unless `p` is below the bar" would therefore pass a NaN. This explicit check catches it, and a test in `test_domain.py` feeds NaN to the engine to prove it never passes.
 
-@@ 71
+@@ 94
 **Retry hardening.** The bar for this attempt is `tau_pass` plus 0.02 per earlier attempt — with the stub manifest: 0.95, then 0.97, then 0.99. `min(0.999, …)` caps it just below certainty, because no estimate can ever be 100 % sure, so a bar of 1.0 would make passing impossible.
 
-@@ 72-73
+@@ 95-96
 **Rule 6 — the only way to pass:** `p` is at least the bar. The decision records `p` and the bar used.
 
-@@ 74-75
+@@ 97-98
 **Rule 7:** `p` is at or below `tau_fail` — the model is confident the person is too young.
 
-@@ 76
+@@ 99
 **Rule 8:** anything in between is genuinely uncertain — often someone close to the age limit. The fair answer is neither yes nor no but "let's check properly": step up.

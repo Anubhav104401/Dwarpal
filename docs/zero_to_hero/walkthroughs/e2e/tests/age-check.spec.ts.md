@@ -1,5 +1,5 @@
 ---
-fingerprint: 6f81b68dac3a8709
+fingerprint: 7133feeb0e7cebde
 ---
 **The end-to-end tests**: four short stories, acted out by **Playwright** in a real Chromium browser (§4.20). The first one is the whole Phase 1 slice working together — the shop, the SDK, the verify page, the camera, the API, the inference service, the decision engine, the signed token and the shop's pass:
 
@@ -30,35 +30,41 @@ The verify page's intro must appear, naming the age.
 @@ 12
 A screenshot of the intro, for people to look at. `animations: "disabled"` finishes any animation first, so the picture is never caught halfway through a fade.
 
-@@ 14-16
-Start the camera, wait until "Take photos" is **enabled** — which happens when the fake camera's first picture has arrived — and take a screenshot of the camera screen.
+@@ 14-17
+Start the camera, wait until the **Start** button is enabled, and take a screenshot of the camera screen. `exact: true` matters: without it, "Start" would also match "Start the camera".
 
-@@ 17-18
-Take the photos, and wait up to 20 seconds for "You're all set". In those seconds, five frames travel to the API, then to the inference service, where the real face detector finds the face, the stand-in model reports 30, and the decision engine says pass.
+As the comment says, the button is enabled once the live guidance sees a well-placed face — or after a grace period, because the guidance only *advises*: it must never lock out someone whose face it can't read. 15 seconds allows for MediaPipe loading.
 
-@@ 19
-A screenshot of the result.
+@@ 18-19
+Press Start. The comment explains the long waits that follow: the fake camera plays a still portrait that never turns, so the page waits the full 5 seconds at each pose before moving on.
 
-@@ 21
+@@ 20-27
+Follow the check as it happens, with a screenshot at each stage:
+
+- the colour phase, recognised by its instruction "Keep looking at the screen." (`.first()`: the text may appear in more than one place);
+- a pose prompt, up to 10 seconds later. `/^(Slowly turn your head|Tilt your head up)/` is a **regular expression**: text that *starts with* (`^`) either phrase (`|` means "or") — the poses are random, so the test can't know which comes first;
+- the result, "You're all set", within 45 seconds. Meanwhile seven photos travel to the API, then to the inference service: the real face detector finds the face, liveness (in the labels test mode) accepts the poses, the stand-in model reports 30, and the decision engine says pass.
+
+@@ 29
 Press "Continue to …". The `/^Continue to /` pattern matches any website's name.
 
-@@ 22
+@@ 30
 The shop's return route has done all its checks — the browser binding, the API's result, the token's signature — and the browser is now in the cellar.
 
-@@ 23
+@@ 31
 The cellar shows its "Age verified" badge.
 
-@@ 24
+@@ 32
 A full-page screenshot of the cellar. The end of the story.
 
-@@ 25
+@@ 33
 The end of test 1.
 
-@@ 27-31
+@@ 35-39
 **Test 2: the cellar stays closed without a pass.** Going straight to `/cellar` must land back at the entrance, with the "Verify my age" button.
 
-@@ 33-36
+@@ 41-44
 **Test 3: a verify link without its secret explains what to do.** A link with a valid-looking session ID but no `#cs=` part must say "This link doesn't work" — politely, and without asking the API anything.
 
-@@ 38-44
+@@ 46-52
 **Test 4: a return link only works in the browser that started the check.** Opening the shop's return address directly — as someone would with a link sent by a friend — must lead to the "Please finish the check where you started it" page, because this browser never started that check.

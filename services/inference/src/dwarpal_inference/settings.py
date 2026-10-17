@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -21,3 +22,10 @@ class Settings(BaseSettings):
     age_model: str = "registry/age/age-convnext-tiny-2026.10.17"
     age_threads: int = 1
     workers: int = 4
+    liveness: Literal["images", "labels"] = "images"
+
+    @model_validator(mode="after")
+    def labels_only_with_the_stand_in(self) -> Settings:
+        if self.liveness == "labels" and self.age_backend != "stub":
+            raise ValueError("liveness from labels is a test mode, allowed only with the stand-in age model")
+        return self

@@ -1,5 +1,5 @@
 ---
-fingerprint: 976ff8dc9e3e4dfa
+fingerprint: 7efa77e53eecc285
 ---
 **Export**: turn a trained, calibrated model into the file the service runs, prove that file gives the same answers, and write the model's **manifest** — its passport in the model registry.
 
@@ -166,8 +166,8 @@ The first validation faces, prepared the training way.
 @@ 231-235
 Run the three checks.
 
-@@ 236-239
-Write the manifest next to the model, print the checks, and exit with `1` if parity failed — an exported file that doesn't give the model's answers must never be used.
+@@ 236-241
+Write the manifest next to the model — with `\n` line endings on every system (`newline="\n"`), as the repository and its JSON formatter expect: on Windows, Python would otherwise write `\r\n` — then print the checks, and exit with `1` if parity failed — an exported file that doesn't give the model's answers must never be used.
 
-@@ 242-243
+@@ 244-245
 Run `main` when the module is started as a program.

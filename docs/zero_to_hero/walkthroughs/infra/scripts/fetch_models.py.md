@@ -1,5 +1,5 @@
 ---
-fingerprint: dc740be78efadfad
+fingerprint: 152bebc735353ddc
 ---
 **Downloads third-party model files and refuses any that don't match their recorded fingerprint.** Every fresh machine runs it — developers' laptops, CI, the production server — so no model file ever needs to live in Git.
 
@@ -7,7 +7,7 @@ fingerprint: dc740be78efadfad
     Code we download is code we will run. A fingerprint check turns "we hope this is the right file" into "this is provably the exact file we reviewed". Package managers do the same with lockfiles; this script does it for model files.
 
 @@ 1-5
-The docstring: what the script does, and its two commands. Plain `fetch_models.py` fetches only what serving and the tests need — CI runs it on every change. `--training` also fetches pretrained weights used only for training (added in Phase 2): 114 MB that CI never needs.
+The docstring: what the script does, and its two commands. Plain `fetch_models.py` fetches what serving, the verify page and the tests need — CI runs it on every change. `--training` also fetches pretrained weights used only for training (added in Phase 2): 114 MB that CI never needs.
 
 @@ 7
 The project-wide type-hint setting.
@@ -84,7 +84,7 @@ Report success, with the path written relative to the repository and with forwar
 Read and parse `models/third_party.json`, explicitly as UTF-8.
 
 @@ 59-60
-Choose the entries to fetch — every serving entry, and the training entries only if asked — then fetch each one. A list comprehension (rather than stopping at the first failure) reports every problem in one run.
+Choose the entries to fetch — every entry not marked `"training"`, and the training ones only if asked — then fetch each one. A list comprehension (rather than stopping at the first failure) reports every problem in one run.
 
 @@ 61
 Exit code `0` only if every model is present and verified; otherwise `1`. That makes CI stop before any test runs.

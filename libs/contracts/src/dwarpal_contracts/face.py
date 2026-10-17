@@ -5,7 +5,7 @@ Nothing in these models can hold an image: only numbers, flags and short texts.
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,6 +13,10 @@ Probability = Annotated[float, Field(ge=0.0, le=1.0)]
 POLICY_AGES = (13, 16, 18, 21, 25)
 MAX_FRAMES = 16
 MAX_FRAME_BYTES = 512 * 1024
+type Pose = Literal["turn_left", "turn_right", "look_up"]
+POSES: tuple[Pose, ...] = ("turn_left", "turn_right", "look_up")
+type Phase = Literal["baseline", "turn_left", "turn_right", "look_up"]
+Colour = Annotated[str, Field(pattern=r"^#[0-9a-f]{6}$")]
 
 
 class Contract(BaseModel):
@@ -22,11 +26,31 @@ class Contract(BaseModel):
 class FrameMeta(Contract):
     index: Annotated[int, Field(ge=0, le=31)]
     t_ms: Annotated[float, Field(ge=0.0)]
-    phase: Annotated[str, Field(max_length=32)] = "baseline"
+    phase: Phase = "baseline"
+
+
+class Challenge(Contract):
+    """What the server asked for: head poses in order, and screen colours shown step_ms apart."""
+
+    poses: Annotated[list[Pose], Field(min_length=1, max_length=4)]
+    colours: Annotated[list[Colour], Field(min_length=2, max_length=8)]
+    step_ms: Annotated[int, Field(ge=400, le=2000)]
+
+
+class ClientSignals(Contract):
+    """What the browser reports about itself. Never trusted on its own: one input among many."""
+
+    automation: bool = False
+    virtual_camera: bool = False
+    hidden_ms: Annotated[float, Field(ge=0.0)] = 0.0
+    light_shown: bool = True
 
 
 class FaceRequestMeta(Contract):
     frames: Annotated[list[FrameMeta], Field(min_length=1, max_length=MAX_FRAMES)]
+    light_started_ms: Annotated[float, Field(ge=0.0)] | None = None
+    signals: ClientSignals = ClientSignals()
+    challenge: Challenge | None = None
 
 
 class FrameReport(Contract):
@@ -37,6 +61,7 @@ class FrameReport(Contract):
     sharpness: Annotated[float, Field(ge=0.0)]
     eye_distance_px: Annotated[float, Field(ge=0.0)]
     yaw_ratio: float
+    pitch_ratio: float = 0.0
     flags: list[str]
 
     @property
@@ -51,9 +76,30 @@ class AgeEstimate(Contract):
     frame_means: list[float]
 
 
+class PoseCheck(Contract):
+    passed: bool
+    problems: list[str]
+
+
+class LightCheck(Contract):
+    usable: bool
+    r_skin: Annotated[float, Field(ge=-1.0, le=1.0)] | None = None
+    r_background: Annotated[float, Field(ge=-1.0, le=1.0)] | None = None
+
+
+class Liveness(Contract):
+    pose: PoseCheck | None
+    light: LightCheck | None
+    injection: list[str]
+    # "images": measured from the frames. "labels": the frames' phase labels were trusted instead — a test mode,
+    # possible only with the stand-in age model, and never accepted for a live session.
+    evidence: Literal["images", "labels"] = "images"
+
+
 class FaceAnalysis(Contract):
     model_version: str
     frames: list[FrameReport]
     usable_frames: Annotated[int, Field(ge=0)]
     age: AgeEstimate | None
     duration_ms: Annotated[float, Field(ge=0.0)]
+    liveness: Liveness | None = None

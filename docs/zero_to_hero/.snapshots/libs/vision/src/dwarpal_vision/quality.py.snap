@@ -33,6 +33,7 @@ class Quality:
     eye_distance_px: float
     yaw_ratio: float
     flags: tuple[str, ...]
+    pitch_ratio: float = 0.0
 
 
 def face_region(image: Image, face: Face) -> Image:
@@ -47,6 +48,12 @@ def yaw_ratio(face: Face) -> float:
     right_eye, left_eye, nose = face.landmarks[0], face.landmarks[1], face.landmarks[2]
     eyes_mid_x = (right_eye[0] + left_eye[0]) / 2.0
     return float((nose[0] - eyes_mid_x) / max(face.eye_distance, 1.0))
+
+
+def pitch_ratio(face: Face) -> float:
+    eyes_mid_y = (face.landmarks[0][1] + face.landmarks[1][1]) / 2.0
+    mouth_mid_y = (face.landmarks[3][1] + face.landmarks[4][1]) / 2.0
+    return float((face.landmarks[2][1] - eyes_mid_y) / max(mouth_mid_y - eyes_mid_y, 1.0))
 
 
 def assess(image: Image, faces: list[Face], rules: QualityRules = DEFAULT_RULES) -> Quality:
@@ -72,5 +79,12 @@ def assess(image: Image, faces: list[Face], rules: QualityRules = DEFAULT_RULES)
     }
     flags = tuple(name for name, failed in checks.items() if failed)
     return Quality(
-        len(faces), face.score, float(np.clip(brightness, 0.0, 1.0)), sharpness, face.eye_distance, yaw, flags
+        len(faces),
+        face.score,
+        float(np.clip(brightness, 0.0, 1.0)),
+        sharpness,
+        face.eye_distance,
+        yaw,
+        flags,
+        pitch_ratio(face),
     )

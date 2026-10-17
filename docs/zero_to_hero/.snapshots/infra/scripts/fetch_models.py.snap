@@ -1,6 +1,6 @@
 """Download the third-party model files listed in models/third_party.json and verify their fingerprints.
 
-uv run infra/scripts/fetch_models.py               the files serving and the tests need
+uv run infra/scripts/fetch_models.py               the files serving, the verify page and the tests need
 uv run infra/scripts/fetch_models.py --training    also the pretrained weights used only for training
 """
 
@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--training", action="store_true", help="also fetch weights used only for training")
     args = parser.parse_args(argv)
     manifest = json.loads((MODELS / "third_party.json").read_text(encoding="utf-8"))
-    wanted = [entry for entry in manifest["models"] if entry["use"] == "serving" or args.training]
+    wanted = [entry for entry in manifest["models"] if entry["use"] != "training" or args.training]
     results = [fetch(entry) for entry in wanted]
     return 0 if all(results) else 1
 

@@ -66,6 +66,8 @@ export default defineConfig({
         launchOptions: {
           args: [
             "--use-fake-ui-for-media-stream",
+            // Hide the automation flag, as an attacker's browser would: the server never trusts the page's signals.
+            "--disable-blink-features=AutomationControlled",
             "--use-fake-device-for-media-stream",
             `--use-file-for-fake-video-capture=${FAKE_CAMERA}`,
           ],
@@ -77,7 +79,9 @@ export default defineConfig({
     server(
       `${UV} run --package dwarpal-inference uvicorn dwarpal_inference.main:create_app --factory --port 8001`,
       "http://127.0.0.1:8001/readyz",
-      { DWARPAL_INFERENCE_STUB_AGE: "30" },
+      // The fake camera plays a still portrait, which can't turn its head: liveness trusts the frames' labels here,
+      // a test mode allowed only with the stand-in age model (§5.3).
+      { DWARPAL_INFERENCE_STUB_AGE: "30", DWARPAL_INFERENCE_LIVENESS: "labels" },
     ),
     server(
       `${UV} run --package dwarpal-api uvicorn dwarpal_api.main:create_app --factory --port 8000 --log-config services/api/logging.json`,

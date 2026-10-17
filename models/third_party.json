@@ -20,6 +20,16 @@
       "bytes": 114374272,
       "licence": "Apache-2.0, per the model card at the pinned revision; approved by the owner for training on 2026-10-17. Trained by timm on ImageNet-12k and ImageNet-1k, whose own terms allow non-commercial research only; whether such terms carry over to trained weights is legally unsettled",
       "source": "https://huggingface.co/timm/convnext_tiny.in12k_ft_in1k"
+    },
+    {
+      "name": "mediapipe-face-landmarker",
+      "use": "web",
+      "file": "third_party/face_landmarker.task",
+      "url": "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+      "sha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
+      "bytes": 3758596,
+      "licence": "Apache-2.0 (Google MediaPipe); approved by the owner for the verify page on 2026-10-17. The download's MD5 matched the hash the storage server publishes for it",
+      "source": "https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker"
     }
   ]
 }

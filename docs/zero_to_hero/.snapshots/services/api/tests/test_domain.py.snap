@@ -3,19 +3,24 @@
 from __future__ import annotations
 
 import base64
+import itertools
 import json
 import logging
 import math
+import random
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from pydantic import SecretStr, ValidationError
 
+from dwarpal_api.cli import liveness_summary
 from dwarpal_api.domain import ids
+from dwarpal_api.domain.challenges import COLOUR_STEPS, PALETTE, POSE_STEPS, new_challenge
 from dwarpal_api.domain.decision import Outcome, decide
 from dwarpal_api.domain.keys import generate_api_key, generate_client_secret, matches, parse_api_key
 from dwarpal_api.domain.policy import (
@@ -29,7 +34,7 @@ from dwarpal_api.domain.policy import (
 from dwarpal_api.domain.sessions import ALLOWED, IllegalTransitionError, Status, is_expired, move
 from dwarpal_api.logs import JsonFormatter
 from dwarpal_api.settings import Settings
-from dwarpal_contracts import AgeEstimate, FaceAnalysis, FrameReport
+from dwarpal_contracts import AgeEstimate, FaceAnalysis, FrameReport, LightCheck, Liveness, PoseCheck
 
 REPO = Path(__file__).resolve().parents[3]
 POLICY = get_policy("uk_osa_18")
@@ -50,11 +55,18 @@ def frame(index: int, flags: list[str] | None = None) -> FrameReport:
     )
 
 
-def analysis(p_over_18: float, usable: int = 4, means: list[float] | None = None) -> FaceAnalysis:
+LIVE = Liveness(pose=PoseCheck(passed=True, problems=[]), light=LightCheck(usable=False), injection=[])
+
+
+def analysis(
+    p_over_18: float, usable: int = 4, means: list[float] | None = None, liveness: Liveness | None = LIVE
+) -> FaceAnalysis:
     p_over = {13: 1.0, 16: 1.0, 18: p_over_18, 21: 0.9, 25: 0.8}
     age = AgeEstimate(mean=30.0, std=2.0, p_over=p_over, frame_means=means or [30.0] * usable)
     frames = [frame(i) for i in range(usable)]
-    return FaceAnalysis(model_version="stub-age-30", frames=frames, usable_frames=usable, age=age, duration_ms=10.0)
+    return FaceAnalysis(
+        model_version="stub-age-30", frames=frames, usable_frames=usable, age=age, duration_ms=10.0, liveness=liveness
+    )
 
 
 @given(st.integers(min_value=0, max_value=2**48 - 1))
@@ -236,3 +248,83 @@ def test_log_lines_are_json_objects_carrying_the_request_fields() -> None:
     assert line["request_id"] == "req_0123456789abcdef"
     assert line["status"] == 201
     assert "method" not in line
+
+
+def test_without_liveness_evidence_nothing_passes() -> None:
+    no_challenge = Liveness(pose=None, light=None, injection=[])
+    for missing in (None, no_challenge):
+        decision = decide(POLICY, THRESHOLDS, analysis(0.999, liveness=missing), 0, True)
+        assert (decision.outcome, decision.reasons) == (Outcome.RETRY, ("liveness_unavailable",))
+
+
+def test_a_failed_pose_challenge_gets_one_retry_then_a_rejection() -> None:
+    failed = Liveness(pose=PoseCheck(passed=False, problems=["wrong_order"]), light=None, injection=[])
+    first = decide(POLICY, THRESHOLDS, analysis(0.999, liveness=failed), 0, True)
+    second = decide(POLICY, THRESHOLDS, analysis(0.999, liveness=failed), 1, True, liveness_failures=1)
+    assert (first.outcome, first.reasons) == (Outcome.RETRY, ("liveness_check_failed",))
+    assert (second.outcome, second.reasons) == (Outcome.REJECT, ("liveness_check_failed",))
+
+
+def test_signs_of_injection_send_even_a_clear_adult_to_step_up() -> None:
+    suspicious = Liveness(pose=PoseCheck(passed=True, problems=[]), light=None, injection=["virtual_camera"])
+    decision = decide(POLICY, THRESHOLDS, analysis(0.999, liveness=suspicious), 0, True)
+    assert (decision.outcome, decision.reasons) == (Outcome.STEP_UP, ("liveness_uncertain",))
+
+
+def test_liveness_reasons_never_say_which_check_fired() -> None:
+    reasons = set()
+    for live in (
+        Liveness(pose=PoseCheck(passed=False, problems=["not_shown:turn_left"]), light=None, injection=[]),
+        Liveness(pose=PoseCheck(passed=False, problems=["baseline_not_frontal"]), light=None, injection=[]),
+        Liveness(pose=PoseCheck(passed=True, problems=[]), light=None, injection=["automation"]),
+        Liveness(pose=PoseCheck(passed=True, problems=[]), light=None, injection=["identical_frames"]),
+    ):
+        reasons |= set(decide(POLICY, THRESHOLDS, analysis(0.999, liveness=live), 0, True).reasons)
+    assert reasons == {"liveness_check_failed", "liveness_uncertain"}
+
+
+def test_a_live_session_never_accepts_liveness_taken_from_labels() -> None:
+    labelled = Liveness(pose=PoseCheck(passed=True, problems=[]), light=None, injection=[], evidence="labels")
+    test_mode = decide(POLICY, THRESHOLDS, analysis(0.999, liveness=labelled), 0, True)
+    live = decide(POLICY, THRESHOLDS, analysis(0.999, liveness=labelled), 0, True, livemode=True)
+    assert test_mode.outcome == Outcome.PASS
+    assert (live.outcome, live.reasons) == (Outcome.RETRY, ("liveness_unavailable",))
+
+
+def test_challenges_are_random_never_repeat_a_step_and_cover_every_order() -> None:
+    rng = random.Random(7)  # noqa: S311 - reproducible test draws; real challenges use secrets.SystemRandom
+    drawn = [new_challenge(rng) for _ in range(500)]
+    for challenge in drawn:
+        assert len(challenge.poses) == POSE_STEPS
+        assert len(challenge.colours) == COLOUR_STEPS
+        assert set(challenge.colours) <= set(PALETTE)
+        for steps in (challenge.poses, challenge.colours):
+            assert all(a != b for a, b in itertools.pairwise(steps))
+    assert len({tuple(challenge.poses) for challenge in drawn}) == 12
+
+
+def test_the_liveness_report_counts_outcomes_problems_signs_and_light() -> None:
+    def scores(passed: bool, problems: list[str], signs: list[str], r_skin: float | None) -> dict[str, Any]:
+        light = {"usable": r_skin is not None, "r_skin": r_skin, "r_background": None}
+        return {
+            "liveness": {
+                "pose": {"passed": passed, "problems": problems},
+                "light": light,
+                "injection": signs,
+                "evidence": "images",
+            }
+        }
+
+    report = liveness_summary(
+        [
+            ("pass", scores(True, [], [], 0.8)),
+            ("pass", scores(True, [], [], 0.4)),
+            ("retry", scores(False, ["not_shown:turn_left"], [], None)),
+            ("step_up", scores(True, [], ["automation"], 0.6)),
+        ]
+    )
+    assert "4 face attempts: pass 2, retry 1, step_up 1" in report
+    assert "pose challenge passed: 3 of 4 (75%); false-reject rate if all were genuine: 25%" in report
+    assert "pose problems: not_shown:turn_left 1" in report
+    assert "injection signs: automation 1" in report
+    assert "skin correlation median +0.60, range +0.40 to +0.80" in report

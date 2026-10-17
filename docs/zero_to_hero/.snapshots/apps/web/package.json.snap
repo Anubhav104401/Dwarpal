@@ -5,13 +5,14 @@
   "description": "The hosted verify page: where a person takes a Dwarpal age check with their camera.",
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
+    "dev": "node scripts/mediapipe.mjs && next dev --port 3000",
+    "build": "node scripts/mediapipe.mjs && next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.1.0",
     "geist": "1.7.2",
     "next": "16.4.0",
     "react": "19.3.0",

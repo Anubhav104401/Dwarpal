@@ -52,8 +52,29 @@ def dominant_problem(analysis: FaceAnalysis) -> str:
     return next((flag for flag in ADVICE_ORDER if counts[flag]), "no_usable_frames")
 
 
+def liveness_problem(
+    analysis: FaceAnalysis, liveness_failures: int, try_again: Outcome, livemode: bool
+) -> Decision | None:
+    """Liveness comes before age. Its reasons are deliberately vague: an attacker must never learn which check caught
+    them (ADR-0007), so every failure looks the same from outside, and only the stored scores say which it was."""
+    live = analysis.liveness
+    if live is None or live.pose is None or (livemode and live.evidence != "images"):
+        return Decision(try_again, ("liveness_unavailable",))
+    if not live.pose.passed:
+        return Decision(Outcome.REJECT if liveness_failures >= 1 else try_again, ("liveness_check_failed",))
+    if live.injection:
+        return Decision(Outcome.STEP_UP, ("liveness_uncertain",))
+    return None
+
+
 def decide(
-    policy: Policy, thresholds: Thresholds, analysis: FaceAnalysis | None, attempt_index: int, model_ok: bool
+    policy: Policy,
+    thresholds: Thresholds,
+    analysis: FaceAnalysis | None,
+    attempt_index: int,
+    model_ok: bool,
+    liveness_failures: int = 0,
+    livemode: bool = False,
 ) -> Decision:
     try_again = Outcome.STEP_UP if attempt_index + 1 >= policy.max_face_attempts else Outcome.RETRY
     if analysis is None:
@@ -62,6 +83,8 @@ def decide(
         return Decision(try_again, ("model_mismatch",))
     if analysis.age is None or analysis.usable_frames < MIN_USABLE_FRAMES:
         return Decision(try_again, (dominant_problem(analysis),))
+    if (problem := liveness_problem(analysis, liveness_failures, try_again, livemode)) is not None:
+        return problem
     means = analysis.age.frame_means
     if len(means) > 1 and statistics.pstdev(means) > MAX_FRAME_SPREAD_YEARS:
         return Decision(try_again, ("inconsistent_frames",))
