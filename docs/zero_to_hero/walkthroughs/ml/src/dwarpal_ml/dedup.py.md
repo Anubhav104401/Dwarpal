@@ -1,5 +1,5 @@
 ---
-fingerprint: b31032bda8fa6ab5
+fingerprint: be97300f2c937e48
 ---
 **Near-duplicate removal.** Photo collections gathered from the internet contain the same photo more than once — re-uploaded, resized, re-compressed, turned grey. If one copy lands in training and another in the test set, the model is tested on a photo it has already studied, and looks better than it is (§2.2). If two copies land in the calibration set, they count as two people when they are one, and the safety bound (§2.14) claims more evidence than it has.
 
@@ -21,137 +21,143 @@ The docstring: the job, the two stages, and the command.
 @@ 9
 The project-wide type-hint setting.
 
-@@ 11-18
-Standard-library tools: `argparse`, `csv`, `sys`, `zipfile`, `Counter`, the types for sequences, `dataclass` and `Path`.
+@@ 11-19
+Standard-library tools: `argparse`, `csv`, `sys`, `zipfile`, `Counter`, the types for sequences, `ExitStack` (to close several open zips safely), `dataclass` and `Path`.
 
-@@ 20-22
+@@ 21-23
 OpenCV, NumPy, and NumPy's type for arrays.
 
-@@ 23
+@@ 24
 **`DisjointSet`** from SciPy — a ready-made, well-tested way of grouping things that are linked in pairs (below).
 
-@@ 25-28
+@@ 26-29
 From the ML package: manifests, rows, age labels and tables; where prepared faces are; the register. From the vision library: the careful image decoder.
 
-@@ 30-32
+@@ 31-33
 **The two limits**, and a comment saying where the evidence for them is written down:
 
 - `SIEVE_DISTANCE = 10` — two hashes are a candidate pair if at most 10 of their 64 bits differ;
 - `MIN_SIMILARITY = 0.6` — a candidate pair is confirmed as the same photo if its fine-detail similarity is at least 0.6.
 
-@@ 33-34
+@@ 34-35
 How fine detail is measured: on a 64×64 grey version of the face, with a blur of strength 2 (below).
 
-@@ 35
+@@ 36
 `BLOCK = 256` — the sieve compares 256 hashes against the rest at a time.
 
-@@ 36-37
+@@ 37-38
 **`SPLIT_PRIORITY`** — which copy to keep. Lower numbers win: a copy in `test` is kept over one in `calib`, `calib` over `val`, and `val` over `train`. The copy that survives is always the one in the split that matters most to keep clean, and the copies that would have leaked into it are the ones removed.
 
-@@ 39
+@@ 40
 `Vector` — a name for "a list of decimal numbers in a NumPy array".
 
-@@ 42-49
+@@ 43-50
 **`Duplicate`** — one removed copy: which image, its split, the copy that was kept and its split, how similar they were, and whether both copies had the same age label.
 
-@@ 52
+@@ 53
 **`close_pairs`** — the sieve. It yields every pair of positions `(a, b)`, with `a` before `b`, whose hashes differ in at most `max_distance` bits.
 
-@@ 53-55
+@@ 54-56
 Take the hashes 256 at a time (`block`), and compare each block only with itself and everything after it (`rest`): pairs with earlier hashes were already found by earlier blocks.
 
-@@ 56
+@@ 57
 The heart of the sieve, in one line. `block[:, None] ^ rest[None, :]` arranges the block as a column and the rest as a row, and NumPy fills in the whole table between them: each cell is the **XOR** of two hashes, which has a 1 exactly where the two differ. `np.bitwise_count` counts those 1s — the **Hamming distance**. For a block of 256 against 97,645 hashes, that is 25 million distances, computed by NumPy's fast built-in loops in a fraction of a second. The whole sieve, over all 97,645 faces, takes well under a minute.
 
-@@ 57-59
+@@ 58-60
 `np.nonzero` gives the positions of every close pair in the table. Within the block's own square of the table, each pair appears twice (and every hash is at distance 0 from itself), so only `i < j` is kept. The positions are turned back into positions in the full list.
 
-@@ 62
+@@ 63
 **`fine_detail`** — the check's view of a face: only its *fine detail*.
 
-@@ 63-64
+@@ 64-65
 Decode the aligned face, turn it grey, and shrink it to 64×64.
 
-@@ 65
+@@ 66
 Subtract a blurred copy of the face from itself. Blurring keeps only the broad shapes; taking them away leaves only the fine detail — pores, hair strands, the edges of glasses, the texture of the background. This is the trick that makes the check work. After alignment, *every* face has its eyes, nose and mouth in the same places, so the broad shapes of two strangers can look remarkably alike. Their fine detail never matches, but two copies of one photo share it exactly, even after resizing, re-compression or conversion to grey.
 
-@@ 66-67
+@@ 67-68
 Shift the numbers so they average zero, and scale them so that their length (`np.linalg.norm`, √ of the sum of squares) is 1. `max(…, 1e-6)` avoids dividing by zero for a completely flat picture.
 
-@@ 70-71
+@@ 71-72
 **`similarity`** — multiply two such vectors number by number and add up (`np.dot`). Because both were shifted and scaled, the result is their **correlation**: 1 for identical detail, around 0 for unrelated detail.
 
-@@ 74-78
-**`Details`** — fine detail on demand, from the zip of prepared faces. Many faces take part in several candidate pairs, so each is computed once and remembered in `cache`.
+@@ 75-79
+**`Details`** — fine detail on demand, from the zips of prepared faces: one zip per dataset, since a search may span two (`--against`, below). Many faces take part in several candidate pairs, so each is computed once and remembered in `cache`.
 
-@@ 80-83
-`__getitem__` is what Python calls for `details[index]`: compute the detail if it isn't remembered yet, then return it.
+@@ 81-85
+`__getitem__` is what Python calls for `details[index]`: compute the detail — reading the face from its own dataset's zip — if it isn't remembered yet, then return it.
 
-@@ 86-88
+@@ 88-90
 **`confirmed_pairs`** — the check: from the candidate pairs, yield the ones whose fine detail is at least `min_similarity` alike, with their score.
 
-@@ 89-92
+@@ 91-94
 Score each pair, and pass on the confirmed ones.
 
-@@ 95
+@@ 97
 **`groups_of`** — turn confirmed *pairs* into *groups* of copies. If A matches B and B matches C, then A, B and C are one group, even if A and C were never compared.
 
-@@ 96
+@@ 98
 A `DisjointSet` starts with every face in a group of its own.
 
-@@ 97-98
+@@ 99-100
 Each confirmed pair merges the two groups its faces belong to.
 
-@@ 99
+@@ 101
 Return every group with more than one face, its members in order.
 
-@@ 102
-**`resolve`** — decide which copy of each group to keep.
+@@ 104
+**`resolve`** — decide which copy of each group to keep. `seen` names a dataset that models have already learned from, if the search includes one.
 
-@@ 103-105
-For each group, the copy to keep is the one in the highest-priority split; between copies in the same split, the one whose name sorts first, so the choice is always the same.
+@@ 105-107
+For each group, first find any copies that belong to the `seen` dataset.
 
-@@ 106-118
-Every other copy is recorded as a `Duplicate`, with its similarity to the kept copy and whether their age labels agree.
+@@ 108-110
+**If the group has a copy a model learned from**, keep that one, and remove every copy in the *other* dataset — whatever split it is in. A model trained on FairFace has already studied that photo; testing it on UTKFace's copy would measure its memory, not its judgement. Copies inside the `seen` dataset itself are never removed here: that dataset's own duplicates were handled when it was prepared, and its models are already trained.
 
-@@ 119
-Return the removed copies.
+@@ 111-113
+**Otherwise**, as before: keep the copy in the highest-priority split (between copies in the same split, the one whose name sorts first, so the choice is always the same), and remove the rest.
 
-@@ 122
-**`faces_with_hashes`** — load the rows and hashes of every successfully prepared face.
-
-@@ 123-124
-Read the preparation table, keeping each `ok` face's hash by image name.
-
-@@ 125
-The manifest's rows for those faces, in manifest order.
+@@ 114-125
+Every removed copy is recorded as a `Duplicate`, with its similarity to the kept copy and whether their age labels agree.
 
 @@ 126
+Return the removed copies.
+
+@@ 129
+**`faces_with_hashes`** — load the rows and hashes of every successfully prepared face.
+
+@@ 130-131
+Read the preparation table, keeping each `ok` face's hash by image name.
+
+@@ 132
+The manifest's rows for those faces, in manifest order.
+
+@@ 133
 Their hashes, as one NumPy array of unsigned 64-bit numbers (`int(…, 16)` reads hexadecimal).
 
-@@ 129-133
-**`find_duplicates`** — the whole process: open the prepared faces, sieve, check, group and resolve. The stages are chained as **generators**, so pairs flow through one at a time and the 123,774 candidates are never all held in memory at once.
+@@ 136-146
+**`find_duplicates`** — the whole process: open every dataset's prepared faces (closing them all at the end), sieve, check, group and resolve. When a `seen` dataset is included, pairs *within* it are skipped before the costly check: they aren't this search's business. The stages are chained as **generators**, so pairs flow through one at a time and the candidates are never all held in memory at once.
 
-@@ 136
+@@ 149
 **`summary`** — what to print.
 
-@@ 137-139
-Count the removed copies by the pair of splits involved — `train -> test` means a training copy of a test photo was removed — and how many disagreed about the age.
+@@ 150-152
+Count the removed copies by where they were and where the kept copy is — `train -> fairface test` means a training copy of a FairFace test photo was removed — and how many disagreed about the age.
 
-@@ 140
+@@ 153
 List those split pairs.
 
-@@ 141-143
+@@ 154-156
 How many usable faces remain in each split, once duplicates are taken out.
 
-@@ 144
+@@ 157
 Join the lines.
 
-@@ 147-150
-**`main`** — the dataset's name.
+@@ 160-164
+**`main`** — the dataset's name and, optionally, `--against`: a dataset that models learned from.
 
-@@ 151-156
-Look up the dataset, find its duplicates, write them to `.datasets/manifest/<name>.duplicates.csv`, and print the summary. (Approval was checked when the faces were prepared; this step only reads what preparation wrote.)
+@@ 165-176
+Look up the dataset and its faces. With `--against`, add the other dataset's faces and hashes to the search. Find the duplicates, write the removed copies of *this* dataset to `.datasets/manifest/<name>.duplicates.csv`, and print the summary. (Approval was checked when the faces were prepared; this step only reads what preparation wrote.)
 
-@@ 159-160
+@@ 179-180
 Run `main` when the module is started as a program.

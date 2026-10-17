@@ -11,7 +11,8 @@ It is built in this order, and this chapter grows in the same order:
 | 3 | Face preparation: detecting and aligning every face, finding duplicates | §5.2.3 ✅ |
 | 4 | Training the age model | §5.2.4 ✅ |
 | 5 | Evaluation and fairness | §5.2.5 ✅ |
-| 6 | Export to ONNX, calibration, and the model's manifest | — |
+| 6 | Exact ages and the safety lines: UTKFace, calibration | §5.2.6 ✅ |
+| 7 | Export to ONNX, and the model's manifest | — |
 
 The ML code lives in the `ml/` package, created empty in Phase 0 (§5.0.2). It now uses **httpx** for downloads, **SciPy** for statistics, the project's own vision library, so that training prepares faces exactly as serving does, and **PyTorch** with **timm** for training (its `pyproject.toml` walkthrough, in §5.0.2, describes them all). Data never enters the repository: downloads and manifests live in `.datasets/`, which Git ignores.
 
@@ -278,3 +279,57 @@ model + test faces       ─► logits ─► accuracy · clear minors/adults at
     `uv run --package dwarpal-ml python -m dwarpal_ml.evaluate .runs/<run>`
 
     The results are in `evaluation-val.json` in the run's folder. Then, once you are sure, the exam: add `--split test`. Try it a second time to see the lock.
+
+### 5.2.6 Exact ages and the safety lines
+
+Everything so far was measured with FairFace's age bands, which can't tell a 15-year-old from a 19-year-old. Setting the safety lines (§2.14) needs **exact ages**. The owner approved **UTKFace** for this, under the project's research-only first version: over 24,000 photos, each labelled with an exact age. It is used only to *measure*, never to train: half of it for setting the lines, half for checking them.
+
+```
+UTKFace ─► fetch (3 files, 1.39 GB) ─► manifest (repack to one zip; labels from file names; calib/test halves)
+        ─► prepare (clearest face; photos with a second clear face set aside)
+        ─► dedup --against fairface (copies within UTKFace, and of photos the model learned from)
+        ─► calibrate: lines certified on the calib half ─► decisions checked on the test half, once
+```
+
+Three things about UTKFace shaped the code:
+
+- **The labels are estimated.** UTKFace's ages were proposed by an age-estimation algorithm (DEX) and checked by a person. They are not ages from documents. The register records this (`age_source`), and every calibration result carries the note.
+- **The labelled person isn't always alone, or in the middle.** FairFace centred each photo on its subject; UTKFace's in-the-wild photos don't. So the register gained a `subject` rule: for UTKFace, take the clearest face, and set the photo aside if a second clear face appears (519 photos).
+- **Some photos are bigger than any webcam frame.** The vision library refuses uploads over 512 KB or 1,920 pixels, rightly for a service. Dataset preparation now decodes with roomier limits, then shrinks each photo to the service's largest size.
+
+Changes to files walked through earlier are explained in their walkthroughs (`ml/datasets.toml`, `register.py`, `manifest.py`, `prepare.py`, `dedup.py`, `risk.py`, `evaluate.py`, the vision library's `decode.py`, and their tests).
+
+#### Calibration
+
+!walk ml/src/dwarpal_ml/calibrate.py
+
+!walk ml/tests/test_calibrate.py
+
+!!! real "Real world — what UTKFace showed before any model looked at it"
+    - **Teenagers are scarce.** UTKFace has 82 faces aged 13, 164 aged 14, 180 aged 15, 253 aged 16 and 159 aged 17 — and only 4 Asian 13-year-olds. Risk control needs 149 people per age-and-group cell to certify 2 % (§2.14). Only one cell in the whole dataset reaches that. So the promise can be certified **per age, but not per group**, and only at a looser budget than 2 %.
+    - **Repeated photos disagree about age.** Duplicate removal found 533 extra copies of photos *within* UTKFace, and 324 of them (61 %) carry a different age from the copy that was kept — the same photo, labelled with two ages. Estimated labels are noisy, even when checked.
+    - **Age heaping.** 2,206 faces are labelled exactly 26, but only 616 are labelled 27: a sign of estimated, rounded labels.
+    - Only 6 UTKFace photos were copies of FairFace photos — removed, so the model is never tested on a face it learned from.
+
+!!! real "Real world — the safety lines, on exact ages"
+    ConvNeXt-Tiny (§5.2.4), trained on FairFace only, calibrated on UTKFace's calibration half (11,301 faces) and checked on its test half (11,637 faces, opened once). Exact-age error on these new faces: **4.96 years** on average (1.6 for children under 13, 3.3 for teenagers, 9.6 over 60).
+
+    | Limit | Strictest budget the data certifies | Pass line τ | Teenagers passed on the test half (ages N−5 to N−1) |
+    | :-- | :-- | --: | :-- |
+    | **18** | **7.5 %, per age** | 0.964 | 2.9 % (12 of 416; up to 5.0 %) — by age: 13: 0 %, 14: 0 %, 15: 3.7 %, 16: 2.7 %, 17: 6.4 % |
+    | 21 | 7.5 %, per age | 0.927 | 1.3 % (7 of 520) |
+    | 16 | 15 %, per age | 0.761 | 7.6 % (25 of 327) |
+    | 13 | 15 %, per age | 0.809 | 4.1 % (16 of 392) |
+
+    On faces that played no part in choosing the lines, every age's pass rate stayed inside its certified budget: the guarantee held. At 18, children under 13 passed 0.4 % of the time (7 of 1,741).
+
+    **The price is paid by adults.** At the 18 line, only 13 % of 18–20-year-olds and 30 % of 21–24-year-olds pass straight away; most are sent to step-up. From 30 upwards, 94 % pass. That is exactly the trade risk control is built to make: with a model this uncertain about teenagers, it keeps children out by sending more adults to a document check — never by letting more children through.
+
+    **What these lines are not.** They are not yet good enough to serve: the design's target is 2 % per age *and* group (NFR-01), and the data supports only 7.5 % per age; the ages are estimates; and the per-group pass rates are measurements on a few dozen teenagers each (3 of 50 Black teenagers passed at 18, for example), not guarantees. More exact-age data of every group — and a better model — are what will move all three.
+
+!!! try "Try it yourself"
+    With UTKFace fetched, its manifest built and its faces prepared and deduplicated, calibrate any trained run:
+
+    `uv run --package dwarpal-ml python -m dwarpal_ml.calibrate .runs/<run> utkface`
+
+    Read `calibration-utkface.json` in the run's folder to see every budget that was refused, and why.

@@ -43,12 +43,12 @@ def image_size(data: bytes) -> tuple[int, int]:
     raise DecodeError("only JPEG and PNG images are accepted")
 
 
-def decode_image(data: bytes, max_bytes: int = MAX_BYTES) -> Image:
+def decode_image(data: bytes, max_bytes: int = MAX_BYTES, max_side: int = MAX_SIDE) -> Image:
     if not data or len(data) > max_bytes:
         raise DecodeError(f"image must be between 1 byte and {max_bytes} bytes")
     width, height = image_size(data)
-    if not (0 < width <= MAX_SIDE and 0 < height <= MAX_SIDE):
-        raise DecodeError(f"image is {width}x{height}; at most {MAX_SIDE} pixels per side are allowed")
+    if not (0 < width <= max_side and 0 < height <= max_side):
+        raise DecodeError(f"image is {width}x{height}; at most {max_side} pixels per side are allowed")
     image = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
     if image is None:
         raise DecodeError("image data could not be decoded")

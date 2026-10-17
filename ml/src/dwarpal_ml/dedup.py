@@ -14,6 +14,7 @@ import sys
 import zipfile
 from collections import Counter
 from collections.abc import Iterable, Iterator
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -72,14 +73,15 @@ def similarity(a: Vector, b: Vector) -> float:
 
 
 class Details:
-    def __init__(self, archive: zipfile.ZipFile, rows: list[Row]) -> None:
-        self.archive = archive
+    def __init__(self, archives: dict[str, zipfile.ZipFile], rows: list[Row]) -> None:
+        self.archives = archives
         self.rows = rows
         self.cache: dict[int, Vector] = {}
 
     def __getitem__(self, index: int) -> Vector:
         if index not in self.cache:
-            self.cache[index] = fine_detail(self.archive.read(self.rows[index].image_id))
+            row = self.rows[index]
+            self.cache[index] = fine_detail(self.archives[row.dataset].read(row.image_id))
         return self.cache[index]
 
 
@@ -99,23 +101,28 @@ def groups_of(count: int, pairs: Iterable[tuple[int, int, float]]) -> list[list[
     return [sorted(group) for group in links.subsets() if len(group) > 1]
 
 
-def resolve(rows: list[Row], groups: list[list[int]], details: Details) -> list[Duplicate]:
+def resolve(rows: list[Row], groups: list[list[int]], details: Details, seen: str | None = None) -> list[Duplicate]:
     duplicates = []
     for group in groups:
-        keep = min(group, key=lambda index: (SPLIT_PRIORITY[rows[index].split], rows[index].image_id))
-        for index in group:
-            if index != keep:
-                row, kept = rows[index], rows[keep]
-                duplicates.append(
-                    Duplicate(
-                        image_id=row.image_id,
-                        split=row.split,
-                        kept=kept.image_id,
-                        kept_split=kept.split,
-                        similarity=round(similarity(details[index], details[keep]), 4),
-                        same_label=age_label(row) == age_label(kept),
-                    )
+        learned = [index for index in group if rows[index].dataset == seen]
+        if learned:
+            keep = min(learned, key=lambda index: rows[index].image_id)
+            removed = [index for index in group if rows[index].dataset != seen]
+        else:
+            keep = min(group, key=lambda index: (SPLIT_PRIORITY[rows[index].split], rows[index].image_id))
+            removed = [index for index in group if index != keep]
+        for index in removed:
+            row, kept = rows[index], rows[keep]
+            duplicates.append(
+                Duplicate(
+                    image_id=row.image_id,
+                    split=row.split,
+                    kept=kept.image_id,
+                    kept_split=kept.split,
+                    similarity=round(similarity(details[index], details[keep]), 4),
+                    same_label=age_label(row) == age_label(kept),
                 )
+            )
     return duplicates
 
 
@@ -126,15 +133,21 @@ def faces_with_hashes(name: str) -> tuple[list[Row], NDArray[np.uint64]]:
     return rows, np.array([int(phash[row.image_id], 16) for row in rows], dtype=np.uint64)
 
 
-def find_duplicates(rows: list[Row], hashes: NDArray[np.uint64], faces: Path) -> list[Duplicate]:
-    with zipfile.ZipFile(faces) as archive:
-        details = Details(archive, rows)
-        confirmed = confirmed_pairs(close_pairs(hashes), details)
-        return resolve(rows, groups_of(len(rows), confirmed), details)
+def find_duplicates(
+    rows: list[Row], hashes: NDArray[np.uint64], faces: dict[str, Path], seen: str | None = None
+) -> list[Duplicate]:
+    with ExitStack() as stack:
+        archives = {name: stack.enter_context(zipfile.ZipFile(path)) for name, path in faces.items()}
+        details = Details(archives, rows)
+        pairs: Iterable[tuple[int, int]] = close_pairs(hashes)
+        if seen is not None:
+            pairs = ((a, b) for a, b in pairs if not rows[a].dataset == rows[b].dataset == seen)
+        confirmed = confirmed_pairs(pairs, details)
+        return resolve(rows, groups_of(len(rows), confirmed), details, seen)
 
 
 def summary(rows: list[Row], duplicates: list[Duplicate]) -> str:
-    crossing = Counter(f"{d.split} -> {d.kept_split}" for d in duplicates)
+    crossing = Counter(f"{d.split} -> {d.kept.split('/')[0]} {d.kept_split}" for d in duplicates)
     disagree = sum(not d.same_label for d in duplicates)
     lines = [f"{len(rows):,} faces: {len(duplicates):,} duplicates removed, {disagree:,} with a different age label"]
     lines.append("removed -> kept: " + ", ".join(f"{pair} {count:,}" for pair, count in sorted(crossing.items())))
@@ -147,10 +160,17 @@ def summary(rows: list[Row], duplicates: list[Duplicate]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="dwarpal-ml dedup", description="Find and remove near-duplicate faces")
     parser.add_argument("name", help="a dataset prepared by dwarpal_ml.prepare")
+    parser.add_argument("--against", help="a dataset models learned from: copies of its photos are removed here")
     args = parser.parse_args(argv)
     entry = dataset(args.name)
     rows, hashes = faces_with_hashes(entry.name)
-    duplicates = find_duplicates(rows, hashes, PROCESSED / f"{entry.name}.zip")
+    faces = {entry.name: PROCESSED / f"{entry.name}.zip"}
+    every_row, every_hash = rows, hashes
+    if args.against:
+        other_rows, other_hashes = faces_with_hashes(args.against)
+        every_row, every_hash = rows + other_rows, np.concatenate([hashes, other_hashes])
+        faces[args.against] = PROCESSED / f"{args.against}.zip"
+    duplicates = find_duplicates(every_row, every_hash, faces, args.against)
     write_table(Duplicate, duplicates, MANIFESTS / f"{entry.name}.duplicates.csv")
     print(summary(rows, duplicates))
     return 0

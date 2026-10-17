@@ -1,5 +1,5 @@
 ---
-fingerprint: cf4bbed2bb028023
+fingerprint: 06cf88fbb58063ef
 ---
 Tests for face preparation and duplicate removal. They use the vision library's test portrait (a public-domain photo of an astronaut, §5.1.1) and pictures made from it — resized, re-saved, turned grey, mirrored — so they need neither FairFace nor the internet. They do need the face-detector model, which the project's setup downloads (`infra/scripts/fetch_models.py`).
 
@@ -91,4 +91,16 @@ Their rows: `a` in training, `b` in the test set (with a different age band), `c
 All four hashes are set to zero, so the sieve shortlists every pair, and the check alone has to decide.
 
 @@ 108-112
-Exactly two copies are removed, `a` and `c`, and both point to `b` — the copy in the test set, the most protected split. The noise is untouched. Both are marked as disagreeing about the age, because `b` was given a different band.
+Exactly two copies are removed, `a` and `c`, and both point to `b` — the copy in the test set, the most protected split. The noise is untouched. Both are marked as disagreeing about the age, because `b` was given a different band. (The faces are passed as a mapping from dataset name to zip, since duplicate removal can now read two datasets at once.)
+
+@@ 115-117
+**Copies of photos a model learned from** (added with UTKFace). Two one-photo zips: the portrait in a dataset called `seen`, and a resized copy in a dataset called `new`.
+
+@@ 118-121
+The new copy is in its dataset's test split; the original is in the other's training split.
+
+@@ 122-123
+Search with `seen` named as the dataset models learned from, with both hashes zero so the check alone decides.
+
+@@ 124-126
+The copy in `new` is removed — even though it sits in a test split, which would normally win — and it points to the original in `seen`'s training split. A model trained on `seen` has already studied this photo, so measuring it on the copy would flatter it.

@@ -105,8 +105,22 @@ def test_only_confirmed_copies_are_removed_and_the_most_protected_copy_is_kept(t
             faces.writestr(name, jpeg(picture))
     rows = [row("a", "train"), row("b", "test", age_low=30), row("c", "val"), row("d", "train")]
     everything_looks_alike = np.zeros(4, dtype=np.uint64)
-    duplicates = dedup.find_duplicates(rows, everything_looks_alike, tmp_path / "faces.zip")
+    duplicates = dedup.find_duplicates(rows, everything_looks_alike, {"d": tmp_path / "faces.zip"})
     assert sorted((d.image_id, d.kept, d.kept_split, d.same_label) for d in duplicates) == [
         ("a", "b", "test", False),
         ("c", "b", "test", False),
     ]
+
+
+def test_a_copy_of_a_photo_the_model_learned_from_is_removed_from_the_other_dataset(tmp_path: Path) -> None:
+    portrait = decode_image(PORTRAIT.read_bytes())
+    with zipfile.ZipFile(tmp_path / "seen.zip", "w") as seen, zipfile.ZipFile(tmp_path / "new.zip", "w") as new:
+        seen.writestr("s", jpeg(portrait))
+        new.writestr("n", jpeg(cv2.resize(cv2.resize(portrait, (300, 300)), (512, 512))))
+    rows = [
+        Row("n", "new", "a.zip", "n", 15, 15, 15, "female", "g", "CC0", "test"),
+        Row("s", "seen", "a.zip", "s", 10, 19, None, "female", "g", "CC0", "train"),
+    ]
+    faces = {"new": tmp_path / "new.zip", "seen": tmp_path / "seen.zip"}
+    duplicates = dedup.find_duplicates(rows, np.zeros(2, dtype=np.uint64), faces, seen="seen")
+    assert [(d.image_id, d.kept, d.kept_split) for d in duplicates] == [("n", "s", "train")]

@@ -10,6 +10,9 @@ licence = "CC BY 4.0"
 permitted_use = "commercial and non-commercial use, with attribution"
 citation = "K. Karkkainen and J. Joo, FairFace: Face Attribute Dataset for Balanced Race, Gender, and Age, WACV 2021"
 age_labels = "ranges"
+age_source = "estimated by crowd annotators looking at each photo"
+# FairFace centred every image on the labelled person.
+subject = "central"
 approved = true
 approved_on = 2026-10-16
 
@@ -34,13 +37,36 @@ bytes = 447631
 
 [[dataset]]
 name = "utkface"
-title = "UTKFace (aligned and cropped)"
+title = "UTKFace (in-the-wild images)"
 homepage = "https://susanqq.github.io/UTKFace/"
 licence = "non-commercial research only"
 permitted_use = "non-commercial research"
 citation = "Z. Zhang, Y. Song and H. Qi, Age Progression/Regression by Conditional Adversarial Autoencoder, CVPR 2017"
 age_labels = "exact"
-approved = false
+# Exact, but not from documents: every result measured with these ages carries this note.
+age_source = "estimated by the DEX age estimator, then checked by a person"
+# A photo may show other people too, and the labelled person is not necessarily in the middle.
+subject = "only"
+approved = true
+approved_on = 2026-10-17
+
+[[dataset.files]]
+name = "part1.tar.gz"
+url = "https://drive.usercontent.google.com/download?id=1mb5Z24TsnKI3ygNIlX6ZFiwUj0_PmpAW&export=download&confirm=t"
+sha256 = "257a0396403395f54bb3d60dc920404c95619f9aaf6992c4990081420de5089c"
+bytes = 873860912
+
+[[dataset.files]]
+name = "part2.tar.gz"
+url = "https://drive.usercontent.google.com/download?id=19vdaXVRtkP-nyxz1MYwXiFsh_m_OL72b&export=download&confirm=t"
+sha256 = "20b1115b9f0395e37ee8372b7cab98907f5d3eb76764210edf3c93682640d09d"
+bytes = 458577713
+
+[[dataset.files]]
+name = "part3.tar.gz"
+url = "https://drive.usercontent.google.com/download?id=1oj9ZWsLV2-k2idoW_nRSrLQLUP3hus3b&export=download&confirm=t"
+sha256 = "64264819b916eddd9ba609ba280adbe41c07daae3085e02b145aeebedaff7930"
+bytes = 56967299
 
 [[dataset]]
 name = "appa-real"

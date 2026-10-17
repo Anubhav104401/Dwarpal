@@ -1,5 +1,5 @@
 ---
-fingerprint: 9e7eaa54331bd8bd
+fingerprint: 80568ce19262f852
 ---
 Every frame arrives as raw bytes from the internet, which means **from anyone**. This module turns those bytes into a picture (a NumPy array of pixels), but only after checking, cheaply and *before* decoding, that they are what they claim to be and that they are not dangerously large.
 
@@ -91,9 +91,7 @@ Ran out of bytes without finding a frame header: corrupt.
 Neither magic number matched, so refuse. **An allow-list (accept only these) is safer than a block-list (reject these)**, because new and unexpected formats are refused automatically.
 
 @@ 46
-**`decode_image` — bytes in, checked picture out.**
-
-`max_bytes: int = MAX_BYTES` is a parameter with a **default value**: a caller may leave it out and get the library's own limit, or pass a limit of its own. The inference service passes the shared contract's `MAX_FRAME_BYTES` (see `pipeline.py`), so the decoder can never refuse a frame that the protocol allows — even if someone raises the limit one day.
+**`decode_image` — bytes in, checked picture out.** `max_bytes: int = MAX_BYTES` is a parameter with a **default value**: a caller may leave it out and get the library's own limit, or pass a limit of its own. The inference service passes the shared contract's `MAX_FRAME_BYTES` (see `pipeline.py`), so the decoder can never refuse a frame that the protocol allows — even if someone raises one limit without the other. `max_side` works the same way (added in Phase 2): the service always uses the default 1,920 pixels, while dataset preparation, which reads large photos the project chose to trust, passes a roomier limit and then shrinks the picture itself (`ml/src/dwarpal_ml/prepare.py`).
 
 @@ 47-48
 **Check 1: the size of the bytes.** Empty data, or more than `max_bytes`, is refused. The message names the limit that was actually applied.
@@ -102,7 +100,7 @@ Neither magic number matched, so refuse. **An allow-list (accept only these) is 
 **Check 2: the format and dimensions**, read from the header (this also refuses non-JPEG/PNG data).
 
 @@ 50-51
-**Check 3: sensible dimensions.** Both sides must be at least 1 and at most `MAX_SIDE`. The error message says exactly what was received (the tests check for the text `50000x50000`), which makes problems easy to diagnose.
+**Check 3: sensible dimensions.** Both sides must be at least 1 and at most `max_side`. The error message says exactly what was received (the tests check for the text `50000x50000`), which makes problems easy to diagnose.
 
 @@ 52
 **Only now, decode.**

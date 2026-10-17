@@ -20,10 +20,10 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from dwarpal_ml.manifest import MANIFESTS, Row, read_manifest, write_table
+from dwarpal_ml.manifest import MANIFESTS, ZIP_TIME, Row, read_manifest, write_table
 from dwarpal_ml.register import RAW, ROOT, dataset
 from dwarpal_vision import DecodeError, FaceDetector, align_face, assess, decode_image
-from dwarpal_vision.decode import Image
+from dwarpal_vision.decode import MAX_SIDE, Image
 from dwarpal_vision.detect import Face
 
 PROCESSED = RAW.parent / "processed"
@@ -31,8 +31,10 @@ DETECTOR = ROOT / "models" / "third_party" / "face_detection_yunet_2023mar.onnx"
 SIZE = 256
 JPEG_QUALITY = 95
 CHUNK = 500
-# A fixed timestamp for every file in the output zip, so the same faces always make the same bytes.
-ZIP_TIME = (1980, 1, 1, 0, 0, 0)
+# Dataset photos may be larger than any webcam frame: they are decoded with roomier limits, then shrunk to the
+# largest size the service accepts, so detection works on pictures like the ones it will see.
+DATASET_BYTES = 32 * 1024 * 1024
+DATASET_SIDE = 16_384
 
 
 @dataclass(frozen=True)
@@ -67,16 +69,27 @@ def perceptual_hash(image: Image) -> int:
     return int.from_bytes(np.packbits(bits).tobytes(), "big")
 
 
-def prepare_one(detector: FaceDetector, data: bytes, image_id: str) -> tuple[Prepared, bytes]:
+def within_frame(image: Image) -> Image:
+    height, width = image.shape[:2]
+    if max(height, width) <= MAX_SIDE:
+        return image
+    scale = MAX_SIDE / max(height, width)
+    size = (round(width * scale), round(height * scale))
+    return np.asarray(cv2.resize(image, size, interpolation=cv2.INTER_AREA), dtype=np.uint8)
+
+
+def prepare_one(detector: FaceDetector, data: bytes, image_id: str, subject: str = "central") -> tuple[Prepared, bytes]:
     try:
-        image = decode_image(data)
+        image = within_frame(decode_image(data, DATASET_BYTES, DATASET_SIDE))
     except DecodeError:
         return Prepared(image_id, "undecodable"), b""
     faces = detector.detect(image)
     if not faces:
         return Prepared(image_id, "no_face"), b""
-    face = central_face(image, faces)
+    face = central_face(image, faces) if subject == "central" else faces[0]
     quality = assess(image, [face, *(other for other in faces if other is not face)])
+    if subject == "only" and "multiple_faces" in quality.flags:
+        return Prepared(image_id, "several_faces", faces=len(faces)), b""
     try:
         aligned = align_face(image, face, size=SIZE)
     except ValueError:
@@ -97,7 +110,9 @@ def prepare_one(detector: FaceDetector, data: bytes, image_id: str) -> tuple[Pre
     return prepared, encoded.tobytes()
 
 
-def prepare_chunk(folder: Path, rows: list[Row], model: Path = DETECTOR) -> list[tuple[Prepared, bytes]]:
+def prepare_chunk(
+    folder: Path, rows: list[Row], subject: str = "central", model: Path = DETECTOR
+) -> list[tuple[Prepared, bytes]]:
     cv2.setNumThreads(1)
     detector = FaceDetector(model)
     results = []
@@ -106,17 +121,17 @@ def prepare_chunk(folder: Path, rows: list[Row], model: Path = DETECTOR) -> list
         for row in rows:
             if row.archive not in archives:
                 archives[row.archive] = stack.enter_context(zipfile.ZipFile(folder / row.archive))
-            results.append(prepare_one(detector, archives[row.archive].read(row.member), row.image_id))
+            results.append(prepare_one(detector, archives[row.archive].read(row.member), row.image_id, subject))
     return results
 
 
-def prepare(rows: list[Row], folder: Path, target: Path, workers: int) -> list[Prepared]:
+def prepare(rows: list[Row], folder: Path, target: Path, workers: int, subject: str = "central") -> list[Prepared]:
     chunks = [rows[start : start + CHUNK] for start in range(0, len(rows), CHUNK)]
     target.parent.mkdir(parents=True, exist_ok=True)
     partial = target.with_name(target.name + ".part")
     prepared: list[Prepared] = []
     with ProcessPoolExecutor(workers) as pool, zipfile.ZipFile(partial, "w", zipfile.ZIP_STORED) as out:
-        for done, results in enumerate(pool.map(prepare_chunk, repeat(folder), chunks), 1):
+        for done, results in enumerate(pool.map(prepare_chunk, repeat(folder), chunks, repeat(subject)), 1):
             for item, jpeg in results:
                 prepared.append(item)
                 if jpeg:
@@ -146,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"refused  {entry.name}: not approved in ml/datasets.toml")
         return 1
     rows = read_manifest(MANIFESTS / f"{entry.name}.csv")
-    prepared = prepare(rows, entry.folder, PROCESSED / f"{entry.name}.zip", args.workers)
+    prepared = prepare(rows, entry.folder, PROCESSED / f"{entry.name}.zip", args.workers, entry.subject)
     write_table(Prepared, prepared, MANIFESTS / f"{entry.name}.faces.csv")
     print(summary(prepared))
     return 0

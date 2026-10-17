@@ -10,6 +10,7 @@ import csv
 import hashlib
 import re
 import sys
+import tarfile
 import zipfile
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator
@@ -25,6 +26,13 @@ if TYPE_CHECKING:
 MANIFESTS = RAW.parent / "manifest"
 # FairFace writes its top band "more than 70", although its README says "70+": both mean 70 and over.
 AGE_RANGE = re.compile(r"^(?:(\d+)-(\d+)|(\d+)\+|more than (\d+))$")
+# UTKFace keeps its labels in each file's name: age_sex_group_datetime.jpg (a few files break the pattern).
+UTKFACE_NAME = re.compile(r"^(\d+)_([01])_([0-4])_\d+\.jpg$")
+UTKFACE_GROUPS = ("White", "Black", "Asian", "Indian", "Others")
+# The model answers for ages 0 to 100; the handful of faces labelled older are left out.
+AGES_SERVED = 101
+# A fixed timestamp for every file written into a zip, so the same input always makes the same bytes.
+ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 
 
 @dataclass(frozen=True)
@@ -55,6 +63,8 @@ def split_for(image_id: str, official_split: str) -> str:
     if official_split == "val":
         return "test"
     bucket = int.from_bytes(hashlib.sha256(image_id.encode("utf-8")).digest()[:4]) % 100
+    if official_split == "evaluation":
+        return "calib" if bucket < 50 else "test"
     return "train" if bucket < 80 else "val" if bucket < 90 else "calib"
 
 
@@ -85,7 +95,45 @@ def fairface_rows(entry: Dataset) -> Iterator[Row]:
                 )
 
 
-ADAPTERS: dict[str, Callable[[Dataset], Iterator[Row]]] = {"fairface": fairface_rows}
+def repack(parts: list[Path], target: Path) -> None:
+    partial = target.with_name(target.name + ".part")
+    with zipfile.ZipFile(partial, "w", zipfile.ZIP_STORED) as out:
+        for part in parts:
+            with tarfile.open(part) as tar:
+                for member in tar:
+                    handle = tar.extractfile(member) if member.isfile() else None
+                    if handle is not None:
+                        out.writestr(zipfile.ZipInfo(member.name, date_time=ZIP_TIME), handle.read())
+    partial.replace(target)
+
+
+def utkface_rows(entry: Dataset) -> Iterator[Row]:
+    archive = "utkface-in-the-wild.zip"
+    if not (entry.folder / archive).is_file():
+        repack([entry.folder / item.name for item in entry.files], entry.folder / archive)
+    with zipfile.ZipFile(entry.folder / archive) as images:
+        members = sorted(images.namelist())
+    for member in members:
+        label = UTKFACE_NAME.match(member.rsplit("/", 1)[-1])
+        if label is None or int(label[1]) >= AGES_SERVED:
+            continue
+        image_id = f"utkface/{member}"
+        yield Row(
+            image_id=image_id,
+            dataset=entry.name,
+            archive=archive,
+            member=member,
+            age_low=int(label[1]),
+            age_high=int(label[1]),
+            age_exact=int(label[1]),
+            sex=("male", "female")[int(label[2])],
+            group=UTKFACE_GROUPS[int(label[3])],
+            licence=entry.licence,
+            split=split_for(image_id, "evaluation"),
+        )
+
+
+ADAPTERS: dict[str, Callable[[Dataset], Iterator[Row]]] = {"fairface": fairface_rows, "utkface": utkface_rows}
 
 
 def write_table[T: DataclassInstance](kind: type[T], rows: Iterable[T], path: Path) -> list[T]:

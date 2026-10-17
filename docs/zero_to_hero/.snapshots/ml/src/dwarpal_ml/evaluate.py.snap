@@ -177,10 +177,12 @@ def check(results: dict[str, Any], gates: Path = GATES) -> list[dict[str, Any]]:
     return outcomes
 
 
-def predict(run: Path, split: str, workers: int) -> tuple[Floats, list[Row]]:
+def predict(run: Path, split: str, workers: int, name: str | None = None) -> tuple[Floats, list[Row]]:
     record = json.loads((run / "run.json").read_text(encoding="utf-8"))
-    dataset = FaceDataset(record["config"]["dataset"], split, PROCESSED / f"{record['config']['dataset']}.zip")
-    cache = run / f"logits-{split}.npy"
+    trained_on = record["config"]["dataset"]
+    name = name or trained_on
+    dataset = FaceDataset(name, split, PROCESSED / f"{name}.zip")
+    cache = run / (f"logits-{split}.npy" if name == trained_on else f"logits-{name}-{split}.npy")
     if cache.is_file():
         return np.load(cache), dataset.rows
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

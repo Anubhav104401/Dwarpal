@@ -27,6 +27,8 @@ class Dataset:
     permitted_use: str
     citation: str
     age_labels: str
+    age_source: str
+    subject: str
     approved: bool
     files: tuple[DatasetFile, ...]
 
@@ -51,6 +53,8 @@ def load_register(path: Path = REGISTER) -> dict[str, Dataset]:
             permitted_use=entry["permitted_use"],
             citation=entry["citation"],
             age_labels=entry["age_labels"],
+            age_source=entry.get("age_source", "not recorded"),
+            subject=entry.get("subject", "central"),
             approved=bool(entry["approved"]),
             files=files,
         )

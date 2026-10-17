@@ -1,5 +1,5 @@
 ---
-fingerprint: 182caf5bcc8ff393
+fingerprint: 7fe203fd8cda416d
 ---
 The **licence register**: every dataset Dwarpal may learn from, where it comes from, who made it, how to cite it, and — above all — what its licence allows (ADR-0018). An AI model carries the terms of the data it learned from: a model trained on "non-commercial research only" photos may itself only be used for non-commercial research. Writing those terms down, per dataset, is how the project keeps track.
 
@@ -28,28 +28,39 @@ The comment at the top: what the file is, and its two rules.
 @@ 12
 `age_labels = "ranges"` — FairFace gives an age *band* for each face ("10-19"), not an exact age. That limits what it can be used for (§5.2.1).
 
-@@ 13-14
+@@ 13
+`age_source` — where the labels came from (added with UTKFace): FairFace's age bands are people's estimates from looking at each photo. Every result measured with a dataset carries this note.
+
+@@ 14-15
+`subject = "central"` — how to find the labelled person in a photo: FairFace centred every image on them, so preparation takes the face nearest the middle (`prepare.py`).
+
+@@ 16-17
 Approved by the project owner on 16 October 2026. TOML understands dates written like this as real dates.
 
-@@ 16
+@@ 19
 `[[dataset.files]]` — one file belonging to the dataset above.
 
-@@ 17-21
+@@ 20-24
 The face images, training and validation sets together: a comment saying why this version, then the file's name, the official download address (Google Drive, linked from the dataset's home page), its SHA-256 fingerprint, and its size in bytes (2.1 GB). The fingerprint was recorded when the owner-approved download was first made.
 
 FairFace comes in two versions: a tight crop (25 % padding around each face) and a wide one (125 %). The project first used the tight one — until face preparation showed that our alignment needs the hair and surroundings the tight crops cut off (§5.2.3). The owner approved the wide version, and it replaced the tight one here.
 
-@@ 23-27
+@@ 26-30
 The training labels: one row per image — file name, age band, sex, and race group.
 
-@@ 29-33
+@@ 32-36
 The validation labels, in the same form.
 
-@@ 35-43
-**UTKFace**: exact ages from 0 to 116 — exactly what teenage thresholds need — but its licence allows **non-commercial research only**. It is listed, with its citation, but `approved = false`: nothing will download it until the owner decides. It has no `files` yet, for the same reason.
+@@ 38-69
+**UTKFace** (approved on 17 October 2026, Phase 2): over 24,000 photos with **exact ages** — exactly what teenage thresholds need — under a licence for **non-commercial research only**, accepted under the project's research-only first version.
 
-@@ 45-53
+- The **in-the-wild** photos, not the cropped ones: alignment needs the surroundings (the lesson of FairFace's tight crops, §5.2.3).
+- `age_source` — the ages are exact but *estimated*: the DEX age estimator proposed each one and a person checked it. They are not ages from documents, and every calibration result says so.
+- `subject = "only"` — a photo may show other people too, and the labelled person isn't necessarily in the middle. So preparation takes the clearest face, and sets aside any photo with a second clear face rather than guess whose age the label is.
+- Three pinned files, 1.39 GB together, fingerprinted on their first, owner-approved download.
+
+@@ 71-79
 **APPA-REAL**: real *and* apparent ages ("how old people think this person looks"). Its page asks only for a citation and states no licence, which is recorded honestly as "pending clarification". Not approved.
 
-@@ 55-63
+@@ 81-89
 **IMDB-Clean**: a cleaned set of age labels for the large IMDB-WIKI collection of celebrity photos. Research use; not approved.

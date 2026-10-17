@@ -40,10 +40,15 @@ class Thresholds:
     tau_fail: float
     minor_bound: float
     adult_bound: float
+    by_group: bool = True
 
 
 class CalibrationError(ValueError):
     """The calibration data can't support a guarantee, and saying so is safer than returning a threshold."""
+
+
+def cell_name(person: Scored, by_group: bool) -> str:
+    return f"age {person.age} · {person.group}" if by_group else f"age {person.age}"
 
 
 def clopper_pearson_upper(successes: int, trials: int, delta: float = DELTA) -> float:
@@ -98,14 +103,16 @@ def fails_at(tau: float) -> Count:
     return lambda scores: bisect.bisect_right(scores, tau)
 
 
-def tau_pass_for(people: Sequence[Scored], min_age: int, epsilon: float, delta: float = DELTA) -> tuple[float, float]:
+def tau_pass_for(
+    people: Sequence[Scored], min_age: int, epsilon: float, delta: float = DELTA, by_group: bool = True
+) -> tuple[float, float]:
     """The lowest pass threshold that keeps every under-age cell's pass rate provably at most epsilon."""
     ages = range(min_age - MINOR_SPAN, min_age)
     minors = [person for person in people if person.age in ages]
     missing = sorted(set(ages) - {person.age for person in minors})
     if missing:
         raise CalibrationError(f"no calibration data for ages {missing}")
-    cells = cells_of((f"age {person.age} · {person.group}", person.p_over) for person in minors)
+    cells = cells_of((cell_name(person, by_group), person.p_over) for person in minors)
     check_size(cells, epsilon, delta, "minors")
     scores = sorted({score for cell in cells.values() for score in cell})
     candidates = [0.0, *(math.nextafter(score, math.inf) for score in scores)]
@@ -121,12 +128,14 @@ def tau_fail_for(
     epsilon: float = ADULT_FAIL_BUDGET,
     delta: float = DELTA,
     below: float = math.inf,
+    by_group: bool = True,
 ) -> tuple[float, float]:
     """The highest fail threshold, under `below`, that keeps every group's rate of failed adults (N+3+) provably small.
 
     A lower fail threshold only ever fails fewer adults, so capping it below the pass threshold keeps it safe.
     """
-    cells = cells_of((person.group, person.p_over) for person in people if person.age >= min_age + ADULT_MARGIN)
+    adults = (person for person in people if person.age >= min_age + ADULT_MARGIN)
+    cells = cells_of((person.group if by_group else "adults", person.p_over) for person in adults)
     if not cells:
         raise CalibrationError(f"no calibration data for adults aged {min_age + ADULT_MARGIN} and over")
     check_size(cells, epsilon, delta, "adults")
@@ -140,8 +149,10 @@ def tau_fail_for(
     return tau, bound
 
 
-def calibrate(people: Sequence[Scored], min_age: int, epsilon: float, delta: float = DELTA) -> Thresholds:
+def calibrate(
+    people: Sequence[Scored], min_age: int, epsilon: float, delta: float = DELTA, by_group: bool = True
+) -> Thresholds:
     """Both thresholds for one minimum age and risk budget, or a CalibrationError explaining why there are none."""
-    tau_pass, minor_bound = tau_pass_for(people, min_age, epsilon, delta)
-    tau_fail, adult_bound = tau_fail_for(people, min_age, delta=delta, below=tau_pass)
-    return Thresholds(min_age, epsilon, tau_pass, tau_fail, minor_bound, adult_bound)
+    tau_pass, minor_bound = tau_pass_for(people, min_age, epsilon, delta, by_group)
+    tau_fail, adult_bound = tau_fail_for(people, min_age, delta=delta, below=tau_pass, by_group=by_group)
+    return Thresholds(min_age, epsilon, tau_pass, tau_fail, minor_bound, adult_bound, by_group)

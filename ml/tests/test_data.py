@@ -16,13 +16,14 @@ def test_the_register_pins_every_approved_file_and_marks_research_only_data() ->
     datasets = load_register()
     assert datasets["fairface"].approved
     assert all(len(f.sha256) == 64 and f.url.startswith("https://") for f in datasets["fairface"].files)
-    assert not datasets["utkface"].approved
+    assert datasets["utkface"].age_labels == "exact"
+    assert not datasets["imdb-clean"].approved
     assert "non-commercial" in datasets["utkface"].licence
 
 
 def test_unapproved_or_unpinned_datasets_are_never_fetched(capsys: pytest.CaptureFixture[str]) -> None:
-    assert not fetch(load_register()["utkface"])
-    pinned_nothing = Dataset("x", "X", "CC0", "any", "-", "exact", approved=True, files=())
+    assert not fetch(load_register()["imdb-clean"])
+    pinned_nothing = Dataset("x", "X", "CC0", "any", "-", "exact", "-", "central", approved=True, files=())
     assert not fetch(pinned_nothing)
     assert "refused" in capsys.readouterr().out
 
@@ -59,7 +60,18 @@ def test_fairface_rows_come_from_the_labels_and_skip_missing_images(
     (folder / "fairface_label_val.csv").write_text(
         header + "val/1.jpg,more than 70,Male,Black,False\n", encoding="utf-8"
     )
-    entry = Dataset("fairface", "FairFace", "CC BY 4.0", "any", "-", "ranges", True, (DatasetFile("f", "u", "s", 0),))
+    entry = Dataset(
+        "fairface",
+        "FairFace",
+        "CC BY 4.0",
+        "any",
+        "-",
+        "ranges",
+        "-",
+        "central",
+        True,
+        (DatasetFile("f", "u", "s", 0),),
+    )
     rows = list(manifest.fairface_rows(entry))
     assert [(r.member, r.age_low, r.age_high, r.sex, r.split) for r in rows] == [
         ("train/1.jpg", 10, 19, "female", manifest.split_for("fairface/train/1.jpg", "train")),

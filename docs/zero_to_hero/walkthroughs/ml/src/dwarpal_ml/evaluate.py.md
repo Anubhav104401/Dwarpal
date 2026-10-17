@@ -1,5 +1,5 @@
 ---
-fingerprint: feedf1c20ad4ea22
+fingerprint: ad2c80c065a2abd0
 ---
 **Evaluation**: one fixed set of measurements for every model (§2.12, §2.13, §2.16), so that models can be compared fairly and nobody can pick, after the fact, the numbers that flatter one. It answers four questions:
 
@@ -150,46 +150,46 @@ Return everything.
 **`check`** — read every gate from `ml/gates.toml`, look up its value, and pass it only if the value exists and is within its `max` and `min` (a missing limit is infinitely far away).
 
 @@ 180
-**`predict`** — the model's logits for every face of a split.
+**`predict`** — the model's logits for every face of a split — of the dataset the model trained on, or of another one (`name`, added for exact-age calibration, `calibrate.py`).
 
 @@ 181-182
-Read the run's record, to know its dataset and backbone, and the split's faces.
+Read the run's record, to know which dataset the model trained on and its backbone.
 
-@@ 183-185
-Logits already computed for this run and split are saved next to it, and reused: evaluating again (on validation) costs nothing, and gives exactly the same numbers.
+@@ 183-187
+Use the dataset asked for, or the training dataset. Logits already computed for this run and split are saved next to it, and reused: evaluating again costs nothing, and gives exactly the same numbers. Logits for another dataset carry its name in the file name.
 
-@@ 186-189
+@@ 188-191
 Otherwise: build the backbone without any pretrained weights, then fill it with the trained weights, and switch it to evaluation behaviour.
 
-@@ 190-194
+@@ 192-196
 Run every batch through the model, on the GPU if there is one, keeping the logits at full precision.
 
-@@ 195-197
+@@ 197-199
 Join the batches, save them, and return them with the rows.
 
-@@ 200
+@@ 202
 **`summary`** — the short printout.
 
-@@ 201-211
+@@ 203-213
 Overall accuracy, the rates at 18, the calibration error before and after the temperature correction, and each group's band-MAE.
 
-@@ 212-213
+@@ 214-215
 One line per gate, PASS or FAIL.
 
-@@ 216-221
+@@ 218-223
 **`main`** — the run folder, the split (validation unless told otherwise), and the number of loader processes.
 
-@@ 222-225
+@@ 224-227
 **The lock**: if this run has already been evaluated on the test split, refuse.
 
-@@ 226-227
+@@ 228-229
 Always fit the temperature on validation.
 
-@@ 228
+@@ 230
 Then take validation's logits, or compute the test split's.
 
-@@ 229-233
+@@ 231-235
 Evaluate, check the gates, save the results, print the summary, and exit with `1` if any gate failed.
 
-@@ 236-237
+@@ 238-239
 Run `main` when the module is started as a program.
