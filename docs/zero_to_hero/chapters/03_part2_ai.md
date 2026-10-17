@@ -18,11 +18,11 @@
 | 2.9 Transformers and Vision Transformers | *Attention*: letting every patch of a face look at every other patch |
 | 2.10 Pre-training and fine-tuning ✅ | Why we start from a model that has already seen millions of images |
 | 2.11 Predicting a *distribution* instead of a number ✅ | Why "probably 22, possibly 19–26" is more useful and more honest than "22" |
-| 2.12 Measuring mistakes | MAE, the confusion matrix, false-adult rate, thresholds, and why averages hide danger |
-| 2.13 Calibration | Making "80 % sure" actually mean right 80 % of the time |
+| 2.12 Measuring mistakes ✅ | MAE, the confusion matrix, false-adult rate, thresholds, and why averages hide danger |
+| 2.13 Calibration ✅ | Making "80 % sure" actually mean right 80 % of the time |
 | 2.14 Risk control ✅ | Clopper–Pearson bounds and the conformal idea: turning test results into a guarantee |
 | 2.15 Over-fitting and domain shift ✅ | Why a model can ace its exam and fail in real life (photos vs. webcams) |
-| 2.16 Measuring fairness | Per-group error rates, gaps, and release gates |
+| 2.16 Measuring fairness ✅ | Per-group error rates, gaps, and release gates |
 | 2.17 Faces: detection, landmarks, alignment ✅ | Finding the face, finding the eyes and nose, straightening the picture |
 | 2.18 Liveness and anti-spoofing models | How a model tells a real face from a photo of a face |
 | 2.19 Making models fast | ONNX, quantisation, distillation — the same answers, in a fraction of the time |
@@ -145,6 +145,35 @@ From the distribution we can read everything the system needs:
 - the **spread** — how uncertain the model is;
 - most importantly, the **probability of being at least N**: add up the probabilities of all ages from N to 100. This number, `P(age ≥ 18)`, is what the safety lines of §2.14 are set on.
 
+## 2.12 Measuring mistakes
+
+A single score can hide the mistakes that matter. Dwarpal measures a model several ways, because each answers a different question.
+
+**How far off, on average?** The standard score for age estimation is the **mean absolute error (MAE)**: the average number of years between the estimate and the true age. FairFace gives age *bands*, not ages, so the project uses **band-MAE**: how many years the estimate lies *outside* the labelled band, 0 if it is inside. The best model so far scores 1.83 on the test split.
+
+**Which mistakes are dangerous?** For an age check, errors are not equal. A 30-year-old estimated at 34 harms nobody; a 9-year-old estimated at 19 is the failure the whole system exists to prevent. So mistakes are counted separately for the cases that matter:
+
+| | Truly under the limit | Truly over the limit |
+| :-- | :-- | :-- |
+| **Rated over** | ❌ the **safety** error: a child let through | ✅ |
+| **Rated under** | ✅ | the **convenience** error: an adult sent to step-up |
+
+A table like this is called a **confusion matrix**. The safety error at a given threshold is what the design calls **FAR-minor** (false adult rate for minors).
+
+**Why averages hide danger.** A model can have an excellent average and still fail a small group badly: if it is wrong about 9-year-olds 10 % of the time but 9-year-olds are 1 % of the test faces, the overall score barely notices. So every measure is also reported per age band, per group and per sex — and the gates (§2.16) look at the *worst* of them, not the average.
+
+**Every rate gets an interval.** "18 of 1,208 children" is 1.49 %, but a different 1,208 children might have given 1.2 % or 2 %. Each rate is reported with its 95 % Clopper–Pearson interval (§2.14) — for 18 of 1,208, from 0.9 % to 2.3 % — and gates are checked against the upper end, the cautious one.
+
+## 2.13 Calibration
+
+A model that says "80 % sure" should be right about 80 % of the time. If, of all the faces it called 80 % likely to be over 18, only 60 % really were, its probabilities are **overconfident** — and any threshold set on them would be set on a false sense of certainty. A model whose stated probabilities match reality is **well calibrated**.
+
+To measure it: put the forecasts into bins (0–10 %, 10–20 %, …), compare each bin's average forecast with how often the event really happened, and add up the gaps, weighting each bin by how many forecasts fell in it. That is the **expected calibration error (ECE)**: 0 is perfect, and 0.05 means "off by about 5 percentage points".
+
+FairFace can't say whether a face in the band 10–19 is over 18. But it can say, for *every* face, whether it is over 20, 30 or 40, because its bands never straddle those ages. So calibration is measured at each band edge. The best model's error is about 0.018 — already close to honest.
+
+Modern networks are often a little overconfident, and there is a standard fix: **temperature scaling**. Dividing all the logits by one number *T* before the softmax spreads the probabilities out (*T* > 1) or sharpens them (*T* < 1), without changing which age is most likely. *T* is chosen on the validation split to make the true answers as unsurprising as possible. For our model it came out at 0.88 — slightly *under*-confident, so slightly sharpened — and the calibration error fell from 0.0188 to 0.0177 on the test split. Calibration matters doubly here, because the safety lines of §2.14 are set on these probabilities.
+
 ## 2.14 Risk control — turning test results into a guarantee
 
 §3.3 told the story of the jar of 600 photos: 6 children got through, and "the worst the real rate could plausibly be" came out at 1.96 %. This section explains where that number comes from, and how the project uses it to set its safety lines.
@@ -191,6 +220,22 @@ Three defences are used in training:
 - **Weight averaging (EMA)**: alongside the knobs being trained, a second copy keeps a slowly moving average of them. The average is smoother than any single moment of training and usually does better on new data, so it is the copy that gets evaluated and saved.
 
 **Domain shift** is the same problem one level up: a model can do well on new photos *from the same collection* and still disappoint on a different kind of picture. FairFace's photos come from the internet; Dwarpal's come from webcams and phones — darker, blurrier, more compressed. The webcam-style damage in the augmentation is there to narrow that gap, and the quality checks at serving time refuse pictures too far outside it.
+
+## 2.16 Measuring fairness
+
+An age estimator can be accurate on average and still be worse for some people than for others: for darker skin in poor light, for women wearing makeup, for faces underrepresented in the training data. In an age check, that would mean some children are let through more often than others, or some adults sent to step-up more often. Fairness can't be assumed; it has to be measured, group by group, and published.
+
+Dwarpal measures, for every group the test data labels (FairFace has seven ethnic groups and two sexes):
+
+- **accuracy per group**, and the **ratio of the worst to the best**;
+- **safety per group**: the share of each group's children rated more likely than not to be over 18, with its interval.
+
+**Release gates** turn these into rules: limits written down *before* looking at a model's test results, which every model must meet before it serves anyone (`ml/gates.toml`). Writing them first matters: once the results are in view, it is very tempting to find reasons why a slightly worse number is fine.
+
+Two honest difficulties come with group measurements:
+
+- **Small groups make wide intervals.** FairFace's test split has 126 Middle Eastern children under 10. With 6 of them misjudged, the true rate could plausibly be anywhere from 1.8 % to 10.1 %. Gates on groups must use the upper bound — and more data per group is the only real cure.
+- **Group labels are coarse.** Seven ethnic labels assigned by annotators can't describe how diverse faces really are, and skin tone, lighting and camera matter as much as any label. The labels are used because they are what the data offers, not because they are the right categories for people.
 
 ## 2.17 Faces: detection, landmarks, alignment
 

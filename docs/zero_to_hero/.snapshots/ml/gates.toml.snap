@@ -1,0 +1,37 @@
+# Release gates: what a model must achieve before it may serve. `uv run --package dwarpal-ml python -m dwarpal_ml.evaluate`
+# checks every gate against the evaluation's results; `metric` is a path into evaluation.json, and a gate fails if
+# the value is above `max` or below `min`.
+#
+# PROVISIONAL. These gates fit what FairFace can measure (age bands, no exact ages). The final gates of NFR-01 and
+# NFR-04 (rates per exact age 13-17 under the risk-controlled thresholds) need an exact-age dataset, and every value
+# here is for the project owner to confirm.
+
+[[gate]]
+name = "accuracy"
+metric = "overall.band_mae"
+max = 2.0
+why = "On average, a predicted age at most 2 years outside the labelled band"
+
+[[gate]]
+name = "children-rated-adult"
+metric = "limits.18.minor_rate_upper"
+max = 0.05
+why = "Children under 10 rated more likely than not 18+: at most 5 %, with 95 % confidence (the NFR-01 gate level)"
+
+[[gate]]
+name = "children-rated-adult-every-group"
+metric = "fairness.worst_minor_rate_upper_18"
+max = 0.10
+why = "The same, in every group; looser only because each group has a few hundred children"
+
+[[gate]]
+name = "accuracy-gap"
+metric = "fairness.band_mae_ratio"
+max = 1.25
+why = "The worst group's band-MAE at most 25 % above the best group's"
+
+[[gate]]
+name = "calibration"
+metric = "calibration.after.ece_mean"
+max = 0.05
+why = "Stated probabilities of being over an age match observed frequencies to within 5 points, on average"

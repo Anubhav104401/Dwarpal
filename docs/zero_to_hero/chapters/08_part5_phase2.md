@@ -10,7 +10,7 @@ It is built in this order, and this chapter grows in the same order:
 | 2 | Risk control: choosing the safety lines | §5.2.2 ✅ |
 | 3 | Face preparation: detecting and aligning every face, finding duplicates | §5.2.3 ✅ |
 | 4 | Training the age model | §5.2.4 ✅ |
-| 5 | Evaluation and fairness | — |
+| 5 | Evaluation and fairness | §5.2.5 ✅ |
 | 6 | Export to ONNX, calibration, and the model's manifest | — |
 
 The ML code lives in the `ml/` package, created empty in Phase 0 (§5.0.2). It now uses **httpx** for downloads, **SciPy** for statistics, the project's own vision library, so that training prepares faces exactly as serving does, and **PyTorch** with **timm** for training (its `pyproject.toml` walkthrough, in §5.0.2, describes them all). Data never enters the repository: downloads and manifests live in `.datasets/`, which Git ignores.
@@ -231,3 +231,50 @@ usable faces ─► data.py     weighted sampling, random changes, webcam damage
     | Validation band-MAE | 2.15 | 1.91 | 1.86 | **1.84** | 1.87 | 1.92 | 2.00 | 2.04 |
 
     Up to epoch 5 or 6, both losses fall together: the model is learning about ageing. After that, the training loss keeps falling while the validation loss *rises*: the model is memorising its 69,000 training faces, and getting worse at new ones. Because training keeps the version with the best validation score, the saved model is the one from epoch 6, before the memorising set in. The next run of this recipe can stop at about 8 epochs — half the time, and half the heat.
+
+### 5.2.5 Evaluation and fairness
+
+The background is in Part 2: measuring mistakes (§2.12), calibration (§2.13) and fairness (§2.16). This step builds one evaluation protocol for every model, writes the release gates down *before* the test results are seen, and opens the test split for the first time — once.
+
+```
+model + validation faces ─► logits ─► temperature fitted (validation only)
+model + test faces       ─► logits ─► accuracy · clear minors/adults at 13, 16, 18, 21 · calibration · fairness
+                                    ─► evaluation-test.json  ─► every gate in ml/gates.toml: PASS / FAIL
+```
+
+#### The release gates
+
+!walk ml/gates.toml
+
+#### The protocol
+
+!walk ml/src/dwarpal_ml/evaluate.py
+
+#### The tests
+
+!walk ml/tests/test_evaluate.py
+
+!!! real "Real world — the first exam"
+    **ConvNeXt-Tiny**, pretrained and fine-tuned (§5.2.4), evaluated on the locked test split: 10,941 faces it had never seen, and nobody had looked at.
+
+    | Measure | Validation | **Test** |
+    | :-- | --: | --: |
+    | Band-MAE | 1.86 | **1.83** |
+    | Inside the band | 55.6 % | **55.7 %** |
+    | Children under 10 rated 18+ (more likely than not) | 1.49 % (18 of 1,208) | **1.74 %** (27 of 1,553), up to 2.52 % |
+    | Adults 30+ rated under 18 | 0.66 % | **0.65 %** |
+    | Calibration error (after temperature 0.88) | 0.017 | **0.018** |
+    | Worst-to-best group band-MAE | 1.17 | **1.21** |
+
+    Validation and test agree closely: choosing the best epoch and the temperature on validation did not flatter the model.
+
+    **Four of the five gates pass. One fails.** Of 126 Middle Eastern children under 10 in the test split, 6 (4.8 %) were rated more likely than not to be 18 or over. With so few children, the true rate could plausibly be as high as 10.1 %, just over the provisional 10 % gate. On validation, the same group had 1 of 81. Two other patterns stand out: girls were misjudged more often than boys (2.5 % against 1.2 %), and the age limit 13 is the model's weak point — 10.6 % of children under 10 were rated 13 or over, because FairFace's single 10–19 band can't teach the difference between 10 and 13.
+
+    This result stays exactly as measured. The test split has now been used for this model, and the code refuses to evaluate it again: changing something and re-taking the exam until it passes would make the exam meaningless. The next model must do better on its own first attempt — through more and better data (exact ages, more children of every group), and through the risk-controlled thresholds of §2.14, which are stricter than the plain 50 % line used here.
+
+!!! try "Try it yourself"
+    Evaluate any trained run on validation as often as you like:
+
+    `uv run --package dwarpal-ml python -m dwarpal_ml.evaluate .runs/<run>`
+
+    The results are in `evaluation-val.json` in the run's folder. Then, once you are sure, the exam: add `--split test`. Try it a second time to see the lock.
