@@ -49,7 +49,7 @@ const server = (command: string, url: string, env: Record<string, string> = {}) 
 
 export default defineConfig({
   testDir: "tests",
-  timeout: 60_000,
+  timeout: 90_000,
   retries: CI ? 1 : 0,
   workers: 1,
   reporter: CI ? "github" : "list",

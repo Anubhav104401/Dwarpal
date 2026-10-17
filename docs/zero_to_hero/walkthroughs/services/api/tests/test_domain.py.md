@@ -1,5 +1,5 @@
 ---
-fingerprint: 0203807c7ecafc19
+fingerprint: 96dde088934682ed
 ---
 The **fast tests**: everything that can be checked without a database, a network or a clock — identifiers, keys, policies, the decision engine, the state machine, the production guard and the log format. All 30 finish in about two seconds.
 
@@ -30,7 +30,7 @@ Standard-library tools for building test inputs: Base64, `itertools` (`pairwise`
 `liveness_summary` — the report behind the `liveness-report` command (Phase 3).
 
 @@ 22-37
-The code under test, from every part of the domain — now including the challenge generator — plus the settings, the log formatter and the contracts used to build analyses, liveness results among them.
+The code under test, from every part of the domain — now including the challenge generator and its limits — plus the settings, the log formatter and the contracts used to build analyses, liveness results among them.
 
 @@ 39
 `REPO` — the repository's top folder, three levels above this file, for finding the stub manifest.
@@ -144,19 +144,19 @@ A standard policy (UK, 18+) and simple thresholds — pass at 0.95, fail at 0.05
 **A live session never accepts liveness taken from labels.** The same passing result, marked `evidence="labels"`: a test session passes, a live one gets `liveness_unavailable`.
 
 @@ 294-296
-**Challenges are random, never repeat a step, and cover every order.** 500 challenges from a seeded random generator — `random.Random(7)` gives the same "random" numbers every run, so a failure can be repeated. The `noqa` comment tells the linter that a predictable generator is intended here: real challenges use `secrets.SystemRandom`, which can't be predicted.
+**Challenges are random, never repeat a step, and cover every order.** 2,000 challenges from a seeded random generator — `random.Random(7)` gives the same "random" numbers every run, so a failure can be repeated. The `noqa` comment tells the linter that a predictable generator is intended here: real challenges use `secrets.SystemRandom`, which can't be predicted.
 
-@@ 297-302
-Every challenge has the right number of poses and colours, only colours from the palette (`<=` between sets means "is contained in"), and **no step equal to the one before** — `itertools.pairwise` gives each pair of neighbours. A repeated step would be a weaker test: holding still would satisfy it.
+@@ 297-303
+Every challenge has 3 or 4 poses, at most one look-up, the right number of colours, only colours from the palette (`<=` between sets means "is contained in"), and **no step equal to the one before** — `itertools.pairwise` gives each pair of neighbours. A repeated step would be a weaker test: holding still would satisfy it.
 
-@@ 303
-And all **12** possible pose orders turn up. Three poses, none repeating the one before: 3 choices for the first, then 2 and 2 — 3 × 2 × 2 = 12. If the generator favoured some orders, an attacker could prepare for those.
+@@ 304
+And all **24** possible pose orders turn up: 10 with three poses and 14 with four, once the two rules are applied. If the generator favoured some orders, an attacker could prepare for those.
 
-@@ 306-316
-**The liveness report** — first a small helper that builds the stored scores of one attempt: whether the pose passed, its problems, the injection signs, and a skin correlation (or `None` for "not measurable").
+@@ 307-317
+**The liveness report** — first a small helper that builds the stored scores of one attempt: whether the pose passed, its problems, how far its turn got (0.3 when it passed, 0.05 when it didn't), the injection signs, and a skin correlation (or `None` for "not measurable").
 
-@@ 318-325
+@@ 319-326
 Four made-up attempts: two passes with good light measurements, a retry whose head never turned left, and a step-up caused by automation.
 
-@@ 326-330
-The report counts them correctly: the outcomes, 3 of 4 pose checks passed (a false-reject rate of 25% *if* these were all genuine people), the one problem and the one sign, and the median of the three skin correlations, 0.6, with their range.
+@@ 327-332
+The report counts them correctly: the outcomes, 3 of 4 pose checks passed (a false-reject rate of 25% *if* these were all genuine people), the one problem, the turn's reach — median 0.30, lowest 0.05 — the one sign, and the median of the three skin correlations, 0.6, with their range.

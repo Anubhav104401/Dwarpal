@@ -5,6 +5,8 @@ import { Bottle } from "@/components/ui";
 import { shopConfig } from "@/lib/config";
 import { PASS_COOKIE, readPass } from "@/lib/pass";
 
+import { leaveCellar } from "../actions";
+
 const WINES = [
   {
     name: "Kesari Ridge",
@@ -53,9 +55,19 @@ export default async function Cellar() {
           <h1 className="font-serif text-4xl">The cellar</h1>
           <p className="mt-2 text-stone-400">Four bottles we are proud of this season.</p>
         </div>
-        <p className="rounded-full bg-emerald-500/15 px-4 py-1.5 text-sm text-emerald-300" role="status">
-          Age verified · valid until {until} UTC
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="rounded-full bg-emerald-500/15 px-4 py-1.5 text-sm text-emerald-300" role="status">
+            Age verified · valid until {until} UTC
+          </p>
+          <form action={leaveCellar}>
+            <button
+              type="submit"
+              className="rounded-full border border-white/15 px-4 py-1.5 text-sm text-stone-300 transition hover:border-white/30 hover:text-white"
+            >
+              Leave the cellar
+            </button>
+          </form>
+        </div>
       </div>
       <ul className="mt-10 grid gap-6 sm:grid-cols-2">
         {WINES.map((wine) => (

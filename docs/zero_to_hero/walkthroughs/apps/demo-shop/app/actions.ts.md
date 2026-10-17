@@ -1,5 +1,5 @@
 ---
-fingerprint: 0c2ec2dad58bee60
+fingerprint: 10cb06247fa95468
 ---
 What happens when a visitor presses **"Verify my age to enter"**. It is a **server action** (§4.17): a function that runs on the shop's *server*, although it is triggered by a button in the visitor's browser. That is essential here — it uses the shop's secret API key, which must never reach a browser.
 
@@ -10,7 +10,7 @@ What happens when a visitor presses **"Verify my age to enter"**. It is a **serv
 From Next.js: `cookies` (read and write the visitor's cookies) and `redirect` (send the visitor elsewhere).
 
 @@ 6-7
-The shop's settings helpers, and the cookie names and lifetime.
+The shop's settings helpers, and the cookie names and lifetime — `PASS_COOKIE`, the pass itself, is needed by `leaveCellar` below.
 
 @@ 9-10
 **`startAgeCheck`** — the action.
@@ -38,3 +38,12 @@ Send the visitor to the verify page, using the link from the session.
 
 @@ 24
 The closing brace.
+
+@@ 26-27
+**`leaveCellar`** (added in Phase 3, for repeated testing) — forget this browser's pass and go back to the front door, as its comment says. Like `startAgeCheck`, it is a **server action**: the cellar's button calls it, and it runs on the shop's server, where the cookie can be changed.
+
+@@ 28
+Delete the pass cookie. The browser is told to forget it at once, so the next visit to the cellar needs a new age check.
+
+@@ 29-30
+Send the visitor to the front page.

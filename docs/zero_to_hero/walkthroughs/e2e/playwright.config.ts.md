@@ -1,5 +1,5 @@
 ---
-fingerprint: a55434c9a2b25e70
+fingerprint: 10a7d2cca9975724
 ---
 The **Playwright configuration** — everything the end-to-end test needs before its first click: the databases, the tables, a demo project with a fresh key, a fake camera, a browser that uses that camera, and all four services running. With it, one command — `pnpm e2e` — tests the entire system from scratch, the same way on a laptop and in CI.
 
@@ -84,7 +84,7 @@ The configuration itself.
 The tests are in `tests/`.
 
 @@ 52
-Each test may take up to 60 seconds.
+Each test may take up to 90 seconds. The main story needs about a minute: its still portrait can't turn, so the page waits out 6 seconds at each of up to four poses.
 
 @@ 53
 In CI, retry a failed test once: a run that fails only *sometimes* — an overloaded CI machine, say — is then visible as "flaky" instead of failing the whole build. Locally, never retry: a failure should be seen at once.

@@ -13,11 +13,16 @@ from numpy.typing import NDArray
 from dwarpal_contracts import Challenge, ClientSignals, FrameMeta, FrameReport, LightCheck, Pose, PoseCheck
 from dwarpal_vision import Image
 
-# Provisional limits, to be set from genuine attempts (Phase 3, owner's tests). The ratios come from the 5 landmarks:
-# a turned head moves its nose sideways against its eyes; a raised head moves its nose towards its eyes.
+# Provisional limits, set from the owner's genuine attempts. The ratios come from the 5 landmarks: a turned head moves
+# its nose sideways against its eyes; a raised head moves its nose towards its eyes. Each pose is measured from the
+# person's own frontal frames, so camera height and face shape cancel out. Genuine turns moved the nose 0.23-0.69
+# eye-widths, every time. Chins lifted until the page's meter was full moved it anywhere from -0.03 to 0.12 of the
+# eyes-to-mouth distance: five landmarks can't measure looking up reliably, so it is recorded but never decides, and
+# the turns carry the proof. A flat photo, turned or tilted, moves neither.
 FRONTAL_YAW = 0.2
-TURNED_YAW = 0.35
-RAISED_PITCH = 0.38
+TURN_SHIFT = 0.18
+RAISE_SHIFT = 0.03
+DECIDING: frozenset[Pose] = frozenset({"turn_left", "turn_right"})
 MIN_BASELINE = 3
 # Grey levels: consecutive frames from a live camera always differ a little, if only by sensor noise.
 STILL_FRAMES = 0.75
@@ -36,14 +41,31 @@ class Seen:
     aligned: Image | None
 
 
-def shows(pose: Pose, report: FrameReport) -> bool:
+type Angles = tuple[float, float]
+
+
+def frontal_angles(frames: list[Seen]) -> Angles | None:
+    """The person's own yaw and pitch when facing the camera: the median over the baseline frames with one face."""
+    faced = [frame.report for frame in frames if frame.report.faces == 1]
+    if not faced:
+        return None
+    return float(np.median([r.yaw_ratio for r in faced])), float(np.median([r.pitch_ratio for r in faced]))
+
+
+def shift(pose: Pose, report: FrameReport, baseline: Angles) -> float:
+    """How far a frame has moved from the baseline in the pose's direction; negative when it moved the other way."""
+    yaw, pitch = baseline
+    if pose == "turn_left":
+        return report.yaw_ratio - yaw
+    if pose == "turn_right":
+        return yaw - report.yaw_ratio
+    return pitch - report.pitch_ratio
+
+
+def shows(pose: Pose, report: FrameReport, baseline: Angles) -> bool:
     if report.faces != 1:
         return False
-    if pose == "turn_left":
-        return report.yaw_ratio >= TURNED_YAW
-    if pose == "turn_right":
-        return report.yaw_ratio <= -TURNED_YAW
-    return report.pitch_ratio <= RAISED_PITCH
+    return shift(pose, report, baseline) >= (RAISE_SHIFT if pose == "look_up" else TURN_SHIFT)
 
 
 def segments(frames: list[Seen]) -> list[tuple[str, list[Seen]]]:
@@ -71,14 +93,26 @@ def pose_check(frames: list[Seen], challenge: Challenge, trust_labels: bool = Fa
         problems.append("baseline_not_frontal")
     if runs and runs[0][0] != "baseline":
         problems.append("baseline_not_first")
+    reference = frontal_angles(baseline)
+    reached: list[tuple[Pose, float | None]] = []
     steps = [(phase, run) for phase, run in runs if phase != "baseline"]
     if [phase for phase, _ in steps] != list(challenge.poses):
         problems.append("wrong_order")
     elif not trust_labels:
         for pose, (_, run) in zip(challenge.poses, steps, strict=True):
-            if not any(shows(pose, frame.report) for frame in run):
+            faced = [frame.report for frame in run if frame.report.faces == 1]
+            furthest = max((shift(pose, r, reference) for r in faced), default=None) if reference else None
+            reached.append((pose, None if furthest is None else round(furthest, 3)))
+            missed = reference is None or not any(shows(pose, r, reference) for r in faced)
+            if missed and pose in DECIDING:
                 problems.append(f"not_shown:{pose}")
-    return PoseCheck(passed=not problems, problems=problems)
+    return PoseCheck(
+        passed=not problems,
+        problems=problems,
+        baseline_yaw=None if reference is None else round(reference[0], 3),
+        baseline_pitch=None if reference is None else round(reference[1], 3),
+        reached=reached,
+    )
 
 
 def chromaticity(image: Image, patches: tuple[tuple[slice, slice], ...]) -> NDArray[np.float64]:

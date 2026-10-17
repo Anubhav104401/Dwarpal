@@ -1,5 +1,5 @@
 ---
-fingerprint: 8e5d9ea7efbce2df
+fingerprint: f934f4851414b335
 ---
 A small **command-line tool** for two jobs a developer needs before the API is useful:
 
@@ -117,61 +117,70 @@ The skin correlations among them, leaving out any that are missing.
 @@ 83
 How many pose challenges passed. `sum` of `True`/`False` values counts the `True`s, because Python treats `True` as 1.
 
-@@ 84-85
+@@ 84
+**How far each pose got**, gathered by pose name: `reach` maps a name such as `turn_left` to the list of its values. `dict[str, list[float]]` is the type: text keys, lists of numbers as values.
+
+@@ 85-88
+For each pose result, for each `[name, value]` pair it recorded, add the value to its name's list — skipping `None`, which means there was no face to measure. `pose.get("reached", [])` gives an empty list for results stored before this field existed. `setdefault(name, [])` returns the name's list, creating an empty one first if needed.
+
+@@ 89
+One short text per pose name: the **median** and the **lowest** value, such as `turn_left +0.42 / +0.29`. The lowest matters most: it is the honest attempt that came closest to failing, and it shows how much room the limit leaves. `sorted(…)` puts the names in alphabetical order.
+
+@@ 90-91
 Build the report line by line. The first: the number of attempts and each outcome with its count, most common first. `", ".join(…)` puts commas between the parts.
 
-@@ 86
+@@ 92
 The evidence counts — or `none`. `or "none"` works because an empty text counts as false.
 
-@@ 87-92
+@@ 93-98
 How many pose challenges passed, as a count and a percentage (`:.0%` formats 0.9 as `90%`), and the **false-reject rate if every attempt was genuine** — the share that failed. The extra part is added only if there were pose results (`if poses else ""`), which also avoids dividing by zero.
 
-@@ 93-94
-The pose problems and the injection signs, each with its count, or `none`.
+@@ 99-101
+The pose problems and the injection signs, each with its count, or `none`. Between them, the pose reach line (Phase 3): the numbers from which the pose limits are set.
 
-@@ 95-100
+@@ 102-107
 How many attempts had a usable light measurement, and — if there were any skin correlations — their **median** (the middle value, which one odd attempt can't drag far) and their range. `:+.2f` prints a number with two decimals and always a sign, such as `+0.62`.
 
-@@ 101-102
+@@ 108-109
 Close the list, and join the lines with line breaks into one text.
 
-@@ 105
+@@ 112
 **`liveness_report`** — read the attempts from the database and summarise them. It is `async` because the database code is.
 
-@@ 106-107
+@@ 113-114
 Connect to the database and open a session.
 
-@@ 108-114
+@@ 115-121
 Fetch only two columns — the outcome and the scores — of every **face** attempt created at or after `since`. `.all()` returns the rows.
 
-@@ 115
+@@ 122
 Close the connection.
 
-@@ 116
+@@ 123
 Turn each row into an (outcome, scores) pair and summarise them.
 
-@@ 119
+@@ 126
 **`main`** — what runs when the module is started as a program. `argv` lets tests pass arguments directly; normally it is `None`, and `argparse` reads the real command line.
 
-@@ 120-123
+@@ 127-130
 Describe the tool, accept exactly one command — `migrate`, `seed-dev` or `liveness-report` — and the optional `--since`, and read them. `type=datetime.fromisoformat` converts the text (such as `2026-10-17T12:00`) into a date and time; a malformed one is refused with a message. Anything else prints a helpful usage message and stops.
 
-@@ 124-127
+@@ 131-134
 `migrate`: apply the migrations, say so, and return `0` (success).
 
-@@ 128-131
+@@ 135-138
 `liveness-report`: from `--since`, or from 24 hours ago if it was left out. A time typed without a time zone is taken as UTC (`replace(tzinfo=UTC)`), because the database stores times in UTC and can't compare them with a time that has none. Print the report and return `0`.
 
-@@ 132
+@@ 139
 Otherwise, `seed-dev`: run the async seed with the normal settings. `asyncio.run` starts the async engine, runs the function to the end, and returns its result.
 
-@@ 133
+@@ 140
 Print the project ID and the key, with a reminder to store the key now. `\n` inside the text starts a new line.
 
 The message uses only plain ASCII characters. An earlier version contained a long dash `—`, which came out as `�` when the output was saved to a file on Windows: Python then writes text with Windows' older character table, which other tools don't expect.
 
-@@ 134
+@@ 141
 Success.
 
-@@ 137-138
+@@ 144-145
 Run `main` only when the module is started as a program, and hand its result to the operating system as the **exit code**: `0` means success, anything else failure (§4.6).

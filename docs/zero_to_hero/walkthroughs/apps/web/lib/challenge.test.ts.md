@@ -1,5 +1,5 @@
 ---
-fingerprint: efcd1434d10be97c
+fingerprint: 5e3cce77e7cfadfd
 ---
 Unit tests for `challenge.ts` (Vitest, §4.20): reading head angles, recognising poses, checking the server's challenge, and recognising virtual cameras. They need no browser and no camera — just numbers in and answers out.
 
@@ -15,29 +15,38 @@ The functions under test.
 @@ 10-14
 A nose exactly between the eyes, 0.11 below them: yaw close to 0 — straight ahead — and pitch 0.11 / 0.2 = 0.55. `toBeCloseTo` allows for tiny rounding errors in decimal arithmetic.
 
-@@ 16-20
-Move the nose to the picture's right (`x: 0.6`, a full eye distance) — that is a turn to the *person's* left, as `reached` says, and not to their right.
+@@ 16
+`front` — frontal angles to measure from: straight ahead, yaw 0 and pitch 0.55.
 
-@@ 22-25
-Raise the nose to 0.06 below the eyes (pitch 0.3): a raised head. At the normal 0.11 (pitch 0.55): not raised.
+@@ 18-22
+Move the nose to the picture's right (`x: 0.6`, a full eye distance) — that is a turn to the *person's* left: the meter is full (1) for `turn_left`, and empty (0) for `turn_right`.
 
-@@ 26
+@@ 24-30
+**A raised chin, measured from the person's own frontal pitch.** Raise the nose to 0.06 below the eyes (pitch 0.3, a fall of 0.25 from 0.55): the meter is full. At the normal 0.11 (pitch 0.55): empty. And from a frontal pitch of 0.7 — a camera below the face — a pitch of 0.55 is a full look-up.
+
+@@ 32-35
+**A partial turn fills the meter partly**: a yaw of 0.1 is 0.4 of the 0.25 target to the left, and nothing to the right.
+
+@@ 37-45
+**The frontal angles are the median of the readings.** Three readings, one of them turned (yaw 0.3): the median ignores it, giving yaw 0.02 and pitch 0.58. No readings give `null`.
+
+@@ 46
 The end of the group.
 
-@@ 28-34
+@@ 48-54
 **Reading a challenge.** A well-formed answer from the server, in the API's spelling.
 
-@@ 36-43
+@@ 56-63
 It is accepted, and converted to the page's spelling: `challenge_id` becomes `id`, `step_ms` becomes `stepMs`.
 
-@@ 45-50
+@@ 65-70
 **Everything odd is refused**: a pose the page doesn't know, colour names instead of colour codes, a step of 50 ms (which would flash far too fast — a safety issue, not just a technical one), and an empty ID. `{ ...answer, poses: [...] }` copies the good answer with one field changed. `expect(() => …).toThrow()` passes only if the function throws an error.
 
-@@ 51
+@@ 71
 The end of the group.
 
-@@ 53-59
+@@ 73-79
 **Virtual cameras**: two common virtual-camera names are recognised, regardless of capital letters; two real built-in cameras are not.
 
-@@ 60
+@@ 80
 The end of the group.

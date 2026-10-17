@@ -1,16 +1,27 @@
 /** The camera: open it, play a liveness challenge on it — screen colours, then head poses — and switch it off again. */
 
-import { type Challenge, CUES, type HeadAngles, type Phase, type Pose, reached } from "./challenge";
+import {
+  type Challenge,
+  CUES,
+  frontalAngles,
+  type HeadAngles,
+  type Phase,
+  type Pose,
+  poseProgress,
+} from "./challenge";
 
 const MAX_WIDTH = 960;
 const JPEG_QUALITY = 0.85;
 /** Frames taken without screen colours, when the person has asked their device for less motion. */
 const CALM_BASELINE = 4;
 const CALM_GAP_MS = 300;
-/** How long to wait for a pose before taking the frame anyway: the server judges it either way. */
-export const POSE_TIMEOUT_MS = 5000;
+/** How long to wait for a pose before taking the frames anyway: the server judges them either way. */
+export const POSE_TIMEOUT_MS = 6000;
 /** A pose must be seen this many readings in a row, so a passing wobble doesn't count. */
 const STEADY_READINGS = 3;
+/** Photos taken of each pose once it is held, this far apart: the server counts the best of them. */
+const FRAMES_PER_POSE = 3;
+const POSE_GAP_MS = 150;
 
 export interface LabelledFrame {
   image: Blob;
@@ -24,6 +35,8 @@ export interface ChallengeHooks {
   /** Show this instruction, or none. */
   onCue: (cue: string | null) => void;
   onProgress: (taken: number, total: number) => void;
+  /** How much of the current pose is reached, from 0 to 1 in steps of 0.05 — or `null` when it can't be measured. */
+  onReach: (share: number | null) => void;
   /** The head's angles now, from the landmarker — or `null` when it can't see a face or isn't running. */
   readAngles: () => HeadAngles | null;
   /** The person asked their device for less motion: no colours are shown. */
@@ -62,14 +75,21 @@ function toJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-/** Wait until the head shows `pose` steadily, or until the timeout. */
-async function holdPose(pose: Pose, readAngles: () => HeadAngles | null): Promise<void> {
+/** Wait until the head shows `pose` steadily, measured from its frontal `baseline`, or until the timeout, reporting how
+ * far it has got on the way. */
+async function holdPose(
+  pose: Pose,
+  baseline: HeadAngles | null,
+  hooks: Pick<ChallengeHooks, "readAngles" | "onReach">,
+): Promise<void> {
   const deadline = performance.now() + POSE_TIMEOUT_MS;
   let steady = 0;
   while (performance.now() < deadline && steady < STEADY_READINGS) {
     await nextPaint();
-    const angles = readAngles();
-    steady = angles !== null && reached(pose, angles) ? steady + 1 : 0;
+    const angles = hooks.readAngles();
+    const share = angles === null || baseline === null ? null : poseProgress(pose, angles, baseline);
+    hooks.onReach(share === null ? null : Math.round(share * 20) / 20);
+    steady = share === 1 ? steady + 1 : 0;
   }
 }
 
@@ -88,10 +108,15 @@ export async function runChallenge(
     throw new Error("this browser cannot draw camera frames");
   }
   const baseline = hooks.calm ? CALM_BASELINE : challenge.colours.length;
-  const total = baseline + challenge.poses.length;
+  const total = baseline + challenge.poses.length * FRAMES_PER_POSE;
   const started = performance.now();
   const frames: LabelledFrame[] = [];
+  const frontal: HeadAngles[] = [];
   const snap = async (phase: Phase): Promise<void> => {
+    const angles = phase === "baseline" ? hooks.readAngles() : null;
+    if (angles !== null) {
+      frontal.push(angles);
+    }
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     frames.push({ image: await toJpeg(canvas), tMs: performance.now() - started, phase });
     hooks.onProgress(frames.length, total);
@@ -120,10 +145,15 @@ export async function runChallenge(
     hooks.onColour(null);
   }
 
+  const facing = frontalAngles(frontal);
   for (const pose of challenge.poses) {
     hooks.onCue(CUES[pose]);
-    await holdPose(pose, hooks.readAngles);
-    await snap(pose);
+    await holdPose(pose, facing, hooks);
+    for (let index = 0; index < FRAMES_PER_POSE; index += 1) {
+      await snap(pose);
+      await wait(index + 1 < FRAMES_PER_POSE ? POSE_GAP_MS : 0);
+    }
+    hooks.onReach(null);
   }
   hooks.onCue(null);
   return { frames, lightStartedMs };

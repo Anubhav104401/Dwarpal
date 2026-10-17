@@ -19,7 +19,7 @@ test("an adult passes the age check and is let into the cellar", async ({ page }
   // The screen colours, then each pose: the still portrait never turns, so each pose waits out its 5 seconds.
   await expect(page.getByText("Keep looking at the screen.").first()).toBeVisible();
   await page.screenshot({ path: info.outputPath("3-light.png"), animations: "disabled" });
-  await expect(page.getByText(/^(Slowly turn your head|Tilt your head up)/).first()).toBeVisible({
+  await expect(page.getByText(/^(Turn your head|Lift your chin)/).first()).toBeVisible({
     timeout: 10_000,
   });
   await page.screenshot({ path: info.outputPath("4-pose.png"), animations: "disabled" });
@@ -30,6 +30,12 @@ test("an adult passes the age check and is let into the cellar", async ({ page }
   await expect(page).toHaveURL(`${SHOP}/cellar`);
   await expect(page.getByRole("status")).toContainText("Age verified");
   await page.screenshot({ path: info.outputPath("6-cellar.png"), fullPage: true, animations: "disabled" });
+
+  // Leaving forgets the pass: the cellar is closed again until a new check.
+  await page.getByRole("button", { name: "Leave the cellar" }).click();
+  await expect(page.getByRole("button", { name: "Verify my age to enter" })).toBeVisible();
+  await page.goto(`${SHOP}/cellar`);
+  await expect(page).toHaveURL(`${SHOP}/`);
 });
 
 test("the cellar stays closed to anyone without a pass", async ({ page }) => {

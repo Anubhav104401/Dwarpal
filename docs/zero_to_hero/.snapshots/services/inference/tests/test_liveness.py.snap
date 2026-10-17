@@ -8,7 +8,8 @@ import pytest
 from dwarpal_contracts import Challenge, ClientSignals, FrameMeta, FrameReport, Phase
 from dwarpal_inference.liveness import (
     FRONTAL_YAW,
-    TURNED_YAW,
+    RAISE_SHIFT,
+    TURN_SHIFT,
     Seen,
     emitted,
     injection_signs,
@@ -59,17 +60,27 @@ def genuine() -> list[Seen]:
     ]
 
 
-def test_each_pose_is_recognised_by_its_landmarks() -> None:
-    assert shows("turn_left", report(0, yaw=TURNED_YAW))
-    assert not shows("turn_left", report(0, yaw=-TURNED_YAW))
-    assert shows("turn_right", report(0, yaw=-0.6))
-    assert shows("look_up", report(0, pitch=0.3))
-    assert not shows("look_up", report(0, pitch=0.55))
-    assert not shows("turn_left", report(0, yaw=0.6, faces=2))
+def test_each_pose_is_measured_from_the_persons_own_frontal_angles() -> None:
+    front = (0.0, 0.55)
+    assert shows("turn_left", report(0, yaw=TURN_SHIFT), front)
+    assert not shows("turn_left", report(0, yaw=-TURN_SHIFT), front)
+    assert shows("turn_right", report(0, yaw=-0.3), front)
+    assert shows("look_up", report(0, pitch=0.55 - 2 * RAISE_SHIFT), front)
+    assert not shows("look_up", report(0, pitch=0.55), front)
+    assert not shows("turn_left", report(0, yaw=0.6, faces=2), front)
+    # A camera below the face: frontal pitch 0.7. Lifting the chin to 0.6 counts, though it would not from 0.55.
+    assert shows("look_up", report(0, pitch=0.6), (0.0, 0.7))
+    assert not shows("look_up", report(0, pitch=0.6), front)
 
 
 def test_the_poses_asked_for_in_the_order_asked_pass() -> None:
     assert pose_check(genuine(), CHALLENGE).passed
+
+
+def test_the_check_records_how_far_each_pose_got() -> None:
+    check = pose_check(genuine(), CHALLENGE)
+    assert (check.baseline_yaw, check.baseline_pitch) == (0.0, 0.55)
+    assert check.reached == [("turn_left", 0.5), ("look_up", 0.3), ("turn_right", 0.5)]
 
 
 def test_poses_in_another_order_fail() -> None:
@@ -84,10 +95,18 @@ def test_a_pose_that_is_named_but_not_shown_fails() -> None:
     assert pose_check(frames, CHALLENGE).problems == ["not_shown:turn_left"]
 
 
-def test_a_photo_that_never_turns_fails_every_pose() -> None:
+def test_a_photo_that_never_turns_fails_every_turn() -> None:
     phases: list[Phase] = ["baseline", "baseline", "baseline", "turn_left", "look_up", "turn_right"]
     still = [frame(i, phase) for i, phase in enumerate(phases)]
-    assert pose_check(still, CHALLENGE).problems == ["not_shown:turn_left", "not_shown:look_up", "not_shown:turn_right"]
+    assert pose_check(still, CHALLENGE).problems == ["not_shown:turn_left", "not_shown:turn_right"]
+
+
+def test_looking_up_is_recorded_but_does_not_decide() -> None:
+    frames = genuine()
+    frames[4] = frame(4, "look_up", pitch=0.56)
+    check = pose_check(frames, CHALLENGE)
+    assert check.passed
+    assert check.reached[1] == ("look_up", -0.01)
 
 
 def test_the_baseline_must_come_first_be_frontal_and_be_long_enough() -> None:

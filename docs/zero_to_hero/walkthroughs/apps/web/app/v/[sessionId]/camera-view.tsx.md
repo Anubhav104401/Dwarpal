@@ -1,5 +1,5 @@
 ---
-fingerprint: 67ea8d281fd5bea1
+fingerprint: 97b8fe666de18f51
 ---
 The **camera screen**: the live preview with an oval to line the face up with, a line of guidance, and the **Start** button. Since Phase 3 it does three new things (§5.3):
 
@@ -99,7 +99,7 @@ All good: say so, and invite them to press Start.
 @@ 75
 `hidden` — how long the page has been hidden: `since` (when it was last hidden, or `null` while it's showing) and `total` (milliseconds so far). `null as number | null` tells TypeScript that `since` may later hold a number.
 
-@@ 76-82
+@@ 76-83
 The **state** — each piece with the function that changes it. Each time one of them changes, React draws the screen again:
 
 - `ready` — has the video started showing pictures?
@@ -110,112 +110,114 @@ The **state** — each piece with the function that changes it. Each time one of
 - `cue` — the pose instruction now, or `null`;
 - `progress` — photos taken, out of how many. `[number, number]` is a **tuple** type: a list of exactly two numbers.
 
-@@ 84
-**Open the camera when the screen appears.** `useEffect` runs its function after React has drawn the screen.
+Also `reach` (added after the owner's tests) — how much of the current pose is reached, from 0 to 1, for the meter; `null` hides it.
 
 @@ 85
+**Open the camera when the screen appears.** `useEffect` runs its function after React has drawn the screen.
+
+@@ 86
 `active` — a flag that tells whether this screen is still showing. The function returned at the end (the **cleanup**) sets it to false when the screen goes away.
 
-@@ 86-92
+@@ 87-93
 Open the camera. When the stream arrives: if the screen has been removed in the meantime, switch the camera straight off again and stop. Otherwise, keep the stream.
 
-@@ 93-96
+@@ 94-97
 Show the stream in the `<video>` element. `srcObject` is how a live stream (rather than a file) is given to a video.
 
-@@ 97-101
+@@ 98-102
 If opening failed — permission refused, no camera — tell the parent, unless the screen is already gone.
 
-@@ 102
+@@ 103
 The end of the `then`.
 
-@@ 103-107
+@@ 104-108
 **The cleanup**: when this screen disappears for any reason — finished, or the person navigates away — mark it inactive and **switch the camera off**. The camera light never stays on after the camera screen is gone.
 
-@@ 108
+@@ 109
 The **dependency list**: run this effect again only if `onCameraError` changes. The parent makes sure it never does (`useCallback` in `verify-flow.tsx`), so the camera opens exactly once per screen.
 
-@@ 110-114
+@@ 111-115
 **Live guidance**, as the comment says. This effect depends on `ready`, so it runs again when the video starts; until then, it does nothing.
 
-@@ 115-117
+@@ 116-118
 The `active` flag again, the number of the scheduled screen refresh (to cancel it later), and the **grace timer**: after 8 seconds, `graceOver` becomes true.
 
-@@ 118-122
+@@ 119-123
 Load the landmarker. It takes a moment — a few megabytes of model and WebAssembly. If the screen has gone by the time it arrives, close it straight away (`loaded?.close()`: only if one loaded) and stop.
 
-@@ 123
+@@ 124
 Keep it.
 
-@@ 124-127
+@@ 125-128
 **`loop`** — runs once per screen refresh. It stops as soon as the screen is gone or something is missing.
 
-@@ 128
+@@ 129
 Read the face in the video's current picture. `performance.now()` gives MediaPipe the time, which it needs for following a face from one picture to the next.
 
-@@ 129-130
+@@ 130-131
 Work out the guidance, and store it — but only if the text changed. `setGuide` given a function receives the previous value; returning that same object tells React nothing changed, so the screen isn't redrawn 60 times a second for nothing.
 
-@@ 131-132
+@@ 132-133
 Ask to run again at the next screen refresh, keeping its number for cancelling.
 
-@@ 133-137
+@@ 134-138
 If the landmarker couldn't be loaded at all (`null`: an old browser, or a blocked download), give up on guidance and let the person start at once. Otherwise, start the loop.
 
-@@ 138
+@@ 139
 The end of the `then`.
 
-@@ 139-146
+@@ 140-147
 **The cleanup**: stop the grace timer and the loop, close the landmarker — freeing its memory and the graphics card — and forget it. `[ready]` is the dependency list.
 
-@@ 148
+@@ 149
 The comment explains the next effect: if the page is hidden during the check — another tab or app in front — something else could be playing to the camera in its place. The time is reported, and the server weighs it.
 
-@@ 149-151
+@@ 150-152
 `onChange` — runs whenever the page is hidden or shown again. First, the time now.
 
-@@ 152-153
+@@ 153-154
 Just hidden: remember when.
 
-@@ 154-157
+@@ 155-158
 Shown again after being hidden: add the hidden stretch to the total, and clear `since`.
 
-@@ 158
+@@ 159
 The end of `onChange`.
 
-@@ 159-161
+@@ 160-162
 Listen for the browser's `visibilitychange` event for as long as the screen exists, and stop listening when it goes. The empty dependency list `[]` means: set this up once.
 
-@@ 163
+@@ 164
 **`start`** — what the Start button does.
 
-@@ 164-166
+@@ 165-167
 If the video element somehow isn't there, do nothing.
 
-@@ 167
+@@ 168
 Mark the check as running: the button disables itself and the outline starts marching.
 
-@@ 168-169
+@@ 169-170
 Fetch a fresh challenge from the server.
 
-@@ 170
+@@ 171
 **Calm mode?** `matchMedia("(prefers-reduced-motion: reduce)")` asks whether the person has told their device they want less motion. If so, no colours are flashed (`camera.ts`).
 
-@@ 171
+@@ 172
 Start counting hidden time afresh, for this check only.
 
-@@ 172-178
-**Play the challenge**, wiring each hook to the screen: colours and cues go straight into state; progress goes into `progress`; `readAngles` reads the latest landmarker reading (`?.` and `?? null`: `null` if there is no reading or it has no angles).
+@@ 173-180
+**Play the challenge**, wiring each hook to the screen: colours, cues and the pose reach go straight into state; progress goes into `progress`; `readAngles` reads the latest landmarker reading (`?.` and `?? null`: `null` if there is no reading or it has no angles).
 
-@@ 179
+@@ 181
 The camera's name, as the browser reports it — used to recognise virtual cameras. `?.` at each step guards against there being no stream or no track; `?? ""` gives an empty name then.
 
-@@ 180-181
+@@ 182-183
 Switch the camera off immediately — before the photos are even uploaded.
 
-@@ 182-185
+@@ 184-187
 Hand over the attempt: the challenge's ID, the labelled frames, and when the colours began.
 
-@@ 186-191
+@@ 188-193
 And the **signals**:
 
 - `automation` — `navigator.webdriver` is `true` when a program such as a test tool is driving the browser;
@@ -225,70 +227,85 @@ And the **signals**:
 
 A dishonest browser can fake every one of these, which is why they can only make the check *stricter*.
 
-@@ 192
+@@ 194
 The end of the attempt.
 
-@@ 193-196
+@@ 195-198
 If anything failed — fetching the challenge, the camera — take any colour off the screen and report it like a camera error.
 
-@@ 197
+@@ 199
 The end of `start`.
 
-@@ 199
+@@ 201
 The progress, unpacked into two names.
 
-@@ 200-202
+@@ 202-204
 **What the guidance line says.** While running: the pose instruction if there is one; otherwise, during the colours, "Keep looking at the screen."; otherwise the progress ("Hold still… 3 of 7"). Before starting: the tip from the last attempt, or the live guidance, or — while nothing is known yet — "Starting the camera…". `??` picks the first value that isn't `null` or `undefined`.
 
-@@ 204-205
+@@ 206-207
 The screen's layout begins.
 
-@@ 206-208
+@@ 208-210
 **The colour.** When there is one, draw it with `createPortal` …
 
-@@ 209-210
+@@ 211-212
 … straight into the page's `<body>`, as the comment explains. The card around the camera has a blurred background, and in CSS such an element becomes the frame of reference for `fixed` elements inside it. A colour drawn inside the card would cover the card only — not enough light on the face. Drawn in the body, it covers the whole screen.
 
-@@ 211-215
+@@ 213-217
 A layer covering the whole screen (`fixed inset-0`), above everything else (`z-40`), in the current colour. `aria-hidden` hides it from screen readers, which announce the guidance line instead. `transition-colors duration-200` softens each change over 0.2 seconds.
 
-@@ 216-218
+@@ 218-220
 In its middle, a dark rounded label: "Keep looking at the screen."
 
-@@ 219-221
+@@ 221-223
 The end of the layer, and the destination: `document.body`.
 
-@@ 222
+@@ 224
 The preview box: a 4 : 3 rectangle (`aspect-[4/3]`), hiding anything that spills out (`overflow-hidden`), with rounded corners, a dark background while the camera starts, and a hair-thin ring around it.
 
-@@ 223-230
+@@ 225-232
 **The live preview.** `ref={video}` connects the element to the ref. Three attributes make live video work on every browser: `autoPlay` (start immediately), `playsInline` (on iPhones, play inside the page rather than full-screen) and `muted` (browsers only autoplay silent video; there's no sound anyway). `onLoadedData` fires when the first picture arrives, which starts the guidance.
 
 Its classes: fill the box (`size-full`), crop rather than squash (`object-cover`), and **mirror it** (`-scale-x-100` flips it left to right). People expect a front camera to behave like a mirror, and lining up a face in a non-mirrored image feels backwards. Only the preview is mirrored; the photos sent are not (`camera.ts`).
 
-@@ 231
+@@ 233
 The oval overlay on top: active while running, saffron once the face is good.
 
-@@ 232-236
+@@ 234-238
 Until the first picture arrives, show "Starting the camera…" in the middle of the box. `grid place-items-center` centres it both ways.
 
-@@ 237-241
-While there is a pose instruction, show it large at the bottom of the preview, on a dark band, so it can be read while turning the head.
+@@ 239-240
+While there is a pose instruction, show a dark band at the bottom of the preview, so it can be read while turning the head.
 
-@@ 242
+@@ 241
+The instruction — or, once the meter is full, "That's it — hold still…" while the three photos are taken.
+
+@@ 242-243
+**The pose meter** (added after the owner's first tests, in which people couldn't tell how far to turn). As the comment says, it fills as the person turns, so they can see when it is enough.
+
+@@ 244
+The meter's track: a thin, rounded, faint white bar. `aria-hidden` — screen readers get the instruction instead.
+
+@@ 245-248
+The filled part: as wide as the share reached (`width: 40%` for 0.4), saffron while filling and green when full. `transition-[width] duration-100` smooths each change over a tenth of a second.
+
+@@ 249-252
+The closing tags.
+
+@@ 253
 The end of the preview box.
 
-@@ 243-246
+@@ 254-257
 The guidance line. `aria-live="polite"` makes screen readers *announce* the text whenever it changes, after they finish what they're saying — so a blind person hears each instruction. `min-h-12` keeps its height steady, so the button doesn't jump when the text changes length.
 
-@@ 247
+@@ 258
 What it says: `message`, worked out above.
 
-@@ 248
+@@ 259
 The end of the guidance line.
 
-@@ 249-256
+@@ 260-267
 **The Start button.** `type="button"` makes clear it submits no form. It is disabled until the video shows pictures, while the check is running (so it can't be pressed twice), and until the guidance is satisfied *or* the grace period is over. Its label changes while the check runs.
 
-@@ 257-259
+@@ 268-270
 The closing tags.

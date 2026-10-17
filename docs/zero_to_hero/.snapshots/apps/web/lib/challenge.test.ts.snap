@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { anglesFrom, isVirtualCamera, reached, readChallenge } from "./challenge";
+import { anglesFrom, frontalAngles, isVirtualCamera, poseProgress, readChallenge } from "./challenge";
 
 describe("head angles", () => {
   const rightEye = { x: 0.4, y: 0.4 };
@@ -13,15 +13,35 @@ describe("head angles", () => {
     expect(angles.pitch).toBeCloseTo(0.55);
   });
 
+  const front = { yaw: 0, pitch: 0.55 };
+
   it("reads a nose moved towards the picture's right as a turn to the person's left", () => {
     const angles = anglesFrom(rightEye, leftEye, { x: 0.6, y: 0.51 }, mouth);
-    expect(reached("turn_left", angles)).toBe(true);
-    expect(reached("turn_right", angles)).toBe(false);
+    expect(poseProgress("turn_left", angles, front)).toBe(1);
+    expect(poseProgress("turn_right", angles, front)).toBe(0);
   });
 
-  it("reads a nose close to the eyes as a raised head", () => {
-    expect(reached("look_up", anglesFrom(rightEye, leftEye, { x: 0.5, y: 0.46 }, mouth))).toBe(true);
-    expect(reached("look_up", anglesFrom(rightEye, leftEye, { x: 0.5, y: 0.51 }, mouth))).toBe(false);
+  it("reads a nose moved towards the eyes as a raised chin, from the person's own frontal pitch", () => {
+    expect(poseProgress("look_up", anglesFrom(rightEye, leftEye, { x: 0.5, y: 0.46 }, mouth), front)).toBe(1);
+    expect(
+      poseProgress("look_up", anglesFrom(rightEye, leftEye, { x: 0.5, y: 0.51 }, mouth), front),
+    ).toBeCloseTo(0);
+    expect(poseProgress("look_up", { yaw: 0, pitch: 0.55 }, { yaw: 0, pitch: 0.7 })).toBe(1);
+  });
+
+  it("measures a partial turn as a share of the target, for the on-screen meter", () => {
+    expect(poseProgress("turn_left", { yaw: 0.1, pitch: 0.55 }, front)).toBeCloseTo(0.4);
+    expect(poseProgress("turn_right", { yaw: 0.1, pitch: 0.55 }, front)).toBe(0);
+  });
+
+  it("takes the frontal angles as the median of the baseline readings", () => {
+    const readings = [
+      { yaw: 0.02, pitch: 0.6 },
+      { yaw: 0.3, pitch: 0.5 },
+      { yaw: -0.01, pitch: 0.58 },
+    ];
+    expect(frontalAngles(readings)).toEqual({ yaw: 0.02, pitch: 0.58 });
+    expect(frontalAngles([])).toBeNull();
   });
 });
 

@@ -20,7 +20,7 @@ from pydantic import SecretStr, ValidationError
 
 from dwarpal_api.cli import liveness_summary
 from dwarpal_api.domain import ids
-from dwarpal_api.domain.challenges import COLOUR_STEPS, PALETTE, POSE_STEPS, new_challenge
+from dwarpal_api.domain.challenges import COLOUR_STEPS, MAX_LOOK_UPS, PALETTE, POSE_STEPS, new_challenge
 from dwarpal_api.domain.decision import Outcome, decide
 from dwarpal_api.domain.keys import generate_api_key, generate_client_secret, matches, parse_api_key
 from dwarpal_api.domain.policy import (
@@ -293,14 +293,15 @@ def test_a_live_session_never_accepts_liveness_taken_from_labels() -> None:
 
 def test_challenges_are_random_never_repeat_a_step_and_cover_every_order() -> None:
     rng = random.Random(7)  # noqa: S311 - reproducible test draws; real challenges use secrets.SystemRandom
-    drawn = [new_challenge(rng) for _ in range(500)]
+    drawn = [new_challenge(rng) for _ in range(2000)]
     for challenge in drawn:
-        assert len(challenge.poses) == POSE_STEPS
+        assert len(challenge.poses) in POSE_STEPS
+        assert challenge.poses.count("look_up") <= MAX_LOOK_UPS
         assert len(challenge.colours) == COLOUR_STEPS
         assert set(challenge.colours) <= set(PALETTE)
         for steps in (challenge.poses, challenge.colours):
             assert all(a != b for a, b in itertools.pairwise(steps))
-    assert len({tuple(challenge.poses) for challenge in drawn}) == 12
+    assert len({tuple(challenge.poses) for challenge in drawn}) == 24
 
 
 def test_the_liveness_report_counts_outcomes_problems_signs_and_light() -> None:
@@ -308,7 +309,7 @@ def test_the_liveness_report_counts_outcomes_problems_signs_and_light() -> None:
         light = {"usable": r_skin is not None, "r_skin": r_skin, "r_background": None}
         return {
             "liveness": {
-                "pose": {"passed": passed, "problems": problems},
+                "pose": {"passed": passed, "problems": problems, "reached": [["turn_left", 0.3 if passed else 0.05]]},
                 "light": light,
                 "injection": signs,
                 "evidence": "images",
@@ -326,5 +327,6 @@ def test_the_liveness_report_counts_outcomes_problems_signs_and_light() -> None:
     assert "4 face attempts: pass 2, retry 1, step_up 1" in report
     assert "pose challenge passed: 3 of 4 (75%); false-reject rate if all were genuine: 25%" in report
     assert "pose problems: not_shown:turn_left 1" in report
+    assert "pose reach from frontal, median / lowest: turn_left +0.30 / +0.05" in report
     assert "injection signs: automation 1" in report
     assert "skin correlation median +0.60, range +0.40 to +0.80" in report

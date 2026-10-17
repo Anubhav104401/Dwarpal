@@ -1,5 +1,5 @@
 ---
-fingerprint: b8a40ef1d1400ead
+fingerprint: 768da9d448564ea4
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -137,127 +137,127 @@ The docstring says the same, in short.
 @@ 137
 Get a challenge — the server picks its random poses and colours.
 
-@@ 138
-Label the frames: by default they follow the challenge's own poses (an honest attempt), otherwise the poses the test gave.
+@@ 138-140
+Label the frames: by default they follow the challenge's own poses (an honest attempt), otherwise the poses the test gave. A challenge has 3 or 4 poses, so first make sure there are enough frames — at least 3 frontal ones, then one per pose — by repeating the last frame as many times as needed (`frames[-1:] * n`: a list of the last frame, `n` times; `max(0, …)` keeps `n` from going negative).
 
-@@ 139
+@@ 141
 Describe the attempt: the frames' labels, the signals (normal ones unless given), and any claimed challenge.
 
-@@ 140-142
+@@ 142-144
 Package the frames as files `frame_0`, `frame_1`, …, add the description and the challenge's ID, and upload everything as a multipart form.
 
-@@ 145-146
+@@ 147-148
 **The main story: an adult passes, and the website can verify the token.** `@pytest.mark.anyio` lets pytest run an `async` test function.
 
-@@ 147-153
+@@ 149-155
 Create, start, attempt with six portraits — the stand-in model says 30, so it passes — then finish: the redirect goes back to the shop with the session's ID.
 
-@@ 154
+@@ 156
 Start the flow *again*, as if the person reloaded the page afterwards.
 
-@@ 155-157
+@@ 157-159
 As the shop's server: read the result with the API key, and fetch the public keys.
 
-@@ 158-159
+@@ 160-161
 The reloaded page sees the completed session and its outcome — no error for the person.
 
-@@ 160-161
+@@ 162-163
 The result says completed, and passed.
 
-@@ 162
+@@ 164
 **Verify the token** exactly as a website would: with the published key set, accepting only Ed25519. If the signature didn't match, this line would raise an error.
 
-@@ 163-168
+@@ 165-170
 The token is an age token, says pass, says `age_over_18: true` (the literal `True`, checked with `is`), and is addressed to this project, about this session, in test mode.
 
-@@ 169
+@@ 171
 **No age inside.** None of these names appears among the claims: the set of forbidden names and the set of claim names have nothing in common (`&` is set intersection; an empty set counts as false).
 
-@@ 172-184
+@@ 174-186
 **A clear child is refused, unmistakably.** With the stand-in model at 12, the attempt fails, and the signed token says `outcome: fail` *and* `age_over_18: false` — so even a website that read only the age claim would refuse entry.
 
-@@ 187-193
+@@ 189-195
 **A teenager near the limit must use a stronger check.** At 16, the probability of being 18 or over is neither high enough to pass nor low enough to fail, so the answer is step up, with the reason `age_uncertain`.
 
-@@ 196-208
+@@ 198-210
 **Poor frames: retry, retry, then step up.** Three attempts with blank grey frames: each finds no face. The first two are retries — the first saying `no_face` and that 2 attempts remain — and the third becomes a step-up. The session waits for a stronger check, and has no token.
 
-@@ 211-226
+@@ 213-228
 **Credentials are checked, and errors are problem details.** No API key at all: `401`, with the problem-details media type, the stable code, the type reference, and a request ID that matches the response header. A wrong client secret and a missing flow token each get their own code.
 
-@@ 229-233
+@@ 231-235
 **Each request is logged once, with its ID, and never with secrets.** `caplog` is pytest's log-capturing fixture; `set_level` makes it collect `INFO` lines from `dwarpal.api`.
 
-@@ 234-235
+@@ 236-237
 Create one session. (Setting up the harness makes no HTTP requests, so this is the only request.)
 
-@@ 236-239
+@@ 238-241
 Exactly one request log line, with the right method, path and status, and the same ID the response carried. `vars(record)` reads a log record's fields as a dict.
 
-@@ 240-241
+@@ 242-243
 Neither the API key nor the new client secret appears anywhere in the captured logs.
 
-@@ 244-258
+@@ 246-260
 **A challenge can be used only once.** The same challenge, sent twice: the first attempt is accepted, the second gets `409 challenge_invalid`.
 
-@@ 261-269
+@@ 263-271
 **A session gets a limited number of challenges.** Seven requests in a row: six are granted (3 attempts × 2), the seventh gets `429 too_many_challenges`.
 
-@@ 272-275
+@@ 274-277
 **Oversized and unmeasured bodies are refused before they are read.** `stream` is an async generator: given as a body, it makes httpx send the request in chunks of unknown total size.
 
-@@ 277-280
+@@ 279-282
 A JSON body of about 100 KB (over the 64 KiB limit), and a chunked body.
 
-@@ 281-285
+@@ 283-287
 `413 request_too_large` — still with a request ID — and `411 length_required`.
 
-@@ 288-300
+@@ 290-302
 **Sessions refuse foreign return addresses, unknown policies, and live mode with a stand-in model.** A return address on another website, a policy that doesn't exist, and a session created with a *live* key while the model is uncalibrated: each gets its own code.
 
-@@ 303-313
+@@ 305-315
 **Discovery and readiness.** The configuration document names Ed25519 and admits the model is uncalibrated; the key set may be cached for 5 minutes and holds only Ed25519 keys; and `/readyz` reports both databases as `ok`.
 
-@@ 316
+@@ 318
 **The drift test: the migrations build exactly the tables the code describes.** It is not `async`, so it starts the async engine itself (line 305).
 
-@@ 317-318
+@@ 319-320
 **`differences`** — Alembic's `compare_metadata` compares the real database (migrated by the fixture) with `METADATA`, the tables described in `tables.py`, and lists every difference: a missing table, an extra column, a different type.
 
-@@ 320-325
+@@ 322-327
 **`check`** — connect to the test database and run the comparison through `run_sync`, because Alembic's comparison code isn't async (as in `env.py`).
 
-@@ 327
+@@ 329
 The list of differences must be **empty**. If someone adds a column to `tables.py` but forgets the migration — or the other way round — this test fails, long before a real database meets the mismatch.
 
-@@ 330-332
+@@ 332-334
 **Red team, from here on** (Phase 3): tests that play the attacker. **Red-teaming** means attacking your own system on purpose, to find its weaknesses before someone else does.
 
 The first: **a printed photo**. The "person" is the still test portrait, and here liveness measures the images for real (`liveness="images"`).
 
-@@ 333-336
+@@ 335-338
 Two attempts with six identical portraits. The photo looks straight ahead throughout — it can't turn left, right or up when asked.
 
-@@ 337-338
+@@ 339-340
 The first attempt gets a retry, with the vague `liveness_check_failed` (a real person may just have been slow). The second gets **rejected** — and from outside the reason is only `verification_failed`, which doesn't even say liveness was involved.
 
-@@ 341-346
+@@ 343-348
 **Poses in the wrong order.** Labels mode is on, so the frames' labels are believed — but the attacker labels them `turn_right` three times, whatever the challenge asked. A challenge never repeats a pose twice in a row, so this can never match it.
 
-@@ 347
+@@ 349
 Caught: retry, `liveness_check_failed`.
 
-@@ 350-352
+@@ 352-354
 **A challenge claimed by the browser.** The attacker sends an easy challenge of its own choosing — one pose, `turn_left`, two colours.
 
-@@ 353-356
+@@ 355-358
 And four frames that would satisfy *that* easy challenge: three baseline frames, then `turn_left`.
 
-@@ 357
+@@ 359
 Caught: the server judged the frames against the challenge it **issued** (three random poses), not the claimed one, so the pose check fails.
 
-@@ 360-367
+@@ 362-369
 **Automation and virtual cameras.** Two fresh sessions; in each the browser honestly reports one warning sign — a program driving the browser, or a virtual camera. The frames themselves are fine and the person is a clear adult.
 
-@@ 368
+@@ 370
 Both go to **step up** with `liveness_uncertain`: not passed on a face that may have been injected, but not rejected either, because these signs can have innocent causes. `[x] * 2` is a list of two copies of `x`.

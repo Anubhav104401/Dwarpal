@@ -1,5 +1,5 @@
 ---
-fingerprint: 550aa6c0fda68fc8
+fingerprint: f5501c462e7785f6
 ---
 **Capture quality** — the first layer of the "onion" (§3.3, Choice 6). Before judging age, check that the frame is fit to be judged:
 
@@ -92,27 +92,52 @@ The height (y) of the point halfway between the eyes, and of the point halfway b
 Where the nose tip sits between eyes and mouth, as a fraction: 0 would be level with the eyes, 1 level with the mouth. Facing the camera it is usually about 0.5. **Look up**, and the nose tip appears to rise towards the eyes in the picture, so the ratio falls. Dividing by the eyes-to-mouth distance makes it independent of how big the face is. `max(…, 1.0)` prevents dividing by zero.
 
 @@ 59
+**`people`** (added in Phase 3) — how many *different people* the detections show. It answers with a whole number.
+
+@@ 60-62
+The docstring gives the rule and why it is needed. During the owner's genuine tests, YuNet reported a small, steady "face" to one side of the picture in every photo — something in the room that looked face-like to it, about a seventh of the real face's size. It made every photo look like two people were present, and every check failed. A detection now counts beside the main face only if it is **confident**, **outside the main face's box** and **at least half its size**.
+
+@@ 63-64
+No detections: nobody.
+
+@@ 65-66
+The main face — the most confident detection — and its box: left edge, top edge, width, height.
+
+@@ 67-73
+Keep each *other* detection that passes all three tests:
+
+- its score is at least the quality rules' `min_detector_score` (0.8);
+- its eyes are at least half as far apart as the main face's — far smaller faces are background shapes, or people far behind, who can't be taking the check;
+- its centre is **not** inside the main face's box. A box inside the face is the same face detected twice (a beard, a lit cheek). `a <= b <= c` is Python's way of writing "b is between a and c"; `face.box[0] + face.box[2] / 2` is the centre's x position.
+
+@@ 74
+The main face plus the others that passed.
+
+@@ 77
 **`assess` — check one frame.** It receives the picture and the faces the detector found, most confident first.
 
-@@ 60-61
+@@ 78-79
 **No face at all** → the single flag `no_face`.
 
-@@ 62
+@@ 80
 Judge the main face: the most confident one.
 
-@@ 63-65
-Cut it out. If the clamped box is empty (a degenerate detection), treat it as no face.
+@@ 81
+Count the people, once, for the checks and the result below.
 
-@@ 66
+@@ 82-84
+Cut it out. If the clamped box is empty (a degenerate detection), treat it as no face — still reporting how many people were seen.
+
+@@ 85
 Convert to **greyscale**, keeping only how light each pixel is. Brightness and sharpness don't need colour.
 
-@@ 67
+@@ 86
 **Brightness** — the average grey value (0–255), divided by 255 to give 0–1.
 
-@@ 68
+@@ 87
 Resize the face to a standard 112 × 112 before measuring sharpness. Without this, a large face would look "sharper" than a small one just because it has more pixels. `INTER_AREA` is the best method for shrinking.
 
-@@ 69
+@@ 88
 **Sharpness, measured by the variance of the Laplacian.**
 
 - The **Laplacian** is a filter that responds strongly wherever brightness changes suddenly — at edges and fine detail — and weakly in smooth areas.
@@ -121,10 +146,10 @@ Resize the face to a standard 112 × 112 before measuring sharpness. Without thi
 
 `cv2.CV_64F` keeps the results as precise decimals, so negative values aren't cut off. This is a classic, fast, well-understood blur measure.
 
-@@ 70
+@@ 89
 How far the head is turned (`yaw_ratio`, above).
 
-@@ 71-79
+@@ 90-98
 **Every check, by name**, as a dict of *flag name → did this check fail?*:
 
 - `multiple_faces` — a **second** face with a high score. Someone else in view could mean a helper, or a photo held up next to the user;
@@ -134,8 +159,10 @@ How far the head is turned (`yaw_ratio`, above).
 - `face_too_small` — eyes less than 40 pixels apart;
 - `not_frontal` — the head is turned too far.
 
-@@ 80
+Since Phase 3, `multiple_faces` uses `people`'s count, so a second box on the same face, or a small shape in the background, no longer counts.
+
+@@ 99
 Keep the names of the checks that failed, in a stable order. The decision engine picks the most useful advice to show from these.
 
-@@ 81-90
-Return the full result. The brightness is clipped into 0–1 as a guarantee: it can't actually exceed 1, but the contracts insist on the range, and an explicit clip makes that certain. The last value is the head's tilt, `pitch_ratio`, added in Phase 3.
+@@ 100-109
+Return the full result: the number of people seen, the detector's score, the brightness — clipped into 0–1 as a guarantee: it can't actually exceed 1, but the contracts insist on the range, and an explicit clip makes that certain — and the other measurements. The last value is the head's tilt, `pitch_ratio`, added in Phase 3.

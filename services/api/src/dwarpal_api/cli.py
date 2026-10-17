@@ -81,6 +81,12 @@ def liveness_summary(attempts: list[tuple[str, dict[str, Any]]]) -> str:
     lights = [live["light"] for live in lives if live["light"] is not None and live["light"]["usable"]]
     skin = [light["r_skin"] for light in lights if light["r_skin"] is not None]
     passed = sum(pose["passed"] for pose in poses)
+    reach: dict[str, list[float]] = {}
+    for pose in poses:
+        for name, value in pose.get("reached", []):
+            if value is not None:
+                reach.setdefault(name, []).append(value)
+    reaches = [f"{name} {statistics.median(v):+.2f} / {min(v):+.2f}" for name, v in sorted(reach.items())]
     lines = [
         f"{len(attempts)} face attempts: " + ", ".join(f"{name} {count}" for name, count in outcomes.most_common()),
         "evidence: " + (", ".join(f"{name} {count}" for name, count in evidence.most_common()) or "none"),
@@ -91,6 +97,7 @@ def liveness_summary(attempts: list[tuple[str, dict[str, Any]]]) -> str:
             else ""
         ),
         "pose problems: " + (", ".join(f"{name} {count}" for name, count in problems.most_common()) or "none"),
+        "pose reach from frontal, median / lowest: " + (", ".join(reaches) or "none"),
         "injection signs: " + (", ".join(f"{name} {count}" for name, count in signs.most_common()) or "none"),
         f"light usable: {len(lights)} of {len(lives)}"
         + (

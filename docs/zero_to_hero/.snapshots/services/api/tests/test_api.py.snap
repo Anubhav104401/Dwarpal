@@ -135,7 +135,9 @@ async def attempt(
     """One face attempt. By default the frames' labels follow the challenge the server issued; an attack may label
     them in another order (`poses`), report other browser signals, or claim a challenge of its own."""
     challenge = (await h.client.post(f"/v1/flow/sessions/{session}/challenge", headers=flow)).json()
-    labels = following(poses if poses is not None else challenge["poses"], len(frames))
+    shown = poses if poses is not None else challenge["poses"]
+    frames = frames + frames[-1:] * max(0, 3 + len(shown) - len(frames))  # at least 3 frontal frames, then the poses
+    labels = following(shown, len(frames))
     meta = FaceRequestMeta(frames=labels, signals=signals or ClientSignals(), challenge=claimed)
     files = {f"frame_{i}": (f"frame_{i}.jpg", data, "image/jpeg") for i, data in enumerate(frames)}
     data = {"meta": meta.model_dump_json(), "challenge_id": challenge["challenge_id"]}

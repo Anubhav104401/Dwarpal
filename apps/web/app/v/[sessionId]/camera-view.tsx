@@ -79,6 +79,7 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
   const [running, setRunning] = useState(false);
   const [colour, setColour] = useState<string | null>(null);
   const [cue, setCue] = useState<string | null>(null);
+  const [reach, setReach] = useState<number | null>(null);
   const [progress, setProgress] = useState<[number, number]>([0, 0]);
 
   useEffect(() => {
@@ -173,6 +174,7 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
         onColour: setColour,
         onCue: setCue,
         onProgress: (taken, total) => setProgress([taken, total]),
+        onReach: setReach,
         readAngles: () => reading.current?.angles ?? null,
         calm,
       });
@@ -235,9 +237,18 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
           </p>
         )}
         {cue === null ? null : (
-          <p className="absolute inset-x-4 bottom-4 rounded-xl bg-black/70 px-4 py-3 text-center text-lg font-medium text-white">
-            {cue}
-          </p>
+          <div className="absolute inset-x-4 bottom-4 rounded-xl bg-black/70 px-4 py-3 text-center text-white">
+            <p className="text-lg font-medium">{reach === 1 ? "That's it — hold still…" : cue}</p>
+            {reach === null ? null : (
+              // How far the head has got: it fills as the person turns, so they can see when it is enough.
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20" aria-hidden="true">
+                <div
+                  className={`h-full rounded-full transition-[width] duration-100 ${reach === 1 ? "bg-emerald-400" : "bg-brand-400"}`}
+                  style={{ width: `${reach * 100}%` }}
+                />
+              </div>
+            )}
+          </div>
         )}
       </div>
       <p

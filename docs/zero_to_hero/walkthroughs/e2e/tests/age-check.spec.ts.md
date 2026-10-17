@@ -1,5 +1,5 @@
 ---
-fingerprint: 7133feeb0e7cebde
+fingerprint: 7f994dc77ed4c576
 ---
 **The end-to-end tests**: four short stories, acted out by **Playwright** in a real Chromium browser (§4.20). The first one is the whole Phase 1 slice working together — the shop, the SDK, the verify page, the camera, the API, the inference service, the decision engine, the signed token and the shop's pass:
 
@@ -42,8 +42,8 @@ Press Start. The comment explains the long waits that follow: the fake camera pl
 Follow the check as it happens, with a screenshot at each stage:
 
 - the colour phase, recognised by its instruction "Keep looking at the screen." (`.first()`: the text may appear in more than one place);
-- a pose prompt, up to 10 seconds later. `/^(Slowly turn your head|Tilt your head up)/` is a **regular expression**: text that *starts with* (`^`) either phrase (`|` means "or") — the poses are random, so the test can't know which comes first;
-- the result, "You're all set", within 45 seconds. Meanwhile seven photos travel to the API, then to the inference service: the real face detector finds the face, liveness (in the labels test mode) accepts the poses, the stand-in model reports 30, and the decision engine says pass.
+- a pose prompt, up to 10 seconds later. `/^(Turn your head|Lift your chin)/` is a **regular expression**: text that *starts with* (`^`) either phrase (`|` means "or") — the poses are random, so the test can't know which comes first;
+- the result, "You're all set", within 45 seconds. Meanwhile the photos travel to the API, then to the inference service: the real face detector finds the face, liveness (in the labels test mode) accepts the poses, the stand-in model reports 30, and the decision engine says pass.
 
 @@ 29
 Press "Continue to …". The `/^Continue to /` pattern matches any website's name.
@@ -55,16 +55,25 @@ The shop's return route has done all its checks — the browser binding, the API
 The cellar shows its "Age verified" badge.
 
 @@ 32
-A full-page screenshot of the cellar. The end of the story.
+A full-page screenshot of the cellar.
 
-@@ 33
+@@ 34
+The comment says what the last part checks: leaving forgets the pass.
+
+@@ 35-36
+Press **Leave the cellar**, and the front page appears again, offering a new age check.
+
+@@ 37-38
+Try the cellar's address directly: the shop sends the browser back to the front page, because the pass is gone. The end of the story.
+
+@@ 39
 The end of test 1.
 
-@@ 35-39
+@@ 41-45
 **Test 2: the cellar stays closed without a pass.** Going straight to `/cellar` must land back at the entrance, with the "Verify my age" button.
 
-@@ 41-44
+@@ 47-50
 **Test 3: a verify link without its secret explains what to do.** A link with a valid-looking session ID but no `#cs=` part must say "This link doesn't work" — politely, and without asking the API anything.
 
-@@ 46-52
+@@ 52-58
 **Test 4: a return link only works in the browser that started the check.** Opening the shop's return address directly — as someone would with a link sent by a friend — must lead to the "Please finish the check where you started it" page, because this browser never started that check.

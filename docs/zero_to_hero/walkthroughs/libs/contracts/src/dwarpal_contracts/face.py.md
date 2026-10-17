@@ -1,5 +1,5 @@
 ---
-fingerprint: 96841b153f14d970
+fingerprint: ffaf30cc866e3233
 ---
 The **contracts** for a face attempt — the exact shape of every message the API and the inference service exchange about it. Both services import these classes, so they cannot disagree about a field's name, type or allowed range. And because the models contain only numbers, flags and short texts, **no image can ever travel inside them** (§1.11).
 
@@ -115,22 +115,31 @@ Phase 3 added three optional fields:
 @@ 79-81
 **`PoseCheck`** (Phase 3) — the result of the head-pose challenge: whether it `passed`, and the names of the `problems` found, such as `wrong_order` (see `liveness.py`).
 
-@@ 84-87
+@@ 82-83
+The comment explains the three fields that follow: **measurements**, kept so that the limits can be set from genuine attempts rather than guessed.
+
+@@ 84-85
+`baseline_yaw` and `baseline_pitch` — the person's own frontal angles, from their opening photos, or `None` if no face could be measured.
+
+@@ 86
+`reached` — for each pose asked for, in order, a pair: the pose's name and how far its best photo moved from the frontal angles in the asked direction (`None`: no face to measure). `tuple[Pose, float | None]` is a pair of a pose and a number-or-nothing; in JSON it becomes a two-item list. The default `[]` keeps older results valid.
+
+@@ 89-92
 **`LightCheck`** (Phase 3) — the result of the screen-colour check:
 
 - `usable` — whether there was enough to measure;
 - `r_skin` and `r_background` — how closely the colour changes seen on the face, and on the background, followed the colours shown on screen. They are **correlations**, from −1 to +1: +1 means "rose and fell exactly together", 0 means "unrelated". Real skin a few centimetres from a screen picks up its glow; a photo held up, or a replayed video, does so differently. Each can be `None` when it couldn't be measured.
 
-@@ 90-93
+@@ 95-98
 **`Liveness`** (Phase 3) — everything the liveness checks found, kept together:
 
 - `pose` and `light` — the two checks above, each `None` if it couldn't run;
 - `injection` — the names of any signs that the camera feed was faked or the page automated. Empty means none.
 
-@@ 94-96
+@@ 99-101
 `evidence` — where the pose result came from. `"images"` is the real thing, measured from the faces in the frames. `"labels"` is a **test mode**: the frames' own phase labels were believed. It exists because the end-to-end tests use a fake camera playing a still portrait, which can't turn its head. The comment states its two limits, which the code enforces: it needs the stand-in age model, and a live session refuses it.
 
-@@ 99-105
+@@ 104-110
 **`FaceAnalysis` — the inference service's complete answer:**
 
 - `model_version` — which age model produced it. It is recorded with the decision (auditability, Stage 4 §8);

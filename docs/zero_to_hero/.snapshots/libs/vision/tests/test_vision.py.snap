@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import struct
 from pathlib import Path
 
@@ -11,6 +12,7 @@ import pytest
 
 from dwarpal_vision import DecodeError, FaceDetector, align_face, assess, decode_image, image_size, to_model_input
 from dwarpal_vision.align import template
+from dwarpal_vision.quality import people
 
 FIXTURE = Path(__file__).parent / "fixtures" / "astronaut.jpg"
 MODEL = Path(__file__).resolve().parents[3] / "models" / "third_party" / "face_detection_yunet_2023mar.onnx"
@@ -72,6 +74,20 @@ def test_quality_accepts_a_good_frame_and_names_what_is_wrong_with_bad_ones(
     blurred = np.asarray(cv2.GaussianBlur(image, (0, 0), 6), dtype=np.uint8)
     assert "too_blurry" in assess(blurred, faces).flags
     assert assess(image, []).flags == ("no_face",)
+
+
+def test_only_a_separate_similar_sized_face_counts_as_a_second_person(detector: FaceDetector, portrait: bytes) -> None:
+    main = detector.detect(decode_image(portrait))[0]
+    x, y, w, h = main.box
+    shifted = dataclasses.replace(main, box=(x + 2 * w, y, w, h), score=0.9)
+    inside = dataclasses.replace(main, box=(x + w / 4, y + h / 2, w / 2, h / 2), score=0.9)
+    faint = dataclasses.replace(shifted, score=0.7)
+    small = dataclasses.replace(shifted, landmarks=main.landmarks * 0.3)
+    assert people([main, shifted]) == 2
+    assert people([main, inside]) == 1
+    assert people([main, faint]) == 1
+    assert people([main, small]) == 1
+    assert people([]) == 0
 
 
 def test_faces_become_one_rgb_batch_with_pixels_unchanged(detector: FaceDetector, portrait: bytes) -> None:

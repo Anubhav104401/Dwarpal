@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { dwarpal, POLICY, shopConfig } from "@/lib/config";
-import { PASS_LIFETIME_S, PENDING_COOKIE } from "@/lib/pass";
+import { PASS_COOKIE, PASS_LIFETIME_S, PENDING_COOKIE } from "@/lib/pass";
 
 /** Ask Dwarpal for a verification session, then send the visitor to its verify page. */
 export async function startAgeCheck(): Promise<void> {
@@ -21,4 +21,10 @@ export async function startAgeCheck(): Promise<void> {
     maxAge: PASS_LIFETIME_S,
   });
   redirect(session.url);
+}
+
+/** Forget this browser's pass and go back to the front door: the next visit to the cellar needs a new age check. */
+export async function leaveCellar(): Promise<void> {
+  (await cookies()).delete(PASS_COOKIE);
+  redirect("/");
 }

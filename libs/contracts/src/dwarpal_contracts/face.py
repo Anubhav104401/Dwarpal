@@ -79,6 +79,11 @@ class AgeEstimate(Contract):
 class PoseCheck(Contract):
     passed: bool
     problems: list[str]
+    # Measurements for setting the limits from genuine attempts: the person's own frontal angles, and for each pose
+    # asked for, the furthest any of its frames moved from them in that direction (None: no face to measure).
+    baseline_yaw: float | None = None
+    baseline_pitch: float | None = None
+    reached: list[tuple[Pose, float | None]] = []
 
 
 class LightCheck(Contract):

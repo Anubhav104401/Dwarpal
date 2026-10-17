@@ -26,15 +26,17 @@ export interface HeadAngles {
   pitch: number;
 }
 
-/** A little stricter than the server (0.35 and 0.38), so that a frame the page accepts also passes there. */
-export const TURNED_YAW = 0.4;
-export const RAISED_PITCH = 0.35;
+/** The page's targets, as shifts from the person's own frontal angles. The page's landmarks read a head a little further
+ * turned than the server's do, so these are set well above the server's limits (0.18 and 0.03): when the page's meter
+ * is full, the photos pass there too. */
+export const TURN_SHIFT = 0.25;
+export const RAISE_SHIFT = 0.12;
 export const FRONTAL_YAW = 0.15;
 
 export const CUES: Record<Pose, string> = {
-  turn_left: "Slowly turn your head to your left",
-  turn_right: "Slowly turn your head to your right",
-  look_up: "Tilt your head up a little",
+  turn_left: "Turn your head to your left, eyes on the screen",
+  turn_right: "Turn your head to your right, eyes on the screen",
+  look_up: "Lift your chin up, eyes on the screen",
 };
 
 const POSES: readonly Pose[] = ["turn_left", "turn_right", "look_up"];
@@ -45,14 +47,30 @@ const VIRTUAL_CAMERA =
 
 export const isVirtualCamera = (label: string): boolean => VIRTUAL_CAMERA.test(label);
 
-export function reached(pose: Pose, angles: HeadAngles): boolean {
-  if (pose === "turn_left") {
-    return angles.yaw >= TURNED_YAW;
+/** How much of the pose's target the head has reached, from its frontal `baseline`: 0 (not at all, or the wrong way)
+ * to 1 (enough). */
+export function poseProgress(pose: Pose, angles: HeadAngles, baseline: HeadAngles): number {
+  const moved =
+    pose === "turn_left"
+      ? (angles.yaw - baseline.yaw) / TURN_SHIFT
+      : pose === "turn_right"
+        ? (baseline.yaw - angles.yaw) / TURN_SHIFT
+        : (baseline.pitch - angles.pitch) / RAISE_SHIFT;
+  return Math.min(1, Math.max(0, moved));
+}
+
+const median = (values: number[]): number => {
+  const sorted = [...values].sort((a, b) => a - b);
+  const half = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? (sorted[half] ?? 0) : ((sorted[half - 1] ?? 0) + (sorted[half] ?? 0)) / 2;
+};
+
+/** The person's frontal angles: the median of the readings taken with the baseline photos, or `null` with none. */
+export function frontalAngles(readings: readonly HeadAngles[]): HeadAngles | null {
+  if (readings.length === 0) {
+    return null;
   }
-  if (pose === "turn_right") {
-    return angles.yaw <= -TURNED_YAW;
-  }
-  return angles.pitch <= RAISED_PITCH;
+  return { yaw: median(readings.map((r) => r.yaw)), pitch: median(readings.map((r) => r.pitch)) };
 }
 
 export interface Point {
