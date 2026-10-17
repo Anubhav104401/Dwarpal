@@ -1,10 +1,12 @@
 """Download the third-party model files listed in models/third_party.json and verify their fingerprints.
 
-uv run infra/scripts/fetch_models.py
+uv run infra/scripts/fetch_models.py               the files serving and the tests need
+uv run infra/scripts/fetch_models.py --training    also the pretrained weights used only for training
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import sys
@@ -49,9 +51,13 @@ def fetch(entry: dict[str, str]) -> bool:
     return True
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Download and verify third-party model files")
+    parser.add_argument("--training", action="store_true", help="also fetch weights used only for training")
+    args = parser.parse_args(argv)
     manifest = json.loads((MODELS / "third_party.json").read_text(encoding="utf-8"))
-    results = [fetch(entry) for entry in manifest["models"]]
+    wanted = [entry for entry in manifest["models"] if entry["use"] == "serving" or args.training]
+    results = [fetch(entry) for entry in wanted]
     return 0 if all(results) else 1
 
 

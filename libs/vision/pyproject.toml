@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Face decoding, detection, alignment and quality checks shared by training and serving."
 requires-python = ">=3.13,<3.14"
 dependencies = [
-  "numpy==2.5.4",
+  "numpy==2.5.3",
   "opencv-python-headless==5.0.0.93",
 ]
 

@@ -1,5 +1,5 @@
 ---
-fingerprint: 7c4ff1769a878e52
+fingerprint: 1b563b6f31652c23
 ---
 The `pyproject.toml` of **`dwarpal-vision`** — the face-handling code shared by **training** (in `ml/`) and **serving** (in the inference service).
 
@@ -24,7 +24,7 @@ The `pyproject.toml` of **`dwarpal-vision`** — the face-handling code shared b
 @@ 6-9
 `dependencies = [ … ]` — the two libraries everything in computer vision stands on (§4.9):
 
-- `numpy` 2.5.4 — fast arrays of numbers. A picture is a NumPy array of shape *height × width × 3*;
+- `numpy` 2.5.3 — fast arrays of numbers. A picture is a NumPy array of shape *height × width × 3*;
 - `opencv-python-headless` 5.0.0.93 — **OpenCV**, the classic open-source computer-vision library (Apache-2.0). *Headless* means the build without windowing and GUI parts, which a server never needs, so it is smaller and has fewer system requirements.
 
 @@ 11-13

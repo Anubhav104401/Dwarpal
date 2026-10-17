@@ -45,6 +45,17 @@ pnpm e2e                                                   # builds, starts ever
 
 To click through it yourself, see the "Try it yourself" boxes in §5.1.3 and §5.1.5 of the book: they start each service by hand, and the demo shop's settings come from `apps/demo-shop/.env.example`.
 
+Prepare the data and train an age model (owner-approved datasets and weights only; §5.2 of the book):
+
+```bash
+uv run --package dwarpal-ml python -m dwarpal_ml.fetch fairface      # the dataset, fingerprint-checked
+uv run --package dwarpal-ml python -m dwarpal_ml.manifest fairface   # one row per image, fixed splits
+uv run --package dwarpal-ml python -m dwarpal_ml.prepare fairface    # aligned faces, as serving sees them
+uv run --package dwarpal-ml python -m dwarpal_ml.dedup fairface      # remove repeated photos
+uv run infra/scripts/fetch_models.py --training                      # pretrained weights (once)
+uv run --package dwarpal-ml python -m dwarpal_ml.train --backbone convnext_tiny.in12k_ft_in1k --pretrained --drop-path 0.1 --batch-size 64 --learning-rate 1.5e-4 --warmup-epochs 1 --epochs 15
+```
+
 ## Repository map
 
 | Path | What lives there |

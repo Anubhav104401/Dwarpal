@@ -1,5 +1,5 @@
 ---
-fingerprint: 0e58db00720d5c7a
+fingerprint: 640b319cc3a35e29
 ---
 The `pyproject.toml` of the **API service** package: its name, version, purpose, supported Python versions, libraries it needs, and how to build it. The other four packages follow exactly the same pattern, so this one is explained in the most detail.
 
@@ -30,10 +30,10 @@ The `pyproject.toml` of the **API service** package: its name, version, purpose,
 | `asyncpg` | 0.32.0 | the **driver** for PostgreSQL — the low-level code that speaks the database's own network language, without blocking while it waits (§4.8, §4.10) |
 | `cryptography` | 50.0.2 | AES-GCM, which seals the private signing keys before they are stored (§4.12) |
 | `dwarpal-contracts` | — | our own shared message shapes; it has no version because it lives in this repository (see below) |
-| `fastapi` | 0.143.1 | the web framework: turns Python functions into HTTP endpoints (§4.8) |
+| `fastapi` | 0.143.0 | the web framework: turns Python functions into HTTP endpoints (§4.8) |
 | `httpx` | 0.28.1 | an HTTP client, used to call the inference service |
 | `joserfc` | 1.7.5 | JOSE: signs age tokens (JWS/JWT) and publishes the public keys (JWK) (§4.12) |
-| `pydantic-settings` | 2.16.0 | reads the service's settings from environment variables, with type checks |
+| `pydantic-settings` | 2.15.0 | reads the service's settings from environment variables, with type checks |
 | `python-multipart` | 0.0.32 | parses **multipart** uploads — the format a browser uses to send files such as camera frames |
 | `redis` | 8.1.0 | the client library for Valkey, which speaks the same language as Redis (§4.11) |
 | `sqlalchemy[asyncio]` | 2.1.4 | talks to the database through Python classes (§4.10). `[asyncio]` is an **extra**: an optional bundle of additional libraries, here the ones needed for `async` use |

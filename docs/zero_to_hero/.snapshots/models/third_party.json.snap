@@ -2,12 +2,24 @@
   "models": [
     {
       "name": "yunet-face-detector",
+      "use": "serving",
       "file": "third_party/face_detection_yunet_2023mar.onnx",
       "url": "https://huggingface.co/opencv/face_detection_yunet/resolve/main/face_detection_yunet_2023mar.onnx",
       "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
       "bytes": 232589,
       "licence": "MIT (Copyright (c) 2020 Shiqi Yu), verified from opencv_zoo/models/face_detection_yunet/LICENSE",
       "source": "https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet"
+    },
+    {
+      "name": "convnext-tiny-in12k-ft-in1k",
+      "use": "training",
+      "timm": "convnext_tiny.in12k_ft_in1k",
+      "file": "third_party/convnext_tiny.in12k_ft_in1k.safetensors",
+      "url": "https://huggingface.co/timm/convnext_tiny.in12k_ft_in1k/resolve/aa096f03029c7f0ec052013f64c819b34f8ad790/model.safetensors",
+      "sha256": "a1aefa409b513cf209b085424eb3efffe4e4a9f511491bc2c12ea35209e6bb95",
+      "bytes": 114374272,
+      "licence": "Apache-2.0, per the model card at the pinned revision; approved by the owner for training on 2026-10-17. Trained by timm on ImageNet-12k and ImageNet-1k, whose own terms allow non-commercial research only; whether such terms carry over to trained weights is legally unsettled",
+      "source": "https://huggingface.co/timm/convnext_tiny.in12k_ft_in1k"
     }
   ]
 }

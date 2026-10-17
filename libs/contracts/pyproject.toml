@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Data models shared across Dwarpal services, so their messages can never drift apart."
 requires-python = ">=3.13,<3.14"
 dependencies = [
-  "pydantic==2.14.1",
+  "pydantic==2.14.0",
 ]
 
 [build-system]

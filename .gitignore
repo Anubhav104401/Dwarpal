@@ -23,6 +23,8 @@ e2e/.cache/
 # Machine-learning data and weights (fetched by scripts, never committed)
 .datasets/
 mlruns/
+.runs/
+*.safetensors
 *.onnx
 *.pt
 *.pth

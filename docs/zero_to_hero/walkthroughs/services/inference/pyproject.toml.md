@@ -1,5 +1,5 @@
 ---
-fingerprint: 01f1f57e6d71527d
+fingerprint: a2da3253fd3e0da6
 ---
 The `pyproject.toml` of the **inference service** — the "clean room" where faces are analysed in memory and never stored (§3.8). Its structure is identical to the API's (see §5.0.2, `services/api/pyproject.toml`); only the name and description differ.
 
@@ -26,8 +26,8 @@ The `pyproject.toml` of the **inference service** — the "clean room" where fac
 | `anyio` 4.15.1 | Runs the heavy, blocking image work on a limited pool of worker threads, so the server stays responsive (§4.8) |
 | `dwarpal-contracts` | Our shared message shapes (`FaceAnalysis`, …) — the API uses the very same definitions |
 | `dwarpal-vision` | Our shared face code: decode, detect, align, check quality |
-| `fastapi` 0.143.1 | The web framework that turns Python functions into HTTP endpoints (§4.8) |
-| `pydantic-settings` 2.16.0 | Reads the service's settings from environment variables, with types (§4.8) |
+| `fastapi` 0.143.0 | The web framework that turns Python functions into HTTP endpoints (§4.8) |
+| `pydantic-settings` 2.15.0 | Reads the service's settings from environment variables, with types (§4.8) |
 | `python-multipart` 0.0.32 | Lets FastAPI read `multipart/form-data` uploads — how the frames arrive |
 | `uvicorn` 0.54.0 | The server program that actually listens on a port and hands requests to FastAPI |
 

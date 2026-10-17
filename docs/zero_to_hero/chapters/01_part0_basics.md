@@ -351,7 +351,7 @@ Nobody writes everything from scratch. A **library** (or **package**) is code so
 
 - A **package manager** downloads libraries for you: **pip** or **uv** for Python, **npm** or **pnpm** for JavaScript.
 - Libraries have **version numbers** such as `3.11.1`. These are usually *major.minor.patch*: a bigger last number means a small bug fix, a bigger middle number means new features, and a bigger first number may mean breaking changes.
-- **Pinning** means writing down the *exact* version you tested with (like `markdown==3.11.1`). Then the project builds the same way next month, on another computer, or on a server.
+- **Pinning** means writing down the *exact* version you tested with (like `pygments==2.21.0`). Then the project builds the same way next month, on another computer, or on a server.
 - A **lockfile** (`uv.lock`, `pnpm-lock.yaml`) is an automatically generated list of the exact versions of *every* library, including the libraries your libraries use.
 
 !!! warn "Careful"
