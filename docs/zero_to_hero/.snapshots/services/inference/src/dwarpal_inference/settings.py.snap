@@ -16,6 +16,9 @@ class Settings(BaseSettings):
 
     models_dir: Path = REPO_ROOT / "models"
     detector_file: str = "third_party/face_detection_yunet_2023mar.onnx"
+    mesh_file: str = "third_party/face_landmarker.task"
+    hands_file: str = "third_party/hand_landmarker.task"
+    antispoof_files: tuple[str, str] = ("third_party/minifasnet_v2_2.7.onnx", "third_party/minifasnet_v1se_4.0.onnx")
     age_backend: Literal["stub", "onnx"] = "stub"
     stub_age: float = 30.0
     stub_spread: float = 2.5

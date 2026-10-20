@@ -48,6 +48,11 @@ const PROBLEMS: Record<string, Problem> = {
     title: "This age check has ended",
     detail: "It expired before it was finished. Go back to the website and start a new one.",
   },
+  too_many_attempts: {
+    title: "Too many tries",
+    detail:
+      "This device has tried the age check many times in the last hour. Please wait a while, then try again.",
+  },
   too_many_challenges: {
     title: "Too many tries",
     detail: "This age check can't take any more photos. Go back to the website and start a new one.",

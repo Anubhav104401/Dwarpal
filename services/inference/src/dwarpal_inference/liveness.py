@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import itertools
 from dataclasses import dataclass
+from typing import Literal
 
 import cv2
 import numpy as np
@@ -13,19 +14,22 @@ from numpy.typing import NDArray
 from dwarpal_contracts import Challenge, ClientSignals, FrameMeta, FrameReport, LightCheck, Pose, PoseCheck
 from dwarpal_vision import Image
 
-# Provisional limits, set from the owner's genuine attempts. The ratios come from the 5 landmarks: a turned head moves
-# its nose sideways against its eyes; a raised head moves its nose towards its eyes. Each pose is measured from the
-# person's own frontal frames, so camera height and face shape cancel out. Genuine turns moved the nose 0.23-0.69
-# eye-widths, every time. Chins lifted until the page's meter was full moved it anywhere from -0.03 to 0.12 of the
-# eyes-to-mouth distance: five landmarks can't measure looking up reliably, so it is recorded but never decides, and
-# the turns carry the proof. A flat photo, turned or tilted, moves neither.
+# Provisional limits, set from the owner's genuine attempts. A turned head moves its nose sideways against its eyes; a
+# raised head moves its nose towards its eyes. Each pose is measured from the person's own frontal frames, so camera
+# height and face shape cancel out. From YuNet's five points, genuine turns moved the nose 0.23-0.69 eye-widths, but
+# lifted chins anywhere from -0.03 to 0.12 of the eyes-to-mouth distance. The 478-point face mesh measures far better:
+# genuine turns 0.42-0.70 and lifted chins 0.11-0.38 (2026-10-19/20). Turns carry the proof; looking up is recorded
+# but doesn't decide. A flat photo, turned or tilted, moves neither.
 FRONTAL_YAW = 0.2
 TURN_SHIFT = 0.18
 RAISE_SHIFT = 0.03
+MESH_TURN_SHIFT = 0.18
+MESH_RAISE_SHIFT = 0.08
 DECIDING: frozenset[Pose] = frozenset({"turn_left", "turn_right"})
 MIN_BASELINE = 3
 # Grey levels: consecutive frames from a live camera always differ a little, if only by sensor noise.
 STILL_FRAMES = 0.75
+HAND_FRAMES = 2
 # Where to sample skin and background on a 224 x 224 aligned face (rows, columns): both cheeks and the forehead,
 # and the top corners, beyond the hair line.
 SKIN = ((slice(120, 150), slice(50, 80)), (slice(120, 150), slice(144, 174)), (slice(40, 60), slice(92, 132)))
@@ -42,30 +46,48 @@ class Seen:
 
 
 type Angles = tuple[float, float]
+type Source = Literal["mesh", "five_points"]
+LIMITS: dict[Source, Angles] = {"mesh": (MESH_TURN_SHIFT, MESH_RAISE_SHIFT), "five_points": (TURN_SHIFT, RAISE_SHIFT)}
 
 
-def frontal_angles(frames: list[Seen]) -> Angles | None:
-    """The person's own yaw and pitch when facing the camera: the median over the baseline frames with one face."""
-    faced = [frame.report for frame in frames if frame.report.faces == 1]
-    if not faced:
+def head(report: FrameReport, source: Source) -> Angles | None:
+    """A frame's yaw and pitch from the chosen measurement, or None when the mesh didn't measure it."""
+    if source == "five_points":
+        return report.yaw_ratio, report.pitch_ratio
+    if report.mesh_yaw is None or report.mesh_pitch is None:
         return None
-    return float(np.median([r.yaw_ratio for r in faced])), float(np.median([r.pitch_ratio for r in faced]))
+    return report.mesh_yaw, report.mesh_pitch
 
 
-def shift(pose: Pose, report: FrameReport, baseline: Angles) -> float:
+def source_for(baseline: list[Seen]) -> Source:
+    """The mesh when it measured every frontal frame with one face; otherwise the five points, never a mixture."""
+    faced = [frame.report for frame in baseline if frame.report.faces == 1]
+    return "mesh" if faced and all(head(r, "mesh") is not None for r in faced) else "five_points"
+
+
+def frontal_angles(frames: list[Seen], source: Source) -> Angles | None:
+    """The person's own yaw and pitch when facing the camera: the median over the baseline frames with one face."""
+    readings = [a for frame in frames if frame.report.faces == 1 and (a := head(frame.report, source)) is not None]
+    if not readings:
+        return None
+    return float(np.median([a[0] for a in readings])), float(np.median([a[1] for a in readings]))
+
+
+def shift(pose: Pose, angles: Angles, baseline: Angles) -> float:
     """How far a frame has moved from the baseline in the pose's direction; negative when it moved the other way."""
-    yaw, pitch = baseline
     if pose == "turn_left":
-        return report.yaw_ratio - yaw
+        return angles[0] - baseline[0]
     if pose == "turn_right":
-        return yaw - report.yaw_ratio
-    return pitch - report.pitch_ratio
+        return baseline[0] - angles[0]
+    return baseline[1] - angles[1]
 
 
-def shows(pose: Pose, report: FrameReport, baseline: Angles) -> bool:
-    if report.faces != 1:
+def shows(pose: Pose, report: FrameReport, baseline: Angles, source: Source = "five_points") -> bool:
+    angles = head(report, source)
+    if report.faces != 1 or angles is None:
         return False
-    return shift(pose, report, baseline) >= (RAISE_SHIFT if pose == "look_up" else TURN_SHIFT)
+    turn, raise_ = LIMITS[source]
+    return shift(pose, angles, baseline) >= (raise_ if pose == "look_up" else turn)
 
 
 def segments(frames: list[Seen]) -> list[tuple[str, list[Seen]]]:
@@ -93,17 +115,24 @@ def pose_check(frames: list[Seen], challenge: Challenge, trust_labels: bool = Fa
         problems.append("baseline_not_frontal")
     if runs and runs[0][0] != "baseline":
         problems.append("baseline_not_first")
-    reference = frontal_angles(baseline)
+    source = source_for(baseline)
+    reference = frontal_angles(baseline, source)
     reached: list[tuple[Pose, float | None]] = []
+    gradual: list[tuple[Pose, bool]] = []
     steps = [(phase, run) for phase, run in runs if phase != "baseline"]
     if [phase for phase, _ in steps] != list(challenge.poses):
         problems.append("wrong_order")
     elif not trust_labels:
         for pose, (_, run) in zip(challenge.poses, steps, strict=True):
             faced = [frame.report for frame in run if frame.report.faces == 1]
-            furthest = max((shift(pose, r, reference) for r in faced), default=None) if reference else None
+            measured = [a for r in faced if (a := head(r, source)) is not None]
+            furthest = max((shift(pose, a, reference) for a in measured), default=None) if reference else None
             reached.append((pose, None if furthest is None else round(furthest, 3)))
-            missed = reference is None or not any(shows(pose, r, reference) for r in faced)
+            shifts = [shift(pose, a, reference) for a in measured] if reference else []
+            gradual.append(
+                (pose, furthest is not None and any(0.15 * furthest <= s <= 0.75 * furthest for s in shifts))
+            )
+            missed = reference is None or not any(shows(pose, r, reference, source) for r in faced)
             if missed and pose in DECIDING:
                 problems.append(f"not_shown:{pose}")
     return PoseCheck(
@@ -112,6 +141,8 @@ def pose_check(frames: list[Seen], challenge: Challenge, trust_labels: bool = Fa
         baseline_yaw=None if reference is None else round(reference[0], 3),
         baseline_pitch=None if reference is None else round(reference[1], 3),
         reached=reached,
+        measured_by=source,
+        gradual=gradual,
     )
 
 
@@ -139,7 +170,7 @@ def light_check(
     frames: list[Seen], challenge: Challenge, started_ms: float | None, signals: ClientSignals
 ) -> LightCheck:
     if started_ms is None or not signals.light_shown:
-        return LightCheck(usable=False)
+        return LightCheck(usable=False, shown=False)
     skin, background, shown = [], [], []
     for frame in frames:
         step = int((frame.meta.t_ms - started_ms) // challenge.step_ms)
@@ -166,4 +197,8 @@ def injection_signs(frames: list[Seen], signals: ClientSignals, trust_labels: bo
     changes = [float(np.abs(a - b).mean()) for a, b in itertools.pairwise(grey)]
     if not trust_labels and len(changes) >= 2 and max(changes) < STILL_FRAMES:
         signs.append("identical_frames")
+    # A hand beside the face in more than one photo: a phone or a photo held up to the camera. One photo alone could
+    # be a passing gesture, or a false find.
+    if not trust_labels and sum(1 for frame in frames if frame.report.hands_near_face > 0) >= HAND_FRAMES:
+        signs.append("hand_near_face")
     return signs

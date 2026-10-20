@@ -22,21 +22,41 @@ from dwarpal_vision import (
     DEFAULT_RULES,
     DecodeError,
     FaceDetector,
+    FaceMesh,
+    HandDetector,
     Image,
     QualityRules,
+    SpoofDetector,
     align_face,
     assess,
     decode_image,
+    screen_pattern,
 )
+from dwarpal_vision.hands import near_face
+
+
+def median_of(values: list[float | None]) -> float | None:
+    measured = [value for value in values if value is not None]
+    return float(np.median(measured)) if measured else None
 
 
 class FacePipeline:
     def __init__(
-        self, detector: FaceDetector, age: AgeBackend, rules: QualityRules = DEFAULT_RULES, trust_labels: bool = False
+        self,
+        detector: FaceDetector,
+        age: AgeBackend,
+        rules: QualityRules = DEFAULT_RULES,
+        mesh: FaceMesh | None = None,
+        hands: HandDetector | None = None,
+        spoof: SpoofDetector | None = None,
+        trust_labels: bool = False,
     ) -> None:
         self.detector = detector
         self.age = age
         self.rules = rules
+        self.mesh = mesh
+        self.hands = hands
+        self.spoof = spoof
         self.trust_labels = trust_labels
 
     def analyze(self, meta: FaceRequestMeta, images: list[bytes]) -> FaceAnalysis:
@@ -65,6 +85,11 @@ class FacePipeline:
                 continue
             faces = self.detector.detect(image)
             quality = assess(image, faces, self.rules)
+            head = self.mesh.angles(image, faces[0]) if self.mesh is not None and faces else None
+            nearby = near_face(faces[0].box, self.hands.detect(image)) if self.hands is not None and faces else 0
+            one = quality.faces == 1
+            real = self.spoof.real(image, faces[0]) if self.spoof is not None and one else None
+            pattern = screen_pattern(image, faces[0]) if one else None
             reports.append(
                 FrameReport(
                     index=frame.index,
@@ -75,12 +100,19 @@ class FacePipeline:
                     eye_distance_px=quality.eye_distance_px,
                     yaw_ratio=quality.yaw_ratio,
                     pitch_ratio=quality.pitch_ratio,
+                    mesh_yaw=None if head is None else head.yaw,
+                    mesh_pitch=None if head is None else head.pitch,
+                    hands_near_face=nearby,
+                    real_score=real,
+                    screen_pattern=pattern,
                     flags=list(quality.flags),
                 )
             )
-            face = align_face(image, faces[0]) if not quality.flags else None
+            # Liveness looks at every photo of exactly one person: a turned head, or a face darkened by the screen's
+            # blue, is exactly what its checks expect. The age is estimated from flawless photos only.
+            face = align_face(image, faces[0]) if quality.faces == 1 else None
             seen.append(Seen(frame, reports[-1], face))
-            if face is not None:
+            if face is not None and not quality.flags:
                 aligned.append(face)
                 weights.append(quality.detector_score * min(1.0, quality.sharpness / 200.0))
         age = self.estimate(aligned, weights) if aligned else None
@@ -92,6 +124,8 @@ class FacePipeline:
             if challenge and not trusting
             else None,
             injection=injection_signs(seen, meta.signals, trusting),
+            presentation=median_of([r.real_score for r in reports]) if not trusting else None,
+            screen_pattern=median_of([r.screen_pattern for r in reports]) if not trusting else None,
             evidence="labels" if trusting else "images",
         )
         elapsed = (time.perf_counter() - started) * 1000.0

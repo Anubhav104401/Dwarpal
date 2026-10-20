@@ -78,6 +78,7 @@ def liveness_summary(attempts: list[tuple[str, dict[str, Any]]]) -> str:
     poses = [live["pose"] for live in lives if live["pose"] is not None]
     problems = Counter(problem for pose in poses for problem in pose["problems"])
     signs = Counter(sign for live in lives for sign in live["injection"])
+    shown = sum(1 for live in lives if live["light"] is not None and live["light"].get("shown", True))
     lights = [live["light"] for live in lives if live["light"] is not None and live["light"]["usable"]]
     skin = [light["r_skin"] for light in lights if light["r_skin"] is not None]
     passed = sum(pose["passed"] for pose in poses)
@@ -87,6 +88,10 @@ def liveness_summary(attempts: list[tuple[str, dict[str, Any]]]) -> str:
             if value is not None:
                 reach.setdefault(name, []).append(value)
     reaches = [f"{name} {statistics.median(v):+.2f} / {min(v):+.2f}" for name, v in sorted(reach.items())]
+    measured = Counter(pose.get("measured_by", "five_points") for pose in poses)
+    real = [live["presentation"] for live in lives if live.get("presentation") is not None]
+    patterns = [live["screen_pattern"] for live in lives if live.get("screen_pattern") is not None]
+    gradual = [moved for pose in poses for _, moved in pose.get("gradual", [])]
     lines = [
         f"{len(attempts)} face attempts: " + ", ".join(f"{name} {count}" for name, count in outcomes.most_common()),
         "evidence: " + (", ".join(f"{name} {count}" for name, count in evidence.most_common()) or "none"),
@@ -97,9 +102,14 @@ def liveness_summary(attempts: list[tuple[str, dict[str, Any]]]) -> str:
             else ""
         ),
         "pose problems: " + (", ".join(f"{name} {count}" for name, count in problems.most_common()) or "none"),
+        "pose measured by: " + (", ".join(f"{name} {count}" for name, count in measured.most_common()) or "none"),
         "pose reach from frontal, median / lowest: " + (", ".join(reaches) or "none"),
         "injection signs: " + (", ".join(f"{name} {count}" for name, count in signs.most_common()) or "none"),
-        f"light usable: {len(lights)} of {len(lives)}"
+        "presentation: "
+        + (f"real-face chance median {statistics.median(real):.2f}, lowest {min(real):.2f}" if real else "not measured")
+        + (f"; screen pattern median {statistics.median(patterns):.2f}" if patterns else "")
+        + f"; poses caught mid-turn {sum(gradual)} of {len(gradual)}",
+        f"light shown: {shown} of {len(lives)}; usable: {len(lights)} of {len(lives)}"
         + (
             f"; skin correlation median {statistics.median(skin):+.2f}, range {min(skin):+.2f} to {max(skin):+.2f}"
             if skin

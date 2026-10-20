@@ -23,13 +23,43 @@
     },
     {
       "name": "mediapipe-face-landmarker",
-      "use": "web",
+      "use": "serving",
       "file": "third_party/face_landmarker.task",
       "url": "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
       "sha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
       "bytes": 3758596,
-      "licence": "Apache-2.0 (Google MediaPipe); approved by the owner for the verify page on 2026-10-17. The download's MD5 matched the hash the storage server publishes for it",
+      "licence": "Apache-2.0 (Google MediaPipe); approved by the owner for the verify page on 2026-10-17; also run by the inference service (OpenCV) since 2026-10-19. The download's MD5 matched the hash the storage server publishes for it",
       "source": "https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker"
+    },
+    {
+      "name": "mediapipe-hand-landmarker",
+      "use": "serving",
+      "file": "third_party/hand_landmarker.task",
+      "url": "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+      "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1",
+      "bytes": 7819105,
+      "licence": "Apache-2.0 (Google MediaPipe); approved by the owner on 2026-10-19 for finding hands held next to the face (a phone held up to the camera). The download's MD5 matched the hash the storage server publishes for it",
+      "source": "https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker"
+    },
+    {
+      "name": "minifasnet-v2-2.7",
+      "use": "training",
+      "file": "third_party/minifasnet_v2_2.7.pth",
+      "url": "https://raw.githubusercontent.com/minivision-ai/Silent-Face-Anti-Spoofing/b6d5f04ad78778917853b25c778acef6d5626d15/resources/anti_spoof_models/2.7_80x80_MiniFASNetV2.pth",
+      "sha256": "a5eb02e1843f19b5386b953cc4c9f011c3f985d0ee2bb9819eea9a142099bec0",
+      "bytes": 1849453,
+      "licence": "Apache-2.0 (minivision-ai/Silent-Face-Anti-Spoofing, commit b6d5f04); approved by the owner on 2026-10-19 for spotting faces shown on screens and photos. PyTorch weights, read as plain tensors only and converted to ONNX by dwarpal_ml.antispoof",
+      "source": "https://github.com/minivision-ai/Silent-Face-Anti-Spoofing"
+    },
+    {
+      "name": "minifasnet-v1se-4.0",
+      "use": "training",
+      "file": "third_party/minifasnet_v1se_4.0.pth",
+      "url": "https://raw.githubusercontent.com/minivision-ai/Silent-Face-Anti-Spoofing/b6d5f04ad78778917853b25c778acef6d5626d15/resources/anti_spoof_models/4_0_0_80x80_MiniFASNetV1SE.pth",
+      "sha256": "84ee1d37d96894d5e82de5a57df044ef80a58be2b218b5ed7cdfd875ec2f5990",
+      "bytes": 1856130,
+      "licence": "Apache-2.0 (minivision-ai/Silent-Face-Anti-Spoofing, commit b6d5f04); approved by the owner on 2026-10-19 for spotting faces shown on screens and photos. PyTorch weights, read as plain tensors only and converted to ONNX by dwarpal_ml.antispoof",
+      "source": "https://github.com/minivision-ai/Silent-Face-Anti-Spoofing"
     }
   ]
 }

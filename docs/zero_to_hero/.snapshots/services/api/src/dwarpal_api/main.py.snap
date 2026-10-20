@@ -61,7 +61,7 @@ def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClie
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_methods=["GET", "POST"],
-        allow_headers=["Authorization", "Content-Type", "X-Request-Id"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-Id", "X-Dwarpal-Device"],
         expose_headers=["X-Request-Id"],
     )
     problems.install(app)

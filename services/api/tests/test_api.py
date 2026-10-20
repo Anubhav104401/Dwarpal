@@ -85,6 +85,7 @@ async def harness(
     stub_age: float = 30.0,
     livemode: bool = False,
     liveness: Literal["images", "labels"] = "labels",
+    **overrides: Any,
 ) -> AsyncIterator[Harness]:
     database_url, valkey_url = databases
     inference = create_inference(InferenceSettings(stub_age=stub_age, liveness=liveness))
@@ -93,7 +94,7 @@ async def harness(
         inference.router.lifespan_context(inference),
         httpx.AsyncClient(transport=inference_transport, base_url="http://inference") as inference_http,
     ):
-        settings = Settings(environment="test", database_url=database_url, valkey_url=valkey_url)
+        settings = Settings(environment="test", database_url=database_url, valkey_url=valkey_url, **overrides)
         api = create_api(settings, inference_http=inference_http)
         async with api.router.lifespan_context(api):
             project, key = await seed_dev(settings, livemode=livemode)
@@ -368,3 +369,20 @@ async def test_red_team_automation_and_virtual_cameras_go_to_step_up(databases: 
             flow = await start(h, created)
             outcomes.append((await attempt(h, created["id"], flow, [PORTRAIT] * 6, signals=signals)).json())
     assert [(o["outcome"], o["reasons"]) for o in outcomes] == [("step_up", ["liveness_uncertain"])] * 2
+
+
+@pytest.mark.anyio
+async def test_one_device_gets_only_so_many_challenges_however_many_sessions_it_starts(
+    databases: tuple[str, str],
+) -> None:
+    async def challenge(h: Harness, device: str) -> httpx.Response:
+        created = (await create(h)).json()
+        flow = await start(h, created) | {"X-Dwarpal-Device": device}
+        return await h.client.post(f"/v1/flow/sessions/{created['id']}/challenge", headers=flow)
+
+    async with harness(databases, device_challenges_per_hour=2) as h:
+        same = [await challenge(h, "device-0123456789abcdef") for _ in range(3)]
+        other = await challenge(h, "device-fedcba9876543210")
+    assert [r.status_code for r in same] == [200, 200, 429]
+    assert same[2].json()["code"] == "too_many_attempts"
+    assert other.status_code == 200

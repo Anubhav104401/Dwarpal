@@ -1,5 +1,5 @@
 ---
-fingerprint: a7aa4e52977f4bb5
+fingerprint: 6ab1b3406729b499
 ---
 Tests for the verify page's `FlowClient`. As in the SDK's tests, no network is involved — but this client uses the browser's built-in `fetch` directly, so the tests replace that global function itself, with Vitest's **`vi.stubGlobal`**, and put the real one back after each test.
 
@@ -37,7 +37,7 @@ A client whose API address has a trailing slash, to prove it is handled.
 Start the flow with a secret.
 
 @@ 50
-Ask for a challenge.
+Ask for a challenge, passing a device ID explicitly — in the browser it would come from the page's storage (`device.ts`).
 
 @@ 51-60
 A fake frame: three bytes that begin every JPEG file (`255, 216, 255`), as a `Blob`. Then one attempt, answering that challenge, with the fake image twice: a baseline frame 12.4 ms in, and a `turn_left` frame 1560.2 ms in. The colours started 3.1 ms in, and the browser reports a virtual camera.
@@ -51,29 +51,32 @@ Exactly three requests were made, to exactly these addresses, in this order: sta
 @@ 68-69
 **The token rule**: the first request carries no `Authorization` header (there's no token yet); the second carries the token that `start` received.
 
-@@ 70-71
+@@ 70
+The challenge request carried the device ID in its `X-Dwarpal-Device` header, for the per-device budgets.
+
+@@ 71-72
 Read the upload back as a form. It carries the challenge's ID.
 
-@@ 72-77
+@@ 73-78
 The challenge came back in the page's own spelling: `challenge_id` became `id`, `step_ms` became `stepMs`, and the fields the page doesn't need — the nonce and the expiry — were left out.
 
-@@ 78-85
+@@ 79-86
 The `meta` field describes both frames with their phases, their times rounded to whole milliseconds, the colours' start time (also rounded), and the signals in the API's spelling.
 
-@@ 86
+@@ 87
 The second frame was attached as a file.
 
-@@ 87
+@@ 88
 The attempt's result was translated into the page's own shape.
 
-@@ 88
+@@ 89
 The end of the test.
 
-@@ 90-99
+@@ 91-100
 **Refusals become `FlowError`s.** The fake `fetch` answers `401` with problem details; starting must fail with a `FlowError` carrying the status, the code and the request ID.
 
-@@ 101-106
+@@ 102-107
 **A lost connection.** This fake `fetch` throws, as the real one does when there's no network at all. The client must turn that into a `FlowError` with the code `network_error`, which the screens explain as "You seem to be offline".
 
-@@ 107
+@@ 108
 The end of the group.

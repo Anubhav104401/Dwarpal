@@ -5,11 +5,11 @@ Phase 2 gave the system a real age model. But an age model only answers *how old
 | Layer (ADR-0007) | What | Status |
 | :-- | :-- | :-- |
 | L1 | Capture quality gate | ✅ since Phase 1 |
-| L2 | Passive PAD (a model that spots paper and screens) | ⬜ slot empty: its weights are not approved |
-| L3 | **Random head-pose challenge**, checked on the server from the photos | ✅ §5.3.1–5.3.3; turns decide, look-up is recorded (§5.3.6) |
-| L4 | **Screen-light challenge** — colours reflected on the skin | ✅ measured and recorded; decides nothing yet |
-| L5 | **Injection signs** — automation, virtual cameras, hidden page, frozen frames | ✅ §5.3.3 |
-| — | Decision, vague outward reasons, attempt limits | ✅ §5.3.4 |
+| L2 | **Passive PAD** — MiniFASNet, two networks that spot faces shown on paper or screens | ✅ decides (§5.3.3, §5.3.7) |
+| L3 | **Random head-pose challenge**, checked on the server with a 478-point face mesh | ✅ turns decide; look-up and mid-turn photos are recorded |
+| L4 | **Screen-light challenge** — colours reflected on the skin | ✅ measured and recorded; too variable to decide |
+| L5 | **Injection signs** — automation, virtual cameras, hidden page, frozen frames; hands beside the face | ✅ hands recorded only |
+| — | Decision, vague outward reasons, per-session and per-device attempt limits | ✅ §5.3.4 |
 
 **The journey of one attempt, with liveness:**
 
@@ -19,7 +19,7 @@ verify page ── POST …/challenge ──► API: new_challenge() → random 
      │
      │  MediaPipe guidance: "Move a little closer" … "That's good. Press Start"
      │  Start ► the screen glows in 4 colours, one baseline photo each   (none in calm mode)
-     │        ► "Turn your head to your right, eyes on the screen"  [████████░░] … full: 3 photos (or after 6 s)
+     │        ► "Turn your head to your right, eyes on the screen"  [████░░░░░░] photo … [██████████] 2 photos (≤ 6 s)
      │        ► "Lift your chin up, eyes on the screen" … ► "Turn your head to your left, …" … ► …
      │
      └─ POST …/face-attempts  (up to 16 labelled photos + timings + browser signals)
@@ -28,15 +28,15 @@ verify page ── POST …/challenge ──► API: new_challenge() → random 
 API: take_challenge() — the server's own copy replaces whatever the page claimed
             │
             ▼
-inference service: quality, pitch and yaw per photo ─► liveness.py
+inference service: per photo — quality and people, face-mesh angles, hands, MiniFASNet real-face chance, screen pattern
             pose_check: frontal start? poses in order? each turn really shown, from the person's own frontal angles?
             light_check: did the cheeks follow the screen's colours?          (recorded only)
-            injection_signs: automation, virtual camera, hidden page, frozen frames
+            injection_signs: automation, virtual camera, hidden page, frozen frames, hands (recorded only)
             │
             ▼
 API: decide() — quality, then liveness, then age
             pose failed      → retry "liveness_check_failed"; the second time → reject "verification_failed"
-            injection signs  → step up "liveness_uncertain"
+            injection signs, or a real-face chance below 0.5 → step up "liveness_uncertain"
             otherwise        → the age decision of Phase 1–2
 ```
 
@@ -50,7 +50,7 @@ The rest of the server side changed in existing files, each explained in its own
 
 ### 5.3.2 The verify page plays it
 
-The page does three things. **It guides**: MediaPipe's face landmarker, running inside the browser, turns what it sees into plain instructions before the check begins. **It plays the challenge**: the colours, on a fixed timetable so the server can tell which colour lit which photo, then each pose, with a **meter** that fills as the head turns, taking three photos once the head has held it for three readings — or after six seconds anyway. **It reports**: the browser's own signals, which can only make the check stricter.
+The page does three things. **It guides**: MediaPipe's face landmarker, running inside the browser, turns what it sees into plain instructions before the check begins. **It plays the challenge**: the colours, on a fixed timetable so the server can tell which colour lit which photo, then each pose, with a **meter** that fills as the head turns, taking one photo on the way and two once the head has held it for three readings — or after six seconds anyway. Every photo is only copied while the challenge runs; encoding them to JPEG waits until the end, so nothing slow can shift the colours' timetable. **It reports**: the browser's own signals, which can only make the check stricter.
 
 The guidance never decides anything. After 8 seconds Start can be pressed regardless, and if MediaPipe can't run at all the page simply works without it: a person whose face the landmarker reads badly must never be locked out by the page.
 
@@ -62,6 +62,12 @@ The guidance never decides anything. After 8 seconds Start can be pressed regard
 
 !walk apps/web/scripts/mediapipe.mjs
 
+The page also keeps a random **device ID** for the API's per-device budgets (§5.3.4) — a random number, not a fingerprint:
+
+!walk apps/web/lib/device.ts
+
+!walk apps/web/lib/device.test.ts
+
 The camera code was rewritten around the challenge (`apps/web/lib/camera.ts`), and so was the camera screen (`apps/web/app/v/[sessionId]/camera-view.tsx`), with the full-screen colour layer, the guidance and the signals. Smaller changes: the flow client sends the labels and signals (`lib/flow-api.ts`), the page's security policy allows WebAssembly (`next.config.ts`), and `package.json` runs `mediapipe.mjs` before every start and build. The MediaPipe face model is pinned, like every other model, in `models/third_party.json`.
 
 ### 5.3.3 The evidence — measured from the photos
@@ -72,11 +78,31 @@ The inference service measures every photo: the sideways turn (**yaw**) it alrea
 
 !walk services/inference/tests/test_liveness.py
 
-`pipeline.py` collects what was seen in each photo and runs the checks; `main.py` and `settings.py` add the labels test mode (§5.3.5).
+After the owner's tests (§5.3.6–5.3.7) the service measures far more in each photo, with three components added to the vision library — all run by OpenCV from pinned files, no new libraries:
+
+- the **face mesh**, MediaPipe's 478 points, which measure the head's angles much better than YuNet's five, above all a lifted chin;
+- the **hand detector**, MediaPipe's palm detector, looking for a hand held next to the face (recorded only: in the tests it didn't work well enough to trust);
+- the **anti-spoofing networks**, MiniFASNet, filling layer L2, with a hand-made **screen-pattern** measure beside them.
+
+!walk libs/vision/src/dwarpal_vision/mesh.py
+
+!walk libs/vision/src/dwarpal_vision/hands.py
+
+!walk libs/vision/src/dwarpal_vision/antispoof.py
+
+MiniFASNet was published as PyTorch weights. One script turns them into the ONNX files the service runs, proving on the way that nothing changed:
+
+!walk ml/src/dwarpal_ml/antispoof.py
+
+!walk ml/tests/test_antispoof.py
+
+`pipeline.py` collects what was seen in each photo and runs the checks; `main.py` and `settings.py` load the new models and add the labels test mode (§5.3.5).
 
 ### 5.3.4 The decision, and the red team
 
-The decision engine (`services/api/src/dwarpal_api/domain/decision.py`) now checks liveness **after** quality and **before** age: a dark photo should be told to find light, not be counted as a liveness failure. A failed pose challenge gets one retry, then the session is rejected; signs of injection send even a clear adult to a stronger check. Outward reasons never say which check fired (the domain tests prove it). The detail is stored with the attempt, for the operator, and `liveness-report` summarises it (`cli.py`).
+The decision engine (`services/api/src/dwarpal_api/domain/decision.py`) now checks liveness **after** quality and **before** age: a dark photo should be told to find light, not be counted as a liveness failure. A failed pose challenge gets one retry, then the session is rejected; signs of injection — or an anti-spoofing verdict below 0.5 — send even a clear adult to a stronger check. Outward reasons never say which check fired (the domain tests prove it). The detail is stored with the attempt, for the operator, and `liveness-report` summarises it (`cli.py`).
+
+**Per-device budgets** stop endless trial and error. Each session already had a budget of challenges; a person testing photo after photo could simply start new sessions. Now each device (the page's random ID) may take 30 challenges per project an hour, and each network address 120, counted in Valkey whatever the session (`app/verification.py`, `adapters/store.py`). Past that, the page asks the person to wait a while.
 
 The **red-team tests** (`services/api/tests/test_api.py`) attack the running system through its real API:
 
@@ -121,7 +147,24 @@ For repeated testing, the demo shop gained a **Leave the cellar** button that fo
 
     `uv run --package dwarpal-api python -m dwarpal_api.cli liveness-report --since 2026-10-17T12:00`
 
-    It prints the outcomes, how many pose challenges passed — and so the false-reject rate, if every attempt was genuine — the most common problems, how far each pose got from the person's frontal angles (median and lowest), the injection signs, and the light correlations.
+    It prints the outcomes, how many pose challenges passed — and so the false-reject rate, if every attempt was genuine — the most common problems, which measurement judged the poses, how far each pose got (median and lowest), the injection signs, the presentation evidence (real-face chance, screen pattern, poses caught mid-turn), and the light correlations.
+
+### 5.3.7 The red team — the owner attacks their own system
+
+With the genuine false-reject rate under control, the owner turned attacker, and a server-side face mesh had made looking up measurable (genuine chins now measured 0.11–0.38). Two findings came first, both about the page:
+
+- **Photos darkened by the screen's blue were set aside** by the quality check, leaving the light check with nothing to measure. Liveness now looks at every photo of one person; only the age needs flawless ones.
+- **Encoding a photo took about a second** on a busy laptop, and the page stamped each photo's time *after* encoding: photos landed in the wrong colours, and later colours slid out of their timetable. Photos are now copied instantly, stamped at that moment, and encoded after the challenge.
+
+Then the attacks. The owner held their phone up to the webcam, showing **selfies of themselves posed in each direction**, swiping to whichever one the prompt asked for — and later **a video of themselves turning**, paused and skipped to match the prompts:
+
+| Defences in place | Genuine attempts | Attacks that reached the cellar | What the numbers showed |
+| :-- | :-- | :-- | :-- |
+| Poses, light recorded | passed | **posed selfies: 5 of 10 attempts** | A photo of a turned head *is* a turned head: the pose check alone can't tell |
+| + light decides (≥ 0.5), a large or central second face counts, hands decide | **0 of 3** passed | 0 of 5 | Light stopped 3 attacks but also 2 genuine attempts (r 0.34, 0.38); the owner peeking from behind the phone was caught as a second face; the hand detector missed the holding hands and once saw a hand that wasn't there |
+| + **MiniFASNet decides (≥ 0.5)**, light and hands record only | 5 of 6 (one stepped up by light, before it was demoted) | **0 of 7** (3 selfie, 4 video) | Real faces 0.94–0.995; phone photos and videos 0.006–0.195 |
+
+The anti-spoofing networks are the layer that finally separated the two — by a margin wide enough to trust, where light (real faces −0.25 to 0.99) never could. Two more measures point the same way and are recorded for later: the **screen pattern** (real faces 0.99–1.14, phone 1.16–1.31) and whether each pose was caught **mid-turn** (real heads 19 of 19, attacks 5 of 23).
 
 !!! honest "Honest limitation"
-    Phase 3 is not finished against its exit criteria. The false-reject rate comes from **one person** in one room and a few dozen attempts, and the final rule (round 6) was checked on recorded numbers, not re-tested live; it needs more people, cameras and rooms. The passive PAD layer is **empty** (its weights were not approved); the light signal is **recorded but not used** — and in the owner's tests it could not be measured at all, most likely because the device asked for reduced motion; looking up is **recorded but not used**; and the red-team cases that need a moving fake face — a screen replay, a game render — can't be produced synthetically (see above) and are still open. The design also can't stop an adult who does the check for a child.
+    Phase 3 is not finished against its exit criteria. Every number here comes from **one person**, one laptop camera and one room, over a few dozen attempts: the false-reject rate and the anti-spoofing margin need more people, cameras, rooms and attack media before they can be trusted. MiniFASNet was trained by someone else on data we haven't seen, so its behaviour on other faces and skin tones is unmeasured — the fairness questions of §2.16 apply to it too. The light, the screen pattern, the mid-turn photos, the hand detector and looking up are **recorded but not used**. An attacker who drives a fake camera directly (no phone, no screen in the picture) or uses a convincing real-time deepfake was not tested. And the design can't stop an adult who does the check for a child.

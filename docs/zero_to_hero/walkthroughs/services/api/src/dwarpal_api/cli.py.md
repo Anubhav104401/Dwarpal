@@ -1,5 +1,5 @@
 ---
-fingerprint: f934f4851414b335
+fingerprint: 9cd77a909033ec45
 ---
 A small **command-line tool** for two jobs a developer needs before the API is useful:
 
@@ -109,78 +109,90 @@ Count every problem name over all pose results — `wrong_order`, `not_shown:tur
 Count the injection signs the same way.
 
 @@ 81
-The light results that could actually be measured (`usable`).
+How many attempts showed the screen colours at all. `.get("shown", True)` treats results stored before this field existed as shown.
 
 @@ 82
-The skin correlations among them, leaving out any that are missing.
+The light results that could actually be measured (`usable`).
 
 @@ 83
-How many pose challenges passed. `sum` of `True`/`False` values counts the `True`s, because Python treats `True` as 1.
+The skin correlations among them, leaving out any that are missing.
 
 @@ 84
+How many pose challenges passed. `sum` of `True`/`False` values counts the `True`s, because Python treats `True` as 1.
+
+@@ 85
 **How far each pose got**, gathered by pose name: `reach` maps a name such as `turn_left` to the list of its values. `dict[str, list[float]]` is the type: text keys, lists of numbers as values.
 
-@@ 85-88
+@@ 86-89
 For each pose result, for each `[name, value]` pair it recorded, add the value to its name's list — skipping `None`, which means there was no face to measure. `pose.get("reached", [])` gives an empty list for results stored before this field existed. `setdefault(name, [])` returns the name's list, creating an empty one first if needed.
 
-@@ 89
+@@ 90
 One short text per pose name: the **median** and the **lowest** value, such as `turn_left +0.42 / +0.29`. The lowest matters most: it is the honest attempt that came closest to failing, and it shows how much room the limit leaves. `sorted(…)` puts the names in alphabetical order.
 
-@@ 90-91
+@@ 91
+Which measurement each pose check used, counted.
+
+@@ 92-94
+The presentation evidence, gathered over the attempts: the real-face chances, the screen patterns, and for every pose whether it was caught mid-turn (`True`/`False`). `.get(…)` skips results stored before these fields existed.
+
+@@ 95-96
 Build the report line by line. The first: the number of attempts and each outcome with its count, most common first. `", ".join(…)` puts commas between the parts.
 
-@@ 92
+@@ 97
 The evidence counts — or `none`. `or "none"` works because an empty text counts as false.
 
-@@ 93-98
+@@ 98-103
 How many pose challenges passed, as a count and a percentage (`:.0%` formats 0.9 as `90%`), and the **false-reject rate if every attempt was genuine** — the share that failed. The extra part is added only if there were pose results (`if poses else ""`), which also avoids dividing by zero.
 
-@@ 99-101
-The pose problems and the injection signs, each with its count, or `none`. Between them, the pose reach line (Phase 3): the numbers from which the pose limits are set.
+@@ 104-107
+The pose problems, the measurement used, how far each pose got (median and lowest — the numbers from which the pose limits are set), and the injection signs, each with its count, or `none`.
 
-@@ 102-107
-How many attempts had a usable light measurement, and — if there were any skin correlations — their **median** (the middle value, which one odd attempt can't drag far) and their range. `:+.2f` prints a number with two decimals and always a sign, such as `+0.62`.
+@@ 108-111
+**The presentation line**: the real-face chance's median and lowest value (or `not measured`), the screen pattern's median, and how many poses were caught mid-turn. `sum` of `True`/`False` values counts the `True`s.
 
-@@ 108-109
+@@ 112-117
+How many attempts showed the colours and how many had a usable light measurement, and — if there were any skin correlations — their **median** (the middle value, which one odd attempt can't drag far) and their range. `:+.2f` prints a number with two decimals and always a sign, such as `+0.62`.
+
+@@ 118-119
 Close the list, and join the lines with line breaks into one text.
 
-@@ 112
+@@ 122
 **`liveness_report`** — read the attempts from the database and summarise them. It is `async` because the database code is.
 
-@@ 113-114
+@@ 123-124
 Connect to the database and open a session.
 
-@@ 115-121
+@@ 125-131
 Fetch only two columns — the outcome and the scores — of every **face** attempt created at or after `since`. `.all()` returns the rows.
 
-@@ 122
+@@ 132
 Close the connection.
 
-@@ 123
+@@ 133
 Turn each row into an (outcome, scores) pair and summarise them.
 
-@@ 126
+@@ 136
 **`main`** — what runs when the module is started as a program. `argv` lets tests pass arguments directly; normally it is `None`, and `argparse` reads the real command line.
 
-@@ 127-130
+@@ 137-140
 Describe the tool, accept exactly one command — `migrate`, `seed-dev` or `liveness-report` — and the optional `--since`, and read them. `type=datetime.fromisoformat` converts the text (such as `2026-10-17T12:00`) into a date and time; a malformed one is refused with a message. Anything else prints a helpful usage message and stops.
 
-@@ 131-134
+@@ 141-144
 `migrate`: apply the migrations, say so, and return `0` (success).
 
-@@ 135-138
+@@ 145-148
 `liveness-report`: from `--since`, or from 24 hours ago if it was left out. A time typed without a time zone is taken as UTC (`replace(tzinfo=UTC)`), because the database stores times in UTC and can't compare them with a time that has none. Print the report and return `0`.
 
-@@ 139
+@@ 149
 Otherwise, `seed-dev`: run the async seed with the normal settings. `asyncio.run` starts the async engine, runs the function to the end, and returns its result.
 
-@@ 140
+@@ 150
 Print the project ID and the key, with a reminder to store the key now. `\n` inside the text starts a new line.
 
 The message uses only plain ASCII characters. An earlier version contained a long dash `—`, which came out as `�` when the output was saved to a file on Windows: Python then writes text with Windows' older character table, which other tools don't expect.
 
-@@ 141
+@@ 151
 Success.
 
-@@ 144-145
+@@ 154-155
 Run `main` only when the module is started as a program, and hand its result to the operating system as the **exit code**: `0` means success, anything else failure (§4.6).

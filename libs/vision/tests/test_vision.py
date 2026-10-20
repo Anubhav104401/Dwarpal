@@ -10,12 +10,32 @@ import cv2
 import numpy as np
 import pytest
 
-from dwarpal_vision import DecodeError, FaceDetector, align_face, assess, decode_image, image_size, to_model_input
+from dwarpal_vision import (
+    DecodeError,
+    FaceDetector,
+    FaceMesh,
+    HandDetector,
+    SpoofDetector,
+    SpoofModel,
+    align_face,
+    assess,
+    decode_image,
+    image_size,
+    screen_pattern,
+    to_model_input,
+)
 from dwarpal_vision.align import template
+from dwarpal_vision.hands import near_face
 from dwarpal_vision.quality import people
 
 FIXTURE = Path(__file__).parent / "fixtures" / "astronaut.jpg"
 MODEL = Path(__file__).resolve().parents[3] / "models" / "third_party" / "face_detection_yunet_2023mar.onnx"
+MESH = MODEL.with_name("face_landmarker.task")
+HANDS = MODEL.with_name("hand_landmarker.task")
+SPOOF = [
+    SpoofModel(MODEL.with_name("minifasnet_v2_2.7.onnx"), 2.7),
+    SpoofModel(MODEL.with_name("minifasnet_v1se_4.0.onnx"), 4.0),
+]
 
 
 def png_header(width: int, height: int) -> bytes:
@@ -81,7 +101,7 @@ def test_only_a_separate_similar_sized_face_counts_as_a_second_person(detector: 
     x, y, w, h = main.box
     shifted = dataclasses.replace(main, box=(x + 2 * w, y, w, h), score=0.9)
     inside = dataclasses.replace(main, box=(x + w / 4, y + h / 2, w / 2, h / 2), score=0.9)
-    faint = dataclasses.replace(shifted, score=0.7)
+    faint = dataclasses.replace(shifted, score=0.7, landmarks=main.landmarks * 0.7)
     small = dataclasses.replace(shifted, landmarks=main.landmarks * 0.3)
     assert people([main, shifted]) == 2
     assert people([main, inside]) == 1
@@ -99,3 +119,57 @@ def test_faces_become_one_rgb_batch_with_pixels_unchanged(detector: FaceDetector
     assert batch.flags["C_CONTIGUOUS"]
     assert np.array_equal(batch[0, 0], face[:, :, 2].astype(np.float32))
     assert np.array_equal(batch[0, 2], face[:, :, 0].astype(np.float32))
+
+
+def test_the_face_mesh_measures_a_frontal_face_and_mirrors(detector: FaceDetector, portrait: bytes) -> None:
+    mesh = FaceMesh(MESH)
+    image = decode_image(portrait)
+    frontal = mesh.angles(image, detector.detect(image)[0])
+    mirrored_image = np.ascontiguousarray(image[:, ::-1])
+    mirrored = mesh.angles(mirrored_image, detector.detect(mirrored_image)[0])
+    assert frontal is not None
+    assert mirrored is not None
+    assert abs(frontal.yaw) < 0.1
+    assert 0.6 < frontal.pitch < 0.9
+    assert frontal.yaw * mirrored.yaw < 0
+    assert mesh.angles(np.full_like(image, 128), detector.detect(image)[0]) is None
+
+
+def test_a_smaller_second_face_counts_in_the_middle_of_the_picture_but_not_at_the_side(
+    detector: FaceDetector, portrait: bytes
+) -> None:
+    main = detector.detect(decode_image(portrait))[0]
+    x, y, w, h = main.box
+    beside = dataclasses.replace(
+        main, box=(x + 1.5 * w, y, w * 0.4, h * 0.4), landmarks=main.landmarks * 0.4, score=0.9
+    )
+    assert people([main, beside], size=(600, 600)) == 2
+    assert people([main, beside], size=(600, 4000)) == 1
+    unsure = dataclasses.replace(main, box=(x + 2 * w, y, w * 1.2, h * 1.2), landmarks=main.landmarks * 1.2, score=0.65)
+    assert people([main, unsure], size=(600, 4000)) == 2
+
+
+def test_hands_count_only_beside_the_face_and_none_are_found_in_the_portrait(portrait: bytes) -> None:
+    face = (100.0, 100.0, 100.0, 120.0)
+    assert near_face(face, [(180.0, 260.0, 60.0, 60.0), (600.0, 100.0, 60.0, 60.0)]) == 1
+    assert HandDetector(HANDS).detect(decode_image(portrait)) == []
+
+
+@pytest.mark.skipif(
+    not all(model.path.is_file() for model in SPOOF),
+    reason="made by: uv run --package dwarpal-ml python -m dwarpal_ml.antispoof",
+)
+def test_the_anti_spoofing_networks_take_a_real_photograph_for_a_real_face(
+    detector: FaceDetector, portrait: bytes
+) -> None:
+    image = decode_image(portrait)
+    assert SpoofDetector(SPOOF).real(image, detector.detect(image)[0]) > 0.8
+
+
+def test_a_fine_regular_grid_stands_out_in_the_screen_pattern(detector: FaceDetector, portrait: bytes) -> None:
+    image = decode_image(portrait)
+    face = detector.detect(image)[0]
+    grid = image.copy()
+    grid[::3, :] = (grid[::3, :] * 0.6).astype(np.uint8)
+    grid[:, ::3] = (grid[:, ::3] * 0.6).astype(np.uint8)
+    assert screen_pattern(grid, face) > screen_pattern(image, face) + 0.5

@@ -1,5 +1,5 @@
 ---
-fingerprint: ecb98be8db93f83c
+fingerprint: f1c5e762e2ac9327
 ---
 The **register of third-party model files**: AI models made by others that Dwarpal uses. Model files are never stored in Git (they are large, and their licences vary — ADR-0014, ADR-0018). This file records *exactly* which file to fetch, from where, under which licence, and the fingerprint it must have. `infra/scripts/fetch_models.py` reads it.
 
@@ -57,16 +57,40 @@ The licence, recorded with its one caveat. The model card says **Apache-2.0**, w
 The end of the second entry.
 
 @@ 24-26
-The third entry (added in Phase 3): **MediaPipe Face Landmarker**, for the verify page. `use: "web"` — the browser loads it, so the fetcher downloads it by default, and the verify page's build copies it into place (`apps/web/scripts/mediapipe.mjs`).
+The third entry: **MediaPipe Face Landmarker**. The verify page runs it for live guidance, and since the owner's tests the inference service runs it too, through OpenCV, to measure the head's angles. `use: "serving"` — needed to serve, so the fetcher downloads it by default.
 
 @@ 27-30
 Where it is stored and fetched from — Google's model storage, where the path's `float16/1` names one fixed version — its SHA-256 fingerprint and its size (3.7 MB).
 
 @@ 31
-Its licence, Apache-2.0, and how the download was checked: Google's server publishes an MD5 fingerprint of each stored file, and the download matched it — an independent check, as for the other two entries.
+Its licence, Apache-2.0, when it was approved and for what, and how the download was checked: Google's server publishes an MD5 fingerprint of each stored file, and the download matched it — an independent check, as for the other entries.
 
 @@ 32
 `source` — the model's documentation page.
 
-@@ 33-35
+@@ 33
+The end of the third entry.
+
+@@ 34-40
+The fourth entry: **MediaPipe Hand Landmarker** — used by the inference service, through OpenCV, to look for a hand held next to the face. Its file, address (a fixed version, `float16/1`), SHA-256 fingerprint and size (7.8 MB).
+
+@@ 41-42
+Its licence (Apache-2.0), the owner's approval and why, the independent MD5 check, and its documentation page.
+
+@@ 43
+The end of the fourth entry.
+
+@@ 44-50
+The fifth and sixth entries: the two **MiniFASNet** anti-spoofing networks, from the Silent-Face-Anti-Spoofing project. The address names one exact commit (`b6d5f04…`), so the files can't change underneath us. `use: "training"` — they are fetched only with `--training`, because serving uses the ONNX versions made from them (`ml/src/dwarpal_ml/antispoof.py`), not these files.
+
+@@ 51-52
+The licence — Apache-2.0 — the owner's approval, and a note that matters for safety: these are PyTorch files, a format that can carry code, so they are only ever read as plain numbers (`weights_only`).
+
+@@ 53
+The end of the fifth entry.
+
+@@ 54-62
+The sixth entry, the second network, in the same shape: its own file, address, fingerprint and size.
+
+@@ 63-65
 The closing brackets of the entry, the list and the object.

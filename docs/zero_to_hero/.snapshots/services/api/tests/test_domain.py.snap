@@ -313,6 +313,8 @@ def test_the_liveness_report_counts_outcomes_problems_signs_and_light() -> None:
                 "light": light,
                 "injection": signs,
                 "evidence": "images",
+                "presentation": 0.9 if passed else 0.1,
+                "screen_pattern": 1.1,
             }
         }
 
@@ -327,6 +329,28 @@ def test_the_liveness_report_counts_outcomes_problems_signs_and_light() -> None:
     assert "4 face attempts: pass 2, retry 1, step_up 1" in report
     assert "pose challenge passed: 3 of 4 (75%); false-reject rate if all were genuine: 25%" in report
     assert "pose problems: not_shown:turn_left 1" in report
+    assert "pose measured by: five_points 4" in report
     assert "pose reach from frontal, median / lowest: turn_left +0.30 / +0.05" in report
     assert "injection signs: automation 1" in report
-    assert "skin correlation median +0.60, range +0.40 to +0.80" in report
+    assert "presentation: real-face chance median 0.90, lowest 0.10; screen pattern median 1.10" in report
+    assert "light shown: 4 of 4; usable: 3 of 4; skin correlation median +0.60, range +0.40 to +0.80" in report
+
+
+def test_the_screen_light_is_recorded_but_decides_nothing() -> None:
+    light = LightCheck(usable=True, r_skin=-0.25)
+    live = Liveness(pose=PoseCheck(passed=True, problems=[]), light=light, injection=[])
+    assert decide(POLICY, THRESHOLDS, analysis(0.999, liveness=live), 0, True).outcome == Outcome.PASS
+
+
+def test_a_hand_beside_the_face_is_recorded_but_decides_nothing_yet() -> None:
+    live = Liveness(pose=PoseCheck(passed=True, problems=[]), light=None, injection=["hand_near_face"])
+    assert decide(POLICY, THRESHOLDS, analysis(0.999, liveness=live), 0, True).outcome == Outcome.PASS
+
+
+def test_a_face_the_anti_spoofing_networks_doubt_goes_to_step_up() -> None:
+    def deciding(presentation: float) -> Outcome:
+        live = Liveness(pose=PoseCheck(passed=True, problems=[]), light=None, injection=[], presentation=presentation)
+        return decide(POLICY, THRESHOLDS, analysis(0.999, liveness=live), 0, True).outcome
+
+    assert deciding(0.95) == Outcome.PASS
+    assert deciding(0.2) == Outcome.STEP_UP

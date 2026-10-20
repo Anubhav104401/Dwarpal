@@ -303,7 +303,7 @@ Flashing colours also carry a real risk: for people with **photosensitive epilep
 
 ### Passive detection, and signs of injection
 
-**Passive presentation-attack detection** (PAD) uses a model trained on thousands of real faces and attacks to spot the tell-tale textures of paper, screens and masks in a single picture, without asking the person to do anything. It is a valuable layer, but it can be brittle — an attack type it never saw in training may pass. (Dwarpal's design includes one, but its model weights have not been approved yet, so that layer is still empty.)
+**Passive presentation-attack detection** (PAD) uses a model trained on thousands of real faces and attacks to spot the tell-tale textures of paper, screens and masks in a single picture, without asking the person to do anything. It is a valuable layer, but it can be brittle — an attack type it never saw in training may pass. In the owner's own tests it turned out to be the decisive layer: a phone showing posed photos or a video of the owner passed the head-turn challenge — a photo of a turned head *is* a turned head — but the PAD networks scored the phone 0.006–0.195 and the real face 0.94–0.995 (§5.3.7).
 
 **Injection signs** look for evidence that the pictures never came from a live camera: the browser reporting that a program is driving it, a camera whose name belongs to virtual-camera software, the page being hidden during the check, or frames that are *too* identical — a live camera always adds a little noise. These hints come partly from the browser, which an attacker controls, so they can make a check stricter but never easier.
 

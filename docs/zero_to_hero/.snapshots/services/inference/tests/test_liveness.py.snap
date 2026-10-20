@@ -23,7 +23,9 @@ CHALLENGE = Challenge(
 )
 
 
-def report(index: int, yaw: float = 0.0, pitch: float = 0.55, faces: int = 1) -> FrameReport:
+def report(
+    index: int, yaw: float = 0.0, pitch: float = 0.55, faces: int = 1, mesh: tuple[float, float] | None = None
+) -> FrameReport:
     return FrameReport(
         index=index,
         faces=faces,
@@ -33,6 +35,8 @@ def report(index: int, yaw: float = 0.0, pitch: float = 0.55, faces: int = 1) ->
         eye_distance_px=60.0,
         yaw_ratio=yaw,
         pitch_ratio=pitch,
+        mesh_yaw=None if mesh is None else mesh[0],
+        mesh_pitch=None if mesh is None else mesh[1],
         flags=[],
     )
 
@@ -44,9 +48,10 @@ def frame(
     aligned: np.ndarray | None = None,
     yaw: float = 0.0,
     pitch: float = 0.55,
+    mesh: tuple[float, float] | None = None,
 ) -> Seen:
     meta = FrameMeta(index=index, t_ms=t_ms if t_ms is not None else 200.0 * index, phase=phase)
-    return Seen(meta, report(index, yaw, pitch), aligned)
+    return Seen(meta, report(index, yaw, pitch, mesh=mesh), aligned)
 
 
 def genuine() -> list[Seen]:
@@ -81,6 +86,29 @@ def test_the_check_records_how_far_each_pose_got() -> None:
     check = pose_check(genuine(), CHALLENGE)
     assert (check.baseline_yaw, check.baseline_pitch) == (0.0, 0.55)
     assert check.reached == [("turn_left", 0.5), ("look_up", 0.3), ("turn_right", 0.5)]
+
+
+def test_the_face_mesh_measures_the_poses_when_it_saw_every_frontal_frame() -> None:
+    frames = [
+        frame(0, mesh=(0.0, 0.75)),
+        frame(1, mesh=(0.02, 0.76)),
+        frame(2, mesh=(-0.01, 0.74)),
+        frame(3, "turn_left", yaw=0.3, mesh=(0.4, 0.75)),
+        frame(4, "look_up", mesh=(0.0, 0.6)),
+        frame(5, "turn_right", yaw=-0.3, mesh=(-0.4, 0.75)),
+    ]
+    check = pose_check(frames, CHALLENGE)
+    assert check.passed
+    assert check.measured_by == "mesh"
+    assert check.reached[1] == ("look_up", 0.15)
+
+
+def test_without_the_mesh_on_every_frontal_frame_the_five_points_measure_everything() -> None:
+    frames = genuine()
+    frames[0] = frame(0, mesh=(0.0, 0.75))
+    check = pose_check(frames, CHALLENGE)
+    assert check.passed
+    assert check.measured_by == "five_points"
 
 
 def test_poses_in_another_order_fail() -> None:
@@ -151,8 +179,10 @@ def test_skin_that_ignores_the_screen_does_not_correlate() -> None:
 
 def test_without_the_screen_colours_there_is_no_light_evidence() -> None:
     assert not light_check(lit_frames(0.2), CHALLENGE, None, ClientSignals()).usable
-    assert not light_check(lit_frames(0.2), CHALLENGE, 0.0, ClientSignals(light_shown=False)).usable
-    assert not light_check(lit_frames(0.2)[:2], CHALLENGE, 0.0, ClientSignals()).usable
+    calm = light_check(lit_frames(0.2), CHALLENGE, 0.0, ClientSignals(light_shown=False))
+    assert (calm.usable, calm.shown) == (False, False)
+    too_few = light_check(lit_frames(0.2)[:2], CHALLENGE, 0.0, ClientSignals())
+    assert (too_few.usable, too_few.shown) == (False, True)
 
 
 def test_a_colour_is_read_as_its_share_of_red_and_blue() -> None:
@@ -168,3 +198,22 @@ def test_browser_reports_and_frozen_frames_are_signs_of_injection() -> None:
     signals = ClientSignals(automation=True, virtual_camera=True, hidden_ms=50.0)
     assert injection_signs(frozen, signals) == ["automation", "virtual_camera", "page_hidden", "identical_frames"]
     assert injection_signs(alive, ClientSignals()) == []
+
+
+def test_a_hand_beside_the_face_in_more_than_one_photo_is_a_sign_of_a_held_phone() -> None:
+    def held(hands: list[int]) -> list[str]:
+        frames = [
+            Seen(FrameMeta(index=i, t_ms=200.0 * i), report(i).model_copy(update={"hands_near_face": n}), None)
+            for i, n in enumerate(hands)
+        ]
+        return injection_signs(frames, ClientSignals())
+
+    assert held([0, 1, 0, 1]) == ["hand_near_face"]
+    assert held([0, 1, 0, 0]) == []
+
+
+def test_a_photo_on_the_way_into_a_pose_shows_the_movement_was_gradual() -> None:
+    frames = genuine()
+    frames.insert(3, frame(3, "turn_left", t_ms=550.0, yaw=0.2))
+    check = pose_check(frames, CHALLENGE)
+    assert check.gradual == [("turn_left", True), ("look_up", False), ("turn_right", False)]

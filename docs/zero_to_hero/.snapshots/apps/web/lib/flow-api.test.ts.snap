@@ -47,7 +47,7 @@ describe("FlowClient", () => {
     });
     const client = new FlowClient(`${API}/`, SESSION);
     const session = await client.start(`${SESSION}_secret_x`);
-    const challenge = await client.challenge();
+    const challenge = await client.challenge("device-0123456789abcdef");
     const image = new Blob([new Uint8Array([255, 216, 255])], { type: "image/jpeg" });
     const result = await client.attempt({
       challengeId: challenge.id,
@@ -67,6 +67,7 @@ describe("FlowClient", () => {
     ]);
     expect(seen[0]?.headers.get("authorization")).toBeNull();
     expect(seen[1]?.headers.get("authorization")).toBe("Bearer flow-token");
+    expect(seen[1]?.headers.get("x-dwarpal-device")).toBe("device-0123456789abcdef");
     const form = await seen[2]?.formData();
     expect(form?.get("challenge_id")).toBe("challenge-1");
     expect(challenge).toEqual({

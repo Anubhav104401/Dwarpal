@@ -18,6 +18,13 @@ from dwarpal_contracts import FaceAnalysis
 MIN_USABLE_FRAMES = 3
 MAX_FRAME_SPREAD_YEARS = 8.0
 RETRY_HARDENING = 0.02
+# Signs recorded for study but not yet trusted to decide: the hand detector missed every hand holding a phone and
+# once saw a hand that wasn't there (same tests).
+RECORDED_ONLY = frozenset({"hand_near_face"})
+# The anti-spoofing networks' "real face" chance, median over the photos (MiniFASNet), at their own operating point. In
+# the owner's tests (2026-10-20) genuine faces scored 0.94-0.99 and photos shown on a phone 0.02-0.12. The screen-light
+# reflection is recorded but no longer decides: genuine faces measured anywhere from -0.25 to 0.99.
+MIN_REAL = 0.5
 ADVICE_ORDER = (
     "undecodable",
     "no_face",
@@ -62,7 +69,8 @@ def liveness_problem(
         return Decision(try_again, ("liveness_unavailable",))
     if not live.pose.passed:
         return Decision(Outcome.REJECT if liveness_failures >= 1 else try_again, ("liveness_check_failed",))
-    if live.injection:
+    looks_presented = live.presentation is not None and live.presentation < MIN_REAL
+    if any(sign not in RECORDED_ONLY for sign in live.injection) or looks_presented:
         return Decision(Outcome.STEP_UP, ("liveness_uncertain",))
     return None
 

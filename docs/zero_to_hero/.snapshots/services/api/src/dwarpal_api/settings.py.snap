@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     session_ttl_s: int = 1800
     flow_ttl_s: int = 900
     challenge_ttl_s: int = 120
+    # Liveness challenges one device, and one network address, may take per project in an hour. A device is the random
+    # ID the verify page keeps; the address budget is larger, because many people can share one network.
+    device_challenges_per_hour: int = 30
+    address_challenges_per_hour: int = 120
 
     @model_validator(mode="after")
     def refuse_development_values_in_production(self) -> Settings:

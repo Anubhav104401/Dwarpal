@@ -1,5 +1,5 @@
 ---
-fingerprint: e940cdbb23d6c781
+fingerprint: 796fa7742613a071
 ---
 The API speaks in short **codes** such as `too_dark` or `session_not_open` — stable and precise, but not words to show a person. This file turns them into friendly sentences, in two kinds:
 
@@ -46,22 +46,28 @@ None known: the general tip.
 `session_not_open` — the check expired (after 30 minutes) or was cancelled.
 
 @@ 51-54
+`too_many_attempts` (added for the per-device budgets) — this device has used up its hourly allowance of checks. The advice is to wait: the budget starts afresh within the hour.
+
+@@ 55
+The end of the entry.
+
+@@ 56-59
 `too_many_challenges` — the session used up its challenge budget (§5.1.3).
 
-@@ 55-58
+@@ 60-63
 `camera_blocked` — the person refused camera access, or the browser blocks it. This code doesn't come from the API: the verify page makes it up itself when the browser refuses (see `verify-flow.tsx`).
 
-@@ 59-62
+@@ 64-67
 `camera_missing` — the device has no camera at all. Also the page's own code.
 
-@@ 63-66
+@@ 68-71
 `network_error` — the API couldn't be reached at all (`flow-api.ts`).
 
-@@ 67
+@@ 72
 The end of the list.
 
-@@ 69-72
+@@ 74-77
 `DEFAULT_PROBLEM` — for anything else, including server errors: apologise, and say what to try.
 
-@@ 74-76
+@@ 79-81
 **`problemFor`** — the message for a code. `??` falls back to the default when the code isn't in the list.

@@ -2,6 +2,7 @@
 
 import type { LabelledFrame } from "./camera";
 import { type Challenge, readChallenge, type Signals } from "./challenge";
+import { deviceId } from "./device";
 
 export type SessionStatus = "in_progress" | "awaiting_step_up" | "completed";
 export type AttemptOutcome = "pass" | "fail" | "step_up" | "retry" | "reject";
@@ -72,9 +73,12 @@ export class FlowClient {
     };
   }
 
-  /** A fresh, one-time challenge for the next attempt. */
-  async challenge(): Promise<Challenge> {
-    return readChallenge(await this.#post("/challenge", null));
+  /** A fresh, one-time challenge for the next attempt. It carries this browser's device ID, if it has one: the API
+   * limits how many challenges one device may take an hour. */
+  async challenge(device: string | null = deviceId()): Promise<Challenge> {
+    return readChallenge(
+      await this.#post("/challenge", null, device === null ? {} : { "X-Dwarpal-Device": device }),
+    );
   }
 
   /** Upload one attempt's frames, with what they answer and what the browser noticed. */
@@ -112,8 +116,12 @@ export class FlowClient {
     return typeof data.redirect_url === "string" ? data.redirect_url : null;
   }
 
-  async #post(path: string, body: string | FormData | null): Promise<Json> {
-    const headers: Record<string, string> = { Accept: "application/json" };
+  async #post(
+    path: string,
+    body: string | FormData | null,
+    extra: Record<string, string> = {},
+  ): Promise<Json> {
+    const headers: Record<string, string> = { Accept: "application/json", ...extra };
     if (this.#token !== null) {
       headers.Authorization = `Bearer ${this.#token}`;
     }

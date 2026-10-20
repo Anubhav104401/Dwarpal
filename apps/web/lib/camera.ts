@@ -20,7 +20,10 @@ export const POSE_TIMEOUT_MS = 6000;
 /** A pose must be seen this many readings in a row, so a passing wobble doesn't count. */
 const STEADY_READINGS = 3;
 /** Photos taken of each pose once it is held, this far apart: the server counts the best of them. */
-const FRAMES_PER_POSE = 3;
+const FRAMES_PER_POSE = 2;
+/** One more photo on the way, once the head is this far into the pose: a real head passes through the angles between,
+ * while swiping between photos jumps straight from one pose to the next. */
+const HALFWAY = 0.4;
 const POSE_GAP_MS = 150;
 
 export interface LabelledFrame {
@@ -81,14 +84,20 @@ async function holdPose(
   pose: Pose,
   baseline: HeadAngles | null,
   hooks: Pick<ChallengeHooks, "readAngles" | "onReach">,
+  onHalfway: () => void,
 ): Promise<void> {
   const deadline = performance.now() + POSE_TIMEOUT_MS;
   let steady = 0;
+  let halfway = false;
   while (performance.now() < deadline && steady < STEADY_READINGS) {
     await nextPaint();
     const angles = hooks.readAngles();
     const share = angles === null || baseline === null ? null : poseProgress(pose, angles, baseline);
     hooks.onReach(share === null ? null : Math.round(share * 20) / 20);
+    if (!halfway && share !== null && share >= HALFWAY && share < 1) {
+      halfway = true;
+      onHalfway();
+    }
     steady = share === 1 ? steady + 1 : 0;
   }
 }
@@ -100,37 +109,41 @@ export async function runChallenge(
   hooks: ChallengeHooks,
 ): Promise<ChallengeRun> {
   const scale = Math.min(1, MAX_WIDTH / video.videoWidth);
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(video.videoWidth * scale);
-  canvas.height = Math.round(video.videoHeight * scale);
-  const context = canvas.getContext("2d");
-  if (context === null) {
-    throw new Error("this browser cannot draw camera frames");
-  }
+  const width = Math.round(video.videoWidth * scale);
+  const height = Math.round(video.videoHeight * scale);
   const baseline = hooks.calm ? CALM_BASELINE : challenge.colours.length;
-  const total = baseline + challenge.poses.length * FRAMES_PER_POSE;
+  const total = baseline + challenge.poses.length * (FRAMES_PER_POSE + 1);
   const started = performance.now();
-  const frames: LabelledFrame[] = [];
+  const shots: { canvas: HTMLCanvasElement; tMs: number; phase: Phase }[] = [];
   const frontal: HeadAngles[] = [];
-  const snap = async (phase: Phase): Promise<void> => {
+  // Each photo is only copied here, which is instant, and stamped with that moment. Encoding to JPEG can take a
+  // second on a busy laptop, so it waits until the challenge is over: done here, it would push later photos out of
+  // their colours, and the server matches photos to colours by their times alone.
+  const snap = (phase: Phase): void => {
     const angles = phase === "baseline" ? hooks.readAngles() : null;
     if (angles !== null) {
       frontal.push(angles);
     }
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    frames.push({ image: await toJpeg(canvas), tMs: performance.now() - started, phase });
-    hooks.onProgress(frames.length, total);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (context === null) {
+      throw new Error("this browser cannot draw camera frames");
+    }
+    context.drawImage(video, 0, 0, width, height);
+    shots.push({ canvas, tMs: performance.now() - started, phase });
+    hooks.onProgress(shots.length, total);
   };
 
   let lightStartedMs: number | null = null;
   if (hooks.calm) {
     for (let index = 0; index < CALM_BASELINE; index += 1) {
       await wait(CALM_GAP_MS);
-      await snap("baseline");
+      snap("baseline");
     }
   } else {
-    // Each colour starts exactly one step after the last, by the clock, so the time spent encoding a frame never
-    // pushes later frames into the wrong colour: the server matches frames to colours by their times alone.
+    // Each colour starts exactly one step after the last, by the clock, so nothing slow can shift the timetable.
     const light = performance.now() - started;
     const until = (ms: number): Promise<void> =>
       wait(Math.max(0, light + ms - (performance.now() - started)));
@@ -139,7 +152,7 @@ export async function runChallenge(
       await until(step * challenge.stepMs);
       hooks.onColour(colour);
       await until((step + 0.5) * challenge.stepMs);
-      await snap("baseline");
+      snap("baseline");
     }
     await until(challenge.colours.length * challenge.stepMs);
     hooks.onColour(null);
@@ -148,13 +161,22 @@ export async function runChallenge(
   const facing = frontalAngles(frontal);
   for (const pose of challenge.poses) {
     hooks.onCue(CUES[pose]);
-    await holdPose(pose, facing, hooks);
+    await holdPose(pose, facing, hooks, () => snap(pose));
     for (let index = 0; index < FRAMES_PER_POSE; index += 1) {
-      await snap(pose);
+      snap(pose);
       await wait(index + 1 < FRAMES_PER_POSE ? POSE_GAP_MS : 0);
     }
     hooks.onReach(null);
   }
   hooks.onCue(null);
+  const frames = await Promise.all(
+    shots.map(
+      async (shot): Promise<LabelledFrame> => ({
+        image: await toJpeg(shot.canvas),
+        tMs: shot.tMs,
+        phase: shot.phase,
+      }),
+    ),
+  );
   return { frames, lightStartedMs };
 }

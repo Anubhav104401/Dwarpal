@@ -1,5 +1,5 @@
 ---
-fingerprint: 96dde088934682ed
+fingerprint: b8569836178ffe11
 ---
 The **fast tests**: everything that can be checked without a database, a network or a clock — identifiers, keys, policies, the decision engine, the state machine, the production guard and the log format. All 30 finish in about two seconds.
 
@@ -152,11 +152,13 @@ Every challenge has 3 or 4 poses, at most one look-up, the right number of colou
 @@ 304
 And all **24** possible pose orders turn up: 10 with three poses and 14 with four, once the two rules are applied. If the generator favoured some orders, an attacker could prepare for those.
 
-@@ 307-317
-**The liveness report** — first a small helper that builds the stored scores of one attempt: whether the pose passed, its problems, how far its turn got (0.3 when it passed, 0.05 when it didn't), the injection signs, and a skin correlation (or `None` for "not measurable").
+@@ 307-319
+**The liveness report** — first a small helper that builds the stored scores of one attempt: whether the pose passed, its problems, how far its turn got (0.3 when it passed, 0.05 when it didn't), the injection signs, a skin correlation (or `None` for "not measurable"), and the presentation evidence: a real-face chance of 0.9 when it passed and 0.1 when it didn't, and a screen pattern of 1.1.
 
-@@ 319-326
+@@ 321-328
 Four made-up attempts: two passes with good light measurements, a retry whose head never turned left, and a step-up caused by automation.
 
-@@ 327-332
-The report counts them correctly: the outcomes, 3 of 4 pose checks passed (a false-reject rate of 25% *if* these were all genuine people), the one problem, the turn's reach — median 0.30, lowest 0.05 — the one sign, and the median of the three skin correlations, 0.6, with their range.
+@@ 329-356
+The report counts them correctly: the outcomes, 3 of 4 pose checks passed (a false-reject rate of 25% *if* these were all genuine people), the one problem, the measurement used, the turn's reach — median 0.30, lowest 0.05 — the one sign, the presentation line (real-face chance median 0.90, lowest 0.10), and the light: shown 4 times, usable 3, median skin correlation 0.6.
+
+Then four decision tests. **The screen light is recorded but decides nothing**: even a correlation of −0.25 lets a clear adult pass — genuine faces in the owner's tests measured that low. **A hand beside the face decides nothing yet**: the hand detector isn't trusted. **A face the anti-spoofing networks doubt goes to step-up**: a real-face chance of 0.95 passes, 0.2 steps up.

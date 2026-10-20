@@ -1,73 +1,71 @@
 # Phase 3 report — liveness and anti-spoofing
 
-**Dates:** 17 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Decision record:** [ADR-0007](../adr/0007-layered-liveness.md) · **Status:** 🟡 built, tested locally, and measured on one genuine user. The exit criteria are **not fully met**: the false-reject rate comes from one person and the final rule wasn't re-tested live, the PAD slot is empty, and the moving-media red-team cases are open.
+**Dates:** 17–20 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Decision record:** [ADR-0007](../adr/0007-layered-liveness.md) · **Status:** 🟡 built, tested locally and red-teamed by the owner. Every attack the owner tried is now blocked and genuine attempts pass, but on **one person, one camera, one room**: the exit criteria need broader measurement before they can be called met.
 
 **Goal (from the roadmap):** fuse independent liveness layers so that a photo, a replayed video or an injected feed can't pass the age check. **Exit:** every red-team case is blocked; the genuine-attempt false-reject rate is measured and documented.
 
 ## What is built
 
-| Area | Delivered |
-| :-- | :-- |
-| Contracts | `Pose`, `POSES`, `Phase`, `Colour`; `FrameMeta.phase`; `Challenge` (1–4 poses, 2–8 colours, 400–2000 ms steps); `ClientSignals` (automation, virtual camera, hidden ms, light shown); `FaceRequestMeta.light_started_ms / signals / challenge`; `FrameReport.pitch_ratio`; `PoseCheck` (with `baseline_yaw`, `baseline_pitch`, `reached`), `LightCheck`, `Liveness` (with `evidence: images \| labels`) on `FaceAnalysis` |
-| Challenge (L3/L4) | `domain/challenges.py`: **3 or 4 poses** from turn_left / turn_right / look_up, never repeating the previous step, **at most one look-up** (24 orders; every challenge has ≥ 2 turns); 4 colours from a 5-colour calm palette (no saturated red), 600 ms each (< 2 changes/s, WCAG 2.3.1); drawn with `secrets.SystemRandom`; stored once in Valkey, destroyed on use. The API replaces any challenge the browser sends with the stored one |
-| Verify page | MediaPipe Face Landmarker 1.1.0 (Apache-2.0), self-hosted from `public/mediapipe/` (copied by `scripts/mediapipe.mjs`; CSP gains only `'wasm-unsafe-eval'`); GPU → CPU → none fallback. Live guidance, advisory only: Start unlocks after 8 s regardless. Challenge runner: full-screen colour layer on a fixed clock timetable (portal to `<body>`), one baseline photo per colour; per-pose cue ("…, eyes on the screen") with a **live meter** measured from the person's own frontal angles (targets: turn 0.25, chin 0.12); **3 photos per pose** once held for 3 readings, or after 6 s; calm mode for `prefers-reduced-motion`. Signals: `navigator.webdriver`, virtual-camera label match, hidden time |
-| Evidence (inference) | `liveness.py`: **pose check** — timing order, ≥ 3 frontal baseline frames first, poses in the challenge's order; each pose measured as a **shift from the person's own frontal angles** (median of baseline frames); **turns decide** (shift ≥ 0.18), **look-up is recorded only** (limit 0.03, never fails the check); the furthest shift per pose is recorded. **Light check** (red/blue chromaticity, Pearson r; recorded only). **Injection signs** (automation, virtual_camera, page_hidden, identical_frames). Vision library: `pitch_ratio`; `people()` counts a second detection only if confident (≥ 0.8), outside the main face's box and ≥ half its size |
-| Decision | Liveness after quality, before age. No liveness / no pose check / labels evidence in a live session → retry `liveness_unavailable`; pose failed → retry, then **reject** on the second failure in the session; injection signs → **step up** `liveness_uncertain`. Outward reasons never name the check; full detail stored in the attempt's scores |
-| Test mode | `DWARPAL_INFERENCE_LIVENESS=labels` for the e2e fake camera. Three locks: refused at start-up unless the stub age model is used; every result carries `evidence`; the API refuses labels evidence in live sessions |
-| Operations | `liveness-report --since …`: outcomes, pose pass rate and false-reject rate (if all genuine), pose problems, **pose reach from frontal (median / lowest per pose)**, injection signs, light correlations. Demo shop: **Leave the cellar** button (forgets the pass, for repeated testing) |
-| Supply chain | `models/third_party.json`: MediaPipe face landmarker pinned (SHA-256 `64184e22…`, 3,758,596 bytes); `.gitignore` ignores `*.task` and `apps/web/public/mediapipe/` |
-| Book | Part 2 §2.18 in full; §5.3 with 7 new walkthroughs and the measurement story (§5.3.6); every changed walkthrough reviewed |
+| Layer / area | Delivered | Decides? |
+| :-- | :-- | :-- |
+| L1 quality | Unchanged gate; now counts **people**, not detections: a second detection counts only if confident and outside the main face's box and ≥ ½ its size — ≥ ¼ in the picture's middle — or larger than the main face at any score (`dwarpal_vision.quality.people`) | yes |
+| **L2 passive PAD** | **MiniFASNet** V2 (crop 2.7×) + V1SE (crop 4×), Apache-2.0, pinned at commit `b6d5f04`; PyTorch weights read with `weights_only`, rebuilt from their shapes (strict load), converted to ONNX by `python -m dwarpal_ml.antispoof` (parity 5.5 × 10⁻⁷); run by OpenCV; median "real-face" chance per attempt | **yes**: < 0.5 → step up |
+| L3 pose challenge | Server-issued, 3–4 poses, ≤ 1 look-up (24 orders); measured against the person's own frontal angles by MediaPipe's **478-point face mesh**, run by OpenCV from the pinned bundle (five-point fallback); turns decide (shift ≥ 0.18); look-up and "caught mid-turn" recorded | turns: yes (retry, then reject) |
+| L4 screen light | Colours on a fixed timetable; photos copied instantly, encoded after the challenge; chromaticity correlation of skin vs. emitted colour | recorded only |
+| L5 injection | Automation, virtual camera, hidden page, identical frames; **hand beside the face** (MediaPipe palm detector) | hand sign recorded only; others step up |
+| Screen pattern | Fine-detail spectrum peak in the face (moiré / pixel grid) | recorded only |
+| Attempt budgets | Per session (Phase 1) + **per device** (30 challenges/hour, the page's random device ID, not a fingerprint) and **per network address** (120/hour), per project, in Valkey; `429 too_many_attempts` | yes |
+| Verify page | MediaPipe guidance; live pose meter; 2 held photos + 1 on the way into each pose; calm mode for reduced motion | — |
+| Operations | `liveness-report --since …`: outcomes, false-reject rate, pose reach, measurement used, injection signs, presentation (real-face chance, screen pattern, mid-turn), light | — |
+| Supply chain | `models/third_party.json`: MediaPipe face landmarker (now `use: serving`), MediaPipe hand landmarker (7,819,105 B), two MiniFASNet weight files (`use: training`); all SHA-256-pinned, MD5 checked against Google's where published | — |
+| Book | §2.18 updated; §5.3 extended to §5.3.7 (the red team); 7 new walkthroughs; every changed file re-explained; strict build 160 files, 10,176/10,176 lines | — |
 
 ## What was measured
 
 | Check | Result |
 | :-- | :-- |
-| Python lint, format, mypy (strict) | clean (75 files) |
-| Python tests | **157 passed** (liveness unit tests 14, red-team API tests 4, liveness domain tests 7, second-person rule 1) |
-| JS lint, typecheck, unit tests | clean; **28 passed** (web 14, SDK 11, shop 3) |
-| End-to-end | **4 passed**; the full journey — colours, 3–4 pose prompts each waiting out 6 s, pass, leave the cellar — takes about a minute |
-| Book | strict build: **153 files, 9,361/9,361 lines** explained |
+| Python lint, format, mypy (strict) | clean (80 files) |
+| Python tests | **171 passed** (incl. mesh, hands, anti-spoofing, screen pattern, people rule, device budgets, converter) |
+| JS lint, typecheck, unit tests | clean; **30 passed** (web 16, SDK 11, shop 3) |
+| End-to-end | **4 passed**; the main story (colours, 3–4 poses, pass, leave the cellar) ~42 s |
+| Book | strict: **160 files, 10,176/10,176 lines** |
 
-### Genuine attempts (the owner: one adult, one room, laptop webcam)
+### Genuine attempts (the owner, laptop webcam)
 
-| Round | Change | Passed | What the numbers showed |
+| Rounds | Design | Passed | Key numbers |
 | :-- | :-- | :-- | :-- |
-| 1 | Absolute limits (yaw 0.35, pitch 0.38) | **0 / 11** | Turns ~0.25–0.35; "tilt your head up a little" never reached 0.38 |
-| 2 | Shifts from own frontal angles (turn 0.18, look-up 0.06); reach recorded | 1 / 6 | Turns 0.16–0.28; look-up ~0 — one photo per pose, taken at the wrong moment |
-| 3 | Page meter + 3 photos per pose | 0 / 6 measurable | A steady face-like shape (score ~0.85, eye distance 13 px vs. 100) in every photo → "two faces" |
-| 4 | Count people, not detections | **8 / 12** | Turns 0.23–0.66 every time; all 4 failures were look-up |
-| 5 | 3–4 poses, ≤ 1 look-up, look-up limit 0.03 | 5 / 8 | Turns **22 / 22** (lowest 0.29); look-up failed 3 / 8 (−0.03 to 0.02) |
-| 6 | Look-up recorded only; turns decide | not re-tested live | On round 5's recorded numbers: **8 / 8** |
+| 1–6 (17 Oct) | absolute limits → own-frontal shifts → meter → people rule → turns decide | 0/11 → 8/12 → (final rule) | turns 0.23–0.69 (five points); look-up unmeasurable |
+| A–B (19 Oct) | face mesh; colours shown | 6/6 | mesh turns 0.42–0.70, look-up 0.11–0.38 |
+| PAD rounds (20 Oct) | MiniFASNet decides | 5/6 (1 stepped up by light, since demoted) | real-face chance **0.944–0.995** |
 
-Injection signs: none in any genuine attempt. Light: not measurable in any attempt (most likely the device reports reduced motion, so no colours were shown).
+### Red team (the owner attacking their own system)
 
-### Red-team results (through the real API)
+| Attack | Before L2 | With L2 (MiniFASNet) | Measures |
+| :-- | :-- | :-- | :-- |
+| Phone showing posed selfies (front / left / right / chin up), swiped to match prompts | **5 of 10 attempts got into the cellar** | **0 of 3** | real-face chance 0.02–0.12 |
+| Same, peeking from behind the phone | — | caught as a second face | peeking face larger than the phone face, at the edge |
+| Phone replaying a video of the owner turning, paused/skipped to match | — | **0 of 4** | real-face chance 0.006–0.195 |
+| Printed / still photo (API test) | blocked (no turn) | blocked | — |
+| Wrong pose order; claimed challenge; reused challenge; automation; virtual camera (API tests) | blocked | blocked | — |
 
-| Attack | Expected | Result |
-| :-- | :-- | :-- |
-| Printed photo (still portrait, measured from images) | blocked | ✅ retry → **reject** (`verification_failed`) — fails every turn |
-| Poses labelled in the wrong order | blocked | ✅ retry `liveness_check_failed` |
-| Browser claims an easier challenge | ignored | ✅ judged against the issued challenge → fails |
-| Challenge reuse (payload replay) | refused | ✅ `409 challenge_invalid` (since Phase 1) |
-| Automation flag; virtual camera | step up | ✅ `liveness_uncertain` |
-| Screen replay of a turning head; game-render video | blocked | ⬜ **not tested** — no way yet to produce convincing moving media |
+Secondary measures, recorded only: screen pattern real 0.99–1.14 vs. phone 1.16–1.31; poses caught mid-turn real 19/19 vs. attacks 5/23; light real −0.25–0.99 vs. phone −0.64–0.85 (no usable separation).
 
 ## Findings
 
-- **Absolute pose limits fail real people.** Camera height, face shape and how far people are willing to turn vary; measuring each pose against the person's own frontal angles fixed most of it.
-- **Feedback matters more than limits.** Without a meter, people stopped short or the single photo caught the wrong moment. With a meter and three photos per pose, every genuine turn cleared the limit with room to spare.
-- **Five landmarks can't measure looking up.** Even with a full meter on the page, YuNet's pitch moved −0.03 to 0.12. Look-up stays in the challenge (it makes the order harder to predict, and is recorded) but no longer decides; turns carry the proof — a flat photo can't turn, and synthetic warps never exceeded a yaw of 0.16.
-- **Detectors see faces where people don't.** A small object in the owner's room scored 0.85 as a face in every photo and failed every attempt as "multiple faces". A second detection now counts only if it is confident, outside the main face and at least half its size.
-- **The demo shop's pass hid retests.** Its 30-minute pass let the tester straight back in, so later "attempts" never reached the server; the shop gained a Leave the cellar button.
-- **The light layer lit only the card** at first (the card's `backdrop-filter` makes it the containing block for `position: fixed`); fixed with a portal to `<body>`.
-- **The downloaded `.task` model wasn't ignored** by Git; fixed. An unused helper (`colourAt`) was removed while writing the book.
+- **A photo of a turned head is a turned head.** The pose challenge alone can't stop a carousel of posed selfies (5 of 10 got in). Passive PAD is the layer that separates real from presented faces, by a wide margin (0.94 vs. ≤ 0.2).
+- **The screen-light signal is too variable to decide**: genuine faces measured −0.25 to 0.99 depending on room light; deciding on it stepped up 3 genuine attempts.
+- **Two page bugs hid the light signal**: dark-coloured photos were set aside by quality flags, and JPEG encoding (~1 s on a busy laptop) shifted photos out of their colours. Fixed (liveness uses every one-person photo; photos copied instantly, encoded after).
+- **Five landmarks can't measure looking up** (−0.03 to 0.12); the face mesh can (0.11–0.38). Look-up stays record-only by the owner's decision.
+- **The hand detector didn't work**: it missed every hand holding a phone and raised one false alarm. Recorded only.
+- **Detectors see faces where people don't** (a face-like object in the owner's room), and an attacker's own face can show behind a held phone. The people rule handles both cases seen.
+- **OpenCV 5 quirks**: its new DNN engine returns only a model's last output, and the classic engine is honoured only when loading from a file.
+- **One intermittent crash**: in 1 of 5 full local test runs, Python crashed (access violation) while importing `timm` during test collection — a native-library fault, not a failing test; 4 runs and 3 direct pytest runs passed. To watch in CI.
 
 ## Open items
 
-1. **Broader genuine measurement.** More people, cameras, rooms and lighting; re-test the final rule (round 6) live; record the false-reject rate per condition.
-2. **Look-up measurement.** A denser landmark model on the server (for example MediaPipe's, already pinned for the page) could make look-up a deciding pose again. It needs a new server dependency (the owner's approval for the download).
-3. **Moving-media red team.** Optionally, with consent, recordings *of the owner*: a phone showing a photo, and a phone replaying a video of a head turn.
-4. **Passive PAD (L2).** The MiniFASNet weights were not approved; the slot is empty.
-5. **Light signal.** Recorded only, and not measured in any genuine attempt yet; needs attempts with colours shown, and replays, before it may affect a decision.
-6. **Per-device attempt budgets** (roadmap) are not built; only the per-session challenge budget and the reject-after-two-failures rule exist.
-7. **Remote CI** has not run Phase 3 yet (it runs on the next push).
+1. **Broader measurement (exit criterion).** More people (ages, skin tones, glasses), cameras, rooms and attack media: the false-reject rate and the PAD margin come from one person. MiniFASNet's fairness across groups is unmeasured (§2.16).
+2. **Untested attacks:** a virtual camera feeding images directly (no screen in the picture), real-time deepfakes, masks.
+3. **Recorded-only signals** (light, screen pattern, mid-turn, hands, look-up) could become deciding once broader data supports limits.
+4. **The anti-spoofing ONNX files** are made locally from the pinned weights (needs `fetch_models.py --training` and PyTorch). Serving without them runs with one layer fewer; production should require them, or the files should be published through the model registry.
+5. **The intermittent test-collection crash** (above).
+6. **Remote CI** has not run these changes yet.

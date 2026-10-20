@@ -1,5 +1,5 @@
 ---
-fingerprint: 8339627ae794e3b7
+fingerprint: a03c5f19af10c5d2
 ---
 The file that **assembles** the API. Every other module is a part; this one connects them in the right order when the program starts, and disconnects them when it stops. It follows the same pattern as the inference service's `main.py` (§5.1.1): an **app factory** called `create_app`.
 
@@ -71,7 +71,7 @@ Add the **CORS** middleware, which tells browsers which other websites may call 
 
 - `allow_origins` — only the origins in the settings: the verify page;
 - `allow_methods` — only `GET` and `POST`, the only methods the API uses;
-- `allow_headers` — the only request headers a page may send: the token, the body's type, and a request ID;
+- `allow_headers` — the only request headers a page may send: the token, the body's type, a request ID, and the verify page's device ID (`X-Dwarpal-Device`, for the per-device budgets);
 - `expose_headers` — lets the page's code read our `X-Request-Id` header, so the verify page can show it in an error message.
 
 @@ 67

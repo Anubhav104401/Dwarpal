@@ -27,6 +27,7 @@ from dwarpal_contracts import FaceAnalysis, FaceRequestMeta
 
 FLOW_STATUSES = frozenset({Status.IN_PROGRESS, Status.AWAITING_STEP_UP, Status.COMPLETED})
 CHALLENGES_PER_ATTEMPT = 2
+HOUR_S = 3600
 
 
 @dataclass
@@ -137,11 +138,14 @@ async def start_flow(svc: Services, session_text: str, client_secret: str) -> di
     return {"flow_token": token, "session": view}
 
 
-async def issue_challenge(svc: Services, session_id: uuid.UUID) -> dict[str, Any]:
+async def issue_challenge(
+    svc: Services, session_id: uuid.UUID, device: str | None = None, address: str | None = None
+) -> dict[str, Any]:
     async with svc.sessions() as session:
         row = await load_session(session, session_id)
     if row.status != Status.IN_PROGRESS:
         raise ApiError(409, "session_not_in_progress", f"this session is {row.status}")
+    await spend_device_budgets(svc, row.project_id, device, address)
     budget = get_policy(row.policy_id).max_face_attempts * CHALLENGES_PER_ATTEMPT
     settings = svc.settings
     challenge = await svc.store.issue_challenge(
@@ -150,6 +154,19 @@ async def issue_challenge(svc: Services, session_id: uuid.UUID) -> dict[str, Any
     if challenge is None:
         raise ApiError(429, "too_many_challenges", "this session has used all of its challenges")
     return challenge
+
+
+async def spend_device_budgets(svc: Services, project_id: uuid.UUID, device: str | None, address: str | None) -> None:
+    """Stop endless trial and error across sessions: each device, and each network address, may take only so many
+    challenges an hour. Starting a new session doesn't reset these, unlike the per-session budget."""
+    settings = svc.settings
+    budgets = [
+        (f"device:{project_id}:{device}", settings.device_challenges_per_hour) if device else None,
+        (f"address:{project_id}:{address}", settings.address_challenges_per_hour) if address else None,
+    ]
+    for key, limit in filter(None, budgets):
+        if not await svc.store.spend_budget(key, limit, HOUR_S):
+            raise ApiError(429, "too_many_attempts", "too many age checks from this device; try again later")
 
 
 def attempt_scores(analysis: FaceAnalysis | None, decision: Decision) -> dict[str, Any]:

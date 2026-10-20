@@ -1,5 +1,5 @@
 ---
-fingerprint: 5e582ef8b13964b5
+fingerprint: 52c72330458e5ee6
 ---
 The API's **short-term memory**, kept in **Valkey** (§4.11). Some facts only need to exist for minutes: "this browser may work on session X for the next 15 minutes", "this challenge may be used once in the next 2 minutes". Putting them in PostgreSQL would fill the database with rows that need cleaning up. Valkey stores each value with a **time to live** and deletes it by itself when the time runs out.
 
@@ -93,11 +93,23 @@ Store it under its ID, with its expiry.
 @@ 53
 Return the challenge, without the session ID: the browser already knows its session. The browser needs the poses and colours to show the prompts — knowing them in advance doesn't help an attacker much, because they are random and change every attempt.
 
-@@ 55
+@@ 55-56
+**`spend_budget`** — count one use against a budget that starts afresh every window, as the docstring says, and answer whether there was still room. Used for the per-device and per-address budgets (`app/verification.py`).
+
+@@ 57
+The counter's name: `budget:` and a fingerprint of the key. Hashing keeps device IDs and network addresses out of Valkey's key names.
+
+@@ 58
+Create the counter at 0 with its expiry — but only if it doesn't exist yet (`nx=True`): the window starts with the first use and isn't extended by later ones.
+
+@@ 59
+Add one and compare with the limit. `incr` is atomic in Valkey, so two requests arriving together can't both slip through on the same count.
+
+@@ 61
 **`take_challenge`** — use a challenge up. It returns the stored `Challenge` only if it existed, hadn't expired, and belongs to this session; otherwise `None`.
 
-@@ 56
+@@ 62
 `GETDEL` reads the value **and deletes it in one atomic step**. If the same challenge arrives twice at the same instant, only one request can get it — the other finds nothing. Reading first and deleting later would leave a tiny gap in which both could succeed.
 
-@@ 57-62
+@@ 63-68
 Accept only if something was found *and* its session matches. The challenge is gone either way: a wrong guess burns it. Then rebuild the `Challenge` from what was stored — the *server's* copy, which is what the frames will be checked against, whatever the browser claims.

@@ -14,7 +14,7 @@ from dwarpal_contracts import MAX_FRAME_BYTES, MAX_FRAMES, FaceAnalysis, FaceReq
 from dwarpal_inference.backends import AgeBackend, OnnxAgeBackend, StubAgeBackend
 from dwarpal_inference.pipeline import FacePipeline
 from dwarpal_inference.settings import Settings
-from dwarpal_vision import FaceDetector
+from dwarpal_vision import FaceDetector, FaceMesh, HandDetector, SpoofDetector, SpoofModel
 
 
 def build_age_backend(settings: Settings) -> AgeBackend:
@@ -25,7 +25,22 @@ def build_age_backend(settings: Settings) -> AgeBackend:
 
 def build_pipeline(settings: Settings) -> FacePipeline:
     detector = FaceDetector(settings.models_dir / settings.detector_file)
-    return FacePipeline(detector, build_age_backend(settings), trust_labels=settings.liveness == "labels")
+    mesh = FaceMesh(settings.models_dir / settings.mesh_file)
+    hands = HandDetector(settings.models_dir / settings.hands_file)
+    models = [
+        SpoofModel(settings.models_dir / file, scale)
+        for file, scale in zip(settings.antispoof_files, (2.7, 4.0), strict=True)
+    ]
+    # Made from the pinned weights by `python -m dwarpal_ml.antispoof`; without them, liveness says so and decides less.
+    spoof = SpoofDetector(models) if all(model.path.is_file() for model in models) else None
+    return FacePipeline(
+        detector,
+        build_age_backend(settings),
+        mesh=mesh,
+        hands=hands,
+        spoof=spoof,
+        trust_labels=settings.liveness == "labels",
+    )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

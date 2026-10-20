@@ -52,6 +52,12 @@ class FlowStore:
         await self._client.set(f"challenge:{issued['challenge_id']}", stored, ex=ttl_s)
         return issued
 
+    async def spend_budget(self, key: str, limit: int, window_s: int) -> bool:
+        """Count one use against a budget that starts afresh every window; False once the budget is spent."""
+        counter = f"budget:{_hashed(key)}"
+        await self._client.set(counter, 0, ex=window_s, nx=True)
+        return await self._client.incr(counter) <= limit
+
     async def take_challenge(self, challenge_id: str, session_id: uuid.UUID) -> Challenge | None:
         stored = await self._client.getdel(f"challenge:{challenge_id}")
         if stored is None:

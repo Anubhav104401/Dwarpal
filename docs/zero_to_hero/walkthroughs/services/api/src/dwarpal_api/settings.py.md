@@ -1,5 +1,5 @@
 ---
-fingerprint: 75629202c696ed1d
+fingerprint: 89a727ac07048bab
 ---
 The API's **settings**: every value that may differ between a laptop, the test suite and production — addresses, secrets, time limits — in one checked place. It follows the same pattern as the inference service's `settings.py` (§5.1.1), with two additions: a **secret** that must never leak into logs, and a **guard** that refuses unsafe values in production.
 
@@ -97,21 +97,27 @@ postgresql+asyncpg://dwarpal:dwarpal-local-only@127.0.0.1:5432/dwarpal
 @@ 32
 `challenge_ttl_s` — a challenge must be used within **2 minutes**. Frames must be captured *fresh*, not prepared in advance (Stage 3 §5).
 
-@@ 34-35
-The **production guard**. `@model_validator(mode="after")` makes Pydantic call this method after all the fields are filled in. It receives the finished settings object as `self`, and must either return it or raise an error. If it raises, the API refuses to start.
+@@ 33-34
+The comment explains the two **per-device budgets** below: how many liveness challenges one device, and one network address, may take per project in an hour. A device is the random ID the verify page keeps (`apps/web/lib/device.ts`); many people can share one network, so its budget is larger.
 
-@@ 36-37
-Outside production there is nothing more to check, so the settings are returned unchanged.
+@@ 35-36
+`device_challenges_per_hour = 30` and `address_challenges_per_hour = 120`.
 
 @@ 38-39
+The **production guard**. `@model_validator(mode="after")` makes Pydantic call this method after all the fields are filled in. It receives the finished settings object as `self`, and must either return it or raise an error. If it raises, the API refuses to start.
+
+@@ 40-41
+Outside production there is nothing more to check, so the settings are returned unchanged.
+
+@@ 42-43
 **Refuse the development key in production.** It is published in this repository, so with it anyone could unseal the signing keys and forge age tokens. The error names the exact variable to set.
 
-@@ 40-42
+@@ 44-46
 **Refuse plain `http://` addresses in production.** Over `http://`, tokens and links travel unencrypted, and anyone on the network path could read or change them (§0.9).
 
 `getattr(self, name)` reads a field whose name is held in the variable `name`, so one loop checks both fields. `name.upper()` turns `issuer` into `ISSUER`, so the message names the exact variable: `DWARPAL_ISSUER`.
 
-@@ 43
+@@ 47
 All checks passed: return the settings.
 
 !!! try "Try it yourself"

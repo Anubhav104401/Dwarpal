@@ -62,6 +62,15 @@ class FrameReport(Contract):
     eye_distance_px: Annotated[float, Field(ge=0.0)]
     yaw_ratio: float
     pitch_ratio: float = 0.0
+    # The same two angles from the 478-point face mesh, which measures looking up far better; None when not measured.
+    mesh_yaw: float | None = None
+    mesh_pitch: float | None = None
+    # Hands found next to the face: someone may be holding a phone or a photo up to the camera.
+    hands_near_face: Annotated[int, Field(ge=0)] = 0
+    # Presentation-attack evidence: how likely a real face rather than a photo or a screen (MiniFASNet), and how strong
+    # a screen's regular pixel pattern is in the face. None when not measured.
+    real_score: Probability | None = None
+    screen_pattern: float | None = None
     flags: list[str]
 
     @property
@@ -84,10 +93,15 @@ class PoseCheck(Contract):
     baseline_yaw: float | None = None
     baseline_pitch: float | None = None
     reached: list[tuple[Pose, float | None]] = []
+    measured_by: Literal["mesh", "five_points"] = "five_points"
+    # For each pose, whether a photo caught the head on its way there: a real head passes through the angles between.
+    gradual: list[tuple[Pose, bool]] = []
 
 
 class LightCheck(Contract):
     usable: bool
+    # False when the page showed no colours (the person's device asks for reduced motion): nothing could be measured.
+    shown: bool = True
     r_skin: Annotated[float, Field(ge=-1.0, le=1.0)] | None = None
     r_background: Annotated[float, Field(ge=-1.0, le=1.0)] | None = None
 
@@ -96,6 +110,9 @@ class Liveness(Contract):
     pose: PoseCheck | None
     light: LightCheck | None
     injection: list[str]
+    # Medians over the photos of one person: the anti-spoofing networks' "real face" chance, and the screen pattern.
+    presentation: Probability | None = None
+    screen_pattern: float | None = None
     # "images": measured from the frames. "labels": the frames' phase labels were trusted instead — a test mode,
     # possible only with the stand-in age model, and never accepted for a live session.
     evidence: Literal["images", "labels"] = "images"

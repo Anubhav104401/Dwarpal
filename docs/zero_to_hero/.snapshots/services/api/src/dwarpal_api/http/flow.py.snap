@@ -6,7 +6,7 @@ import re
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.datastructures import UploadFile
 
@@ -19,6 +19,8 @@ from dwarpal_contracts import MAX_FRAME_BYTES, MAX_FRAMES, FaceRequestMeta
 
 router = APIRouter(prefix="/v1/flow/sessions/{session_text}", tags=["capture flow"])
 CHALLENGE_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+# The verify page's random device ID (a UUID). Anything else is ignored, as if no ID had been sent.
+DEVICE_ID = re.compile(r"^[A-Za-z0-9-]{16,64}$")
 
 
 class StartFlow(BaseModel):
@@ -34,9 +36,14 @@ async def start(session_text: str, body: StartFlow, svc: Annotated[Services, Dep
 
 @router.post("/challenge")
 async def challenge(
-    flow: Annotated[uuid.UUID, Depends(flow_session)], svc: Annotated[Services, Depends(services)]
+    request: Request,
+    flow: Annotated[uuid.UUID, Depends(flow_session)],
+    svc: Annotated[Services, Depends(services)],
+    x_dwarpal_device: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
-    return await verification.issue_challenge(svc, flow)
+    device = x_dwarpal_device if x_dwarpal_device and DEVICE_ID.match(x_dwarpal_device) else None
+    address = request.client.host if request.client else None
+    return await verification.issue_challenge(svc, flow, device, address)
 
 
 @router.post("/face-attempts")

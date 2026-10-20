@@ -1,5 +1,5 @@
 ---
-fingerprint: ffaf30cc866e3233
+fingerprint: f078dac3c457700b
 ---
 The **contracts** for a face attempt — the exact shape of every message the API and the inference service exchange about it. Both services import these classes, so they cannot disagree about a field's name, type or allowed range. And because the models contain only numbers, flags and short texts, **no image can ever travel inside them** (§1.11).
 
@@ -91,20 +91,23 @@ Phase 3 added three optional fields:
 - `signals` — the browser's `ClientSignals`;
 - `challenge` — the `Challenge`. The browser *cannot* set this one usefully: the API replaces it with the challenge it stored, so a page claiming an easier challenge achieves nothing.
 
-@@ 56-65
+@@ 56-74
 **`FrameReport` — what the inference service found in one frame:**
 
-- `faces` — how many faces it detected;
+- `faces` — how many people it found (a second detection counts only if it looks like a separate person; see `quality.py`);
 - `detector_score` — how confident the face detector was;
 - `brightness` (0–1), `sharpness` and `eye_distance_px` — the quality measurements (see `quality.py`);
-- `yaw_ratio` — how far the head is turned sideways;
-- `pitch_ratio` — how far it is tilted up or down (Phase 3);
+- `yaw_ratio` and `pitch_ratio` — how far the head is turned sideways and tilted, from the detector's five points;
+- `mesh_yaw` and `mesh_pitch` — the same two angles from the 478-point face mesh, which measures looking up far better (empty when not measured);
+- `hands_near_face` — hands found next to the face, as someone holding up a phone might show;
+- `real_score` — the anti-spoofing networks' chance that this is a real face rather than a photo or a screen;
+- `screen_pattern` — how strongly a screen's regular pixel pattern stands out in the face;
 - `flags` — the names of every problem found, such as `too_dark`. An empty list means a good frame.
 
-@@ 67-69
+@@ 76-78
 `usable` — a convenience: a frame is usable exactly when it has no flags. It is a `@property`, so it is computed from `flags` and can never disagree with them.
 
-@@ 72-76
+@@ 81-85
 **`AgeEstimate` — the combined age result for the whole burst:**
 
 - `mean` — the expected age (0–100);
@@ -112,34 +115,44 @@ Phase 3 added three optional fields:
 - `p_over` — for each age in `POLICY_AGES`, the probability that the person is at least that old. In JSON, keys are always text (`"18"`), and Pydantic converts them back to numbers on arrival;
 - `frame_means` — each frame's own expected age, so the API can check whether the frames agree.
 
-@@ 79-81
+@@ 88-90
 **`PoseCheck`** (Phase 3) — the result of the head-pose challenge: whether it `passed`, and the names of the `problems` found, such as `wrong_order` (see `liveness.py`).
 
-@@ 82-83
+@@ 91-92
 The comment explains the three fields that follow: **measurements**, kept so that the limits can be set from genuine attempts rather than guessed.
 
-@@ 84-85
+@@ 93-94
 `baseline_yaw` and `baseline_pitch` — the person's own frontal angles, from their opening photos, or `None` if no face could be measured.
 
-@@ 86
+@@ 95
 `reached` — for each pose asked for, in order, a pair: the pose's name and how far its best photo moved from the frontal angles in the asked direction (`None`: no face to measure). `tuple[Pose, float | None]` is a pair of a pose and a number-or-nothing; in JSON it becomes a two-item list. The default `[]` keeps older results valid.
 
-@@ 89-92
+@@ 96
+`measured_by` — which measurement the pose check used: the face mesh, or the detector's five points.
+
+@@ 97-98
+`gradual` — for each pose, whether a photo caught the head *on its way* there. A real head passes through the angles in between; swiping from one photo to the next jumps straight from pose to pose.
+
+@@ 101-106
 **`LightCheck`** (Phase 3) — the result of the screen-colour check:
 
 - `usable` — whether there was enough to measure;
-- `r_skin` and `r_background` — how closely the colour changes seen on the face, and on the background, followed the colours shown on screen. They are **correlations**, from −1 to +1: +1 means "rose and fell exactly together", 0 means "unrelated". Real skin a few centimetres from a screen picks up its glow; a photo held up, or a replayed video, does so differently. Each can be `None` when it couldn't be measured.
+- `shown` — whether the page showed the colours at all (not when the person's device asks for reduced motion);
+- `r_skin` and `r_background` — how closely the colour changes seen on the face, and on the background, followed the colours shown on screen. They are **correlations**, from −1 to +1: +1 means "rose and fell exactly together", 0 means "unrelated". Each can be `None` when it couldn't be measured. In the owner's tests genuine faces ranged from −0.25 to 0.99, so the light is recorded but doesn't decide.
 
-@@ 95-98
+@@ 109-112
 **`Liveness`** (Phase 3) — everything the liveness checks found, kept together:
 
 - `pose` and `light` — the two checks above, each `None` if it couldn't run;
 - `injection` — the names of any signs that the camera feed was faked or the page automated. Empty means none.
 
-@@ 99-101
+@@ 113-115
+Two more pieces of evidence, each the **median** over the photos of one person: `presentation`, the anti-spoofing networks' real-face chance, and `screen_pattern`. Both empty when not measured — for example in the labels test mode.
+
+@@ 116-118
 `evidence` — where the pose result came from. `"images"` is the real thing, measured from the faces in the frames. `"labels"` is a **test mode**: the frames' own phase labels were believed. It exists because the end-to-end tests use a fake camera playing a still portrait, which can't turn its head. The comment states its two limits, which the code enforces: it needs the stand-in age model, and a live session refuses it.
 
-@@ 104-110
+@@ 121-127
 **`FaceAnalysis` — the inference service's complete answer:**
 
 - `model_version` — which age model produced it. It is recorded with the decision (auditability, Stage 4 §8);

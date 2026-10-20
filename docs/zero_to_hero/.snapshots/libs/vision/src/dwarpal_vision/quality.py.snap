@@ -56,29 +56,50 @@ def pitch_ratio(face: Face) -> float:
     return float((face.landmarks[2][1] - eyes_mid_y) / max(mouth_mid_y - eyes_mid_y, 1.0))
 
 
-def people(faces: list[Face], rules: QualityRules = DEFAULT_RULES) -> int:
+def people(faces: list[Face], rules: QualityRules = DEFAULT_RULES, size: tuple[int, int] | None = None) -> int:
     """How many different people the detections show. A detection counts beside the main face only if it is confident,
-    lies outside the main face's box, and is at least half its size: the detector sometimes boxes part of the same
-    face a second time (a beard, a lit cheek), or a faint shape far in the background."""
+    lies outside the main face's box, and is at least half its size — or a quarter, in the middle of the picture — or
+    is larger than the main face, however unsure the detector is: the detector sometimes boxes part of the same face a
+    second time (a beard, a lit cheek), or a face-like shape at the side, while a partly hidden face in the middle, or
+    a large one at the edge, is often the person holding up a phone."""
     if not faces:
         return 0
     main = faces[0]
     x, y, w, h = main.box
-    others = [
+    outside = [
         face
         for face in faces[1:]
-        if face.score >= rules.min_detector_score
-        and face.eye_distance >= 0.5 * main.eye_distance
-        and not (x <= face.box[0] + face.box[2] / 2 <= x + w and y <= face.box[1] + face.box[3] / 2 <= y + h)
+        if not (x <= face.box[0] + face.box[2] / 2 <= x + w and y <= face.box[1] + face.box[3] / 2 <= y + h)
+    ]
+    others = [
+        face
+        for face in outside
+        # A face at least as large as the main one is a real person close to the camera — often partly hidden or cut
+        # off by the picture's edge, so the detector is less sure of it — and counts at any score it reports.
+        if face.eye_distance >= main.eye_distance
+        or (
+            face.score >= rules.min_detector_score
+            and face.eye_distance >= (0.25 if central(face, size) else 0.5) * main.eye_distance
+        )
     ]
     return 1 + len(others)
+
+
+def central(face: Face, size: tuple[int, int] | None) -> bool:
+    """Whether a face's centre lies in the middle of the picture (its central 60 % across, 80 % down), where a
+    partly hidden second face is more likely the person holding up a phone than a poster at the side."""
+    if size is None:
+        return False
+    height, width = size
+    x, y, w, h = face.box
+    return 0.2 * width <= x + w / 2 <= 0.8 * width and 0.1 * height <= y + h / 2 <= 0.9 * height
 
 
 def assess(image: Image, faces: list[Face], rules: QualityRules = DEFAULT_RULES) -> Quality:
     if not faces:
         return Quality(0, 0.0, 0.0, 0.0, 0.0, 0.0, ("no_face",))
     face = faces[0]
-    count = people(faces, rules)
+    count = people(faces, rules, (image.shape[0], image.shape[1]))
     region = face_region(image, face)
     if region.size == 0:
         return Quality(count, face.score, 0.0, 0.0, 0.0, 0.0, ("no_face",))
