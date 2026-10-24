@@ -1,5 +1,5 @@
 ---
-fingerprint: e0f9536cf355ac9a
+fingerprint: 247e65dd27e8f3ac
 ---
 The inference service's **HTTP interface**, built with **FastAPI**. It is internal only: in deployment it sits on a private network with no route from the internet and no way out (§3.8, "the clean room").
 
@@ -63,37 +63,37 @@ Create the FastAPI app. The automatic documentation pages (`docs_url`, `redoc_ur
 @@ 57-59
 **`/livez`** — "is the process alive?" Container platforms poll it, and restart the container if it stops answering.
 
-@@ 61-64
-**`/readyz`** — "is it ready for work?" It answers only once the pipeline is loaded, and reports which age model is active.
-
-@@ 66-67
-**The main endpoint**: `POST /internal/v1/analyze/face` returns a `FaceAnalysis`. FastAPI turns the returned model into JSON automatically.
+@@ 61-66
+**`/readyz`** — "is it ready for work?" It answers only once the pipeline is loaded, and reports which age model is active and — as the comment says — whether the anti-spoofing networks are `loaded` or `missing`. Without them the service still analyses faces, but the API won't decide a live session (`domain/decision.py`); this answer lets an operator see why at a glance.
 
 @@ 68-69
+**The main endpoint**: `POST /internal/v1/analyze/face` returns a `FaceAnalysis`. FastAPI turns the returned model into JSON automatically.
+
+@@ 70-71
 **Back-pressure.** If every worker slot is busy, refuse immediately with `503 Service Unavailable` and `Retry-After: 1`, instead of piling up requests until the server collapses.
 
-@@ 70
+@@ 72
 Read the **multipart form**: at most `MAX_FRAMES` (16) files and 1 ordinary field (`meta`). Anything more is refused by the parser before it is stored.
 
-@@ 71-74
+@@ 73-76
 Parse and validate `meta` with the contract. A missing or invalid value becomes a clear `422 Unprocessable` error. `from error` keeps the original cause for debugging.
 
-@@ 75
+@@ 77
 Collect each frame's bytes, in order.
 
-@@ 76-79
+@@ 78-81
 For each frame the metadata promises, the matching upload `frame_<index>` must exist. Otherwise the request is refused with `422`, naming the missing frame.
 
-@@ 80-82
+@@ 82-84
 Read at most one byte more than `MAX_FRAME_BYTES`. If that extra byte arrives, the frame is too big and is refused with `413 Content Too Large`. Asking for just one extra byte means an oversized frame is never copied into memory in full.
 
 To be precise about who checks what: by this point the form parser has already received the whole upload, keeping large files in a temporary file on disk. The size of a *whole request* is capped earlier — by the API, which is the only program allowed to call this service, and in production also by the web server at the front door.
 
-@@ 83
+@@ 85
 Keep the frame's bytes.
 
-@@ 84-85
+@@ 86-87
 **Run the analysis on a worker thread**, within the limiter. Image work is CPU-heavy and *blocking*. Running it directly here would freeze the server's event loop and stall every other request, including health checks.
 
-@@ 87
+@@ 89
 Return the finished application.

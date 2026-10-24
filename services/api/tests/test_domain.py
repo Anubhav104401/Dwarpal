@@ -354,3 +354,12 @@ def test_a_face_the_anti_spoofing_networks_doubt_goes_to_step_up() -> None:
 
     assert deciding(0.95) == Outcome.PASS
     assert deciding(0.2) == Outcome.STEP_UP
+
+
+def test_a_live_session_needs_the_anti_spoofing_verdict() -> None:
+    measured = Liveness(pose=PoseCheck(passed=True, problems=[]), light=None, injection=[], presentation=0.97)
+    unmeasured = Liveness(pose=PoseCheck(passed=True, problems=[]), light=None, injection=[])
+    for live, expected in ((measured, Outcome.PASS), (unmeasured, Outcome.RETRY)):
+        decision = decide(POLICY, THRESHOLDS, analysis(0.999, liveness=live), 0, True, livemode=True)
+        assert decision.outcome == expected
+    assert decide(POLICY, THRESHOLDS, analysis(0.999, liveness=unmeasured), 0, True).outcome == Outcome.PASS

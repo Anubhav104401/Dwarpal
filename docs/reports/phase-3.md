@@ -25,10 +25,10 @@
 | Check | Result |
 | :-- | :-- |
 | Python lint, format, mypy (strict) | clean (80 files) |
-| Python tests | **171 passed** (incl. mesh, hands, anti-spoofing, screen pattern, people rule, device budgets, converter) |
+| Python tests | **173 passed**, in two processes (112 + 61 ML) (incl. mesh, hands, anti-spoofing, screen pattern, people rule, device budgets, converter) |
 | JS lint, typecheck, unit tests | clean; **30 passed** (web 16, SDK 11, shop 3) |
 | End-to-end | **4 passed**; the main story (colours, 3–4 poses, pass, leave the cellar) ~42 s |
-| Book | strict: **160 files, 10,176/10,176 lines** |
+| Book | strict: **160 files, 10,199/10,199 lines** |
 
 ### Genuine attempts (the owner, laptop webcam)
 
@@ -66,6 +66,6 @@ Secondary measures, recorded only: screen pattern real 0.99–1.14 vs. phone 1.1
 1. **Broader measurement (exit criterion).** More people (ages, skin tones, glasses), cameras, rooms and attack media: the false-reject rate and the PAD margin come from one person. MiniFASNet's fairness across groups is unmeasured (§2.16).
 2. **Untested attacks:** a virtual camera feeding images directly (no screen in the picture), real-time deepfakes, masks.
 3. **Recorded-only signals** (light, screen pattern, mid-turn, hands, look-up) could become deciding once broader data supports limits.
-4. **The anti-spoofing ONNX files** are made locally from the pinned weights (needs `fetch_models.py --training` and PyTorch). Serving without them runs with one layer fewer; production should require them, or the files should be published through the model registry.
-5. **The intermittent test-collection crash** (above).
+4. ~~The anti-spoofing ONNX files~~ — **resolved 24 Oct**: a live session is never decided without the anti-spoofing verdict (`liveness_unavailable`), and the inference service's `/readyz` reports `antispoof: loaded | missing`. Publishing the ONNX files through the model registry, so production doesn't need PyTorch to make them, remains a nice-to-have.
+5. ~~The intermittent test-collection crash~~ — **mitigated 24 Oct**: `tasks.py test` runs the ML tests (PyTorch) in a separate process from the services and libraries (OpenCV, ONNX Runtime). 112 + 61 tests pass.
 6. **Remote CI** has not run these changes yet.

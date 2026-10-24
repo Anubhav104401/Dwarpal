@@ -1,5 +1,5 @@
 ---
-fingerprint: 5d9eaed1bab91402
+fingerprint: c4c971a71c3ea939
 ---
 Tests for the inference service, at two levels:
 
@@ -92,31 +92,32 @@ Start an app whose stand-in model says 40, then:
 @@ 84-88
 The request succeeded (`200`). The response is read back through the contract (`model_validate`), which would fail if any field were wrong. The model version, the number of usable frames and the readiness answer are all as expected.
 
-@@ 91-99
+@@ 91-96
+**Readiness says when the anti-spoofing networks are missing.** Start the service with file names that don't exist: it still starts, and `/readyz` reports `antispoof: missing`.
+
+@@ 99-107
 **A missing frame is refused, and named.** The metadata promises two frames but only `frame_0` is sent, so the answer must be `422` with the exact message `frame_1 is missing`.
 
-This test caught a real bug while it was being written: the endpoint checked uploads against the wrong `UploadFile` class (see `main.py`, line 11).
-
-@@ 102-103
+@@ 110-111
 **`tiny_model`** — build a stand-in ONNX age model with the real one's interface — pixels in, 101 probabilities out — without PyTorch or any training. The service must be testable on its own, in seconds.
 
-@@ 104
+@@ 112
 Its only weights: a 3 × 101 grid of numbers spread evenly from −1 to 1.
 
-@@ 105-116
+@@ 113-124
 The model's **graph**, node by node: average each colour over the whole picture (`GlobalAveragePool`, giving 3 numbers per face), lay them flat, multiply by the weights (101 scores), and turn them into probabilities (`Softmax`). Then its input and output, named and shaped exactly like the real model's (`faces` is a size left open), and the weights, scaled so that pixels of 0–255 give moderate scores.
 
-@@ 117
+@@ 125
 Wrap the graph as a model for ONNX's operator set 18, in file-format version 10 — the format the real export uses. (The `onnx` library would otherwise write its newest format, 14, which ONNX Runtime 1.31 can't read yet: the first version of this test found that.)
 
-@@ 118-123
+@@ 126-131
 Save it, fingerprint it, and write a minimal manifest naming its version, file and fingerprint.
 
-@@ 126-133
+@@ 134-141
 **An ONNX model gives one distribution per face**: two faces in (all black, all white), two rows of 101 probabilities out, each adding up to 1, different from each other; and the version is the manifest's.
 
-@@ 136-143
+@@ 144-151
 **The wrong file is refused**: a model file with a few extra bytes no longer matches its fingerprint, and the backend refuses to load it; a missing file is refused too.
 
-@@ 146-150
+@@ 154-158
 **The settings choose the backend**: `onnx` with a model folder gives the ONNX model; the default settings still give the stand-in.

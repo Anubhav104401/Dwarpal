@@ -4,7 +4,7 @@ uv run tasks.py check       everything CI runs: lint, types, tests, book
 uv run tasks.py lint        ruff lint + formatting check
 uv run tasks.py format      apply ruff formatting and safe automatic fixes
 uv run tasks.py typecheck   mypy in strict mode
-uv run tasks.py test        pytest
+uv run tasks.py test        pytest: the services and libraries, then the ML package
 uv run tasks.py book        build the Zero-to-Hero book in strict mode
 """
 
@@ -21,7 +21,12 @@ TASKS: dict[str, list[list[str]]] = {
     "lint": [[PYTHON, "-m", "ruff", "check", "."], [PYTHON, "-m", "ruff", "format", "--check", "."]],
     "format": [[PYTHON, "-m", "ruff", "format", "."], [PYTHON, "-m", "ruff", "check", "--fix", "."]],
     "typecheck": [[PYTHON, "-m", "mypy"]],
-    "test": [[PYTHON, "-m", "pytest"]],
+    # Two runs: the ML tests load PyTorch, which once crashed while being imported into a process that had already
+    # loaded OpenCV's and ONNX Runtime's native libraries. Each in its own process, they can't meet.
+    "test": [
+        [PYTHON, "-m", "pytest", "docs/zero_to_hero/tests", "services", "libs"],
+        [PYTHON, "-m", "pytest", "ml"],
+    ],
     "book": [[PYTHON, "docs/zero_to_hero/build.py", "--strict"]],
 }
 TASKS["check"] = TASKS["lint"] + TASKS["typecheck"] + TASKS["test"] + TASKS["book"]

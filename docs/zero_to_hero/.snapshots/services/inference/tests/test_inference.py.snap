@@ -89,6 +89,14 @@ async def test_http_endpoint_analyses_multipart_frames() -> None:
 
 
 @pytest.mark.anyio
+async def test_readiness_says_when_the_anti_spoofing_networks_are_missing() -> None:
+    settings = Settings(antispoof_files=("third_party/absent_a.onnx", "third_party/absent_b.onnx"))
+    async with client_for(create_app(settings)) as client:
+        ready = await client.get("/readyz")
+    assert ready.json()["antispoof"] == "missing"
+
+
+@pytest.mark.anyio
 async def test_http_endpoint_rejects_a_missing_frame() -> None:
     files = {"frame_0": ("frame_0.jpg", PORTRAIT, "image/jpeg")}
     async with client_for(create_app()) as client:

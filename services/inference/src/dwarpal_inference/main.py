@@ -61,7 +61,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/readyz")
     async def readyz(request: Request) -> dict[str, str]:
         pipeline: FacePipeline = request.app.state.pipeline
-        return {"status": "ready", "age_model": pipeline.age.version}
+        # Whether the anti-spoofing networks are loaded: without them, live sessions can't be decided (the API refuses).
+        antispoof = "loaded" if pipeline.spoof is not None else "missing"
+        return {"status": "ready", "age_model": pipeline.age.version, "antispoof": antispoof}
 
     @app.post("/internal/v1/analyze/face")
     async def analyze_face(request: Request) -> FaceAnalysis:

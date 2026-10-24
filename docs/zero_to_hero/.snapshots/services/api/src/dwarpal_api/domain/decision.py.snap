@@ -65,7 +65,10 @@ def liveness_problem(
     """Liveness comes before age. Its reasons are deliberately vague: an attacker must never learn which check caught
     them (ADR-0007), so every failure looks the same from outside, and only the stored scores say which it was."""
     live = analysis.liveness
-    if live is None or live.pose is None or (livemode and live.evidence != "images"):
+    # A live session is decided only on full evidence: measured from the images (not the labels test mode), and with
+    # the anti-spoofing networks' verdict — a service started without their files must not quietly decide without it.
+    incomplete = live is not None and (live.evidence != "images" or live.presentation is None)
+    if live is None or live.pose is None or (livemode and incomplete):
         return Decision(try_again, ("liveness_unavailable",))
     if not live.pose.passed:
         return Decision(Outcome.REJECT if liveness_failures >= 1 else try_again, ("liveness_check_failed",))
