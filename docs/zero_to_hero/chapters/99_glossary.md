@@ -62,6 +62,9 @@ Coverage
 Database
 :   A program that stores data permanently and answers questions about it quickly and safely. (§0.12)
 
+Database role
+:   A named identity inside a database server that holds rights: which tables it may read or change, and what else it may do. A connection works as one role at a time, and can switch to another it belongs to with `SET ROLE`. Dwarpal's API works as `dwarpal_app`, a role that owns no tables. (§5.4.1)
+
 Dataclass
 :   A Python shortcut for defining a class that mainly holds data. (Part X)
 
@@ -164,6 +167,9 @@ Pinning
 Pixel
 :   One dot of a digital image, stored as red, green and blue numbers. (§0.1)
 
+Policy (row-level security)
+:   A condition attached to a database table that decides which rows a role may see and change; the database adds it to every query by itself. (§5.4.1)
+
 Presentation attack
 :   Showing the camera something that isn't a live face: a photo, a screen, a mask. (§1.10)
 
@@ -188,6 +194,12 @@ Request / response
 Risk budget
 :   The maximum share of dangerous mistakes a policy accepts, for example "at most 2 % of 13–17-year-olds may pass". (§3.3)
 
+Row-level security (RLS)
+:   A database feature that filters every query row by row through the table's policies, so that each tenant sees only its own rows, even if a query forgets to ask for that. (§5.4.1)
+
+Security definer function
+:   A database function that runs with the rights of its owner rather than of whoever calls it: a narrow, deliberate door past the usual rules. (§5.4.1)
+
 Server
 :   A program (or the computer running it) that waits for requests and answers them. (§0.7)
 
@@ -208,6 +220,9 @@ Table (database)
 
 Template
 :   A file with blanks (here written like `{{TITLE}}`) that a program fills in. (Part X)
+
+Tenant
+:   One customer of a shared system, whose data must stay separate from every other customer's. In Dwarpal a tenant is an organisation, or one of its projects. (§5.4.1)
 
 TLS
 :   *Transport Layer Security.* The encryption behind HTTPS. (§0.9)

@@ -15,10 +15,20 @@ from dwarpal_api.adapters.db import Base
 Timestamp = DateTime(timezone=True)
 
 
+class Organization(Base):
+    __tablename__ = "organizations"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    slug: Mapped[str] = mapped_column(String(60), unique=True)
+    created_at: Mapped[datetime] = mapped_column(Timestamp)
+
+
 class Project(Base):
     __tablename__ = "projects"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120))
     allowed_origins: Mapped[list[str]] = mapped_column(ARRAY(Text))
     created_at: Mapped[datetime] = mapped_column(Timestamp)

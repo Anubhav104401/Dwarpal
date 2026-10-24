@@ -13,6 +13,7 @@ chapters = [
   "chapters/07_part5_phase1.md",
   "chapters/08_part5_phase2.md",
   "chapters/09_part5_phase3.md",
+  "chapters/10_part5_phase4.md",
   "chapters/90_how_this_book_is_built.md",
   "chapters/98_ledger.md",
   "chapters/99_glossary.md",

@@ -1,5 +1,5 @@
 ---
-fingerprint: 89a727ac07048bab
+fingerprint: 136b007bff53164b
 ---
 The API's **settings**: every value that may differ between a laptop, the test suite and production — addresses, secrets, time limits — in one checked place. It follows the same pattern as the inference service's `settings.py` (§5.1.1), with two additions: a **secret** that must never leak into logs, and a **guard** that refuses unsafe values in production.
 
@@ -61,63 +61,66 @@ postgresql+asyncpg://dwarpal:dwarpal-local-only@127.0.0.1:5432/dwarpal
 - `5432` — PostgreSQL's standard port;
 - the final `dwarpal` — the name of the database inside the server.
 
-@@ 21
-`valkey_url` — where Valkey listens (§4.11). The scheme `redis://` means "speak the Redis language", which Valkey understands. Port `6379` is the standard one, and the `/0` picks database number 0 — Valkey keeps 16 numbered databases, and 0 is the default.
-
-@@ 22
-`inference_url` — where the inference service listens: port 8001 on this computer.
+@@ 21-22
+`database_role` — the database role the API works as: `dwarpal_app`, which the migration `v0002_tenancy.py` creates. It owns no tables, so PostgreSQL's row-level security confines it to one tenant at a time (`db.py`). `None` means "stay the login you connected as"; that is for a deployment whose login is *already* a restricted role, as production's should be (§5.4.1).
 
 @@ 23
-`inference_timeout_s` — give up on the inference service after 5 seconds. Phase 1 measured a whole burst at about 0.1 seconds (§5.1.1), so 5 seconds only ever runs out when something is wrong. The person then gets a "try again" instead of a page that hangs for ever.
+`valkey_url` — where Valkey listens (§4.11). The scheme `redis://` means "speak the Redis language", which Valkey understands. Port `6379` is the standard one, and the `/0` picks database number 0 — Valkey keeps 16 numbered databases, and 0 is the default.
 
 @@ 24
-`master_key` — the 32-byte key that **seals** the private signing keys before they are stored in the database (§4.12, `signing.py`). It is a `SecretStr`, so it never appears in logs. The default is the development key; production must provide a real one (see the guard below).
+`inference_url` — where the inference service listens: port 8001 on this computer.
 
 @@ 25
-`issuer` — the API's own public address. It is written into every age token as the `iss` ("issuer") claim, and the address of the public keys is built from it.
+`inference_timeout_s` — give up on the inference service after 5 seconds. Phase 1 measured a whole burst at about 0.1 seconds (§5.1.1), so 5 seconds only ever runs out when something is wrong. The person then gets a "try again" instead of a page that hangs for ever.
 
 @@ 26
-`verify_url` — the address of the hosted **verify page** (`apps/web`, port 3000 in development). The link a website sends its user to is built from it.
+`master_key` — the 32-byte key that **seals** the private signing keys before they are stored in the database (§4.12, `signing.py`). It is a `SecretStr`, so it never appears in logs. The default is the development key; production must provide a real one (see the guard below).
 
 @@ 27
-`cors_origins` — the web pages that are allowed to call this API *from inside a browser* (CORS, §4.13). Only the verify page needs to. A list in an environment variable is written as JSON, for example `["https://verify.example.com"]`.
+`issuer` — the API's own public address. It is written into every age token as the `iss` ("issuer") claim, and the address of the public keys is built from it.
 
 @@ 28
-`models_dir` — the folder holding model files. In containers it is set to a mounted, read-only folder.
+`verify_url` — the address of the hosted **verify page** (`apps/web`, port 3000 in development). The link a website sends its user to is built from it.
 
 @@ 29
-`age_manifest` — where, inside `models_dir`, the **manifest** of the active age model lives: the file that says which model versions are allowed and which thresholds they were calibrated for (`domain/policy.py`).
+`cors_origins` — the web pages that are allowed to call this API *from inside a browser* (CORS, §4.13). Only the verify page needs to. A list in an environment variable is written as JSON, for example `["https://verify.example.com"]`.
 
 @@ 30
-`session_ttl_s` — a verification session must be finished within **1,800 seconds (30 minutes)** of being created. "TTL" means **time to live**.
+`models_dir` — the folder holding model files. In containers it is set to a mounted, read-only folder.
 
 @@ 31
-`flow_ttl_s` — a flow token (the browser's permission to work on one session) lasts **15 minutes**.
+`age_manifest` — where, inside `models_dir`, the **manifest** of the active age model lives: the file that says which model versions are allowed and which thresholds they were calibrated for (`domain/policy.py`).
 
 @@ 32
+`session_ttl_s` — a verification session must be finished within **1,800 seconds (30 minutes)** of being created. "TTL" means **time to live**.
+
+@@ 33
+`flow_ttl_s` — a flow token (the browser's permission to work on one session) lasts **15 minutes**.
+
+@@ 34
 `challenge_ttl_s` — a challenge must be used within **2 minutes**. Frames must be captured *fresh*, not prepared in advance (Stage 3 §5).
 
-@@ 33-34
+@@ 35-36
 The comment explains the two **per-device budgets** below: how many liveness challenges one device, and one network address, may take per project in an hour. A device is the random ID the verify page keeps (`apps/web/lib/device.ts`); many people can share one network, so its budget is larger.
 
-@@ 35-36
+@@ 37-38
 `device_challenges_per_hour = 30` and `address_challenges_per_hour = 120`.
 
-@@ 38-39
+@@ 40-41
 The **production guard**. `@model_validator(mode="after")` makes Pydantic call this method after all the fields are filled in. It receives the finished settings object as `self`, and must either return it or raise an error. If it raises, the API refuses to start.
 
-@@ 40-41
+@@ 42-43
 Outside production there is nothing more to check, so the settings are returned unchanged.
 
-@@ 42-43
+@@ 44-45
 **Refuse the development key in production.** It is published in this repository, so with it anyone could unseal the signing keys and forge age tokens. The error names the exact variable to set.
 
-@@ 44-46
+@@ 46-48
 **Refuse plain `http://` addresses in production.** Over `http://`, tokens and links travel unencrypted, and anyone on the network path could read or change them (§0.9).
 
 `getattr(self, name)` reads a field whose name is held in the variable `name`, so one loop checks both fields. `name.upper()` turns `issuer` into `ISSUER`, so the message names the exact variable: `DWARPAL_ISSUER`.
 
-@@ 47
+@@ 49
 All checks passed: return the settings.
 
 !!! try "Try it yourself"

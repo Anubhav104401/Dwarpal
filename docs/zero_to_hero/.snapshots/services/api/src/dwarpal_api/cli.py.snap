@@ -22,7 +22,7 @@ from alembic.config import Config
 from sqlalchemy import select
 
 from dwarpal_api.adapters.db import make_engine, make_sessions
-from dwarpal_api.adapters.tables import ApiKey, Project, VerificationAttempt
+from dwarpal_api.adapters.tables import ApiKey, Organization, Project, VerificationAttempt
 from dwarpal_api.domain import ids
 from dwarpal_api.domain.keys import generate_api_key
 from dwarpal_api.settings import Settings
@@ -48,8 +48,14 @@ async def seed_dev(settings: Settings, origins: list[str] | None = None, livemod
     millis = int(now.timestamp() * 1000)
     engine = make_engine(settings.database_url)
     key = generate_api_key(livemode=livemode)
+    org_id = ids.uuid7(millis)
+    org = Organization(id=org_id, name="Amber Cellars Ltd (demo)", slug=f"demo-{org_id.hex}", created_at=now)
     project = Project(
-        id=ids.uuid7(millis), name="Amber Cellars (demo)", allowed_origins=origins or DEMO_ORIGINS, created_at=now
+        id=ids.uuid7(millis),
+        org_id=org.id,
+        name="Amber Cellars (demo)",
+        allowed_origins=origins or DEMO_ORIGINS,
+        created_at=now,
     )
     api_key = ApiKey(
         id=ids.uuid7(millis),
@@ -62,6 +68,8 @@ async def seed_dev(settings: Settings, origins: list[str] | None = None, livemod
         revoked_at=None,
     )
     async with make_sessions(engine)() as session:
+        session.add(org)
+        await session.flush()
         session.add(project)
         await session.flush()
         session.add(api_key)

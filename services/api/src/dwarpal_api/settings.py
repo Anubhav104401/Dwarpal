@@ -18,6 +18,8 @@ class Settings(BaseSettings):
 
     environment: Literal["development", "test", "production"] = "development"
     database_url: str = "postgresql+asyncpg://dwarpal:dwarpal-local-only@127.0.0.1:5432/dwarpal"
+    # The role the API works as: it owns no tables, so row-level security confines it to one tenant at a time.
+    database_role: str | None = "dwarpal_app"
     valkey_url: str = "redis://127.0.0.1:6379/0"
     inference_url: str = "http://127.0.0.1:8001"
     inference_timeout_s: float = 5.0

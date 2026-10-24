@@ -1,5 +1,5 @@
 ---
-fingerprint: a03c5f19af10c5d2
+fingerprint: 68ea89155b9e1cea
 ---
 The file that **assembles** the API. Every other module is a part; this one connects them in the right order when the program starts, and disconnects them when it stops. It follows the same pattern as the inference service's `main.py` (§5.1.1): an **app factory** called `create_app`.
 
@@ -37,7 +37,7 @@ Use the given settings, or read them from the environment.
 The **lifespan** function. `@asynccontextmanager` turns a function with a single `yield` into a "before and after" pair: everything before `yield` runs at start-up, and everything after it at shutdown. Defining it *inside* `create_app` lets it use `settings` and `inference_http` directly.
 
 @@ 33-34
-Create the database engine (the connection pool) and the session factory (`db.py`).
+Create the database engine (the connection pool), working as the restricted role from the settings (`dwarpal_app`, so row-level security applies to every query), and the session factory (`db.py`). The key ring just below loads the signing keys through it: they belong to Dwarpal, not to a tenant, so no tenant is needed.
 
 @@ 35
 Create the Valkey client from its URL. It connects lazily, on first use.

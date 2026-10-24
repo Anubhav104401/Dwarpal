@@ -30,7 +30,7 @@ def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClie
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        engine = make_engine(settings.database_url)
+        engine = make_engine(settings.database_url, role=settings.database_role)
         sessions = make_sessions(engine)
         valkey = Redis.from_url(settings.valkey_url)
         http = inference_http or httpx.AsyncClient(

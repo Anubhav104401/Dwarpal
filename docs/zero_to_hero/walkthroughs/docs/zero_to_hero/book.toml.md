@@ -1,5 +1,5 @@
 ---
-fingerprint: cc99b293d20dd2a8
+fingerprint: 1b9c2847d3160e41
 ---
 `book.toml` holds the book's **settings**. Keeping settings in a separate file, rather than inside `build.py`, means you can add a chapter or change the title **without touching any program code**. "Separate the *what* from the *how*" is one of the oldest good habits in software.
 
@@ -30,7 +30,7 @@ Python reads TOML with its built-in `tomllib`.
 @@ 4
 `abbreviations = "abbreviations.md"` is the file of hover definitions, which is attached to every chapter and walkthrough note when it is converted.
 
-@@ 5-19
+@@ 5-20
 `chapters = [ … ]` is the **reading order** of the book. Each line inside the brackets is one chapter file, and the order here is the order in the book. The numbers at the start of the file names only keep the folder tidy.
 
 The list grows as the project does:
@@ -43,10 +43,12 @@ The list grows as the project does:
 
 Phase 3 added `09_part5_phase3.md`: liveness and anti-spoofing (§5.3).
 
-@@ 21
+Phase 4 added `10_part5_phase4.md`: the platform (§5.4).
+
+@@ 22
 `[coverage]` starts the group of settings for the **coverage check** — which project files must have a line-by-line explanation. In Python this group is read as `config["coverage"]`.
 
-@@ 22-27
+@@ 23-28
 `include = [ … ]` lists **glob patterns** for files that count as code. In a glob, `*` means "any characters within one name", and `**` means "any number of folders, including none". The patterns cover:
 
 - Python (`.py`);
@@ -61,7 +63,7 @@ Phase 3 added `09_part5_phase3.md`: liveness and anti-spoofing (§5.3).
 
 Markdown (`.md`) is deliberately not included: it is prose, not code.
 
-@@ 28
+@@ 29
 `exclude = [ … ]` lists patterns that are removed even if they matched `include`:
 
 - the generated book itself — explaining the explainer's output would loop forever;
@@ -70,7 +72,7 @@ Markdown (`.md`) is deliberately not included: it is prose, not code.
 
 `apps/web/public/mediapipe/**` (added in Phase 3) — MediaPipe's WebAssembly loaders, copied in before each build: tens of thousands of lines of someone else's generated code.
 
-@@ 29-32
+@@ 30-33
 `prune = [ … ]` lists **folder names the scanner never enters**, because they hold things we didn't write:
 
 - Git's own history (`.git`);

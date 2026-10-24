@@ -11,6 +11,7 @@ from urllib.parse import urlencode, urlsplit
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from dwarpal_api.adapters.db import session_tenant, tenant
 from dwarpal_api.adapters.inference import InferenceClient
 from dwarpal_api.adapters.signing import KeyRing
 from dwarpal_api.adapters.store import FlowStore
@@ -107,15 +108,16 @@ async def create_session(
         expires_at=now + timedelta(seconds=svc.settings.session_ttl_s),
         completed_at=None,
     )
-    async with svc.sessions() as session:
+    async with tenant(svc.sessions, project.id) as session:
         session.add(row)
         await session.commit()
     return row, secret.plaintext
 
 
 async def start_flow(svc: Services, session_text: str, client_secret: str) -> dict[str, Any]:
-    async with svc.sessions() as session:
-        row = await load_session(session, parse_session_id(session_text), lock=True)
+    session_id = parse_session_id(session_text)
+    async with session_tenant(svc.sessions, session_id) as session:
+        row = await load_session(session, session_id, lock=True)
         if not matches(client_secret, row.client_secret_digest):
             raise ApiError(401, "invalid_client_secret", "the client secret does not match this session")
         expire_if_due(row, svc.now())
@@ -141,7 +143,7 @@ async def start_flow(svc: Services, session_text: str, client_secret: str) -> di
 async def issue_challenge(
     svc: Services, session_id: uuid.UUID, device: str | None = None, address: str | None = None
 ) -> dict[str, Any]:
-    async with svc.sessions() as session:
+    async with session_tenant(svc.sessions, session_id) as session:
         row = await load_session(session, session_id)
     if row.status != Status.IN_PROGRESS:
         raise ApiError(409, "session_not_in_progress", f"this session is {row.status}")
@@ -189,7 +191,7 @@ def attempt_scores(analysis: FaceAnalysis | None, decision: Decision) -> dict[st
 async def submit_face_attempt(
     svc: Services, session_id: uuid.UUID, challenge_id: str, meta: FaceRequestMeta, frames: list[bytes]
 ) -> tuple[Decision, int]:
-    async with svc.sessions() as session:
+    async with session_tenant(svc.sessions, session_id) as session:
         if (await load_session(session, session_id)).status != Status.IN_PROGRESS:
             raise ApiError(409, "session_not_in_progress", "this session is not accepting attempts")
     challenge = await svc.store.take_challenge(challenge_id, session_id)
@@ -197,7 +199,7 @@ async def submit_face_attempt(
         raise ApiError(409, "challenge_invalid", "the challenge is unknown, expired or already used")
     # The frames are judged against what the server asked for, never against what the browser says it was asked.
     analysis = await svc.inference.analyze_face(meta.model_copy(update={"challenge": challenge}), frames)
-    async with svc.sessions() as session:
+    async with session_tenant(svc.sessions, session_id) as session:
         row = await load_session(session, session_id, lock=True)
         now = svc.now()
         expire_if_due(row, now)
@@ -248,7 +250,7 @@ async def submit_face_attempt(
 
 
 async def finish(svc: Services, session_id: uuid.UUID) -> str | None:
-    async with svc.sessions() as session:
+    async with session_tenant(svc.sessions, session_id) as session:
         row = await load_session(session, session_id)
     if row.status not in (Status.COMPLETED, Status.AWAITING_STEP_UP):
         raise ApiError(409, "session_not_finished", f"this session is {row.status}")
@@ -272,7 +274,7 @@ def created_view(svc: Services, row: VerificationSession, client_secret: str) ->
 
 
 async def result_view(svc: Services, session_text: str, project_id: uuid.UUID, livemode: bool) -> dict[str, Any]:
-    async with svc.sessions() as session:
+    async with tenant(svc.sessions, project_id) as session:
         row = await load_session(session, parse_session_id(session_text))
         if row.project_id != project_id or row.livemode != livemode:
             raise ApiError(404, "session_not_found", "no such verification session")

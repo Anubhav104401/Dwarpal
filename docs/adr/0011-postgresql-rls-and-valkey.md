@@ -15,3 +15,8 @@ Multi-tenant data must never leak between relying parties, even if application c
 
 ## Alternatives considered
 Application-only tenant filtering (one forgotten `WHERE` leaks data), schema-per-tenant or database-per-tenant (operationally heavy), Redis 8 (licence: AGPL/RSAL/SSPL options) — Valkey is protocol-compatible and BSD-licensed.
+
+## Amendment — 2026-10-24 (Phase 4, step 1)
+- Tenant tables use `ENABLE ROW LEVEL SECURITY` without `FORCE`. Two `SECURITY DEFINER` look-ups (`dwarpal_find_api_key`, `dwarpal_session_project`) run as the table owner and must see past the policies, because they answer "whose key / whose session is this?" before a tenant is known. The application role `dwarpal_app` owns no tables, so `ENABLE` binds it fully; tests prove it.
+- The tenant is named with `set_config('app.project_id' | 'app.org_id', value, true)`, the parameterised equivalent of `SET LOCAL`.
+- Until deployment (Phase 7) the API logs in as the owner and switches with `SET ROLE dwarpal_app` on each new connection. Production must log in as a separate user that is only a member of `dwarpal_app` (and leave `DWARPAL_DATABASE_ROLE` empty), so that no statement can `RESET ROLE` back to the owner.

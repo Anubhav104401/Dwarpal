@@ -1,5 +1,5 @@
 ---
-fingerprint: 9cd77a909033ec45
+fingerprint: 8a73b21f88037a70
 ---
 A small **command-line tool** for two jobs a developer needs before the API is useful:
 
@@ -35,7 +35,7 @@ Alembic's ready-made commands (`command.upgrade` and friends), and its `Config` 
 SQLAlchemy's `select`, to read the attempts for the report.
 
 @@ 24-28
-Our database helpers, the tables — the two the seed fills, and `VerificationAttempt`, which the report reads — the ID helpers, the key generator, and the settings.
+Our database helpers, the tables — the three the seed fills (`Organization` since Phase 4), and `VerificationAttempt`, which the report reads — the ID helpers, the key generator, and the settings.
 
 @@ 30
 `MIGRATIONS` — the folder holding `env.py` and the migrations, found next to this file. Installed packages have no `alembic.ini` file, so the configuration is built in code instead.
@@ -65,134 +65,137 @@ Return the configuration.
 Read the clock once, in UTC and in milliseconds.
 
 @@ 49
-A database engine for this one job.
+A database engine for this one job. No `role` is given, so it keeps the rights of the login that owns the tables: creating a customer is an operator's job, done before any tenant exists, and the policies don't bind the tables' owner (§5.4.1).
 
 @@ 50
 A new key: test by default.
 
-@@ 51-53
-The project row: a new ID, the demo name, its allowed web addresses (the given ones, or the defaults), and the creation time.
+@@ 51-52
+The demo **organisation** (Phase 4): a new ID, a name, and a slug made from that ID (`.hex` is the UUID's 32 hexadecimal digits without dashes), so seeding twice can't collide on the unique slug.
 
-@@ 54-63
+@@ 53-59
+The project row: a new ID, the organisation that owns it, the demo name, its allowed web addresses (the given ones, or the defaults), and the creation time.
+
+@@ 60-69
 The key row: its own ID, the project it belongs to, its mode, its lookup and **digest** (never the key itself), a label, the creation time, and not revoked.
 
-@@ 64-68
-Save both in one transaction. `flush()` sends the project to the database *before* the key is added: the key's foreign key must point at a project row that already exists.
+@@ 70-76
+Save all three in one transaction, parents first. Each `flush()` sends what has been added so far to the database *before* the next row is added. The project's foreign key must point at an organisation that already exists, and the key's at a project that already exists.
 
-@@ 69
+@@ 77
 Close the engine's connections; this was a one-off job.
 
-@@ 70
+@@ 78
 Return the project's public ID (`prj_…`) and the plain key — the only moment the key exists in plain form.
 
-@@ 73-74
+@@ 81-82
 **`liveness_summary`** (Phase 3) — turn a list of face attempts into a short, readable report. Each attempt is a pair: its outcome (such as `retry`) and its stored scores. It is a separate, plain function — no database — so a test can call it with made-up attempts.
 
 Its purpose is **measuring the liveness checks on real people**. If the owner makes, say, 30 genuine attempts, every failed pose challenge among them is a **false reject**: an honest person turned away. This report gives that rate, and the light measurements, from which the thresholds can be set (§5.3).
 
-@@ 75
+@@ 83
 Count the outcomes: how many passes, retries, rejections and so on. `Counter` does the counting.
 
-@@ 76
+@@ 84
 Pick out the liveness part of each attempt's scores, skipping attempts that have none (for example, ones whose analysis failed). `scores.get("liveness")` gives `None` instead of an error when the key is missing.
 
-@@ 77
+@@ 85
 Count the kinds of evidence: `images` (measured) or `labels` (the test mode). A report on genuine attempts should show only `images`.
 
-@@ 78
+@@ 86
 The pose results, where there was one.
 
-@@ 79
+@@ 87
 Count every problem name over all pose results — `wrong_order`, `not_shown:turn_left` and so on. The double `for` reads left to right: for each pose result, for each of its problems.
 
-@@ 80
+@@ 88
 Count the injection signs the same way.
 
-@@ 81
+@@ 89
 How many attempts showed the screen colours at all. `.get("shown", True)` treats results stored before this field existed as shown.
 
-@@ 82
+@@ 90
 The light results that could actually be measured (`usable`).
 
-@@ 83
+@@ 91
 The skin correlations among them, leaving out any that are missing.
 
-@@ 84
+@@ 92
 How many pose challenges passed. `sum` of `True`/`False` values counts the `True`s, because Python treats `True` as 1.
 
-@@ 85
+@@ 93
 **How far each pose got**, gathered by pose name: `reach` maps a name such as `turn_left` to the list of its values. `dict[str, list[float]]` is the type: text keys, lists of numbers as values.
 
-@@ 86-89
+@@ 94-97
 For each pose result, for each `[name, value]` pair it recorded, add the value to its name's list — skipping `None`, which means there was no face to measure. `pose.get("reached", [])` gives an empty list for results stored before this field existed. `setdefault(name, [])` returns the name's list, creating an empty one first if needed.
 
-@@ 90
+@@ 98
 One short text per pose name: the **median** and the **lowest** value, such as `turn_left +0.42 / +0.29`. The lowest matters most: it is the honest attempt that came closest to failing, and it shows how much room the limit leaves. `sorted(…)` puts the names in alphabetical order.
 
-@@ 91
+@@ 99
 Which measurement each pose check used, counted.
 
-@@ 92-94
+@@ 100-102
 The presentation evidence, gathered over the attempts: the real-face chances, the screen patterns, and for every pose whether it was caught mid-turn (`True`/`False`). `.get(…)` skips results stored before these fields existed.
 
-@@ 95-96
+@@ 103-104
 Build the report line by line. The first: the number of attempts and each outcome with its count, most common first. `", ".join(…)` puts commas between the parts.
 
-@@ 97
+@@ 105
 The evidence counts — or `none`. `or "none"` works because an empty text counts as false.
 
-@@ 98-103
+@@ 106-111
 How many pose challenges passed, as a count and a percentage (`:.0%` formats 0.9 as `90%`), and the **false-reject rate if every attempt was genuine** — the share that failed. The extra part is added only if there were pose results (`if poses else ""`), which also avoids dividing by zero.
 
-@@ 104-107
+@@ 112-115
 The pose problems, the measurement used, how far each pose got (median and lowest — the numbers from which the pose limits are set), and the injection signs, each with its count, or `none`.
 
-@@ 108-111
+@@ 116-119
 **The presentation line**: the real-face chance's median and lowest value (or `not measured`), the screen pattern's median, and how many poses were caught mid-turn. `sum` of `True`/`False` values counts the `True`s.
 
-@@ 112-117
+@@ 120-125
 How many attempts showed the colours and how many had a usable light measurement, and — if there were any skin correlations — their **median** (the middle value, which one odd attempt can't drag far) and their range. `:+.2f` prints a number with two decimals and always a sign, such as `+0.62`.
 
-@@ 118-119
+@@ 126-127
 Close the list, and join the lines with line breaks into one text.
 
-@@ 122
+@@ 130
 **`liveness_report`** — read the attempts from the database and summarise them. It is `async` because the database code is.
 
-@@ 123-124
+@@ 131-132
 Connect to the database and open a session.
 
-@@ 125-131
+@@ 133-139
 Fetch only two columns — the outcome and the scores — of every **face** attempt created at or after `since`. `.all()` returns the rows.
 
-@@ 132
+@@ 140
 Close the connection.
 
-@@ 133
+@@ 141
 Turn each row into an (outcome, scores) pair and summarise them.
 
-@@ 136
+@@ 144
 **`main`** — what runs when the module is started as a program. `argv` lets tests pass arguments directly; normally it is `None`, and `argparse` reads the real command line.
 
-@@ 137-140
+@@ 145-148
 Describe the tool, accept exactly one command — `migrate`, `seed-dev` or `liveness-report` — and the optional `--since`, and read them. `type=datetime.fromisoformat` converts the text (such as `2026-10-17T12:00`) into a date and time; a malformed one is refused with a message. Anything else prints a helpful usage message and stops.
 
-@@ 141-144
+@@ 149-152
 `migrate`: apply the migrations, say so, and return `0` (success).
 
-@@ 145-148
+@@ 153-156
 `liveness-report`: from `--since`, or from 24 hours ago if it was left out. A time typed without a time zone is taken as UTC (`replace(tzinfo=UTC)`), because the database stores times in UTC and can't compare them with a time that has none. Print the report and return `0`.
 
-@@ 149
+@@ 157
 Otherwise, `seed-dev`: run the async seed with the normal settings. `asyncio.run` starts the async engine, runs the function to the end, and returns its result.
 
-@@ 150
+@@ 158
 Print the project ID and the key, with a reminder to store the key now. `\n` inside the text starts a new line.
 
 The message uses only plain ASCII characters. An earlier version contained a long dash `—`, which came out as `�` when the output was saved to a file on Windows: Python then writes text with Windows' older character table, which other tools don't expect.
 
-@@ 151
+@@ 159
 Success.
 
-@@ 154-155
+@@ 162-163
 Run `main` only when the module is started as a program, and hand its result to the operating system as the **exit code**: `0` means success, anything else failure (§4.6).

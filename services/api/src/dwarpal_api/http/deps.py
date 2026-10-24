@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from typing import Annotated, cast
 
 from fastapi import Depends, Header, Request
-from sqlalchemy import select
 
-from dwarpal_api.adapters.tables import ApiKey, Project
+from dwarpal_api.adapters.db import FIND_API_KEY, name_tenant
+from dwarpal_api.adapters.tables import Project
 from dwarpal_api.app.verification import Services, parse_session_id
 from dwarpal_api.domain.keys import matches, parse_api_key
 from dwarpal_api.errors import ApiError
@@ -39,11 +39,13 @@ async def rp_caller(
         raise ApiError(401, "invalid_api_key", "send your secret key as: Authorization: Bearer dk_test_…")
     livemode, lookup = parsed
     async with svc.sessions() as session:
-        key = await session.scalar(select(ApiKey).where(ApiKey.lookup == lookup))
+        key = (await session.execute(FIND_API_KEY, {"lookup": lookup})).one_or_none()
         if key is None or key.revoked_at is not None or key.livemode != livemode:
             raise ApiError(401, "invalid_api_key", "this API key is unknown or revoked")
         if not matches(credential, key.secret_digest):
             raise ApiError(401, "invalid_api_key", "this API key is unknown or revoked")
+        # From here on, this unit of work sees only the key's own project.
+        await name_tenant(session, project_id=key.project_id)
         project = await session.get(Project, key.project_id)
     if project is None:
         raise ApiError(401, "invalid_api_key", "this API key belongs to no project")

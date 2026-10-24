@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -19,13 +21,24 @@ from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
 from joserfc import jwt
 from joserfc.jwk import KeySet
+from sqlalchemy import func, select, text, update
 from sqlalchemy.engine import Connection
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import create_async_engine
 from testcontainers.community.postgres import PostgresContainer
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
-from dwarpal_api.adapters.tables import METADATA
+from dwarpal_api.adapters.db import make_engine, make_sessions, tenant
+from dwarpal_api.adapters.tables import (
+    METADATA,
+    ApiKey,
+    IssuedToken,
+    Organization,
+    Project,
+    VerificationAttempt,
+    VerificationSession,
+)
 from dwarpal_api.cli import migrate, seed_dev
 from dwarpal_api.main import create_app as create_api
 from dwarpal_api.settings import Settings
@@ -386,3 +399,127 @@ async def test_one_device_gets_only_so_many_challenges_however_many_sessions_it_
     assert [r.status_code for r in same] == [200, 200, 429]
     assert same[2].json()["code"] == "too_many_attempts"
     assert other.status_code == 200
+
+
+TENANT_TABLES = (Organization, Project, ApiKey, VerificationSession, VerificationAttempt, IssuedToken)
+NOT_TENANT_DATA = {"alembic_version", "signing_keys"}
+
+
+def a_session(project_id: uuid.UUID, now: datetime) -> VerificationSession:
+    return VerificationSession(
+        id=uuid.uuid4(),
+        project_id=project_id,
+        livemode=False,
+        policy_id="uk_osa_18",
+        status="created",
+        outcome=None,
+        client_secret_digest=bytes(32),
+        return_url=None,
+        external_ref=None,
+        attempts_count=0,
+        model_version=None,
+        created_at=now,
+        expires_at=now,
+        completed_at=None,
+    )
+
+
+async def two_organisations(database_url: str) -> dict[str, uuid.UUID]:
+    """Made as the tables' owner: organisation A with projects a1 and a2, organisation B with project b1, and one
+    verification session in each project."""
+    now = datetime.now(UTC)
+    made = {name: uuid.uuid4() for name in ("org_a", "org_b", "a1", "a2", "b1")}
+    engine = make_engine(database_url)
+    async with make_sessions(engine)() as session:
+        for org in ("org_a", "org_b"):
+            session.add(Organization(id=made[org], name=org, slug=f"{org}-{made[org].hex}", created_at=now))
+        await session.flush()
+        for project, org in (("a1", "org_a"), ("a2", "org_a"), ("b1", "org_b")):
+            session.add(Project(id=made[project], org_id=made[org], name=project, allowed_origins=[], created_at=now))
+        await session.flush()
+        session.add_all([a_session(made[project], now) for project in ("a1", "a2", "b1")])
+        await session.commit()
+    await engine.dispose()
+    return made
+
+
+@pytest.mark.anyio
+async def test_each_tenant_sees_only_its_own_rows_and_no_tenant_sees_nothing(databases: tuple[str, str]) -> None:
+    made = await two_organisations(databases[0])
+    engine = make_engine(databases[0], role="dwarpal_app")
+    sessions = make_sessions(engine)
+    try:
+        async with sessions() as session:
+            unnamed = [await session.scalar(select(func.count()).select_from(table)) for table in TENANT_TABLES]
+            await session.rollback()
+            role = await session.scalar(text("SELECT current_user"))
+        async with tenant(sessions, project_id=made["a1"]) as session:
+            project_sees = set(await session.scalars(select(VerificationSession.project_id)))
+            project_org = set(await session.scalars(select(Organization.id)))
+        async with tenant(sessions, org_id=made["org_a"]) as session:
+            org_sees = set(await session.scalars(select(Project.id)))
+    finally:
+        await engine.dispose()
+    assert role == "dwarpal_app"  # still the restricted role after a rollback
+    assert unnamed == [0] * len(TENANT_TABLES)
+    assert project_sees == {made["a1"]}
+    assert project_org == {made["org_a"]}
+    assert org_sees == {made["a1"], made["a2"]}
+
+
+@pytest.mark.anyio
+async def test_a_tenant_cannot_write_another_tenants_rows_or_switch_the_policies_off(
+    databases: tuple[str, str],
+) -> None:
+    made = await two_organisations(databases[0])
+    engine = make_engine(databases[0], role="dwarpal_app")
+    sessions = make_sessions(engine)
+    try:
+        with pytest.raises(DBAPIError, match="row-level security"):
+            async with tenant(sessions, project_id=made["a1"]) as session:
+                session.add(a_session(made["b1"], datetime.now(UTC)))
+                await session.commit()
+        async with tenant(sessions, project_id=made["a1"]) as session:
+            expire_b1 = update(VerificationSession).where(VerificationSession.project_id == made["b1"])
+            changed = (
+                await session.execute(expire_b1.values(status="expired").returning(VerificationSession.id))
+            ).all()
+            await session.commit()
+            # The tenant was named for one transaction only: the next one, in the same unit of work, sees nothing.
+            after_commit = await session.scalar(select(func.count()).select_from(VerificationSession))
+        with pytest.raises(DBAPIError, match="must be owner"):
+            async with sessions() as session:
+                await session.execute(text("ALTER TABLE projects DISABLE ROW LEVEL SECURITY"))
+    finally:
+        await engine.dispose()
+    assert changed == []
+    assert after_commit == 0
+
+
+@pytest.mark.anyio
+async def test_one_websites_key_cannot_read_another_websites_session(databases: tuple[str, str]) -> None:
+    async with harness(databases) as h:
+        created = (await create(h)).json()
+        settings = Settings(environment="test", database_url=databases[0], valkey_url=databases[1])
+        _, other_key = await seed_dev(settings)
+        foreign = await h.client.get(
+            f"/v1/verification-sessions/{created['id']}", headers={"Authorization": f"Bearer {other_key}"}
+        )
+        own = await h.client.get(
+            f"/v1/verification-sessions/{created['id']}", headers={"Authorization": f"Bearer {h.key}"}
+        )
+    assert foreign.status_code == 404
+    assert foreign.json()["code"] == "session_not_found"
+    assert own.status_code == 200
+
+
+def test_every_table_but_dwarpals_own_has_row_level_security(databases: tuple[str, str]) -> None:
+    async def unprotected() -> set[str]:
+        engine = create_async_engine(databases[0])
+        async with engine.connect() as connection:
+            query = "SELECT relname FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind = 'r'"
+            found = set(await connection.scalars(text(f"{query} AND NOT relrowsecurity")))
+        await engine.dispose()
+        return found
+
+    assert asyncio.run(unprotected()) == NOT_TENANT_DATA
