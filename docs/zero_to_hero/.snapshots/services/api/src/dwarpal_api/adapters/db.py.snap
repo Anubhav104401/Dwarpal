@@ -21,7 +21,9 @@ NAME_SESSION_TENANT = text(
     "SELECT set_config('app.project_id', coalesce(dwarpal_session_project(:session)::text, ''), true)"
 )
 # An API key is checked before its tenant is known, so it is read through a function that the policies don't bind.
-FIND_API_KEY = text("SELECT id, project_id, livemode, secret_digest, revoked_at FROM dwarpal_find_api_key(:lookup)")
+FIND_API_KEY = text(
+    "SELECT id, project_id, livemode, secret_digest, revoked_at, scopes, expires_at FROM dwarpal_find_api_key(:lookup)"
+)
 
 
 class Base(DeclarativeBase):

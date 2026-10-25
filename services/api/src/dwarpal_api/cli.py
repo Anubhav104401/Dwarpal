@@ -4,6 +4,11 @@ recent liveness results.
 uv run --package dwarpal-api python -m dwarpal_api.cli migrate
 uv run --package dwarpal-api python -m dwarpal_api.cli seed-dev
 uv run --package dwarpal-api python -m dwarpal_api.cli liveness-report --since 2026-10-17T12:00
+uv run --package dwarpal-api python -m dwarpal_api.cli rotate-key --lookup <key id> [--grace-hours 24]
+uv run --package dwarpal-api python -m dwarpal_api.cli revoke-key --lookup <key id>
+uv run --package dwarpal-api python -m dwarpal_api.cli deliver-webhooks [--once]
+uv run --package dwarpal-api python -m dwarpal_api.cli maintain
+uv run --package dwarpal-api python -m dwarpal_api.cli verify-audit
 """
 
 from __future__ import annotations
@@ -17,17 +22,22 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import httpx
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import select
 
 from dwarpal_api.adapters.db import make_engine, make_sessions
+from dwarpal_api.adapters.signing import MasterKey
 from dwarpal_api.adapters.tables import ApiKey, Organization, Project, VerificationAttempt
+from dwarpal_api.app import audit, maintenance
+from dwarpal_api.app.delivery import Deliverer
 from dwarpal_api.domain import ids
-from dwarpal_api.domain.keys import generate_api_key
+from dwarpal_api.domain.keys import SCOPES, generate_api_key
 from dwarpal_api.settings import Settings
 
 MIGRATIONS = Path(__file__).resolve().parent / "migrations"
+OPERATOR = ("operator", "cli")  # how the audit log names a change made with these tools
 DEMO_ORIGINS = ["http://localhost:3000", "http://localhost:3100"]
 
 
@@ -43,7 +53,9 @@ def migrate(database_url: str | None = None) -> None:
     command.upgrade(migration_config(database_url), "head")
 
 
-async def seed_dev(settings: Settings, origins: list[str] | None = None, livemode: bool = False) -> tuple[str, str]:
+async def seed_dev(
+    settings: Settings, origins: list[str] | None = None, livemode: bool = False, scopes: list[str] | None = None
+) -> tuple[str, str]:
     now = datetime.now(UTC)
     millis = int(now.timestamp() * 1000)
     engine = make_engine(settings.database_url)
@@ -64,7 +76,9 @@ async def seed_dev(settings: Settings, origins: list[str] | None = None, livemod
         lookup=key.lookup,
         secret_digest=key.digest,
         name="demo shop",
+        scopes=scopes if scopes is not None else sorted(SCOPES),
         created_at=now,
+        expires_at=None,
         revoked_at=None,
     )
     async with make_sessions(engine)() as session:
@@ -73,9 +87,108 @@ async def seed_dev(settings: Settings, origins: list[str] | None = None, livemod
         session.add(project)
         await session.flush()
         session.add(api_key)
+        facts = {"scopes": api_key.scopes, "livemode": livemode}
+        await audit.record(session, org.id, OPERATOR, "api_key.created", key.lookup, facts, now)
         await session.commit()
     await engine.dispose()
     return ids.encode("prj", project.id), key.plaintext
+
+
+async def rotate_key(settings: Settings, lookup: str, grace: timedelta) -> str:
+    """Make a replacement for a key, with the same project, mode, name and scopes; the old key keeps working for
+    `grace`, so a website can switch over without a moment in which neither key works. Returns the new key."""
+    now = datetime.now(UTC)
+    engine = make_engine(settings.database_url)
+    try:
+        async with make_sessions(engine)() as session:
+            old = await session.scalar(select(ApiKey).where(ApiKey.lookup == lookup).with_for_update())
+            if old is None or old.revoked_at is not None or (old.expires_at is not None and old.expires_at <= now):
+                raise SystemExit(f"no working key with the id {lookup!r}")
+            key = generate_api_key(livemode=old.livemode)
+            session.add(
+                ApiKey(
+                    id=ids.uuid7(int(now.timestamp() * 1000)),
+                    project_id=old.project_id,
+                    livemode=old.livemode,
+                    lookup=key.lookup,
+                    secret_digest=key.digest,
+                    name=old.name,
+                    scopes=list(old.scopes),
+                    created_at=now,
+                    expires_at=None,
+                    revoked_at=None,
+                )
+            )
+            ends = now + grace
+            old.expires_at = ends if old.expires_at is None else min(old.expires_at, ends)
+            project = await session.get(Project, old.project_id)
+            if project is not None:
+                facts = {"replaced_by": key.lookup, "old_key_expires_at": old.expires_at.isoformat()}
+                await audit.record(session, project.org_id, OPERATOR, "api_key.rotated", lookup, facts, now)
+            await session.commit()
+    finally:
+        await engine.dispose()
+    return key.plaintext
+
+
+async def revoke_key(settings: Settings, lookup: str) -> bool:
+    """Stop a key at once (for a key that leaked). Returns whether there was such a key still working."""
+    engine = make_engine(settings.database_url)
+    try:
+        async with make_sessions(engine)() as session:
+            key = await session.scalar(select(ApiKey).where(ApiKey.lookup == lookup, ApiKey.revoked_at.is_(None)))
+            if key is not None:
+                key.revoked_at = datetime.now(UTC)
+                project = await session.get(Project, key.project_id)
+                if project is not None:
+                    await audit.record(session, project.org_id, OPERATOR, "api_key.revoked", lookup, {}, key.revoked_at)
+                await session.commit()
+    finally:
+        await engine.dispose()
+    return key is not None
+
+
+async def deliver_webhooks(settings: Settings, once: bool = False) -> None:
+    """Run the webhook delivery worker (app/delivery.py) as the tables' owner, until stopped (or once)."""
+    engine = make_engine(settings.database_url)
+    async with httpx.AsyncClient(timeout=settings.webhook_timeout_s) as http:
+        deliverer = Deliverer(
+            make_sessions(engine),
+            MasterKey(settings.master_key.get_secret_value()),
+            http,
+            lambda: datetime.now(UTC),
+            allow_private=settings.webhook_allow_private,
+        )
+        try:
+            await deliverer.run(settings.webhook_poll_s, once=once)
+        finally:
+            await engine.dispose()
+
+
+async def maintain(settings: Settings, now: datetime | None = None) -> str:
+    """The scheduled jobs, once: expire abandoned sessions (announcing each), then purge what is past retention."""
+    now = now or datetime.now(UTC)
+    engine = make_engine(settings.database_url)
+    try:
+        sessions = make_sessions(engine)
+        expired = await maintenance.sweep_expired(sessions, lambda: ids.uuid7(int(now.timestamp() * 1000)), now)
+        purged = await maintenance.purge(sessions, now)
+    finally:
+        await engine.dispose()
+    return f"expired {expired} sessions; purged {purged.sessions} sessions and {purged.events} events"
+
+
+async def verify_audit(settings: Settings) -> tuple[str, bool]:
+    """Check every organisation's audit chain; the text names each broken one and its first bad entry."""
+    engine = make_engine(settings.database_url)
+    try:
+        reports = await maintenance.verify_all_chains(make_sessions(engine))
+    finally:
+        await engine.dispose()
+    broken = {org: r for org, r in reports.items() if not r.intact}
+    lines = [f"{len(reports)} organisations, {sum(r.entries for r in reports.values())} audit entries checked"]
+    lines += [f"BROKEN: {ids.encode('org', org)} at entry {r.first_broken}" for org, r in broken.items()]
+    return "\n".join(lines + ([] if broken else ["every chain is intact"])), not broken
 
 
 def liveness_summary(attempts: list[tuple[str, dict[str, Any]]]) -> str:
@@ -143,8 +256,21 @@ async def liveness_report(settings: Settings, since: datetime) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="dwarpal-api", description="Dwarpal API helpers")
-    parser.add_argument("command", choices=["migrate", "seed-dev", "liveness-report"])
+    commands = [
+        "migrate",
+        "seed-dev",
+        "liveness-report",
+        "rotate-key",
+        "revoke-key",
+        "deliver-webhooks",
+        "maintain",
+        "verify-audit",
+    ]
+    parser.add_argument("command", choices=commands)
     parser.add_argument("--since", type=datetime.fromisoformat, help="liveness-report: attempts from this time on")
+    parser.add_argument("--lookup", help="rotate-key, revoke-key: the key's id (the 12 characters after dk_test_)")
+    parser.add_argument("--grace-hours", type=float, default=24.0, help="rotate-key: how long the old key still works")
+    parser.add_argument("--once", action="store_true", help="deliver-webhooks: send what is due now, then stop")
     args = parser.parse_args(argv)
     if args.command == "migrate":
         migrate()
@@ -154,8 +280,29 @@ def main(argv: list[str] | None = None) -> int:
         since = args.since or datetime.now(UTC) - timedelta(days=1)
         print(asyncio.run(liveness_report(Settings(), since if since.tzinfo else since.replace(tzinfo=UTC))))
         return 0
+    if args.command == "deliver-webhooks":
+        asyncio.run(deliver_webhooks(Settings(), once=args.once))
+        return 0
+    if args.command == "maintain":
+        print(asyncio.run(maintain(Settings())))
+        return 0
+    if args.command == "verify-audit":
+        report, intact = asyncio.run(verify_audit(Settings()))
+        print(report)
+        return 0 if intact else 1
+    if args.command in ("rotate-key", "revoke-key") and not args.lookup:
+        parser.error(f"{args.command} needs --lookup")
+    if args.command == "rotate-key":
+        plaintext = asyncio.run(rotate_key(Settings(), args.lookup, timedelta(hours=args.grace_hours)))
+        print(f"new key: {plaintext}\n(store it now; it is shown only once. The old key stops in {args.grace_hours} h)")
+        return 0
+    if args.command == "revoke-key":
+        revoked = asyncio.run(revoke_key(Settings(), args.lookup))
+        print("revoked" if revoked else f"no working key with the id {args.lookup!r}")
+        return 0 if revoked else 1
     project_id, plaintext = asyncio.run(seed_dev(Settings()))
-    print(f"project:  {project_id}\ntest key: {plaintext}\n(store the key now; it is shown only once)")
+    print(f"project:  {project_id}\ntest key: {plaintext}\nkey id:   {plaintext[8:20]}")
+    print("(store the key now; it is shown only once)")
     return 0
 
 

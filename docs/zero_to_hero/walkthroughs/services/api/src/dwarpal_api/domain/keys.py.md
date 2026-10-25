@@ -1,5 +1,5 @@
 ---
-fingerprint: cd6c376ce58e2aad
+fingerprint: d8d83b57686e02ad
 ---
 The two kinds of **secret** the API hands out:
 
@@ -32,7 +32,10 @@ The tools:
 @@ 10
 `LOOKUP_LENGTH = 12` — how many characters of a key are stored *in plain text* as its **lookup**: a label that finds the key's row in the database quickly. The rest of the key stays secret.
 
-@@ 13-17
+@@ 11-13
+`SCOPES` — every scope a key can have: read sessions' results, create sessions, add policy versions, and manage webhooks. A key gets a subset of these; each endpoint asks for the one it needs (`http/deps.py`, `needs`).
+
+@@ 16-20
 **`NewSecret`** — what generating a secret produces:
 
 - `plaintext` — the secret itself, shown to its owner **once** and never stored;
@@ -41,10 +44,10 @@ The tools:
 
 `frozen=True` makes it read-only once made.
 
-@@ 20-21
+@@ 23-24
 **`digest`** — encode the text as UTF-8 bytes, run SHA-256 over them, and return the 32-byte result.
 
-@@ 24-25
+@@ 27-28
 **`matches`** — does a secret that just arrived match a stored digest? It fingerprints the arrival and compares with `hmac.compare_digest`, which takes the **same time** whether the first byte differs or the last.
 
 !!! kid "Explain like I'm six — the slow and the careful guard"
@@ -52,35 +55,35 @@ The tools:
 
 That trick is called a **timing attack**. Comparing digests instead of the secrets themselves already blunts it, and constant-time comparison closes it completely — the standard habit for anything secret.
 
-@@ 28
+@@ 31
 **`generate_api_key`** — make a new key; `livemode` chooses between test and live.
 
-@@ 29
+@@ 32
 32 secure random bytes, written as **URL-safe Base64**: 43 characters using only `A`–`Z`, `a`–`z`, `0`–`9`, `-` and `_`, so a key can be pasted anywhere without escaping.
 
-@@ 30
+@@ 33
 Put the prefix in front: `dk_live_` or `dk_test_`. The expression `'live' if livemode else 'test'` chooses one of two values in a single line.
 
-@@ 31
+@@ 34
 Package it all: the full key, the first 12 characters of the random part as the lookup, and the digest of the *whole* key. Knowing the lookup doesn't help an attacker: the other 31 characters still hold about 186 bits of randomness.
 
-@@ 34
+@@ 37
 **`parse_api_key`** — read the mode and the lookup from a key that arrived, *before* any database work. It returns `None` for anything that isn't shaped like one of our keys. `tuple[bool, str] | None` says: either a (mode, lookup) pair, or nothing.
 
-@@ 35
+@@ 38
 Try each known prefix, with the mode it stands for.
 
-@@ 36-37
+@@ 39-40
 If the text starts with this prefix and is long enough to hold more than a lookup, return the mode and the 12 lookup characters. `text[a : b]` is a **slice**: the characters from position `a` up to (not including) `b`.
 
-@@ 38
+@@ 41
 No prefix matched: not one of our keys.
 
-@@ 41
+@@ 44
 **`generate_client_secret`** — make the one-time secret for a session. It receives the session's public ID.
 
-@@ 42
+@@ 45
 The secret is `vs_…_secret_` followed by 24 random bytes (32 characters). It **names its session**, which helps a person debugging a problem, and binds the secret to exactly one session — the digest covers the ID too.
 
-@@ 43
+@@ 46
 Package it. For client secrets the session ID itself is the lookup: the session's row is found by its ID, and then the digest is checked.

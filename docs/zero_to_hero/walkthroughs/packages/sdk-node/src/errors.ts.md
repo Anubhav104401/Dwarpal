@@ -1,5 +1,5 @@
 ---
-fingerprint: 8a41486bbada58bc
+fingerprint: cfe7171036fa7b2b
 ---
 The SDK's two kinds of error. A website's code can tell them apart with `instanceof`, and react differently: an `AgeTokenError` means "don't let this person in"; a `DwarpalApiError` carries the API's own explanation.
 
@@ -38,3 +38,6 @@ The doc comment for the second error: an age token that failed any check.
 
 @@ 17-19
 `AgeTokenError` needs nothing beyond its own name: the message says what went wrong, and `cause` (set where it is thrown, in `token.ts`) holds the original error from jose, for debugging.
+
+@@ 21-24
+**`WebhookSignatureError`** — a webhook failed verification (`webhook.ts`): its signature header was missing, malformed, too old, or didn't match. Like `AgeTokenError`, it is its own class, so a website can catch exactly this failure.

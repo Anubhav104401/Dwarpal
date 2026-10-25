@@ -18,9 +18,10 @@ from dwarpal_api.adapters.db import make_engine, make_sessions
 from dwarpal_api.adapters.inference import InferenceClient
 from dwarpal_api.adapters.signing import KeyRing, MasterKey
 from dwarpal_api.adapters.store import FlowStore
+from dwarpal_api.app import idempotency
 from dwarpal_api.app.verification import Services
 from dwarpal_api.domain.policy import load_manifest
-from dwarpal_api.http import flow, health, problems, rp, wellknown
+from dwarpal_api.http import analytics, flow, health, policies, problems, rp, tokens, webhooks, wellknown
 from dwarpal_api.http.limits import BodyLimit
 from dwarpal_api.settings import Settings
 
@@ -36,7 +37,8 @@ def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClie
         http = inference_http or httpx.AsyncClient(
             base_url=settings.inference_url, timeout=settings.inference_timeout_s
         )
-        keyring = KeyRing(MasterKey(settings.master_key.get_secret_value()))
+        master = MasterKey(settings.master_key.get_secret_value())
+        keyring = KeyRing(master)
         async with sessions() as session:
             await keyring.load(session, datetime.now(UTC))
         app.state.services = Services(
@@ -46,6 +48,8 @@ def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClie
             inference=InferenceClient(http),
             keyring=keyring,
             manifest=load_manifest(settings.models_dir / settings.age_manifest),
+            idempotency_secret=idempotency.server_secret(settings.master_key.get_secret_value()),
+            master=master,
         )
         try:
             yield
@@ -65,6 +69,6 @@ def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClie
         expose_headers=["X-Request-Id"],
     )
     problems.install(app)
-    for module in (rp, flow, wellknown, health):
+    for module in (rp, policies, webhooks, tokens, analytics, flow, wellknown, health):
         app.include_router(module.router)
     return app

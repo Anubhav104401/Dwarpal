@@ -7,7 +7,7 @@ export {
   type SessionResult,
   type SessionStatus,
 } from "./client.js";
-export { AgeTokenError, DwarpalApiError } from "./errors.js";
+export { AgeTokenError, DwarpalApiError, WebhookSignatureError } from "./errors.js";
 export {
   type AgeVerdict,
   ALGORITHM,
@@ -16,3 +16,9 @@ export {
   type VerifyAgeTokenOptions,
   verifyAgeToken,
 } from "./token.js";
+export {
+  type DwarpalEvent,
+  type VerifyWebhookOptions,
+  verifyWebhook,
+  WEBHOOK_TOLERANCE_S,
+} from "./webhook.js";

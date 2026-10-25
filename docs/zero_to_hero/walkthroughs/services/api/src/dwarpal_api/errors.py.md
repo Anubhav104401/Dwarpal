@@ -1,5 +1,5 @@
 ---
-fingerprint: 2e7a04057967dfb2
+fingerprint: 5cfe2c7919e6028b
 ---
 When the API says "no" on purpose — wrong key, unknown policy, session already finished — it raises an **`ApiError`**. The HTTP layer catches it and turns it into a tidy error response (`http/problems.py`, §4.13).
 
@@ -21,8 +21,13 @@ Making one takes three values:
 - `code` — a short, **stable** name such as `invalid_api_key`. Programs check the code, not the human sentence, so the sentence can be improved later without breaking anyone;
 - `detail` — a sentence for the human reading it.
 
+Since Phase 4 a fourth, optional value: `headers`, extra HTTP headers to send with the refusal. A `429 rate_limited` uses it to say `Retry-After: 3` — "try again in 3 seconds".
+
 @@ 8
 `super().__init__(detail)` runs `Exception`'s own set-up, so the error prints its sentence like any other exception.
 
 @@ 9-11
 Store the three values on the error object, so whoever catches it can read them.
+
+@@ 12
+Keep the headers; `headers or {}` turns "none given" into an empty dictionary, so the code that sends them never has to check for `None`.

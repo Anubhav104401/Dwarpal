@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import math
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Annotated, cast
 
@@ -19,6 +21,13 @@ from dwarpal_api.errors import ApiError
 class Caller:
     project: Project
     livemode: bool
+    key_lookup: str
+    scopes: frozenset[str]
+
+    @property
+    def actor(self) -> tuple[str, str]:
+        """Who the audit log names: the API key, by its public lookup (never the key itself)."""
+        return ("api_key", self.key_lookup)
 
 
 def services(request: Request) -> Services:
@@ -44,12 +53,31 @@ async def rp_caller(
             raise ApiError(401, "invalid_api_key", "this API key is unknown or revoked")
         if not matches(credential, key.secret_digest):
             raise ApiError(401, "invalid_api_key", "this API key is unknown or revoked")
+        # Only the genuine key's holder learns that it has expired, and what to do about it.
+        if key.expires_at is not None and key.expires_at <= svc.now():
+            raise ApiError(401, "api_key_expired", "this API key was rotated and has expired; use its replacement")
         # From here on, this unit of work sees only the key's own project.
         await name_tenant(session, project_id=key.project_id)
         project = await session.get(Project, key.project_id)
     if project is None:
         raise ApiError(401, "invalid_api_key", "this API key belongs to no project")
-    return Caller(project=project, livemode=livemode)
+    settings = svc.settings
+    wait_ms = await svc.store.take_token(f"key:{lookup}", settings.api_requests_per_second, settings.api_burst)
+    if wait_ms:
+        retry = {"Retry-After": str(math.ceil(wait_ms / 1000))}
+        raise ApiError(429, "rate_limited", "too many requests with this API key; wait and try again", retry)
+    return Caller(project=project, livemode=livemode, key_lookup=lookup, scopes=frozenset(key.scopes))
+
+
+def needs(scope: str) -> Callable[..., Awaitable[Caller]]:
+    """A website gate that also requires one scope of the key: `Depends(needs("sessions:write"))`."""
+
+    async def scoped_caller(caller: Annotated[Caller, Depends(rp_caller)]) -> Caller:
+        if scope not in caller.scopes:
+            raise ApiError(403, "insufficient_scope", f"this API key doesn't have the {scope} scope")
+        return caller
+
+    return scoped_caller
 
 
 async def flow_session(

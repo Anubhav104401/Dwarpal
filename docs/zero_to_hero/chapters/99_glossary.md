@@ -92,6 +92,9 @@ Endpoint
 Extension (file)
 :   The letters after the last dot in a file name, such as `.py`, hinting at the kind of file. (§0.2)
 
+Event
+:   A record that something happened — such as a session completing — kept as it was at that moment, and never changed. Webhooks carry events. (§5.4.3)
+
 Fail closed
 :   When something goes wrong, the system chooses the *safe* answer ("retry" or "step-up"), never "pass". (§1.13)
 
@@ -113,6 +116,12 @@ Git, GitHub
 GPU
 :   *Graphics Processing Unit.* A chip that performs thousands of calculations at once — ideal for AI. (§0.1)
 
+Hash chain
+:   A list of records in which each record's hash also covers the previous record's hash, so changing or removing any record breaks every link after it. The audit log is one. (§5.4.4)
+
+HMAC
+:   A digest computed with a secret key, so that only someone holding the key can produce or check it. Webhook signatures are HMACs. (§5.4.2, §5.4.3)
+
 Hosting
 :   Renting computers in a data centre to run your website. (§0.13)
 
@@ -122,6 +131,9 @@ HTML, CSS, JavaScript
 HTTP, HTTPS
 :   The protocol browsers and servers use to talk. HTTPS is HTTP inside TLS encryption. (§0.8, §0.9)
 
+Idempotency
+:   The property of an operation that has the same effect however many times it is repeated. An `Idempotency-Key` makes "create a session" idempotent: a repeat gets the first answer. (§5.4.2)
+
 Injection attack
 :   Bypassing the camera completely, for example with software that pretends to be a camera. (§1.10)
 
@@ -130,6 +142,9 @@ Interpreter
 
 IP address, port
 :   An IP address identifies a computer on a network (the building). A port identifies one program on it (the flat). (§0.6)
+
+Introspection (of a token)
+:   Asking the issuer whether a token is genuine and still valid, instead of checking its signature yourself. (§5.4.3)
 
 JSON
 :   A plain-text format for structured data, with six kinds of value. (§0.11)
@@ -161,6 +176,12 @@ Model (AI)
 Mojibake
 :   Garbled text caused by reading a file with the wrong encoding. (§0.2)
 
+Outbox (transactional)
+:   A table of messages waiting to be sent, written in the same transaction as the change they announce, then sent by a separate worker. (§5.4.3)
+
+Pagination
+:   Handing a long list over in pages. Dwarpal uses a cursor, "the items after this one", rather than an offset, "skip the first 40", so items added meanwhile can't make pages repeat. (§5.4.2)
+
 Pinning
 :   Recording the exact version of a library, so the project builds identically everywhere. (§0.17)
 
@@ -191,11 +212,23 @@ Relying party
 Request / response
 :   One message from a client, and the server's reply. (§0.8)
 
+Rate limit
+:   A cap on how many requests a caller may make in a period of time; past it, the API answers `429` and says when to try again. (§5.4.2)
+
+Retention period
+:   How long data is kept before it is deleted. Dwarpal keeps session metadata 90 days by default (1–365), then purges it; anonymous counts stay. (§5.4.4)
+
 Risk budget
 :   The maximum share of dangerous mistakes a policy accepts, for example "at most 2 % of 13–17-year-olds may pass". (§3.3)
 
+Rotation (of a key)
+:   Replacing a secret key with a new one, letting the old key work for a short grace period so that nothing breaks during the switch. (§5.4.2)
+
 Row-level security (RLS)
 :   A database feature that filters every query row by row through the table's policies, so that each tenant sees only its own rows, even if a query forgets to ask for that. (§5.4.1)
+
+Scope (of a key)
+:   One kind of operation an API key is allowed to perform, such as `sessions:read`. A key gets only the scopes its holder needs. (§5.4.2)
 
 Security definer function
 :   A database function that runs with the rights of its owner rather than of whoever calls it: a narrow, deliberate door past the usual rules. (§5.4.1)
@@ -205,6 +238,9 @@ Server
 
 Shell / terminal
 :   The window and program where you type commands. (§0.5)
+
+SSRF (server-side request forgery)
+:   Tricking a server into sending requests to places only it can reach, such as its own internal network. Webhook addresses are checked to prevent it. (§5.4.3)
 
 Signed token
 :   A small digital message sealed with a private key, so anyone with the public key can check that it is genuine and unchanged. (§3.3)
@@ -223,6 +259,9 @@ Template
 
 Tenant
 :   One customer of a shared system, whose data must stay separate from every other customer's. In Dwarpal a tenant is an organisation, or one of its projects. (§5.4.1)
+
+Token bucket
+:   A rate-limiting method: a bucket of tokens refills at a steady rate, and each request takes one, allowing short bursts but a limited average. (§5.4.2)
 
 TLS
 :   *Transport Layer Security.* The encryption behind HTTPS. (§0.9)
@@ -244,3 +283,6 @@ Walkthrough
 
 Waterfall
 :   Trying the quickest, most private age check first, and moving to stronger methods only when needed. (§1.9)
+
+Webhook
+:   A request a service sends to an address on your server when something happens, so you needn't keep asking. (§5.4.3)

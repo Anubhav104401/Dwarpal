@@ -23,6 +23,12 @@ class Policy:
     risk_budget: float
     max_face_attempts: int = 3
     token_ttl_s: int = 600
+    version: int = 0  # 0 for a preset; 1, 2, … for the versions of a project's own policy
+
+    @property
+    def label(self) -> str:
+        """How results and tokens name the rules they followed: `uk_osa_18`, or `shop_18@2`."""
+        return self.id if self.version == 0 else f"{self.id}@{self.version}"
 
 
 PRESETS: dict[str, Policy] = {

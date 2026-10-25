@@ -20,7 +20,9 @@ SAFE_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 logger = logging.getLogger("dwarpal.api")
 
 
-def problem(request: Request, status: int, code: str, detail: str) -> JSONResponse:
+def problem(
+    request: Request, status: int, code: str, detail: str, headers: dict[str, str] | None = None
+) -> JSONResponse:
     body = {
         "type": f"/errors/{code}",
         "title": code.replace("_", " "),
@@ -29,7 +31,7 @@ def problem(request: Request, status: int, code: str, detail: str) -> JSONRespon
         "code": code,
         "request_id": request.state.request_id,
     }
-    return JSONResponse(body, status_code=status, media_type="application/problem+json")
+    return JSONResponse(body, status_code=status, media_type="application/problem+json", headers=headers)
 
 
 async def on_unexpected(request: Request, error: Exception) -> Response:
@@ -40,7 +42,7 @@ async def on_unexpected(request: Request, error: Exception) -> Response:
 async def on_api_error(request: Request, error: Exception) -> Response:
     if not isinstance(error, ApiError):
         return await on_unexpected(request, error)
-    return problem(request, error.status, error.code, error.detail)
+    return problem(request, error.status, error.code, error.detail, error.headers)
 
 
 async def on_invalid_request(request: Request, error: Exception) -> Response:

@@ -8,6 +8,9 @@ import secrets
 from dataclasses import dataclass
 
 LOOKUP_LENGTH = 12
+# What a key may do: create sessions, read their results, add policy versions, and manage webhooks. A website's server
+# that only reads results can be given a key that can't create sessions, and the other way round.
+SCOPES = frozenset({"sessions:read", "sessions:write", "policies:write", "webhooks:write"})
 
 
 @dataclass(frozen=True)

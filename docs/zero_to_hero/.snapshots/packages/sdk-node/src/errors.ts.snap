@@ -17,3 +17,8 @@ export class DwarpalApiError extends Error {
 export class AgeTokenError extends Error {
   override readonly name = "AgeTokenError";
 }
+
+/** A webhook failed verification: its signature header was missing, malformed, too old, or didn't match. */
+export class WebhookSignatureError extends Error {
+  override readonly name = "WebhookSignatureError";
+}

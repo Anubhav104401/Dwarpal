@@ -1,4 +1,5 @@
-"""Short-lived state in Valkey: flow tokens and one-time challenges. Everything stored here expires on its own."""
+"""Short-lived state in Valkey: flow tokens, one-time challenges, budgets, rate limits and idempotent replies.
+Everything stored here expires on its own."""
 
 from __future__ import annotations
 
@@ -11,6 +12,24 @@ from typing import Any
 from redis.asyncio import Redis
 
 from dwarpal_contracts import Challenge
+
+# A token bucket (ADR-0011): it holds up to `burst` tokens and refills at `rate` per second; each request takes one.
+# Run inside Valkey as one script, so two API servers can't both take the last token, and timed by Valkey's own
+# clock, so their clocks needn't agree. Returns {1, 0} when allowed, or {0, milliseconds until a token is back}.
+RATE_LIMIT_SCRIPT = """
+local rate, burst = tonumber(ARGV[1]), tonumber(ARGV[2])
+local clock = redis.call('TIME')
+local now = clock[1] * 1000 + math.floor(clock[2] / 1000)
+local state = redis.call('HMGET', KEYS[1], 'tokens', 'at')
+local tokens = math.min(burst, (tonumber(state[1]) or burst) + (now - (tonumber(state[2]) or now)) * rate / 1000)
+local allowed, wait = 0, math.ceil((1 - tokens) * 1000 / rate)
+if tokens >= 1 then
+    tokens, allowed, wait = tokens - 1, 1, 0
+end
+redis.call('HSET', KEYS[1], 'tokens', tostring(tokens), 'at', now)
+redis.call('PEXPIRE', KEYS[1], math.ceil(burst * 1000 / rate) + 1000)
+return {allowed, wait}
+"""
 
 
 def _hashed(token: str) -> str:
@@ -57,6 +76,22 @@ class FlowStore:
         counter = f"budget:{_hashed(key)}"
         await self._client.set(counter, 0, ex=window_s, nx=True)
         return await self._client.incr(counter) <= limit
+
+    async def take_token(self, key: str, rate: float, burst: int) -> int:
+        """Take one token from the bucket called `key`: 0 if it was there, else how many milliseconds until one is."""
+        allowed, wait = await self._client.eval(RATE_LIMIT_SCRIPT, 1, f"bucket:{_hashed(key)}", rate, burst)
+        return 0 if int(allowed) else max(int(wait), 1)
+
+    async def claim(self, key: str, value: bytes, ttl_s: int) -> bytes | None:
+        """Store `value` under `key` unless something is already there; return what was there (None if we claimed)."""
+        existing = await self._client.set(key, value, ex=ttl_s, nx=True, get=True)
+        return existing if isinstance(existing, bytes) else None
+
+    async def put(self, key: str, value: bytes, ttl_s: int) -> None:
+        await self._client.set(key, value, ex=ttl_s)
+
+    async def drop(self, key: str) -> None:
+        await self._client.delete(key)
 
     async def take_challenge(self, challenge_id: str, session_id: uuid.UUID) -> Challenge | None:
         stored = await self._client.getdel(f"challenge:{challenge_id}")

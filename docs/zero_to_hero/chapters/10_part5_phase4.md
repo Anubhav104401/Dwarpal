@@ -6,9 +6,9 @@ Phases 1–3 built one honest age check: a website asks, a person looks at the c
 | :-- | :-- | :-- |
 | 1 | **Organisations, and row-level security** — the database itself keeps customers apart | ✅ §5.4.1 |
 | 2 | People and sign-in — users, passwords (Argon2id), one-time codes, roles | 🗓 |
-| 3 | Website features — scoped and rotating keys, versioned policies, idempotency, rate limits, pagination | 🗓 |
-| 4 | Events — an outbox and signed webhooks | 🗓 |
-| 5 | Accountability — a hash-chained audit log, retention, analytics | 🗓 |
+| 3 | Website features — scoped and rotating keys, versioned policies, idempotency, rate limits, pagination | ✅ §5.4.2 |
+| 4 | Events — an outbox and signed webhooks; token introspection | ✅ §5.4.3 |
+| 5 | Accountability — a hash-chained audit log, retention, analytics | ✅ §5.4.4 |
 | 6 | The contract — a published OpenAPI document, tested automatically | 🗓 |
 
 ### 5.4.1 Tenants, and a database that keeps them apart
@@ -90,3 +90,137 @@ The rest of this step changed existing files, each re-explained in its own walkt
     - **`ENABLE`, not `FORCE`.** ADR-0011 planned `FORCE ROW LEVEL SECURITY`, which binds even the owner. It is left off because the two look-up functions run as the owner and must see past the policies. The API never works as the owner, so its protection is the same, and ADR-0011 now records the change.
     - **Policies cost a little.** The attempts and tokens policies look through sessions, which look through projects. That is quick at today's sizes. If one project grows to millions of sessions, the attempts table may need its own `project_id` column so the check can use an index directly.
     - **Signing keys aren't tenant data.** The restricted role can read Dwarpal's sealed signing keys, because signing tokens is its job. They are protected by the master key (§5.1.3), not by RLS.
+
+### 5.4.2 What a website's server needs from an API
+
+A real website talks to Dwarpal from its own servers, many times a minute, over networks that sometimes fail. Step 3 adds the five things every serious API gives such callers. None of them changes how a face is checked. They change how safely and predictably a website can use the check.
+
+| Feature | The problem it solves | How |
+| :-- | :-- | :-- |
+| **Idempotency** | A lost answer makes the website send "create a session" again, and the person gets two | `Idempotency-Key` header: a repeat gets the first answer, sealed in Valkey |
+| **Rate limits** | One website (or a stolen key) flooding the API slows it down for everyone | a token bucket per key in Valkey: 100 requests a second, bursts of 200; `429` with `Retry-After` |
+| **Pagination** | Listing every session at once grows slower and heavier for ever | `GET /v1/verification-sessions?limit=20&starting_after=…`: pages, newest first, with a cursor |
+| **Scoped, rotating keys** | A key that can do everything is dangerous to leak; a key that can't be replaced must stay for ever | scopes (`sessions:read`, `sessions:write`, `policies:write`); `rotate-key` with a grace period; `revoke-key` at once |
+| **Versioned policies** | Editing the rules mid-check would change a decision under way, and leave no record of the old rules | `POST /v1/policies` adds `name@version`; versions can't be changed; each session pins its version |
+
+**Idempotency, and a secret in a cache.** The first answer to "create a session" contains the session's one-time client secret. To replay that answer, it must be kept, and anything kept in a cache can leak. Two choices limit the damage. The reply is **sealed** with AES-GCM, under a key derived from the website's own idempotency key and Dwarpal's master key, so a copy of Valkey's memory alone is an unreadable blob (a test looks inside Valkey to prove it). And it is kept only as long as the session lives, 30 minutes, after which the secret inside opens nothing.
+
+!walk services/api/src/dwarpal_api/app/idempotency.py
+
+**Rate limits as a token bucket.** Each key has a bucket of 200 tokens that refills at 100 a second; each request takes one. The whole update runs as one small script *inside* Valkey, timed by Valkey's own clock, so several API servers share one honest count (`adapters/store.py`). The refusal says how long to wait (`Retry-After`), so a well-behaved client slows down instead of hammering.
+
+**Pages with a cursor, not an offset.** "Skip 40, give me 20" breaks when new sessions arrive between pages: everything shifts, and rows repeat. Dwarpal's IDs are UUIDv7s, which begin with the time they were made, so "the 20 sessions older than this one" is a plain comparison, served by an index on `(project_id, id)` (migration `0003`). The list shows summaries only: listing never makes an age token.
+
+**Keys that can be limited, replaced and stopped.** A key now carries **scopes**, and each endpoint asks for the one it needs (`needs("sessions:write")` in `deps.py`): `403 insufficient_scope` otherwise. `rotate-key` makes a replacement and gives the old key a **grace period**, 24 hours by default, so a website can switch every server over with no moment in which neither key works. After it, the old key gets `401 api_key_expired`, a message only its genuine holder can ever see. `revoke-key` stops a leaked key at once.
+
+!walk services/api/src/dwarpal_api/migrations/versions/v0003_keys_and_lists.py
+
+**Policies as versions that never change.** A project can now make its own policy, say `shop_18` with a single attempt. Changing it adds `shop_18@2`, and version 1 stays exactly as it was. A session pins the version it was created with, so a check under way keeps its rules, and every result and token names them (`"policy": "shop_18@1"`). The database enforces it: the API's role may only read and add policy rows, never change or delete them. A new policy is accepted only if the age model has thresholds for its age and risk budget, so no website can choose rules the model was never calibrated for.
+
+!walk services/api/src/dwarpal_api/migrations/versions/v0004_policy_versions.py
+
+!walk services/api/src/dwarpal_api/app/policies.py
+
+!walk services/api/src/dwarpal_api/http/policies.py
+
+The rest of the step changed existing files, each re-explained in its walkthrough: `http/rp.py` (the list endpoint, idempotency and scopes), `http/deps.py` (expiry, the rate limit and `needs`), `app/verification.py` (pinned policies, the summary view and the list), `adapters/store.py` (the bucket script and the claim), `errors.py` and `http/problems.py` (refusals can carry headers), `adapters/tables.py`, `domain/keys.py`, `domain/policy.py`, `settings.py`, `main.py` and `cli.py`.
+
+**What the tests prove** (`test_api.py`, all as the restricted role): a repeat with the same key gets the identical answer, marked `Idempotent-Replayed`; the same key with a different request is refused; Valkey never holds the client secret readably; the third request beyond a burst of two gets `429` with `Retry-After`; five sessions page as 2, 2, 1, newest first, none repeated or missed, with no tokens; a read-only key can't create; a rotated key works during its grace and gets `api_key_expired` after, while a revoked key stops at once; a session keeps `shop_18@1`'s three attempts after `shop_18@2` allows one; and the API's own role is refused when it tries to `UPDATE` or `DELETE` a policy version.
+
+!!! honest "Honest limitation"
+    - **A weak idempotency key weakens the seal.** The seal is only as hard to guess as the key the website chose *plus* the master key. Someone holding both a copy of Valkey and the master key could try guessable keys such as `order-1`. Without the master key, the sealed replies are unreadable.
+    - **Rate limits are per key only.** The design also asks for per-session and per-address limits on the flow endpoints. Liveness challenges already have per-session, per-device and per-address budgets (§5.3.4), but the other flow endpoints don't yet.
+    - **No console yet.** Keys are rotated and revoked from the command line, and policies are added through the API. The console of Phase 5 will put both on a page, and step 2 (people and roles) decides who may press those buttons.
+
+### 5.4.3 Telling websites what happened: events and webhooks
+
+Until now a website learned a check's result only by asking (`GET /v1/verification-sessions/{id}`). That works when the person comes back to the website, but people close tabs, phones lose signal, and a website may want to know that a session expired unused. Step 4 lets Dwarpal **tell** the website, by calling an address on the website's own server: a **webhook**.
+
+```
+session completes ──► one transaction: outcome + event + one delivery row per endpoint ──► commit
+                                                                   │
+delivery worker (every 2 s) ── claims due rows (FOR UPDATE SKIP LOCKED), leases them for 60 s
+     │
+     ├─ checks the address again (public only)
+     ├─ POST body = the event, with Dwarpal-Signature: t=<time>,v1=<HMAC-SHA256(secret, "<time>.<body>")>
+     └─ 2xx → delivered      otherwise → retry in 1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h → dead (replayable)
+
+website: verifyWebhook(raw body, header, secret) ── fresh (≤ 5 min)? HMAC matches? ──► trust the event
+```
+
+!!! key "Key idea — the transactional outbox"
+    The event and its deliveries are written **in the same transaction** as the outcome. The database then guarantees what no amount of careful code could: either the outcome and its announcement are both saved, or neither is. A separate **worker** sends the saved deliveries afterwards, retrying for a day if the website is down. Nothing is announced that didn't happen, and nothing that happened goes unannounced.
+
+**Events** are history. The API's role may only read and add them, never change or delete them, so the record of what happened can't be quietly rewritten. An event's data is a summary of the session — never a token.
+
+!walk services/api/src/dwarpal_api/migrations/versions/v0005_events_and_webhooks.py
+
+!walk services/api/src/dwarpal_api/app/webhooks.py
+
+**Sending to an address a customer chose is dangerous.** If anyone could register `http://169.254.169.254/…` or `http://localhost:8001`, Dwarpal would become a tool for reaching inside its own network: **server-side request forgery (SSRF)**. So every address is looked up, and *every* address its name points to must be on the public internet. This is checked when the endpoint is registered, and **again before every delivery**, because a name can be pointed somewhere else later. Redirects are never followed, live webhooks must use `https`, and production can't switch the check off.
+
+!walk services/api/src/dwarpal_api/adapters/webhooks.py
+
+!walk services/api/tests/test_webhooks.py
+
+**The worker** is a separate process (`cli deliver-webhooks`). It works for every project, so, like the other operator tools, it connects as the tables' owner. It claims rows with `SKIP LOCKED` and a one-minute lease, and sends outside any transaction. Several workers can run at once, and any of them can be stopped at any moment, without a webhook being sent twice in normal running or lost.
+
+!walk services/api/src/dwarpal_api/app/delivery.py
+
+!walk services/api/src/dwarpal_api/http/webhooks.py
+
+**Signatures, checked by the website.** Each webhook carries `Dwarpal-Signature: t=<time>,v1=<HMAC>`: an HMAC-SHA256, keyed with the endpoint's secret, of the time and the exact body. Only Dwarpal and the website know the secret. It is shown once, when the endpoint is registered, and stored sealed under the master key. A matching HMAC therefore proves both the sender and the body. The time stops an old webhook being replayed: receivers refuse signatures more than five minutes old. The Node SDK does all of this in one call.
+
+!walk packages/sdk-node/src/webhook.ts
+
+!walk packages/sdk-node/test/webhook.test.ts
+
+**Token introspection.** Some websites would rather not verify signatures at all. `POST /v1/tokens/introspect` checks an age token for them, and answers `{"active": true, …claims}` **once**: the token's record in `issued_tokens` is marked, so a second question, or one about a forged, expired or another website's token, gets only `{"active": false}`. That one-use rule also catches a token being replayed.
+
+!walk services/api/src/dwarpal_api/http/tokens.py
+
+The rest of the step changed existing files, each re-explained in its walkthrough: `adapters/tables.py` (the three tables, `introspected_at`), `adapters/signing.py` (`verify`), `app/verification.py` (`announce` on completion and expiry, `introspect`), `settings.py`, `domain/keys.py` (the `webhooks:write` scope), `main.py`, `cli.py` (`deliver-webhooks`), and the SDK's `errors.ts` and `index.ts`.
+
+**What the tests prove**:
+- a completed session reaches an in-memory receiver as one signed `POST`, whose HMAC the test recomputes as a website would, and whose body carries no token;
+- a receiver failing eight times is retried after exactly 1 minute, 5, 30, 2 hours, 6, 12 and 24, is then dead, and is delivered after a replay;
+- an expired session is announced exactly once;
+- the API refuses `127.0.0.1` and unknown event types;
+- nine inside-the-network addresses are refused without a database;
+- a token is introspected once, and never by another website or for a forger;
+- the SDK refuses a changed body, another secret, a stale signature and a malformed header.
+
+!!! honest "Honest limitation"
+    - **At least once, not exactly once.** If a worker sends a webhook and dies before recording it, the lease runs out and the webhook is sent again. Every webhook carries `Dwarpal-Event-Id`, so a receiver should ignore an ID it has already handled. This is how every webhook system behaves.
+    - **A gap between check and connect.** The address is checked, and then the connection looks the name up again. An attacker controlling a name's records could, in principle, switch it between the two (DNS rebinding). The design's last line of defence is the worker's network: in production it may only reach the public internet (Phase 7).
+    - **Expiry is announced when it is noticed.** Sessions expire lazily, when something reads them, so an `expired` event can come late, or never for a session nobody looks at again. A periodic sweep belongs with the retention jobs of step 5.
+    - **The worker isn't yet part of the local stack** that the e2e tests start; it runs from the command line.
+
+### 5.4.4 Accountability: an audit log that can't be quietly changed, and data that doesn't stay for ever
+
+A platform that guards children's access to adult content will one day be asked hard questions. Who changed this website's policy, and when? Was that key revoked before or after the incident? Why is a person's data still here? Step 5 makes such questions answerable, and keeps the system from holding on to what it no longer needs.
+
+**The audit log.** Every change to how a website is protected is recorded, in the same transaction as the change: keys created, rotated and revoked; policy versions added; webhook endpoints registered and removed. Each record names who acted — an API key by its public id, or an operator's tool — and the facts, never a secret. The records form a **hash chain** per organisation: each entry's hash covers the previous entry's hash, so editing or deleting any entry breaks every link after it, and `cli verify-audit` names the first broken one. The API's own role can only add entries, never change them.
+
+!walk services/api/src/dwarpal_api/app/audit.py
+
+**Retention.** Session metadata — statuses, outcomes, attempt scores, events — is personal data about a moment in someone's life, and it is kept only as long as the project's **retention period**: 90 days by default, 1 to 365, a limit the database itself enforces. `cli maintain` then deletes it. The same job sweeps up abandoned sessions, expiring and announcing them, which closes step 4's gap: an `expired` webhook no longer waits for someone to read the session.
+
+!walk services/api/src/dwarpal_api/app/maintenance.py
+
+**Analytics from counts.** When a session finishes, a counter for its project, day, policy and outcome goes up by one, in the same transaction. Counts describe no one, so they outlive the purge, and `GET /v1/analytics/sessions` reads them. Test and live sessions are counted apart.
+
+!walk services/api/src/dwarpal_api/app/analytics.py
+
+!walk services/api/src/dwarpal_api/http/analytics.py
+
+!walk services/api/src/dwarpal_api/migrations/versions/v0006_audit_retention_stats.py
+
+The rest of the step changed existing files, each re-explained in its walkthrough: `adapters/tables.py` (the three tables, `retention_days`), `app/verification.py` (`record_final`: event and count together), `app/policies.py`, `app/webhooks.py` and their HTTP modules (audit entries), `http/deps.py` (`Caller.actor`), `main.py`, and `cli.py` (`maintain`, `verify-audit`, and audit entries for key commands).
+
+**What the tests prove**: four real changes appear in order in the chain, naming the key by its id and never containing it; the chain verifies as intact; the API's role is refused when it tries to change an entry; an owner's edit to entry 2 is reported as broken at entry 2, and deleting the last entry as broken at entry 4; two passed sessions show as `{"pass": 2}` in analytics; an abandoned session is expired and announced by the sweep; with a one-day retention, the purge keeps it after 23 hours and removes it after two days, while its count remains.
+
+!!! honest "Honest limitation"
+    - **The chain detects tampering; it doesn't prevent it.** Someone with full control of the database could rewrite an organisation's whole chain consistently. Publishing each day's latest hash outside the database would expose that, and isn't done yet.
+    - **The audit log isn't purged yet.** The design keeps it for a year, but removing old entries means the chain must start from a stored anchor rather than from zero; that work comes with the console.
+    - **People aren't audited yet,** because there are no people yet: logins, members and roles arrive with step 2.

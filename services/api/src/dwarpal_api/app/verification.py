@@ -3,30 +3,35 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode, urlsplit
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from dwarpal_api.adapters.db import session_tenant, tenant
 from dwarpal_api.adapters.inference import InferenceClient
-from dwarpal_api.adapters.signing import KeyRing
+from dwarpal_api.adapters.signing import KeyRing, MasterKey
 from dwarpal_api.adapters.store import FlowStore
-from dwarpal_api.adapters.tables import IssuedToken, Project, VerificationAttempt, VerificationSession
+from dwarpal_api.adapters.tables import IssuedToken, Project, SessionStat, VerificationAttempt, VerificationSession
+from dwarpal_api.app import webhooks
+from dwarpal_api.app.policies import latest, pinned
 from dwarpal_api.domain import ids
 from dwarpal_api.domain.challenges import new_challenge
 from dwarpal_api.domain.decision import Decision, Outcome, decide
 from dwarpal_api.domain.keys import generate_client_secret, matches
-from dwarpal_api.domain.policy import ModelManifest, UncalibratedPolicyError, UnknownPolicyError, get_policy
+from dwarpal_api.domain.policy import ModelManifest, Policy, UncalibratedPolicyError
 from dwarpal_api.domain.sessions import STATUS_AFTER, Status, is_expired, move
 from dwarpal_api.errors import ApiError
 from dwarpal_api.settings import Settings
 from dwarpal_contracts import FaceAnalysis, FaceRequestMeta
 
 FLOW_STATUSES = frozenset({Status.IN_PROGRESS, Status.AWAITING_STEP_UP, Status.COMPLETED})
+MAX_PAGE = 100
 CHALLENGES_PER_ATTEMPT = 2
 HOUR_S = 3600
 
@@ -39,6 +44,10 @@ class Services:
     inference: InferenceClient
     keyring: KeyRing
     manifest: ModelManifest
+    # Seals idempotent replies kept in Valkey (app/idempotency.py); derived from the master key.
+    idempotency_secret: bytes = b""
+    # Seals webhook endpoints' signing secrets (app/webhooks.py).
+    master: MasterKey | None = None
 
     def now(self) -> datetime:
         return datetime.now(UTC)
@@ -56,6 +65,10 @@ def public_id(row: VerificationSession) -> str:
     return ids.encode("vs", row.id)
 
 
+def policy_label(row: VerificationSession) -> str:
+    return row.policy_id if row.policy_version == 0 else f"{row.policy_id}@{row.policy_version}"
+
+
 async def load_session(session: AsyncSession, session_id: uuid.UUID, *, lock: bool = False) -> VerificationSession:
     query = select(VerificationSession).where(VerificationSession.id == session_id)
     row = await session.scalar(query.with_for_update() if lock else query)
@@ -71,44 +84,70 @@ def parse_session_id(text: str) -> uuid.UUID:
         raise ApiError(404, "session_not_found", "no such verification session") from None
 
 
-def expire_if_due(row: VerificationSession, now: datetime) -> None:
+async def expire_if_due(svc: Services, session: AsyncSession, row: VerificationSession, now: datetime) -> None:
     if is_expired(Status(row.status), row.expires_at, now):
         row.status = move(Status(row.status), Status.EXPIRED)
+        await announce(svc, session, row, now)
+
+
+async def announce(svc: Services, session: AsyncSession, row: VerificationSession, now: datetime) -> None:
+    await record_final(session, svc.new_id, row, now)
+
+
+async def record_final(
+    session: AsyncSession, new_id: Callable[[], uuid.UUID], row: VerificationSession, now: datetime
+) -> None:
+    """For a session that has just completed or expired, in the transaction that saves the change: write its event
+    (the website's webhook can never miss an outcome, nor hear of one that wasn't saved), and count it in the day's
+    statistics, which outlive the session itself."""
+    expired = row.status == Status.EXPIRED
+    event_type = "verification_session.expired" if expired else "verification_session.completed"
+    await webhooks.emit(session, new_id, now, row.project_id, row.livemode, event_type, summary_view(row, now))
+    key = {
+        "project_id": row.project_id,
+        "livemode": row.livemode,
+        "day": now.date(),
+        "policy": policy_label(row),
+        "outcome": "expired" if expired else (row.outcome or "unknown"),
+    }
+    count = insert(SessionStat).values(**key, sessions=1)
+    count = count.on_conflict_do_update(index_elements=list(key), set_={"sessions": SessionStat.sessions + 1})
+    await session.execute(count)
 
 
 async def create_session(
     svc: Services, project: Project, livemode: bool, policy_id: str, return_url: str | None, external_ref: str | None
 ) -> tuple[VerificationSession, str]:
-    try:
-        policy = get_policy(policy_id)
-        svc.manifest.thresholds_for(policy)
-    except UnknownPolicyError:
-        raise ApiError(422, "unknown_policy", f"there is no policy called {policy_id!r}") from None
-    except UncalibratedPolicyError as error:
-        raise ApiError(422, "policy_not_supported", str(error)) from None
-    if livemode and not svc.manifest.calibrated:
-        raise ApiError(409, "model_not_calibrated", "live sessions need a calibrated age model; use a test key")
-    if return_url is not None and origin_of(return_url) not in project.allowed_origins:
-        raise ApiError(422, "return_url_not_allowed", "return_url must be on one of the project's allowed origins")
-    now, session_id = svc.now(), svc.new_id()
-    secret = generate_client_secret(ids.encode("vs", session_id))
-    row = VerificationSession(
-        id=session_id,
-        project_id=project.id,
-        livemode=livemode,
-        policy_id=policy.id,
-        status=Status.CREATED,
-        outcome=None,
-        client_secret_digest=secret.digest,
-        return_url=return_url,
-        external_ref=external_ref,
-        attempts_count=0,
-        model_version=None,
-        created_at=now,
-        expires_at=now + timedelta(seconds=svc.settings.session_ttl_s),
-        completed_at=None,
-    )
     async with tenant(svc.sessions, project.id) as session:
+        # A preset, or the newest version of the project's own policy of that name, pinned for the session's life.
+        policy = await latest(session, project.id, policy_id)
+        try:
+            svc.manifest.thresholds_for(policy)
+        except UncalibratedPolicyError as error:
+            raise ApiError(422, "policy_not_supported", str(error)) from None
+        if livemode and not svc.manifest.calibrated:
+            raise ApiError(409, "model_not_calibrated", "live sessions need a calibrated age model; use a test key")
+        if return_url is not None and origin_of(return_url) not in project.allowed_origins:
+            raise ApiError(422, "return_url_not_allowed", "return_url must be on one of the project's allowed origins")
+        now, session_id = svc.now(), svc.new_id()
+        secret = generate_client_secret(ids.encode("vs", session_id))
+        row = VerificationSession(
+            id=session_id,
+            project_id=project.id,
+            livemode=livemode,
+            policy_id=policy.id,
+            policy_version=policy.version,
+            status=Status.CREATED,
+            outcome=None,
+            client_secret_digest=secret.digest,
+            return_url=return_url,
+            external_ref=external_ref,
+            attempts_count=0,
+            model_version=None,
+            created_at=now,
+            expires_at=now + timedelta(seconds=svc.settings.session_ttl_s),
+            completed_at=None,
+        )
         session.add(row)
         await session.commit()
     return row, secret.plaintext
@@ -120,14 +159,14 @@ async def start_flow(svc: Services, session_text: str, client_secret: str) -> di
         row = await load_session(session, session_id, lock=True)
         if not matches(client_secret, row.client_secret_digest):
             raise ApiError(401, "invalid_client_secret", "the client secret does not match this session")
-        expire_if_due(row, svc.now())
+        await expire_if_due(svc, session, row, svc.now())
         if row.status == Status.CREATED:
             row.status = move(Status.CREATED, Status.IN_PROGRESS)
         project = await session.get(Project, row.project_id)
+        policy = await pinned(session, row)
         await session.commit()
     if row.status not in FLOW_STATUSES or project is None:
         raise ApiError(409, "session_not_open", f"this session is {row.status}")
-    policy = get_policy(row.policy_id)
     token = await svc.store.open_flow(row.id, svc.settings.flow_ttl_s)
     view = {
         "id": public_id(row),
@@ -145,10 +184,11 @@ async def issue_challenge(
 ) -> dict[str, Any]:
     async with session_tenant(svc.sessions, session_id) as session:
         row = await load_session(session, session_id)
+        policy = await pinned(session, row)
     if row.status != Status.IN_PROGRESS:
         raise ApiError(409, "session_not_in_progress", f"this session is {row.status}")
     await spend_device_budgets(svc, row.project_id, device, address)
-    budget = get_policy(row.policy_id).max_face_attempts * CHALLENGES_PER_ATTEMPT
+    budget = policy.max_face_attempts * CHALLENGES_PER_ATTEMPT
     settings = svc.settings
     challenge = await svc.store.issue_challenge(
         row.id, new_challenge(), settings.challenge_ttl_s, budget, settings.session_ttl_s
@@ -202,11 +242,11 @@ async def submit_face_attempt(
     async with session_tenant(svc.sessions, session_id) as session:
         row = await load_session(session, session_id, lock=True)
         now = svc.now()
-        expire_if_due(row, now)
+        await expire_if_due(svc, session, row, now)
         if row.status != Status.IN_PROGRESS:
             await session.commit()
             raise ApiError(409, "session_not_in_progress", f"this session is {row.status}")
-        policy = get_policy(row.policy_id)
+        policy = await pinned(session, row)
         model_ok = analysis is not None and svc.manifest.serves_model(analysis.model_version)
         failures = await session.scalar(
             select(func.count())
@@ -244,6 +284,7 @@ async def submit_face_attempt(
             row.model_version = analysis.model_version
         if row.status == Status.COMPLETED:
             row.completed_at = now
+            await announce(svc, session, row, now)
         remaining = policy.max_face_attempts - row.attempts_count
         await session.commit()
     return decision, remaining
@@ -266,7 +307,7 @@ def created_view(svc: Services, row: VerificationSession, client_secret: str) ->
         "object": "verification_session",
         "status": row.status,
         "livemode": row.livemode,
-        "policy": row.policy_id,
+        "policy": policy_label(row),
         "client_secret": client_secret,
         "url": f"{svc.settings.verify_url}/v/{public_id(row)}#cs={client_secret}",
         "expires_at": row.expires_at.isoformat(),
@@ -279,28 +320,56 @@ async def result_view(svc: Services, session_text: str, project_id: uuid.UUID, l
         if row.project_id != project_id or row.livemode != livemode:
             raise ApiError(404, "session_not_found", "no such verification session")
         now = svc.now()
-        expire_if_due(row, now)
-        token = mint_token(svc, session, row, now) if row.status == Status.COMPLETED else None
+        await expire_if_due(svc, session, row, now)
+        policy = await pinned(session, row)
+        token = mint_token(svc, session, row, policy, now) if row.status == Status.COMPLETED else None
         await session.commit()
+    return {**summary_view(row, now), "min_age": policy.min_age, "age_token": token}
+
+
+def summary_view(row: VerificationSession, now: datetime) -> dict[str, Any]:
+    """What a website may see of a session without a token being made: no age token, ever."""
+    expired = row.status != Status.EXPIRED and is_expired(Status(row.status), row.expires_at, now)
     return {
         "id": public_id(row),
         "object": "verification_session",
-        "status": row.status,
+        "status": Status.EXPIRED if expired else row.status,
         "outcome": row.outcome,
         "livemode": row.livemode,
-        "policy": row.policy_id,
-        "min_age": get_policy(row.policy_id).min_age,
+        "policy": policy_label(row),
         "attempts": row.attempts_count,
         "external_ref": row.external_ref,
         "created_at": row.created_at.isoformat(),
         "expires_at": row.expires_at.isoformat(),
         "completed_at": row.completed_at.isoformat() if row.completed_at else None,
-        "age_token": token,
     }
 
 
-def mint_token(svc: Services, session: AsyncSession, row: VerificationSession, now: datetime) -> str:
-    policy = get_policy(row.policy_id)
+async def list_sessions(
+    svc: Services, project_id: uuid.UUID, livemode: bool, limit: int, starting_after: str | None
+) -> dict[str, Any]:
+    """One page of a project's sessions, newest first. The cursor is the last session of the previous page: UUIDv7s
+    sort by creation time, so "older than the cursor" is a plain comparison, which stays right as sessions are added.
+    """
+    query = select(VerificationSession).where(
+        VerificationSession.project_id == project_id, VerificationSession.livemode == livemode
+    )
+    if starting_after is not None:
+        query = query.where(VerificationSession.id < parse_session_id(starting_after))
+    query = query.order_by(VerificationSession.id.desc()).limit(min(limit, MAX_PAGE) + 1)
+    async with tenant(svc.sessions, project_id) as session:
+        rows = list(await session.scalars(query))
+    page, now = rows[:limit], svc.now()
+    has_more = len(rows) > limit
+    return {
+        "object": "list",
+        "data": [summary_view(row, now) for row in page],
+        "has_more": has_more,
+        "next_cursor": public_id(page[-1]) if has_more else None,
+    }
+
+
+def mint_token(svc: Services, session: AsyncSession, row: VerificationSession, policy: Policy, now: datetime) -> str:
     jti, audience = svc.new_id(), ids.encode("prj", row.project_id)
     expires = now + timedelta(seconds=policy.token_ttl_s)
     session.add(IssuedToken(jti=jti, session_id=row.id, audience=audience, issued_at=now, expires_at=expires))
@@ -316,8 +385,31 @@ def mint_token(svc: Services, session: AsyncSession, row: VerificationSession, n
         f"age_over_{policy.min_age}": row.outcome == Outcome.PASS,
         "assurance": "basic",
         "methods": ["face_estimation"],
-        "policy": row.policy_id,
+        "policy": policy_label(row),
         "model": row.model_version,
         "livemode": row.livemode,
     }
     return svc.keyring.sign(claims)
+
+
+async def introspect(svc: Services, project_id: uuid.UUID, token: str) -> dict[str, Any]:
+    """Check an age token for a website that would rather ask than verify signatures itself (RFC 7662's idea). A token
+    is answered as active once: the second time, or if it is forged, expired, or another project's, `active` is false,
+    with no reason given, so the answer teaches a forger nothing."""
+    now, inactive = svc.now(), {"active": False}
+    claims = svc.keyring.verify(token)
+    if claims is None or claims.get("iss") != svc.settings.issuer or claims.get("aud") != ids.encode("prj", project_id):
+        return inactive
+    if not isinstance(claims.get("exp"), int) or claims["exp"] <= now.timestamp():
+        return inactive
+    try:
+        jti = uuid.UUID(str(claims.get("jti")))
+    except ValueError:
+        return inactive
+    async with tenant(svc.sessions, project_id) as session:
+        issued = await session.get(IssuedToken, jti, with_for_update=True)
+        if issued is None or issued.introspected_at is not None:
+            return inactive
+        issued.introspected_at = now
+        await session.commit()
+    return {"active": True, **claims}

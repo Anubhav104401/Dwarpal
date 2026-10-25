@@ -1,5 +1,5 @@
 ---
-fingerprint: a32d6be8d3f4a6ee
+fingerprint: 19a4715ade7f86bb
 ---
 The API's connection to **PostgreSQL**, the database that remembers everything that must survive a restart: projects, keys, sessions, attempts, signing keys (§0.12, §4.10). The file is short because SQLAlchemy does the heavy lifting; these lines choose *how* it behaves.
 
@@ -42,65 +42,67 @@ The final `true` is the important part: *only until this transaction ends*. When
 @@ 19-22
 **`NAME_SESSION_TENANT`** — the same, for the verify page. A browser in the middle of an age check holds only a flow token, which names a *verification session*, not a project. So the statement asks the function `dwarpal_session_project` (made by the migration) which project owns that session, and names it in one step. `coalesce(…, '')` turns "no such session" into an empty name, which matches no tenant: the unit of work then sees nothing, and the code answers 404.
 
-@@ 23-24
+@@ 23-26
 **`FIND_API_KEY`** — reading an API key happens *before* the tenant is known: the key is what tells us who the caller is. Under row-level security, a unit of work with no tenant can't see any key. So the key is read through `dwarpal_find_api_key`, a function the migration lets see every key but return only the five columns that checking a key needs.
 
-@@ 27-28
+Since migration `0003`, it also returns the key's scopes and its expiry.
+
+@@ 29-30
 `Base` — our project's own base class for tables. Every table class inherits from it, and SQLAlchemy collects them all into one catalogue, `Base.metadata`. Migrations and tests use that catalogue to compare the code with the real database (§4.10).
 
-@@ 31
+@@ 33
 **`make_engine`** — create the engine for a database URL (see `settings.py`). The new, optional `role` names the restricted database role every connection should become. The API passes `dwarpal_app`; the command-line tools pass nothing, and keep the full rights of the login that owns the tables (they run migrations and reports).
 
-@@ 32
+@@ 34
 `create_async_engine` with three choices:
 
 - `pool_pre_ping=True` — before lending out a connection, check it still works. Databases restart and networks drop idle connections; without the check, the first request after such a hiccup would fail;
 - `pool_size=10` — keep up to 10 connections open;
 - `max_overflow=10` — at busy moments, open up to 10 more, temporary ones. So at most 20 connections exist at once, which protects PostgreSQL from being flooded.
 
-@@ 33-35
+@@ 35-37
 If a role was asked for, check its name against `ROLE_NAME` first, and stop with an error if it doesn't fit.
 
-@@ 37-38
+@@ 39-40
 `@event.listens_for(engine.sync_engine, "connect")` — run the function below **each time the pool opens a new connection**, before anyone uses it. (`sync_engine` is the engine's inner, non-async core, where SQLAlchemy's events live.) Because it happens once per connection, not once per request, it costs nothing on the busy path.
 
-@@ 39-45
+@@ 41-47
 **`become_role`** — `SET ROLE dwarpal_app` switches the connection from the login that owns the tables to the restricted role. Row-level security doesn't bind a table's owner, but it binds every other role, so from this moment every query this connection runs is filtered by the policies.
 
 The `autocommit` lines matter, and the tests caught it: the database driver quietly opens a transaction around any statement, and the pool's next **rollback** would undo the `SET ROLE` with it. The connection would silently go back to being the owner, and the policies would stop applying. With `autocommit` on, the statement runs outside any transaction, so nothing can roll it back; then the normal behaviour is switched back on.
 
-@@ 47
+@@ 49
 Hand back the engine.
 
-@@ 50
+@@ 52
 **`make_sessions`** — create the factory that makes database sessions. Its return type, `async_sessionmaker[AsyncSession]`, reads "a session maker that makes `AsyncSession`s".
 
-@@ 51
+@@ 53
 `expire_on_commit=False` — after a commit, keep the values already loaded in Python objects. By default SQLAlchemy marks them as stale, and re-reads them from the database on next use. In async code, that hidden re-read would need an `await` where none is written, and fail. The use cases read a few values (such as the new status) right after committing, so this setting matters.
 
-@@ 54-56
+@@ 56-58
 **`name_tenant`** — name the tenant inside a unit of work that is already open: one project, or one organisation (the console of a later step will work organisation-wide).
 
-@@ 57
+@@ 59
 Its docstring.
 
-@@ 58-59
+@@ 60-61
 Turn the IDs into text (an absent one becomes the empty text `""`, which the policies read as "none"), and run `NAME_TENANT` with them.
 
-@@ 62-65
+@@ 64-67
 **`tenant`** — the helper almost every use case calls. `@asynccontextmanager` turns a function with one `yield` into something usable with `async with`: the code before `yield` runs on entry, the caller's block runs at the `yield`, and the rest runs on exit, even after an error. It takes the session factory and the tenant, and gives the caller a database session.
 
-@@ 66-67
+@@ 68-69
 Its docstring: a unit of work confined to one project or organisation.
 
-@@ 68-70
+@@ 70-72
 Open a database session, name the tenant as its **very first** statement, and hand the session to the caller. When the caller's block ends, the outer `async with` closes the session. A use case can't forget to name its tenant, because it never gets a session that hasn't named one.
 
-@@ 73-76
+@@ 75-78
 **`session_tenant`** — the verify page's version: given a verification session's ID instead of a project.
 
-@@ 77-78
+@@ 79-80
 Its docstring, including the case of an unknown session: the unit of work is confined to nothing.
 
-@@ 79-81
+@@ 81-83
 Open a session, run `NAME_SESSION_TENANT` with the verification session's ID as its first statement, and hand it over.

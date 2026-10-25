@@ -1,5 +1,5 @@
 ---
-fingerprint: 68ea89155b9e1cea
+fingerprint: b55f1e5fe10f60af
 ---
 The file that **assembles** the API. Every other module is a part; this one connects them in the right order when the program starts, and disconnects them when it stops. It follows the same pattern as the inference service's `main.py` (§5.1.1): an **app factory** called `create_app`.
 
@@ -24,49 +24,49 @@ The project-wide type-hint setting.
 @@ 12-15
 `httpx` for the inference client, FastAPI itself, its **CORS** middleware (§4.13), and the async Valkey client.
 
-@@ 17-25
-Every part, from every layer: database helpers, the inference client, the key classes, the store, the toolbox, the manifest loader, the five HTTP modules, the body-size guard, and the settings.
-
-@@ 28
-**`create_app`** — build and return the app. Both parameters are optional, and only tests use them: `settings` to point the API at test databases, and `inference_http` to talk to an inference app running inside the same process.
+@@ 17-26
+Every part, from every layer: database helpers, the inference client, the key classes, the store, the idempotency module (for its secret), the toolbox, the manifest loader, the nine HTTP modules, the body-size guard, and the settings.
 
 @@ 29
+**`create_app`** — build and return the app. Both parameters are optional, and only tests use them: `settings` to point the API at test databases, and `inference_http` to talk to an inference app running inside the same process.
+
+@@ 30
 Use the given settings, or read them from the environment.
 
-@@ 31-32
+@@ 32-33
 The **lifespan** function. `@asynccontextmanager` turns a function with a single `yield` into a "before and after" pair: everything before `yield` runs at start-up, and everything after it at shutdown. Defining it *inside* `create_app` lets it use `settings` and `inference_http` directly.
 
-@@ 33-34
+@@ 34-35
 Create the database engine (the connection pool), working as the restricted role from the settings (`dwarpal_app`, so row-level security applies to every query), and the session factory (`db.py`). The key ring just below loads the signing keys through it: they belong to Dwarpal, not to a tenant, so no tenant is needed.
 
-@@ 35
+@@ 36
 Create the Valkey client from its URL. It connects lazily, on first use.
 
-@@ 36-38
+@@ 37-39
 The HTTP client for the inference service: the one a test passed in, or a new one with the service's base address and timeout from the settings.
 
-@@ 39
-Build the key ring around the master key. `get_secret_value()` is the only way out of a `SecretStr`, so this is one of very few lines in the project that ever touches the master key in plain form. A malformed key stops the start-up right here.
-
 @@ 40-41
+Build the master key, then the key ring around it. `get_secret_value()` is the only way out of a `SecretStr`, so this is one of very few lines in the project that ever touches the master key in plain form. A malformed key stops the start-up right here. The master key itself is kept for the toolbox: it also seals webhook secrets.
+
+@@ 42-43
 Load the signing key, creating one if the database has none (`signing.py`, with its lock against two copies starting at once).
 
-@@ 42-49
-Fill the toolbox and store it on the app, where the `services` dependency finds it for every request. The model manifest is read from `models_dir`; a broken or missing manifest stops the start-up.
+@@ 44-53
+Fill the toolbox and store it on the app, where the `services` dependency finds it for every request. The model manifest is read from `models_dir`; a broken or missing manifest stops the start-up. The idempotency secret is derived from the master key once, here (`app/idempotency.py`), and the master key goes in too.
 
-@@ 50-51
+@@ 54-55
 `yield` hands control to the server: the app now serves requests until shutdown begins.
 
-@@ 52-56
+@@ 56-60
 `finally` runs at shutdown — even after a crash. Close the inference client only if *we* created it (a test closes its own; whoever creates a resource closes it), then the Valkey client, then the database pool.
 
-@@ 58
+@@ 62
 Create the FastAPI app, with a title and version for its automatic documentation, and the lifespan.
 
-@@ 59
+@@ 63
 Add the body-size guard (`limits.py`).
 
-@@ 60-66
+@@ 64-70
 Add the **CORS** middleware, which tells browsers which other websites may call this API from their pages (§4.13):
 
 - `allow_origins` — only the origins in the settings: the verify page;
@@ -74,7 +74,7 @@ Add the **CORS** middleware, which tells browsers which other websites may call 
 - `allow_headers` — the only request headers a page may send: the token, the body's type, a request ID, and the verify page's device ID (`X-Dwarpal-Device`, for the per-device budgets);
 - `expose_headers` — lets the page's code read our `X-Request-Id` header, so the verify page can show it in an error message.
 
-@@ 67
+@@ 71
 Install the request IDs, request log and error handlers (`problems.py`). Middleware added later wraps everything added before, so the order of these lines decides the order requests flow through:
 
 ```
@@ -83,8 +83,8 @@ request → RequestIds → CORS → BodyLimit → error handlers → endpoint
 
 Request IDs come first, so every later step — even a refusal by the size guard — can name the request. CORS comes before the size guard, so browsers can read even a "too large" answer.
 
-@@ 68-69
-Add the four routers — the relying-party API, the flow API, the well-known addresses and the health checks.
+@@ 72-73
+Add the eight routers — the relying-party API, policies, webhooks, token introspection, analytics, the flow API, the well-known addresses and the health checks.
 
-@@ 70
+@@ 74
 Return the finished app.

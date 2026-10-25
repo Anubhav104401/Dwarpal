@@ -10,7 +10,8 @@ from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from joserfc import jwt
-from joserfc.jwk import OKPKey
+from joserfc.errors import JoseError
+from joserfc.jwk import KeySet, OKPKey
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,3 +73,15 @@ class KeyRing:
             raise RuntimeError("the key ring has not been loaded")
         header = {"alg": ALG, "typ": JWT_TYPE, "kid": self._signing.kid}
         return jwt.encode(header, claims, self._signing, algorithms=[ALG])
+
+    def verify(self, token: str) -> dict[str, Any] | None:
+        """The claims of an age token signed by one of our current keys, or None for anything else: a bad signature,
+        an unknown or retired key, another algorithm or another type of token. Times are the caller's to check."""
+        try:
+            keys = KeySet([OKPKey.import_key(jwk) for jwk in self._public])
+            decoded = jwt.decode(token, keys, algorithms=[ALG])
+        except (JoseError, ValueError):
+            return None
+        if decoded.header.get("typ") != JWT_TYPE:
+            return None
+        return dict(decoded.claims)

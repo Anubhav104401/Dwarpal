@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     # ID the verify page keeps; the address budget is larger, because many people can share one network.
     device_challenges_per_hour: int = 30
     address_challenges_per_hour: int = 120
+    # Requests one API key may make: a steady rate per second, with bursts of up to `api_burst` at once.
+    api_requests_per_second: float = 100.0
+    api_burst: int = 200
+    # Webhooks: never to private or local addresses, except for local development and tests (refused in production).
+    webhook_allow_private: bool = False
+    webhook_timeout_s: float = 10.0
+    webhook_poll_s: float = 2.0
 
     @model_validator(mode="after")
     def refuse_development_values_in_production(self) -> Settings:
@@ -43,6 +50,8 @@ class Settings(BaseSettings):
             return self
         if self.master_key.get_secret_value() == DEV_MASTER_KEY:
             raise ValueError("DWARPAL_MASTER_KEY must be set to a real secret in production")
+        if self.webhook_allow_private:
+            raise ValueError("DWARPAL_WEBHOOK_ALLOW_PRIVATE must not be set in production")
         for name in ("issuer", "verify_url"):
             if not getattr(self, name).startswith("https://"):
                 raise ValueError(f"DWARPAL_{name.upper()} must be an https:// address in production")
