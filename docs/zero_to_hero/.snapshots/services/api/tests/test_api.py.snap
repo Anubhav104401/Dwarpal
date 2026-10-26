@@ -1265,3 +1265,40 @@ async def test_the_console_shows_a_projects_sessions_with_their_decision_trace(d
     assert by_owner.status_code == 201 and by_owner.json()["id"] == "console_18@1"
     assert [p["id"] for p in listed["data"] if not p["preset"]] == ["console_18@1"]
     assert (elsewhere.status_code, elsewhere.json()["code"]) == (404, "project_not_found")  # another org's project
+
+
+@pytest.mark.anyio
+async def test_the_console_manages_a_projects_webhooks(databases: tuple[str, str]) -> None:
+    settings = {**CONSOLE_SETTINGS, "webhook_allow_private": True}
+    async with harness(databases, **settings) as h, person(h) as owner, person(h) as analyst:
+        me = await sign_up(owner, unique("hooks-owner"))
+        org, token = me["organisations"][0]["id"], {"X-CSRF-Token": me["csrf_token"]}
+        analyst_email = unique("hooks-analyst")
+        analyst_token = {"X-CSRF-Token": (await sign_up(analyst, analyst_email, "Theirs"))["csrf_token"]}
+        added = {"email": analyst_email, "role": "analyst"}
+        await owner.post(f"{CONSOLE}/orgs/{org}/members", json=added, headers=token)
+        project = (await owner.get(f"{CONSOLE}/orgs/{org}/projects")).json()["data"][0]["id"]
+        hooks = f"{CONSOLE}/orgs/{org}/projects/{project}/webhooks"
+        hook = {"url": "http://localhost:9/hooks", "events": ["verification_session.completed"]}
+
+        by_analyst = await analyst.post(hooks, json=hook, headers=analyst_token)
+        created = (await owner.post(hooks, json=hook, headers=token)).json()
+        seen_by_analyst = await analyst.get(hooks)
+        live = (await owner.get(f"{hooks}?livemode=true")).json()
+        sent = await owner.post(f"{hooks}/{created['id']}/test", headers=token)
+        deliveries = (await owner.get(f"{hooks}/{created['id']}/deliveries")).json()["data"]
+        delivery = deliveries[0]["id"]
+        replay = f"{CONSOLE}/orgs/{org}/projects/{project}/webhook-deliveries/{delivery}/replay"
+        replayed = await owner.post(replay, headers=token)
+        wrong_mode = await owner.delete(f"{hooks}/{created['id']}?livemode=true", headers=token)
+        removed = await owner.delete(f"{hooks}/{created['id']}", headers=token)
+        after = (await owner.get(hooks)).json()
+        audit = (await owner.get(f"{CONSOLE}/orgs/{org}/audit")).json()["data"]
+    assert (by_analyst.status_code, by_analyst.json()["code"]) == (403, "forbidden_for_role")
+    assert created["secret"].startswith("whsec_") and created["livemode"] is False  # the secret, shown once
+    assert (seen_by_analyst.status_code, live["data"]) == (403, [])  # analysts can't see where events go
+    assert sent.status_code == 202 and [d["status"] for d in deliveries] == ["pending"]
+    assert replayed.status_code == 202
+    assert (wrong_mode.status_code, removed.status_code, after["data"]) == (404, 204, [])
+    actions = {(e["action"], e["actor"].partition(":")[0]) for e in audit}
+    assert {("webhook_endpoint.created", "user"), ("webhook_endpoint.deleted", "user")} <= actions

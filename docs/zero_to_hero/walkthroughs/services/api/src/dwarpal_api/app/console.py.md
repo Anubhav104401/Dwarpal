@@ -1,5 +1,5 @@
 ---
-fingerprint: 2c2186c8db0cc1f2
+fingerprint: f6eaee8e3073f2aa
 ---
 The **console's use cases** (Phase 4, §5.4.5) — everything a person at one of Dwarpal's customers does through the web console: signing up and in, switching on one-time codes, managing members, creating API keys, reading the audit log.
 
@@ -22,7 +22,7 @@ The project-wide type-hint setting.
 SQLAlchemy's `select`, and `IntegrityError`, raised when the database refuses a row (here, a duplicate).
 
 @@ 17-34
-The tenant helper and the account look-up, password hashing, the tables (including sessions and their attempts, for the decision trace), the other use cases this module reuses — analytics, the audit log, policies and verification — IDs and one-time codes, the key helpers, the `Policy` type, the roles, and our error class.
+The tenant helper and the account look-up, password hashing, the tables (including sessions and their attempts, for the decision trace), the other use cases this module reuses — analytics, the audit log, policies, verification and webhooks — IDs and one-time codes, the key helpers, the `Policy` type, the roles, and our error class.
 
 @@ 36-38
 For type hints only: the master key's type and the toolbox (see `app/webhooks.py` for why such imports are kept apart).
@@ -326,3 +326,24 @@ The session's summary — never a token: reading a trace must not mint one — a
 
 @@ 426-430
 Check the project and the role, then add the version, with the person (not an API key) named in the audit log.
+
+@@ 433-438
+**`project_webhooks`** (Phase 5, §5.5.3) — a project's endpoints in one mode. Only roles that may manage webhooks may even **see** them: an endpoint's address says where the project's events go, which is the kind of thing an attacker would like to know.
+
+@@ 441-450
+**`add_webhook`** — a new endpoint, from the console.
+
+@@ 451-453
+Check the project and the role, then create it with the website API's own use case — the same allowed events, the same SSRF guard, the same limit of 16, the same secret shown once — with the person named in the audit log.
+
+@@ 456-461
+**`remove_webhook`** — the same check, then delete it, the person named.
+
+@@ 464-468
+**`send_test_event`** — queue a test event for one endpoint.
+
+@@ 471-475
+**`webhook_deliveries`** — an endpoint's recent deliveries.
+
+@@ 478-482
+**`replay_delivery`** — send a delivery again from the start of its retry schedule.

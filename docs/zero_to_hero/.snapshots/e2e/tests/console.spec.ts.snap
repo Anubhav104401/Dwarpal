@@ -51,6 +51,13 @@ test("a new customer signs up, creates an API key, and sees it in an intact audi
   await page.getByLabel("New version of policy").fill("shop_18");
   await page.getByRole("button", { name: "Add version" }).click();
   await expect(page.getByRole("region", { name: "Policies" })).toContainText("shop_18@1");
+
+  // A webhook endpoint: its secret is shown once, and a test event waits to be delivered.
+  await page.getByLabel("Endpoint URL").fill("http://localhost:3100/dwarpal-events");
+  await page.getByRole("button", { name: "Add endpoint" }).click();
+  await expect(page.getByTestId("new-secret")).toHaveText(/^whsec_/);
+  await page.getByRole("button", { name: "Send test" }).click();
+  await expect(page.getByRole("table", { name: "Recent deliveries" })).toContainText("pending");
 });
 
 test("the console refuses a wrong password without saying whether the account exists", async ({ page }) => {

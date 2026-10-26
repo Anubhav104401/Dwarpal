@@ -1,5 +1,5 @@
 ---
-fingerprint: 27eaca8a70728339
+fingerprint: 2558cdaa2b96d765
 ---
 The use cases of **events and webhooks** (Phase 4, §5.4.3): writing events, and letting a website manage the endpoints that hear about them.
 
@@ -22,107 +22,107 @@ SQLAlchemy's `func` (for `count`) and `select`, and the session type.
 @@ 13-18
 The tenant helper, the three tables, the URL check and secret maker, the audit log (step 5), the ID helpers, and our error class.
 
-@@ 20-22
-`TYPE_CHECKING` is `False` when the program runs and `True` only while the type checker reads the code. So `Services` and `Caller` are imported for type hints alone. A real import would be a **circle**: `verification.py` imports this module to announce events, this module would import `verification.py`, and `deps.py` (where `Caller` lives) imports `verification.py` too. Python can't finish loading any of them first.
+@@ 20-21
+`TYPE_CHECKING` is `False` when the program runs and `True` only while the type checker reads the code. So `Services` is imported for type hints alone. A real import would be a **circle**: `verification.py` imports this module to announce events, and this module would import `verification.py`. Python can't finish loading either. (Until the console's webhook pages, the website API's `Caller` was imported the same way; the use cases now take plain values instead, so the console can call them too.)
 
-@@ 24-27
+@@ 23-26
 The event types a website may subscribe to; the test event's type; at most 16 endpoints per project; and how many recent deliveries a list shows.
 
-@@ 30-39
+@@ 29-38
 **`event_view`** — an event as receivers see it: its public ID (`evt_…`), the `object` label, its type and mode, when it happened, and its data. This is the body of every webhook, and so exactly what each signature covers.
 
-@@ 42-51
+@@ 41-50
 **`endpoint_view`** — an endpoint as the API shows it: ID (`whe_…`), address, events, whether it is on, its mode, and when it was made. **Never the secret.**
 
-@@ 54-66
+@@ 53-65
 **`delivery_view`** — a delivery: its ID (`whd_…`), its event, its status and attempts, when it is next due (only while pending), what happened last time, and when it was made and delivered.
 
-@@ 69-78
+@@ 68-77
 **`emit`** — write an event. It takes the caller's open database session (so it joins the caller's transaction), a function that makes IDs, the time, the project and mode, the type and data, and optionally `only`: one endpoint that should get it whatever it subscribes to.
 
-@@ 79-80
+@@ 78-79
 Its docstring, with the reason it works inside the caller's transaction.
 
-@@ 81-82
+@@ 80-81
 Make the event row and add it.
 
-@@ 83-87
+@@ 82-86
 Find the endpoints to tell: this project's, in this mode, switched on.
 
-@@ 88-90
+@@ 87-89
 Either just the one endpoint, or every endpoint whose `events` list contains this type. `contains([event_type])` becomes PostgreSQL's array operator `@>`, "contains all of".
 
-@@ 91-105
+@@ 90-104
 For each, add a delivery: pending, no attempts yet, due **now**, nothing recorded yet.
 
-@@ 106
+@@ 105
 Return the event (for the test endpoint's answer).
 
-@@ 109-110
-**`create_endpoint`** — register an address for the caller's project, for some event types. It takes the whole caller, for the audit log.
+@@ 108-117
+**`create_endpoint`** — register an address for a project, in test or live mode, for some event types. `actor` is who the audit log names: a website's key (`("api_key", …)`) or, since the console's webhook pages, a person (`("user", …)`). The organisation's ID is needed for its audit log.
 
-@@ 111-113
+@@ 118-120
 Every requested type must exist, and at least one must be asked for.
 
-@@ 114-117
+@@ 121-124
 The address must be safe (`adapters/webhooks.py`): otherwise `422 unsafe_webhook_url`, with the reason.
 
-@@ 118-119
+@@ 125-126
 The toolbox must have the master key. This can't happen in the running API (`main.py` always supplies it), so it is a programming error, not a refusal.
 
-@@ 120
+@@ 127
 A new ID, a new secret, and the time.
 
-@@ 121-125
+@@ 128-132
 The endpoint's row: its ID, project, mode and address,
 
-@@ 126-127
+@@ 133-134
 its secret, **sealed** under the master key with the endpoint's ID as associated data, so a sealed secret copied onto another row won't open,
 
-@@ 128-131
+@@ 135-138
 its event types (without repeats, in order), switched on, made now.
 
-@@ 132-135
+@@ 139-142
 In the project's tenant, count its endpoints, and refuse a seventeenth with `409`.
 
-@@ 136-139
-Save it, and record it in the organisation's audit log in the same transaction: the endpoint's ID, its address, events and mode — never its secret.
+@@ 143-146
+Save it, and record it in the organisation's audit log in the same transaction, under the actor's name: the endpoint's ID, its address, events and mode — never its secret.
 
-@@ 140-141
+@@ 147-148
 Answer with the endpoint **and its secret**. This is the only time the secret is ever shown: the website must store it now.
 
-@@ 144-152
+@@ 151-159
 **`load_endpoint`** — find an endpoint by its public ID, in the current tenant and mode. A malformed ID, an unknown one, another tenant's (invisible under row-level security) or one in the other mode all get the same `404`.
 
-@@ 155-161
+@@ 162-168
 **`list_endpoints`** — the project's endpoints in this mode, oldest first.
 
-@@ 164-170
-**`delete_endpoint`** — find it, record its deletion (with its address) in the audit log, and delete it. Its deliveries go with it (the foreign key's `CASCADE`).
+@@ 171-179
+**`delete_endpoint`** — for a project, in one mode, by an actor: find it, record its deletion (with its address) in the audit log, and delete it. Its deliveries go with it (the foreign key's `CASCADE`).
 
-@@ 173-174
+@@ 182-183
 **`send_test`** — queue a test event for one endpoint.
 
-@@ 175-179
+@@ 184-188
 Find the endpoint, and emit a `webhook_endpoint.test` event with a short message, to it alone. Commit.
 
-@@ 180
+@@ 189
 Answer with the event.
 
-@@ 183-193
+@@ 192-202
 **`list_deliveries`** — an endpoint's most recent deliveries, newest first, at most 100.
 
-@@ 196-197
+@@ 205-206
 **`replay`** — send a delivery again from the start of the schedule: after a receiver was fixed, or for a dead delivery.
 
-@@ 198-201
+@@ 207-210
 A malformed ID is simply "not found".
 
-@@ 202-206
+@@ 211-215
 In the tenant, find the delivery, **locked**, and its endpoint; it must exist and be in the caller's mode.
 
-@@ 207-208
+@@ 216-217
 Make it pending again, with no attempts, due now, and clear what happened before.
 
-@@ 209-210
+@@ 218-219
 Save, and answer with its new state.

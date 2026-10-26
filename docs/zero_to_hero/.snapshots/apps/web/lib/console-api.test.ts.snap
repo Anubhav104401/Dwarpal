@@ -107,6 +107,53 @@ describe("ConsoleClient, a project's pages", () => {
   });
 });
 
+describe("ConsoleClient, webhooks", () => {
+  it("sends the mode with every webhook request, and keeps the new endpoint's secret", async () => {
+    const seen: Array<[string, string, string | null]> = [];
+    const replies = [
+      answer(200, { csrf_token: "c1", organisations: [] }),
+      answer(201, {
+        id: "whe_1",
+        url: "https://shop.example/hooks",
+        events: ["verification_session.completed"],
+        secret: "whsec_x",
+      }),
+      answer(200, { data: [{ id: "whd_1", event: "evt_1", status: "dead", attempt: 8, last_status: 500 }] }),
+      answer(204, {}),
+    ];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      seen.push([init.method ?? "GET", url, typeof init.body === "string" ? init.body : null]);
+      return replies.shift();
+    });
+    const client = new ConsoleClient();
+    await client.me();
+    const created = await client.addWebhook("org_1", "prj_1", true, "https://shop.example/hooks", [
+      "verification_session.completed",
+    ]);
+    const deliveries = await client.deliveries("org_1", "prj_1", true, "whe_1");
+    await client.removeWebhook("org_1", "prj_1", true, "whe_1");
+
+    expect(created.secret).toBe("whsec_x");
+    expect(JSON.parse(seen[1]?.[2] ?? "{}")).toEqual({
+      url: "https://shop.example/hooks",
+      events: ["verification_session.completed"],
+      livemode: true,
+    });
+    expect(seen[2]?.[1]).toBe(
+      "/console-api/orgs/org_1/projects/prj_1/webhooks/whe_1/deliveries?livemode=true",
+    );
+    expect([deliveries[0]?.status, deliveries[0]?.lastStatus, deliveries[0]?.lastError]).toEqual([
+      "dead",
+      500,
+      null,
+    ]);
+    expect(seen[3]?.slice(0, 2)).toEqual([
+      "DELETE",
+      "/console-api/orgs/org_1/projects/prj_1/webhooks/whe_1?livemode=true",
+    ]);
+  });
+});
+
 describe("CAN", () => {
   it("mirrors the API's role matrix for what the pages offer", () => {
     expect(["owner", "admin", "developer", "analyst"].map((r) => CAN.manageKeys(r as never))).toEqual([

@@ -23,6 +23,8 @@ import {
   type SessionTrace,
 } from "@/lib/console-api";
 
+import { WebhooksPanel } from "./webhooks-panel";
+
 const client = new ConsoleClient();
 
 type Loaded = {
@@ -328,6 +330,10 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
           </form>
         ) : null}
       </section>
+
+      {CAN.manageWebhooks(role) ? (
+        <WebhooksPanel client={client} org={org} project={project} livemode={livemode} />
+      ) : null}
     </ConsoleShell>
   );
 }

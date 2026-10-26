@@ -25,7 +25,10 @@ class NewEndpoint(BaseModel):
 
 @router.post("/webhook-endpoints", status_code=201)
 async def create_endpoint(body: NewEndpoint, caller: Manager, svc: Toolbox) -> dict[str, Any]:
-    return await webhooks.create_endpoint(svc, caller, body.url, body.events)
+    project = caller.project
+    return await webhooks.create_endpoint(
+        svc, project.id, project.org_id, caller.livemode, caller.actor, body.url, body.events
+    )
 
 
 @router.get("/webhook-endpoints")
@@ -35,7 +38,8 @@ async def list_endpoints(caller: Manager, svc: Toolbox) -> dict[str, Any]:
 
 @router.delete("/webhook-endpoints/{endpoint_text}", status_code=204)
 async def delete_endpoint(endpoint_text: str, caller: Manager, svc: Toolbox) -> Response:
-    await webhooks.delete_endpoint(svc, caller, endpoint_text)
+    project = caller.project
+    await webhooks.delete_endpoint(svc, project.id, project.org_id, caller.livemode, caller.actor, endpoint_text)
     return Response(status_code=204)
 
 

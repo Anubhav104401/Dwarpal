@@ -17,9 +17,8 @@ from dwarpal_api.app import audit
 from dwarpal_api.domain import ids
 from dwarpal_api.errors import ApiError
 
-if TYPE_CHECKING:  # only for type hints: verification.py imports this module, and deps.py imports verification.py
+if TYPE_CHECKING:  # only for type hints: verification.py imports this module
     from dwarpal_api.app.verification import Services
-    from dwarpal_api.http.deps import Caller
 
 EVENT_TYPES = ("verification_session.completed", "verification_session.expired")
 TEST_EVENT = "webhook_endpoint.test"
@@ -106,8 +105,16 @@ async def emit(
     return event
 
 
-async def create_endpoint(svc: Services, caller: Caller, url: str, events: list[str]) -> dict[str, Any]:
-    project_id, livemode = caller.project.id, caller.livemode
+async def create_endpoint(
+    svc: Services,
+    project_id: uuid.UUID,
+    org_id: uuid.UUID,
+    livemode: bool,
+    actor: tuple[str, str],
+    url: str,
+    events: list[str],
+) -> dict[str, Any]:
+    """A new endpoint, by a website's key or a person in the console (`actor`, for the audit log)."""
     unknown = sorted(set(events) - set(EVENT_TYPES))
     if unknown or not events:
         raise ApiError(422, "unknown_event_type", f"choose events from {', '.join(EVENT_TYPES)}")
@@ -135,7 +142,7 @@ async def create_endpoint(svc: Services, caller: Caller, url: str, events: list[
             raise ApiError(409, "too_many_webhook_endpoints", f"a project may have at most {MAX_ENDPOINTS} endpoints")
         session.add(row)
         target, facts = ids.encode("whe", endpoint_id), {"url": url, "events": row.events, "livemode": livemode}
-        await audit.record(session, caller.project.org_id, caller.actor, "webhook_endpoint.created", target, facts, now)
+        await audit.record(session, org_id, actor, "webhook_endpoint.created", target, facts, now)
         await session.commit()
     # The secret is shown once, now; afterwards only its sealed form exists.
     return {**endpoint_view(row), "secret": secret}
@@ -161,11 +168,13 @@ async def list_endpoints(svc: Services, project_id: uuid.UUID, livemode: bool) -
     return {"object": "list", "data": [endpoint_view(row) for row in rows]}
 
 
-async def delete_endpoint(svc: Services, caller: Caller, endpoint_text: str) -> None:
-    async with tenant(svc.sessions, caller.project.id) as session:
-        endpoint = await load_endpoint(session, caller.livemode, endpoint_text)
-        org_id, facts = caller.project.org_id, {"url": endpoint.url}
-        await audit.record(session, org_id, caller.actor, "webhook_endpoint.deleted", endpoint_text, facts, svc.now())
+async def delete_endpoint(
+    svc: Services, project_id: uuid.UUID, org_id: uuid.UUID, livemode: bool, actor: tuple[str, str], endpoint_text: str
+) -> None:
+    async with tenant(svc.sessions, project_id) as session:
+        endpoint = await load_endpoint(session, livemode, endpoint_text)
+        facts = {"url": endpoint.url}
+        await audit.record(session, org_id, actor, "webhook_endpoint.deleted", endpoint_text, facts, svc.now())
         await session.delete(endpoint)
         await session.commit()
 

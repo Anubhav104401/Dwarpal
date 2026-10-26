@@ -1,5 +1,5 @@
 ---
-fingerprint: 10a7d2cca9975724
+fingerprint: d0655cf4446ecdc6
 ---
 The **Playwright configuration** — everything the end-to-end test needs before its first click: the databases, the tables, a demo project with a fresh key, a fake camera, a browser that uses that camera, and all four services running. With it, one command — `pnpm e2e` — tests the entire system from scratch, the same way on a laptop and in CI.
 
@@ -128,14 +128,14 @@ The inference service on port 8001, ready when `/readyz` answers. `DWARPAL_INFER
 
 `DWARPAL_INFERENCE_LIVENESS=labels` (Phase 3): the fake camera plays a still portrait that can't turn its head, so liveness believes the frames' labels instead of measuring them — the test mode explained in §5.3. The inference service accepts it only together with the stand-in age model.
 
-@@ 86-89
-The API on port 8000, with its JSON logs.
+@@ 86-91
+The API on port 8000, with its JSON logs. Its one setting: private webhook addresses are allowed, because the console test registers the demo shop's — on this computer. Production refuses them (the SSRF guard, §5.4.3).
 
-@@ 90
+@@ 92
 The verify page on port 3000 (its production build).
 
-@@ 91
+@@ 93
 The shop on port 3100, with the settings `prepare` returned.
 
-@@ 92-93
+@@ 94-95
 The closing brackets.

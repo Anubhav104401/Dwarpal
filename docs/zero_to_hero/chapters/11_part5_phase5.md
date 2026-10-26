@@ -4,7 +4,7 @@ Phase 5 gives Dwarpal the faces people see: the console for its customers, a pol
 
 | Area | Status |
 | :-- | :-- |
-| **Console** — sign-in, organisations, members, keys, audit log | 🟡 first pages (§5.5.1); a project's sessions, decision traces, counts and policies (§5.5.2); webhooks, one-time-code set-up and a command palette to come |
+| **Console** — sign-in, organisations, members, keys, audit log | 🟡 first pages (§5.5.1); a project's sessions, decision traces, counts and policies (§5.5.2); webhooks (§5.5.3); one-time-code set-up and a command palette to come |
 | Design system — tokens, typography, components, motion | 🗓 waits for the typeface decision; the brand colours in `globals.css` are already used |
 | Marketing site (3D face-mesh hero) | 🗓 waits for an approved 3D library |
 | Verify flow in English and Hindi | 🗓 waits for an approved translation library |
@@ -78,3 +78,24 @@ The rest changed existing files, each re-explained in its walkthrough: the conso
 
 !!! honest "Honest limitation"
     The counts are totals, not a chart: the chart waits for the design system. Sessions can't yet be searched or filtered by outcome, and the trace shows numbers, not explanations of them; the reasons' meanings are in §5.3.
+
+### 5.5.3 Webhooks in the console
+
+A project's page now ends with a **Webhooks** panel, for the chosen mode: its endpoints, a form to add one, and for each one *Send test*, *Deliveries* (with *Replay* for a finished delivery) and *Remove*. A new endpoint's signing secret is shown once, exactly like a new API key.
+
+The console API gained six routes under `…/projects/{project}/`: `webhooks` (list and add), `webhooks/{id}` (remove), `webhooks/{id}/test`, `webhooks/{id}/deliveries`, and `webhook-deliveries/{id}/replay`. They call the **same use cases** as the website API (§5.4.3) — the same allowed events, the same SSRF guard, the same limit of 16 endpoints. To make that possible, those use cases no longer take the website API's `Caller` (a key, with its project and mode); they take the project, organisation, mode and **actor** — whoever the audit log should name. A key names itself `api_key:…`; a person, `user:…`.
+
+!!! key "Key idea — some things only the people who change them may see"
+    Analysts may read sessions, traces and counts, but not webhooks: the API refuses even to *list* endpoints to them (`403`), and the page doesn't show the panel. An endpoint's address says where a project's events go — useful to an attacker, and of no use to someone reading reports.
+
+!walk apps/web/app/console/[org]/[project]/webhooks-panel.tsx
+
+The rest changed existing files, each re-explained in its walkthrough: the webhook use cases and routes (`app/webhooks.py`, `http/webhooks.py`), the console API (`app/console.py`, `http/console.py`), its test (`test_api.py`), the client and its test (`console-api.ts`, `console-api.test.ts`), the project page (`project-view.tsx`), the browser test (`console.spec.ts`) and its servers (`playwright.config.ts`, which now lets the test API accept a webhook on this computer).
+
+**What the tests prove**:
+- an owner adds an endpoint (with its secret), sends a test event, sees it pending, replays it and removes the endpoint; an analyst may neither add nor list one; the other mode sees none; the audit log names the person each time;
+- the client sends the mode with every webhook request, and reads a dead delivery's last answer;
+- in a real browser, an owner adds an endpoint, sees its secret, and sees the test event waiting.
+
+!!! honest "Honest limitation"
+    The console shows the last 100 deliveries of one endpoint at a time, with no filter, and can't yet switch an endpoint off without removing it. During the browser test nothing is actually delivered: no delivery worker runs there (the worker has its own tests, §5.4.3).

@@ -1,5 +1,5 @@
 ---
-fingerprint: 8d8d726dda7be58d
+fingerprint: aee258e3a0a03de3
 ---
 The **webhooks API** (Phase 4, §5.4.3) — six endpoints for a website's server, all needing the `webhooks:write` scope:
 
@@ -42,20 +42,20 @@ Two **type aliases**: names for long types, written once. `Manager` means "a cal
 @@ 23
 `events` — at least one, and no more than there are event types.
 
-@@ 26-28
-**`create_endpoint`** — `201 Created`: register it for the caller.
+@@ 26-31
+**`create_endpoint`** — `201 Created`: register it for the key's project and mode, naming the key in the audit log.
 
-@@ 31-33
+@@ 34-36
 **`list_endpoints`**.
 
-@@ 36-39
-**`delete_endpoint`** — answers `204 No Content`: done, and nothing to say.
+@@ 39-43
+**`delete_endpoint`** — the same for a deletion; answers `204 No Content`: done, and nothing to say.
 
-@@ 42-44
+@@ 46-48
 **`send_test`** — answers `202 Accepted`: the event is queued, and the worker will send it shortly.
 
-@@ 47-49
+@@ 51-53
 **`list_deliveries`** — for one endpoint.
 
-@@ 52-54
+@@ 56-58
 **`replay`** — also `202`: queued again.

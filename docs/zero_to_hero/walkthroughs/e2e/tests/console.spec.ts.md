@@ -1,7 +1,7 @@
 ---
-fingerprint: ab08335fb833c36f
+fingerprint: 8a966146b8aa712f
 ---
-The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page and adds a policy version; and a wrong password is refused without revealing whether the account exists.
+The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page, adds a policy version and a webhook endpoint; and a wrong password is refused without revealing whether the account exists.
 
 @@ 1
 Playwright's `expect` and `test`.
@@ -48,14 +48,17 @@ Its decision trace opens: no attempts yet.
 @@ 50-53
 **A policy version**: an owner adds `shop_18`, and `shop_18@1` is listed at once.
 
-@@ 54
+@@ 55-60
+**A webhook endpoint**: add one on the demo shop's address; its secret (`whsec_…`) is shown; send a test event; it is listed as `pending` — no delivery worker runs during the test.
+
+@@ 61
 End of the test.
 
-@@ 56-60
+@@ 63-67
 **Test — a wrong password**, for an address nobody has.
 
-@@ 61-63
+@@ 68-70
 The refusal says only that the address or password is wrong. (Next.js keeps its own empty `role="alert"` region for announcing page changes; the test picks the alert that has words in it.)
 
-@@ 64
+@@ 71
 End of the test.

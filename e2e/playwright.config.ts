@@ -86,6 +86,8 @@ export default defineConfig({
     server(
       `${UV} run --package dwarpal-api uvicorn dwarpal_api.main:create_app --factory --port 8000 --log-config services/api/logging.json`,
       "http://127.0.0.1:8000/readyz",
+      // The console test registers a webhook on the demo shop's address, which is local: allow it, here only.
+      { DWARPAL_WEBHOOK_ALLOW_PRIVATE: "true" },
     ),
     server("pnpm --filter @dwarpal/web start", "http://localhost:3000"),
     server("pnpm --filter @dwarpal/demo-shop start", "http://localhost:3100", shopEnv),

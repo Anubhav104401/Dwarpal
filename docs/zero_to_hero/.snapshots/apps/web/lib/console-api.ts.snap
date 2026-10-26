@@ -93,12 +93,39 @@ export interface PolicyVersion {
   maxFaceAttempts: number;
 }
 
+/** The events a webhook endpoint can subscribe to (app/webhooks.py). */
+export const EVENT_TYPES = ["verification_session.completed", "verification_session.expired"] as const;
+
+export interface WebhookEndpoint {
+  id: string;
+  url: string;
+  events: string[];
+  enabled: boolean;
+  createdAt: string;
+}
+
+/** A just-created endpoint: the only time its signing secret is shown. */
+export interface NewWebhook extends WebhookEndpoint {
+  secret: string;
+}
+
+export interface Delivery {
+  id: string;
+  event: string;
+  status: string;
+  attempt: number;
+  lastStatus: number | null;
+  lastError: string | null;
+  createdAt: string;
+}
+
 /** What each role may do, as the API decides it (domain/roles.py); the pages only use it to hide what would fail. */
 export const CAN = {
   manageMembers: (role: Role) => role === "owner" || role === "admin",
   readAudit: (role: Role) => role === "owner" || role === "admin",
   manageKeys: (role: Role) => role !== "analyst",
   managePolicies: (role: Role) => role !== "analyst",
+  manageWebhooks: (role: Role) => role !== "analyst",
 } as const;
 
 export class ConsoleError extends Error {
@@ -131,6 +158,16 @@ function asSession(s: Json): SessionSummary {
     attempts: asCount(s.attempts),
     externalRef: orNull(s.external_ref),
     createdAt: asText(s.created_at),
+  };
+}
+
+function asEndpoint(e: Json): WebhookEndpoint {
+  return {
+    id: asText(e.id),
+    url: asText(e.url),
+    events: asTexts(e.events),
+    enabled: e.enabled === true,
+    createdAt: asText(e.created_at),
   };
 }
 
@@ -312,5 +349,58 @@ export class ConsoleClient {
     const body = { name, min_age: minAge, max_face_attempts: attempts };
     const data = await this.#call("POST", `${this.#project(org, project)}/policies`, body);
     return asText(data.id);
+  }
+
+  #hooks(org: string, project: string, endpoint?: string): string {
+    const base = `${this.#project(org, project)}/webhooks`;
+    return endpoint === undefined ? base : `${base}/${encodeURIComponent(endpoint)}`;
+  }
+
+  async webhooks(org: string, project: string, livemode: boolean): Promise<WebhookEndpoint[]> {
+    const data = await this.#call("GET", `${this.#hooks(org, project)}?livemode=${livemode}`);
+    return asList(data.data).map(asEndpoint);
+  }
+
+  async addWebhook(
+    org: string,
+    project: string,
+    livemode: boolean,
+    url: string,
+    events: string[],
+  ): Promise<NewWebhook> {
+    const data = await this.#call("POST", this.#hooks(org, project), { url, events, livemode });
+    return { ...asEndpoint(data), secret: asText(data.secret) };
+  }
+
+  async removeWebhook(org: string, project: string, livemode: boolean, endpoint: string): Promise<void> {
+    await this.#call("DELETE", `${this.#hooks(org, project, endpoint)}?livemode=${livemode}`);
+  }
+
+  /** Queue a test event for one endpoint; returns the event's ID. */
+  async testWebhook(org: string, project: string, livemode: boolean, endpoint: string): Promise<string> {
+    const data = await this.#call("POST", `${this.#hooks(org, project, endpoint)}/test?livemode=${livemode}`);
+    return asText(data.id);
+  }
+
+  async deliveries(org: string, project: string, livemode: boolean, endpoint: string): Promise<Delivery[]> {
+    const data = await this.#call(
+      "GET",
+      `${this.#hooks(org, project, endpoint)}/deliveries?livemode=${livemode}`,
+    );
+    return asList(data.data).map((d) => ({
+      id: asText(d.id),
+      event: asText(d.event),
+      status: asText(d.status),
+      attempt: asCount(d.attempt),
+      lastStatus: typeof d.last_status === "number" ? d.last_status : null,
+      lastError: orNull(d.last_error),
+      createdAt: asText(d.created_at),
+    }));
+  }
+
+  /** Send a delivery again, from the start of the retry schedule. */
+  async replay(org: string, project: string, livemode: boolean, delivery: string): Promise<void> {
+    const path = `${this.#project(org, project)}/webhook-deliveries/${encodeURIComponent(delivery)}/replay`;
+    await this.#call("POST", `${path}?livemode=${livemode}`);
   }
 }

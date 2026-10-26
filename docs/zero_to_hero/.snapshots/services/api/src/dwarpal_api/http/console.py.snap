@@ -16,6 +16,7 @@ from dwarpal_api.domain.policy import Policy
 from dwarpal_api.errors import ApiError
 from dwarpal_api.http.deps import services
 from dwarpal_api.http.policies import NewVersion
+from dwarpal_api.http.webhooks import NewEndpoint
 
 router = APIRouter(prefix="/console/v1", tags=["console"])
 Toolbox = Annotated[Services, Depends(services)]
@@ -226,3 +227,52 @@ async def add_policy_version(
 ) -> dict[str, Any]:
     draft = Policy(body.name, body.min_age, body.risk_budget, body.max_face_attempts, body.token_ttl_s)
     return await console.add_policy_version(svc, current, org_text, project_text, draft)
+
+
+class ConsoleEndpoint(NewEndpoint):
+    """A new endpoint as the website API takes it, plus the mode: a website's key carries it, a person chooses it."""
+
+    livemode: bool = False
+
+
+@router.get(PROJECT + "/webhooks")
+async def project_webhooks(
+    org_text: str, project_text: str, current: Reader, svc: Toolbox, livemode: Live = False
+) -> dict[str, Any]:
+    return await console.project_webhooks(svc, current, org_text, project_text, livemode)
+
+
+@router.post(PROJECT + "/webhooks", status_code=201)
+async def add_webhook(
+    org_text: str, project_text: str, body: ConsoleEndpoint, current: Changer, svc: Toolbox
+) -> dict[str, Any]:
+    return await console.add_webhook(svc, current, org_text, project_text, body.livemode, body.url, body.events)
+
+
+@router.delete(PROJECT + "/webhooks/{endpoint_text}", status_code=204)
+async def remove_webhook(
+    org_text: str, project_text: str, endpoint_text: str, current: Changer, svc: Toolbox, livemode: Live = False
+) -> Response:
+    await console.remove_webhook(svc, current, org_text, project_text, livemode, endpoint_text)
+    return Response(status_code=204)
+
+
+@router.post(PROJECT + "/webhooks/{endpoint_text}/test", status_code=202)
+async def send_test_event(
+    org_text: str, project_text: str, endpoint_text: str, current: Changer, svc: Toolbox, livemode: Live = False
+) -> dict[str, Any]:
+    return await console.send_test_event(svc, current, org_text, project_text, livemode, endpoint_text)
+
+
+@router.get(PROJECT + "/webhooks/{endpoint_text}/deliveries")
+async def webhook_deliveries(
+    org_text: str, project_text: str, endpoint_text: str, current: Reader, svc: Toolbox, livemode: Live = False
+) -> dict[str, Any]:
+    return await console.webhook_deliveries(svc, current, org_text, project_text, livemode, endpoint_text)
+
+
+@router.post(PROJECT + "/webhook-deliveries/{delivery_text}/replay", status_code=202)
+async def replay_delivery(
+    org_text: str, project_text: str, delivery_text: str, current: Changer, svc: Toolbox, livemode: Live = False
+) -> dict[str, Any]:
+    return await console.replay_delivery(svc, current, org_text, project_text, livemode, delivery_text)

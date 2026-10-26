@@ -1,5 +1,5 @@
 ---
-fingerprint: c599fff670122031
+fingerprint: 669d950e46de1aed
 ---
 Unit tests of the console's client (Phase 5), with the network replaced by a stand-in `fetch` that records each request and hands back prepared answers.
 
@@ -82,13 +82,46 @@ The page, the trace's scores and the totals came back as they were sent.
 End of the test and the group.
 
 @@ 110-111
+**The webhook requests.** Every one carries the mode, and the new endpoint's secret comes back.
+
+@@ 112
+Each request seen: its method, address and body.
+
+@@ 113-123
+Four prepared answers: who is signed in (with a CSRF token), the new endpoint with its secret, one dead delivery, and an empty `204`.
+
+@@ 124-127
+A stand-in `fetch` that records each request and hands back the next answer.
+
+@@ 128-134
+Sign in (for the token), add a live endpoint, read its deliveries, and delete it.
+
+@@ 136
+The secret came back.
+
+@@ 137-141
+The creation's body carried the address, the events and the mode.
+
+@@ 142-144
+The deliveries' address carried the mode.
+
+@@ 145-149
+The delivery was read as sent: dead, last answered `500`, with no error text.
+
+@@ 150-153
+The deletion was a `DELETE`, with the mode in its address.
+
+@@ 154-155
+End of the test and the group.
+
+@@ 157-158
 **The page's role checks** match the API's matrix where the pages use them.
 
-@@ 112-117
+@@ 159-164
 Every role but an analyst may manage keys. (`as never` lets a plain text stand in for the `Role` type in this table.)
 
-@@ 118-119
+@@ 165-166
 A developer may not manage members; an admin may read the audit log.
 
-@@ 120-121
+@@ 167-168
 End of the test and the group.

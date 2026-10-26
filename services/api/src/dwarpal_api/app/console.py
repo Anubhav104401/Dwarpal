@@ -26,7 +26,7 @@ from dwarpal_api.adapters.tables import (
     VerificationAttempt,
     VerificationSession,
 )
-from dwarpal_api.app import analytics, audit, policies, verification
+from dwarpal_api.app import analytics, audit, policies, verification, webhooks
 from dwarpal_api.domain import ids, totp
 from dwarpal_api.domain.keys import SCOPES, generate_api_key
 from dwarpal_api.domain.policy import Policy
@@ -428,3 +428,55 @@ async def add_policy_version(
     return await policies.add_version(
         svc.sessions, svc.manifest, project_id, draft, svc.now(), svc.new_id(), org_id, actor
     )
+
+
+async def project_webhooks(
+    svc: Services, current: ConsoleSession, org_text: str, project_text: str, livemode: bool
+) -> dict[str, Any]:
+    """A project's webhook endpoints. Only for roles that manage them: they say where the project's events go."""
+    _, project_id = await project_in(svc, current, org_text, project_text, Action.MANAGE_WEBHOOKS)
+    return await webhooks.list_endpoints(svc, project_id, livemode)
+
+
+async def add_webhook(
+    svc: Services,
+    current: ConsoleSession,
+    org_text: str,
+    project_text: str,
+    livemode: bool,
+    url: str,
+    events: list[str],
+) -> dict[str, Any]:
+    """A new endpoint, with its signing secret shown once — the same checks as the website API's, the person named."""
+    org_id, project_id = await project_in(svc, current, org_text, project_text, Action.MANAGE_WEBHOOKS)
+    actor = actor_of(current.user_id)
+    return await webhooks.create_endpoint(svc, project_id, org_id, livemode, actor, url, events)
+
+
+async def remove_webhook(
+    svc: Services, current: ConsoleSession, org_text: str, project_text: str, livemode: bool, endpoint_text: str
+) -> None:
+    org_id, project_id = await project_in(svc, current, org_text, project_text, Action.MANAGE_WEBHOOKS)
+    actor = actor_of(current.user_id)
+    await webhooks.delete_endpoint(svc, project_id, org_id, livemode, actor, endpoint_text)
+
+
+async def send_test_event(
+    svc: Services, current: ConsoleSession, org_text: str, project_text: str, livemode: bool, endpoint_text: str
+) -> dict[str, Any]:
+    _, project_id = await project_in(svc, current, org_text, project_text, Action.MANAGE_WEBHOOKS)
+    return await webhooks.send_test(svc, project_id, livemode, endpoint_text)
+
+
+async def webhook_deliveries(
+    svc: Services, current: ConsoleSession, org_text: str, project_text: str, livemode: bool, endpoint_text: str
+) -> dict[str, Any]:
+    _, project_id = await project_in(svc, current, org_text, project_text, Action.MANAGE_WEBHOOKS)
+    return await webhooks.list_deliveries(svc, project_id, livemode, endpoint_text)
+
+
+async def replay_delivery(
+    svc: Services, current: ConsoleSession, org_text: str, project_text: str, livemode: bool, delivery_text: str
+) -> dict[str, Any]:
+    _, project_id = await project_in(svc, current, org_text, project_text, Action.MANAGE_WEBHOOKS)
+    return await webhooks.replay(svc, project_id, livemode, delivery_text)

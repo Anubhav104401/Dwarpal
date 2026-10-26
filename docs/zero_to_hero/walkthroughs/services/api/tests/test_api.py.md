@@ -1,5 +1,5 @@
 ---
-fingerprint: 8cbeeb3473978d2e
+fingerprint: ac9d5cfcb8b51788
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -978,3 +978,39 @@ An analyst may not add a policy version; the owner may, and it is listed as `con
 
 @@ 1267
 Another organisation's project, named under this organisation, is not found — the check that the project belongs to the organisation in the address.
+
+@@ 1270-1273
+**Test — the console's webhooks (Phase 5).** An owner and an analyst. Private addresses are allowed, so the endpoint can point at this computer (`localhost:9`, where nothing listens — nothing is sent in this test).
+
+@@ 1274-1280
+The owner signs up, the analyst signs up and is added, and the owner finds the project.
+
+@@ 1281-1282
+The project's webhook address, and an endpoint for finished sessions.
+
+@@ 1284-1287
+The analyst tries to add it; the owner adds it; the analyst tries to list them; the owner lists the live ones.
+
+@@ 1288-1292
+The owner sends a test event, reads the endpoint's deliveries, and replays the first.
+
+@@ 1293-1296
+The owner tries to delete it as a live endpoint, then deletes it as the test one it is; lists again; and reads the audit log.
+
+@@ 1297
+An analyst may not add one.
+
+@@ 1298
+The owner's new endpoint came with its secret, and is a test endpoint.
+
+@@ 1299
+An analyst may not even list them; and the live mode has none — modes never mix.
+
+@@ 1300-1301
+The test event is waiting to be delivered (no worker runs here); the replay is accepted.
+
+@@ 1302
+The wrong mode is "not found"; the deletion worked, and the list is empty.
+
+@@ 1303-1304
+The audit log names a person (`user:…`), not a key, for both the creation and the deletion.
