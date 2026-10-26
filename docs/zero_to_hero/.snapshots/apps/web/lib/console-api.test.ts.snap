@@ -72,6 +72,41 @@ describe("ConsoleClient", () => {
   });
 });
 
+describe("ConsoleClient, a project's pages", () => {
+  it("asks for sessions by mode and cursor, and reads a trace's attempts and scores", async () => {
+    const seen: string[] = [];
+    const replies = [
+      answer(200, {
+        data: [{ id: "vs_1", status: "completed", outcome: "pass", policy: "uk_osa_18", attempts: 1 }],
+        next_cursor: "vs_1",
+      }),
+      answer(200, {
+        id: "vs_1",
+        status: "completed",
+        outcome: "pass",
+        policy: "uk_osa_18",
+        attempts: [{ kind: "face", outcome: "pass", reasons: [], scores: { p_over: 0.99, tau: 0.9 } }],
+      }),
+      answer(200, { since: "2026-09-27", totals: { pass: 3, step_up: 1 } }),
+    ];
+    vi.stubGlobal("fetch", async (url: string) => {
+      seen.push(url);
+      return replies.shift();
+    });
+    const client = new ConsoleClient();
+    const page = await client.sessions("org_1", "prj_1", true, "vs_9");
+    const trace = await client.trace("org_1", "prj_1", "vs_1");
+    const counts = await client.analytics("org_1", "prj_1", false);
+
+    expect(seen[0]).toBe(
+      "/console-api/orgs/org_1/projects/prj_1/sessions?livemode=true&limit=20&starting_after=vs_9",
+    );
+    expect([page.sessions[0]?.outcome, page.nextCursor]).toEqual(["pass", "vs_1"]);
+    expect(trace.traced[0]?.scores).toEqual({ p_over: 0.99, tau: 0.9 });
+    expect(counts.totals).toEqual({ pass: 3, step_up: 1 });
+  });
+});
+
 describe("CAN", () => {
   it("mirrors the API's role matrix for what the pages offer", () => {
     expect(["owner", "admin", "developer", "analyst"].map((r) => CAN.manageKeys(r as never))).toEqual([

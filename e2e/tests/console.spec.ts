@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 const CONSOLE = "http://localhost:3000/console";
+const API = "http://localhost:8000";
 
 test("a new customer signs up, creates an API key, and sees it in an intact audit log", async ({
   page,
+  request,
 }, info) => {
   const email = `owner-${Date.now()}@shop.example`;
   await page.goto(CONSOLE);
@@ -28,8 +30,27 @@ test("a new customer signs up, creates an API key, and sees it in an intact audi
   await page.screenshot({ path: info.outputPath("console.png"), fullPage: true, animations: "disabled" });
 
   // The key is shown once: after a reload, only the facts remain.
+  const key = (await page.getByTestId("new-key").textContent()) ?? "";
   await page.reload();
   await expect(page.getByTestId("new-key")).toHaveCount(0);
+
+  // A website uses the key; the session appears on the project's page, with its (empty) decision trace.
+  const created = await request.post(`${API}/v1/verification-sessions`, {
+    headers: { Authorization: `Bearer ${key}` },
+    data: { policy: "uk_osa_18" },
+  });
+  expect(created.status()).toBe(201);
+  await page.getByRole("link", { name: "Default project" }).click();
+  await expect(page.getByRole("heading", { name: "Default project" })).toBeVisible();
+  const sessions = page.getByRole("region", { name: "Sessions" });
+  await expect(sessions).toContainText("created");
+  await sessions.getByRole("button", { name: "Trace" }).click();
+  await expect(page.getByRole("region", { name: "Decision trace" })).toContainText("No attempts.");
+
+  // An owner adds a policy version; it is listed at once.
+  await page.getByLabel("New version of policy").fill("shop_18");
+  await page.getByRole("button", { name: "Add version" }).click();
+  await expect(page.getByRole("region", { name: "Policies" })).toContainText("shop_18@1");
 });
 
 test("the console refuses a wrong password without saying whether the account exists", async ({ page }) => {

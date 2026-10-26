@@ -12,8 +12,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from dwarpal_api.app import console
 from dwarpal_api.app.console import ConsoleSession
 from dwarpal_api.app.verification import Services
+from dwarpal_api.domain.policy import Policy
 from dwarpal_api.errors import ApiError
 from dwarpal_api.http.deps import services
+from dwarpal_api.http.policies import NewVersion
 
 router = APIRouter(prefix="/console/v1", tags=["console"])
 Toolbox = Annotated[Services, Depends(services)]
@@ -175,3 +177,52 @@ async def audit_log(
     org_text: str, current: Reader, svc: Toolbox, limit: Annotated[int, Query(ge=1, le=500)] = 100
 ) -> dict[str, Any]:
     return await console.audit_log(svc, current, org_text, limit)
+
+
+PROJECT = "/orgs/{org_text}/projects/{project_text}"
+Live = Annotated[bool, Query()]
+
+
+@router.get(PROJECT + "/sessions")
+async def project_sessions(
+    org_text: str,
+    project_text: str,
+    current: Reader,
+    svc: Toolbox,
+    livemode: Live = False,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    starting_after: Annotated[str | None, Query(max_length=64)] = None,
+) -> dict[str, Any]:
+    return await console.project_sessions(svc, current, org_text, project_text, livemode, limit, starting_after)
+
+
+@router.get(PROJECT + "/sessions/{session_text}")
+async def session_trace(
+    org_text: str, project_text: str, session_text: str, current: Reader, svc: Toolbox
+) -> dict[str, Any]:
+    return await console.session_trace(svc, current, org_text, project_text, session_text)
+
+
+@router.get(PROJECT + "/analytics")
+async def project_analytics(
+    org_text: str,
+    project_text: str,
+    current: Reader,
+    svc: Toolbox,
+    livemode: Live = False,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
+) -> dict[str, Any]:
+    return await console.project_analytics(svc, current, org_text, project_text, livemode, days)
+
+
+@router.get(PROJECT + "/policies")
+async def project_policies(org_text: str, project_text: str, current: Reader, svc: Toolbox) -> dict[str, Any]:
+    return await console.project_policies(svc, current, org_text, project_text)
+
+
+@router.post(PROJECT + "/policies", status_code=201)
+async def add_policy_version(
+    org_text: str, project_text: str, body: NewVersion, current: Changer, svc: Toolbox
+) -> dict[str, Any]:
+    draft = Policy(body.name, body.min_age, body.risk_budget, body.max_face_attempts, body.token_ttl_s)
+    return await console.add_policy_version(svc, current, org_text, project_text, draft)

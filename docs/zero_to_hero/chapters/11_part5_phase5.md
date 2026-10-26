@@ -4,7 +4,7 @@ Phase 5 gives Dwarpal the faces people see: the console for its customers, a pol
 
 | Area | Status |
 | :-- | :-- |
-| **Console** — sign-in, organisations, members, keys, audit log | 🟡 first pages (§5.5.1); dashboard, sessions explorer, policy editor, webhooks and a command palette to come |
+| **Console** — sign-in, organisations, members, keys, audit log | 🟡 first pages (§5.5.1); a project's sessions, decision traces, counts and policies (§5.5.2); webhooks, one-time-code set-up and a command palette to come |
 | Design system — tokens, typography, components, motion | 🗓 waits for the typeface decision; the brand colours in `globals.css` are already used |
 | Marketing site (3D face-mesh hero) | 🗓 waits for an approved 3D library |
 | Verify flow in English and Hindi | 🗓 waits for an approved translation library |
@@ -48,4 +48,33 @@ The rest changed existing files, each re-explained in its walkthrough: `next.con
 - a wrong password is refused with the same words as an unknown account.
 
 !!! honest "Honest limitation"
-    These pages are deliberately plain: the design system, with its type, motion and components, waits for the typeface decision. The console doesn't yet show sessions, analytics, policies or webhooks, which their APIs already provide, and it has no pages for switching on one-time codes.
+    These pages are deliberately plain: the design system, with its type, motion and components, waits for the typeface decision. The console doesn't yet show webhooks, which their API already provides, and it has no pages for switching on one-time codes. (Sessions, analytics and policies came next, in §5.5.2.)
+
+### 5.5.2 A project's page: sessions, decision traces, counts, policies
+
+The organisation page now links each project to its own page, `/console/org_…/prj_…`. It shows, for test or live data (a switch at the top, test by default):
+
+- **the last 30 days' counts**, one tile per outcome;
+- **the sessions**, newest first, twenty at a time, with *Show older sessions*;
+- **the decision trace** of any session: each attempt's outcome, its reasons, and the numbers it rested on — the probability of being over the age, the line it was compared with, the liveness evidence. These are the numbers Dwarpal already stores; the trace stores nothing new, and it never mints a token;
+- **the policies**, presets and the project's own versions, with a form — for owners, admins and developers — to add the next version of a policy.
+
+The console API gained five routes under `/console/v1/orgs/{org}/projects/{project}/…`: `sessions`, `sessions/{id}`, `analytics`, and `policies` (read and add). They reuse the website API's use cases, so a page and a website see the same sessions, counts and policies.
+
+!!! key "Key idea — the project must belong to the organisation in the address"
+    The console's tenant is the **organisation**: row-level security lets a member see their organisation's rows. A project page's address names an organisation *and* a project. If the API checked only the organisation, a member of A could write A's ID beside a project of B's. So `project_in` reads the project as the organisation and refuses — "not found" — unless it belongs to it. A test tries exactly that.
+
+!walk apps/web/app/console/[org]/[project]/page.tsx
+
+!walk apps/web/app/console/[org]/[project]/project-view.tsx
+
+The rest changed existing files, each re-explained in its walkthrough: the console API (`app/console.py`, `http/console.py`), its test (`test_api.py`), the published contract (`docs/api/openapi.json`), the client and its test (`console-api.ts`, `console-api.test.ts`), the organisation page's project links (`organisation-view.tsx`), and the browser test (`console.spec.ts`).
+
+**What the tests prove**:
+- an analyst reads a project's sessions, a passed session's trace with its numbers (and no token), and its counts, but may not add a policy version; an owner may;
+- a project of another organisation, named under this organisation's address, is not found;
+- the client builds the sessions address with the mode and cursor exactly, and reads a trace's scores unchanged;
+- in a real browser, a website's server creates a session with the console's new key; the session appears on the project's page; its trace says it has no attempts; and an owner's new policy version is listed at once.
+
+!!! honest "Honest limitation"
+    The counts are totals, not a chart: the chart waits for the design system. Sessions can't yet be searched or filtered by outcome, and the trace shows numbers, not explanations of them; the reasons' meanings are in §5.3.

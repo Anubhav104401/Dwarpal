@@ -16,10 +16,20 @@ from sqlalchemy.exc import IntegrityError
 
 from dwarpal_api.adapters.db import FIND_USER, tenant
 from dwarpal_api.adapters.passwords import hash_password, verify_password
-from dwarpal_api.adapters.tables import ApiKey, AuditEntry, Membership, Organization, Project, User
-from dwarpal_api.app import audit
+from dwarpal_api.adapters.tables import (
+    ApiKey,
+    AuditEntry,
+    Membership,
+    Organization,
+    Project,
+    User,
+    VerificationAttempt,
+    VerificationSession,
+)
+from dwarpal_api.app import analytics, audit, policies, verification
 from dwarpal_api.domain import ids, totp
 from dwarpal_api.domain.keys import SCOPES, generate_api_key
+from dwarpal_api.domain.policy import Policy
 from dwarpal_api.domain.roles import Action, Role, can
 from dwarpal_api.errors import ApiError
 
@@ -335,3 +345,86 @@ async def audit_log(svc: Services, current: ConsoleSession, org_text: str, limit
     ]
     chain = {"entries": report.entries, "intact": report.intact, "first_broken": report.first_broken}
     return {"object": "list", "data": data, "chain": chain}
+
+
+async def project_in(
+    svc: Services, current: ConsoleSession, org_text: str, project_text: str, action: Action
+) -> tuple[uuid.UUID, uuid.UUID]:
+    """The organisation and one of its projects, if the person's role there allows `action`; else 404 or 403."""
+    org_id, _ = await authorise(svc, current, org_text, action)
+    try:
+        project_id = ids.decode("prj", project_text)
+    except ids.InvalidIdError:
+        raise ApiError(404, "project_not_found", "no such project") from None
+    async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
+        project = await session.get(Project, project_id)
+    if project is None or project.org_id != org_id:
+        raise ApiError(404, "project_not_found", "no such project")
+    return org_id, project_id
+
+
+async def project_sessions(
+    svc: Services,
+    current: ConsoleSession,
+    org_text: str,
+    project_text: str,
+    livemode: bool,
+    limit: int,
+    starting_after: str | None,
+) -> dict[str, Any]:
+    """A project's sessions, newest first, a page at a time — the same list a website reads with its key."""
+    _, project_id = await project_in(svc, current, org_text, project_text, Action.READ_SESSIONS)
+    return await verification.list_sessions(svc, project_id, livemode, limit, starting_after)
+
+
+async def session_trace(
+    svc: Services, current: ConsoleSession, org_text: str, project_text: str, session_text: str
+) -> dict[str, Any]:
+    """One session with its **decision trace**: every attempt's outcome, reasons and scores — the numbers the
+    decision rested on, never an image."""
+    _, project_id = await project_in(svc, current, org_text, project_text, Action.READ_SESSIONS)
+    session_id = verification.parse_session_id(session_text)
+    async with tenant(svc.sessions, project_id=project_id) as session:
+        row = await session.get(VerificationSession, session_id)
+        if row is None:
+            raise ApiError(404, "session_not_found", "no such verification session")
+        query = (
+            select(VerificationAttempt)
+            .where(VerificationAttempt.session_id == session_id)
+            .order_by(VerificationAttempt.created_at)
+        )
+        attempts = list(await session.scalars(query))
+    trace = [
+        {
+            "kind": attempt.kind,
+            "outcome": attempt.outcome,
+            "reasons": attempt.reasons,
+            "scores": attempt.scores,
+            "created_at": attempt.created_at.isoformat(),
+        }
+        for attempt in attempts
+    ]
+    return {**verification.summary_view(row, svc.now()), "attempts": trace}
+
+
+async def project_analytics(
+    svc: Services, current: ConsoleSession, org_text: str, project_text: str, livemode: bool, days: int
+) -> dict[str, Any]:
+    _, project_id = await project_in(svc, current, org_text, project_text, Action.READ_ANALYTICS)
+    return await analytics.session_counts(svc, project_id, livemode, days)
+
+
+async def project_policies(svc: Services, current: ConsoleSession, org_text: str, project_text: str) -> dict[str, Any]:
+    _, project_id = await project_in(svc, current, org_text, project_text, Action.READ_SESSIONS)
+    return await policies.list_all(svc.sessions, project_id)
+
+
+async def add_policy_version(
+    svc: Services, current: ConsoleSession, org_text: str, project_text: str, draft: Policy
+) -> dict[str, Any]:
+    """The next version of one of the project's policies, recorded in the audit log under the person's name."""
+    org_id, project_id = await project_in(svc, current, org_text, project_text, Action.MANAGE_POLICIES)
+    actor = actor_of(current.user_id)
+    return await policies.add_version(
+        svc.sessions, svc.manifest, project_id, draft, svc.now(), svc.new_id(), org_id, actor
+    )

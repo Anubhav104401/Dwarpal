@@ -13,7 +13,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
@@ -1223,3 +1223,45 @@ async def test_production_has_hsts_and_no_interactive_documentation() -> None:
         document = await client.get("/openapi.json")
     assert alive.headers["strict-transport-security"] == "max-age=63072000; includeSubDomains"
     assert docs.status_code == 404 and document.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_the_console_shows_a_projects_sessions_with_their_decision_trace(databases: tuple[str, str]) -> None:
+    async with (
+        harness(databases, **CONSOLE_SETTINGS) as h,
+        person(h) as owner,
+        person(h) as analyst,
+    ):
+        me = await sign_up(owner, unique("trace-owner"))
+        org, token = me["organisations"][0]["id"], {"X-CSRF-Token": me["csrf_token"]}
+        analyst_email = unique("trace-analyst")
+        analyst_token = {"X-CSRF-Token": (await sign_up(analyst, analyst_email, "Theirs"))["csrf_token"]}
+        added = {"email": analyst_email, "role": "analyst"}
+        await owner.post(f"{CONSOLE}/orgs/{org}/members", json=added, headers=token)
+        project = (await owner.get(f"{CONSOLE}/orgs/{org}/projects")).json()["data"][0]["id"]
+        base = f"{CONSOLE}/orgs/{org}/projects/{project}"
+        wanted = {"scopes": ["sessions:read", "sessions:write"]}
+        key = (await owner.post(f"{base}/keys", json=wanted, headers=token)).json()["key"]
+        website = replace(h, key=key)  # a website using the key made in the console
+        passed = (await create(website, return_url=None)).json()  # this project allows no return address yet
+        flow = await start(website, passed)
+        assert (await attempt(website, passed["id"], flow, [PORTRAIT] * 6)).json()["outcome"] == "pass"
+
+        sessions = (await analyst.get(f"{base}/sessions")).json()
+        trace = (await analyst.get(f"{base}/sessions/{passed['id']}")).json()
+        counts = (await analyst.get(f"{base}/analytics?days=7")).json()
+        policy = {"name": "console_18", "min_age": 18}
+        by_analyst = await analyst.post(f"{base}/policies", json=policy, headers=analyst_token)
+        by_owner = await owner.post(f"{base}/policies", json=policy, headers=token)
+        listed = (await analyst.get(f"{base}/policies")).json()
+        elsewhere = await analyst.get(f"{CONSOLE}/orgs/{org}/projects/{h.project}/sessions")
+    assert [s["id"] for s in sessions["data"]] == [passed["id"]]
+    assert trace["outcome"] == "pass" and len(trace["attempts"]) == 1
+    traced = trace["attempts"][0]
+    assert traced["outcome"] == "pass" and {"p_over", "tau", "liveness"} <= set(traced["scores"])
+    assert "age_token" not in trace  # reading a trace never mints a token
+    assert counts["totals"] == {"pass": 1}
+    assert (by_analyst.status_code, by_analyst.json()["code"]) == (403, "forbidden_for_role")
+    assert by_owner.status_code == 201 and by_owner.json()["id"] == "console_18@1"
+    assert [p["id"] for p in listed["data"] if not p["preset"]] == ["console_18@1"]
+    assert (elsewhere.status_code, elsewhere.json()["code"]) == (404, "project_not_found")  # another org's project

@@ -1,5 +1,5 @@
 ---
-fingerprint: 1f209a212b66b95d
+fingerprint: 02a8423f9a4094b9
 ---
 The **organisation page** (Phase 5, §5.5.1): its members, its projects and API keys, and — for owners and admins — its audit log, with whether the chain is intact. Forms appear only for roles that may use them (`CAN`); the API refuses anyway if someone forces them.
 
@@ -108,44 +108,44 @@ End of the members panel.
 @@ 167-170
 **Projects and API keys.**
 
-@@ 171-178
-Each project's name and public ID.
+@@ 171-183
+Each project's name — since the project pages (§5.5.2), a link to its page — and its public ID.
 
-@@ 179-189
+@@ 184-194
 A key just created, in a highlighted box: the warning that it won't be shown again, and the key itself. `role="status"` makes screen readers announce it.
 
-@@ 190-200
+@@ 195-205
 For roles that may manage keys, and when there is a project: the form, starting with which project.
 
-@@ 201-218
+@@ 206-223
 The scopes, as tick-boxes in a `fieldset` whose `legend` names the group; the two session scopes start ticked.
 
-@@ 219-221
+@@ 224-226
 Whether the key is live — useful only once the age model is calibrated, which the API also enforces.
 
-@@ 222-226
+@@ 227-231
 The button, and the end of the form.
 
-@@ 227-228
+@@ 232-233
 End of the panel and of the two-column grid.
 
-@@ 230-235
+@@ 235-240
 **The audit log**, for owners and admins.
 
-@@ 236-244
+@@ 241-249
 The chain's verdict as a badge: teal *Chain intact*, or red *Chain broken at entry N* — the console's view of `cli verify-audit`.
 
-@@ 245
+@@ 250
 End of the heading row.
 
-@@ 246-254
+@@ 251-259
 A table with four columns: the entry's number, when, what, and who.
 
-@@ 255-266
+@@ 260-271
 One row per entry, newest first; the time in the reader's own format and time zone (`toLocaleString`).
 
-@@ 267-269
+@@ 272-274
 End of the table, the section, and the condition.
 
-@@ 270-272
+@@ 275-277
 End of the frame and the component.

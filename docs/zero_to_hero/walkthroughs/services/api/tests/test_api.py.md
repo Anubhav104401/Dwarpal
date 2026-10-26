@@ -1,5 +1,5 @@
 ---
-fingerprint: d4e638f26e2db0ae
+fingerprint: 8cbeeb3473978d2e
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -21,7 +21,7 @@ The docstring: the API, against real databases and the real inference service.
 The project-wide type-hint setting.
 
 @@ 5-19
-Standard-library tools: `asyncio`, `base64` (a test master key), `hashlib` and `hmac` (to check a webhook's signature as a receiver would), `json`, `logging`, `threading` and `time` (to run a real server beside the tests), `uuid` (fresh IDs), the iterator types for fixtures, `asynccontextmanager`, `dataclass`, `UTC`, `datetime` and `timedelta` (a length of time, for key rotation and webhook retries), `Path`, `Any` — and `Literal`, for the harness's liveness option (Phase 3).
+Standard-library tools: `asyncio`, `base64` (a test master key), `hashlib` and `hmac` (to check a webhook's signature as a receiver would), `json`, `logging`, `threading` and `time` (to run a real server beside the tests), `uuid` (fresh IDs), the iterator types for fixtures, `asynccontextmanager`, `dataclass` and `replace` (a copy of a dataclass with one field changed), `UTC`, `datetime` and `timedelta` (a length of time, for key rotation and webhook retries), `Path`, `Any` — and `Literal`, for the harness's liveness option (Phase 3).
 
 @@ 21-25
 OpenCV and NumPy (to make a test picture), the `docker` client (to ask whether Docker is running), `httpx` (to call the apps) and `pytest`.
@@ -936,3 +936,45 @@ Ask for `/livez`, the documentation page and the API document.
 
 @@ 1224-1225
 HSTS is sent (two years); the interactive documentation doesn't exist (`404`); the API document is still published.
+
+@@ 1228-1234
+**Test — the console's project pages (Phase 5).** An owner and an analyst, each with their own browser.
+
+@@ 1235-1240
+The owner signs up; the analyst signs up; the owner adds the analyst to the organisation.
+
+@@ 1241-1244
+The owner finds the organisation's project and creates a key for it in the console.
+
+@@ 1245
+A website using that key: the harness, copied with the key changed (`replace`).
+
+@@ 1246-1248
+The website creates a session — without a return address, because this new project hasn't allowed any yet — and a person passes it.
+
+@@ 1250-1252
+The analyst reads the project's sessions, the passed session's trace, and the last week's counts.
+
+@@ 1253-1256
+The analyst and then the owner try to add a policy version; the analyst lists the policies.
+
+@@ 1257
+The analyst tries the harness's own project — which belongs to another organisation — under this organisation's address.
+
+@@ 1258-1259
+The one session is listed; its trace has one attempt, and it passed.
+
+@@ 1260-1261
+The attempt carries its numbers: the age probability, the line it met, and the liveness evidence.
+
+@@ 1262
+Reading a trace made no token.
+
+@@ 1263
+The counts show one pass.
+
+@@ 1264-1266
+An analyst may not add a policy version; the owner may, and it is listed as `console_18@1`.
+
+@@ 1267
+Another organisation's project, named under this organisation, is not found — the check that the project belongs to the organisation in the address.

@@ -52,11 +52,53 @@ export interface AuditLog {
   firstBroken: number | null;
 }
 
+export interface SessionSummary {
+  id: string;
+  status: string;
+  outcome: string | null;
+  policy: string;
+  attempts: number;
+  externalRef: string | null;
+  createdAt: string;
+}
+
+export interface SessionPage {
+  sessions: SessionSummary[];
+  nextCursor: string | null;
+}
+
+/** One attempt as the decision saw it: its outcome, reasons and the numbers behind them — never an image. */
+export interface TracedAttempt {
+  kind: string;
+  outcome: string;
+  reasons: string[];
+  scores: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface SessionTrace extends SessionSummary {
+  traced: TracedAttempt[];
+}
+
+export interface Analytics {
+  since: string;
+  totals: Record<string, number>;
+}
+
+export interface PolicyVersion {
+  id: string;
+  preset: boolean;
+  minAge: number;
+  riskBudget: number;
+  maxFaceAttempts: number;
+}
+
 /** What each role may do, as the API decides it (domain/roles.py); the pages only use it to hide what would fail. */
 export const CAN = {
   manageMembers: (role: Role) => role === "owner" || role === "admin",
   readAudit: (role: Role) => role === "owner" || role === "admin",
   manageKeys: (role: Role) => role !== "analyst",
+  managePolicies: (role: Role) => role !== "analyst",
 } as const;
 
 export class ConsoleError extends Error {
@@ -76,6 +118,22 @@ type Json = Record<string, unknown>;
 const asJson = (value: unknown): Json => (typeof value === "object" && value !== null ? (value as Json) : {});
 const asText = (value: unknown): string => (typeof value === "string" ? value : "");
 const asList = (value: unknown): Json[] => (Array.isArray(value) ? value.map(asJson) : []);
+const asCount = (value: unknown): number => (typeof value === "number" ? value : 0);
+const asTexts = (value: unknown): string[] => (Array.isArray(value) ? value.map(asText) : []);
+const orNull = (value: unknown): string | null => (typeof value === "string" ? value : null);
+
+function asSession(s: Json): SessionSummary {
+  return {
+    id: asText(s.id),
+    status: asText(s.status),
+    outcome: orNull(s.outcome),
+    policy: asText(s.policy),
+    attempts: asCount(s.attempts),
+    externalRef: orNull(s.external_ref),
+    createdAt: asText(s.created_at),
+  };
+}
+
 const asRole = (value: unknown): Role =>
   value === "owner" || value === "admin" || value === "developer" ? value : "analyst";
 
@@ -196,5 +254,63 @@ export class ConsoleClient {
       intact: chain.intact === true,
       firstBroken: typeof chain.first_broken === "number" ? chain.first_broken : null,
     };
+  }
+
+  #project(org: string, project: string): string {
+    return `/orgs/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}`;
+  }
+
+  /** One page of a project's sessions, newest first; pass the last page's cursor for the next. */
+  async sessions(org: string, project: string, livemode: boolean, after?: string): Promise<SessionPage> {
+    const query = new URLSearchParams({ livemode: String(livemode), limit: "20" });
+    if (after) query.set("starting_after", after);
+    const data = await this.#call("GET", `${this.#project(org, project)}/sessions?${query}`);
+    return { sessions: asList(data.data).map(asSession), nextCursor: orNull(data.next_cursor) };
+  }
+
+  async trace(org: string, project: string, session: string): Promise<SessionTrace> {
+    const data = await this.#call(
+      "GET",
+      `${this.#project(org, project)}/sessions/${encodeURIComponent(session)}`,
+    );
+    const traced = asList(data.attempts).map((a) => ({
+      kind: asText(a.kind),
+      outcome: asText(a.outcome),
+      reasons: asTexts(a.reasons),
+      scores: asJson(a.scores),
+      createdAt: asText(a.created_at),
+    }));
+    return { ...asSession(data), traced };
+  }
+
+  async analytics(org: string, project: string, livemode: boolean, days = 30): Promise<Analytics> {
+    const query = new URLSearchParams({ livemode: String(livemode), days: String(days) });
+    const data = await this.#call("GET", `${this.#project(org, project)}/analytics?${query}`);
+    const totals: Record<string, number> = {};
+    for (const [outcome, count] of Object.entries(asJson(data.totals))) totals[outcome] = asCount(count);
+    return { since: asText(data.since), totals };
+  }
+
+  async policies(org: string, project: string): Promise<PolicyVersion[]> {
+    const data = await this.#call("GET", `${this.#project(org, project)}/policies`);
+    return asList(data.data).map((p) => ({
+      id: asText(p.id),
+      preset: p.preset === true,
+      minAge: asCount(p.min_age),
+      riskBudget: asCount(p.risk_budget),
+      maxFaceAttempts: asCount(p.max_face_attempts),
+    }));
+  }
+
+  async addPolicy(
+    org: string,
+    project: string,
+    name: string,
+    minAge: number,
+    attempts: number,
+  ): Promise<string> {
+    const body = { name, min_age: minAge, max_face_attempts: attempts };
+    const data = await this.#call("POST", `${this.#project(org, project)}/policies`, body);
+    return asText(data.id);
   }
 }

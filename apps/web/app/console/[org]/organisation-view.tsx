@@ -171,7 +171,12 @@ export function OrganisationView({ org }: { org: string }) {
           <ul className="mt-3 space-y-1 text-sm">
             {projects.map((p) => (
               <li key={p.id}>
-                <span className="font-medium">{p.name}</span>{" "}
+                <Link
+                  className="font-medium underline-offset-2 hover:underline"
+                  href={`/console/${org}/${p.id}`}
+                >
+                  {p.name}
+                </Link>{" "}
                 <code className="text-xs text-zinc-500">{p.id}</code>
               </li>
             ))}

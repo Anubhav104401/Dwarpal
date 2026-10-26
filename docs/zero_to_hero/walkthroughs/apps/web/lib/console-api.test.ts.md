@@ -1,5 +1,5 @@
 ---
-fingerprint: 82e44489e86c1374
+fingerprint: c599fff670122031
 ---
 Unit tests of the console's client (Phase 5), with the network replaced by a stand-in `fetch` that records each request and hands back prepared answers.
 
@@ -61,13 +61,34 @@ The entry is read, and so is the verdict: not intact, broken at entry 2.
 End of the test and the group.
 
 @@ 75-76
+**The project pages' requests.** Sessions by mode and cursor, a trace, and the counts.
+
+@@ 77-91
+Three prepared answers: a page of one session with a cursor; that session's trace with one attempt and two scores; and the counts.
+
+@@ 92-95
+A stand-in `fetch` that records each address and hands back the next answer.
+
+@@ 96-99
+Ask for live sessions after a cursor, the trace, and the test counts.
+
+@@ 100-103
+The first request's address carried the mode, the page size and the cursor exactly.
+
+@@ 104-106
+The page, the trace's scores and the totals came back as they were sent.
+
+@@ 107-108
+End of the test and the group.
+
+@@ 110-111
 **The page's role checks** match the API's matrix where the pages use them.
 
-@@ 77-82
+@@ 112-117
 Every role but an analyst may manage keys. (`as never` lets a plain text stand in for the `Role` type in this table.)
 
-@@ 83-84
+@@ 118-119
 A developer may not manage members; an admin may read the audit log.
 
-@@ 85-86
+@@ 120-121
 End of the test and the group.
