@@ -19,7 +19,7 @@ Work that needs your answer — a download, a design choice, an account, or some
 | D9 | Security scanners: Semgrep, pip-audit, Trivy, OWASP ZAP | Phase 7 scans | |
 | D10 | Locust | Phase 7 load tests | |
 | D11 | OpenTelemetry SDK + collector, Grafana | Phase 7 observability | |
-| **D12** | **Upgrade Next.js** (16.4.0 → the patched release) | **security**: `next build` reports a known vulnerability in 16.4.0 | **priority**: some `next build` runs now stop with `SecurityFatalError` (Next.js refuses to build a vulnerable version, judged by an online advisory check), so CI would fail intermittently. Version to be checked against the 7-day cooldown |
+| **D12** | **Upgrade Next.js 16.4.0 → 16.4.2** in `apps/web` and `apps/demo-shop`: `next-16.4.2.tgz` (≈192 MB unpacked), `@next/swc-win32-x64-msvc-16.4.2.tgz` (≈110 MB unpacked), `@next/env-16.4.2.tgz` (12 KB), from registry.npmjs.org; released 15 Oct, so it passes the 7-day cooldown | **security — do first**: `pnpm audit` reports 2 **critical** remote-code-execution flaws (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr) and 1 high denial-of-service flaw (GHSA-p3m5-59mp-jv5r), all fixed in ≥ 16.4.1; `next build` also now refuses to finish at random (`SecurityFatalError`) | low risk tonight: nothing is deployed and the dev servers listen only locally |
 
 ## Design choices
 
@@ -35,6 +35,8 @@ Work that needs your answer — a download, a design choice, an account, or some
 | O2 | Choose a VM provider and create the account; choose a domain and add DNS records | Phase 8 deployment |
 | O3 | Your own Aadhaar QR for testing (never anyone else's) | Phase 6 Aadhaar end-to-end |
 | O4 | More people for genuine liveness and age attempts (ages, skin tones, glasses) | Phase 3 exit criterion; fairness of the anti-spoofing model |
+| O5 | Legal review of the DPIA and practice statement (drafts in `docs/privacy/`) for your launch markets | production launch |
+| O6 | The operator's name and contact details for data-protection requests (practice statement §8) | publishing the practice statement |
 
 ## Done overnight (no decision needed)
 
@@ -44,3 +46,4 @@ Kept up to date as work lands; see the commit log for details.
 - **Phase 6 begun**: the MRZ (passport/ID) parser and age rule, proved against ICAO's specimens and generated documents (`docs/reports/phase-6.md`).
 - **Phase 7 begun**: `503` with `Retry-After` when the database or Valkey is down; inference failures never pass; security headers on every API answer (`docs/reports/phase-7.md`).
 - **Phase 5 begun**: the console's first pages — sign-in/sign-up, organisations, members, keys (shown once), audit log with chain badge — tested in Chromium (`docs/reports/phase-5.md`).
+- **Phase 7 documents**: threat model (`docs/security/threat-model.md`), DPIA and practice statement drafts (`docs/privacy/`).

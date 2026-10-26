@@ -8,7 +8,7 @@ Phases 1–6 make Dwarpal work. Phase 7 makes it hold up: under attack, under lo
 | Security | Headers and content policy verified; scanners (Semgrep, pip-audit, Trivy, ZAP); threat-model review | 🟡 headers ✅ (§5.7.1); scanners wait for approved downloads |
 | Observability | OpenTelemetry end to end, dashboards, alerts | 🗓 waits for approved downloads |
 | Performance | Load tests against the service levels (Locust) | 🗓 waits for an approved download |
-| Privacy | A filled DPIA template, a practice statement, the final model card | 🗓 |
+| Privacy | A filled DPIA template, a practice statement, the final model card | 🟡 drafts (§5.7.2); model card waits for a calibrated model |
 
 ### 5.7.1 Failing closed, and telling browsers what not to do
 
@@ -27,3 +27,14 @@ The rest changed existing files, each re-explained in its walkthrough: `http/pro
 
 !!! honest "Honest limitation"
     These tests break one dependency before a request starts. The roadmap also asks for failures **mid-flow** — a dependency dying between two steps of one attempt — under load; that needs the load-testing tools awaiting approval.
+
+### 5.7.2 Writing down the threats, and the promises
+
+Two kinds of document matter as much as code for an age-assurance service.
+
+**The threat model** (`docs/security/threat-model.md`) lists what must be protected — the age decision above all, then faces, keys, tenant data and audit history — and where the trust boundaries lie. It then walks through each component with **STRIDE**, a checklist of six kinds of threat: **S**poofing, **T**ampering, **R**epudiation, **I**nformation disclosure, **D**enial of service and **E**levation of privilege. Every mitigation names the test that proves it. A mitigation with no proof is listed as a gap, and the gaps are ranked: first the Next.js advisory, then the database login's role switch, then the presentation attacks nobody has tried yet.
+
+**The privacy documents** (`docs/privacy/`) are a **DPIA** — the data-protection impact assessment that UK and EU law require before processing like this, and that Ofcom and the ICO jointly asked age-assurance providers for — and a **practice statement** in the style of ISO/IEC 27566-1, which tells websites and regulators how the system decides, how well it performs, and what it does with data. Each data item in the DPIA names its retention period and the code that enforces it. Both are drafts: the legal roles, the lawful basis and the wording need a lawyer's review for each country.
+
+!!! honest "Honest limitation"
+    Documents can be wrong in ways tests can't catch. They are kept honest by pointing at code and tests, and by review triggers in the threat model, but a legal review is still essential before any real launch.

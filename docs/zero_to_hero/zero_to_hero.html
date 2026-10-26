@@ -142,7 +142,7 @@ footer { margin-top: 4em; color: var(--text-3); font: 12px var(--mono); }
 <div class="topbar"><button id="top" type="button">Top</button><button id="theme" type="button">Theme</button></div>
 <div class="shell">
   <aside class="side">
-    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">316,650 words · 198 files · 14,534/14,534 lines explained (100.0%)</div></div>
+    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">316,936 words · 198 files · 14,534/14,534 lines explained (100.0%)</div></div>
     <input id="q" type="search" placeholder="Filter sections (Ctrl+K)" autocomplete="off" aria-label="Filter sections">
     <nav class="toc"><a class="h1" href="#dwarpal-zero-to-hero">Dwarpal — Zero to Hero</a>
 <a class="h2" href="#what-this-book-is">What this book is</a>
@@ -372,6 +372,7 @@ footer { margin-top: 4em; color: var(--text-3); font: 12px var(--mono); }
 <a class="h3" href="#561-reading-the-machine-readable-zone">5.6.1 Reading the machine-readable zone</a>
 <a class="h2" href="#57-phase-7-hardening">5.7 Phase 7 — hardening</a>
 <a class="h3" href="#571-failing-closed-and-telling-browsers-what-not-to-do">5.7.1 Failing closed, and telling browsers what not to do</a>
+<a class="h3" href="#572-writing-down-the-threats-and-the-promises">5.7.2 Writing down the threats, and the promises</a>
 <a class="h1" href="#part-x-how-this-book-is-built">Part X — How this book is built</a>
 <a class="h2" href="#x1-why-a-program-builds-this-book">X.1 Why a program builds this book</a>
 <a class="h2" href="#x2-the-pieces">X.2 The pieces</a>
@@ -17947,7 +17948,7 @@ L898902C36UTO7408122F1204159ZE184226B&lt;&lt;&lt;&lt;&lt;10
 <tr>
 <td style="text-align: left;">Privacy</td>
 <td style="text-align: left;">A filled <abbr title="Data Protection Impact Assessment — a formal study of privacy risks, done before processing personal data">DPIA</abbr> template, a practice statement, the final model card</td>
-<td style="text-align: left;">🗓</td>
+<td style="text-align: left;">🟡 drafts (§5.7.2); model card waits for a calibrated model</td>
 </tr>
 </tbody>
 </table></div>
@@ -18019,6 +18020,14 @@ L898902C36UTO7408122F1204159ZE184226B&lt;&lt;&lt;&lt;&lt;10
 <div class="admonition honest">
 <p class="admonition-title">Honest limitation</p>
 <p>These tests break one dependency before a request starts. The roadmap also asks for failures <strong>mid-flow</strong> — a dependency dying between two steps of one attempt — under load; that needs the load-testing tools awaiting approval.</p>
+</div>
+<h3 id="572-writing-down-the-threats-and-the-promises">5.7.2 Writing down the threats, and the promises</h3>
+<p>Two kinds of document matter as much as code for an age-assurance service.</p>
+<p><strong>The threat model</strong> (<code>docs/security/threat-model.md</code>) lists what must be protected — the age decision above all, then faces, keys, tenant data and audit history — and where the trust boundaries lie. It then walks through each component with <strong>STRIDE</strong>, a checklist of six kinds of threat: <strong>S</strong>poofing, <strong>T</strong>ampering, <strong>R</strong>epudiation, <strong>I</strong>nformation disclosure, <strong>D</strong>enial of service and <strong>E</strong>levation of privilege. Every mitigation names the test that proves it. A mitigation with no proof is listed as a gap, and the gaps are ranked: first the Next.js advisory, then the database login's role switch, then the presentation attacks nobody has tried yet.</p>
+<p><strong>The privacy documents</strong> (<code>docs/privacy/</code>) are a <strong><abbr title="Data Protection Impact Assessment — a formal study of privacy risks, done before processing personal data">DPIA</abbr></strong> — the data-protection impact assessment that UK and EU law require before processing like this, and that Ofcom and the ICO jointly asked age-assurance providers for — and a <strong>practice statement</strong> in the style of ISO/IEC 27566-1, which tells websites and regulators how the system decides, how well it performs, and what it does with data. Each data item in the <abbr title="Data Protection Impact Assessment — a formal study of privacy risks, done before processing personal data">DPIA</abbr> names its retention period and the code that enforces it. Both are drafts: the legal roles, the lawful basis and the wording need a lawyer's review for each country.</p>
+<div class="admonition honest">
+<p class="admonition-title">Honest limitation</p>
+<p>Documents can be wrong in ways tests can't catch. They are kept honest by pointing at code and tests, and by review triggers in the threat model, but a legal review is still essential before any real launch.</p>
 </div>
 <h1 id="part-x-how-this-book-is-built">Part X — How this book is built</h1>
 <p>This part is placed near the end, but you can read it any time. It shows the <em>line-by-line format</em> used for the whole project. And it is the first real code in the project, so it is explained exactly like everything else will be.</p>
@@ -19396,7 +19405,7 @@ These three lines ...
 <dt>Webhook</dt>
 <dd>A request a service sends to an address on your server when something happens, so you needn't keep asking. (§5.4.3)</dd>
 </dl>
-    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-10-26 15:46 UTC</footer>
+    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-10-26 15:50 UTC</footer>
   </main>
 </div>
 <script>
