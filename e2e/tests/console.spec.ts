@@ -1,7 +1,23 @@
+import { createHmac } from "node:crypto";
+
 import { expect, test } from "@playwright/test";
 
 const CONSOLE = "http://localhost:3000/console";
 const API = "http://localhost:8000";
+
+/** What an authenticator app does (RFC 6238): the 6-digit code for the 30-second step containing `at`. */
+function oneTimeCode(secret: string, at: number): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const bits = [...secret.replace(/\s/g, "")]
+    .map((c) => alphabet.indexOf(c).toString(2).padStart(5, "0"))
+    .join("");
+  const key = Buffer.from(bits.match(/.{8}/g)?.map((byte) => Number.parseInt(byte, 2)) ?? []);
+  const step = Buffer.alloc(8);
+  step.writeBigUInt64BE(BigInt(Math.floor(at / 30_000)));
+  const mac = createHmac("sha1", key).update(step).digest();
+  const offset = (mac.at(-1) ?? 0) & 0x0f;
+  return String((mac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, "0");
+}
 
 test("a new customer signs up, creates an API key, and sees it in an intact audit log", async ({
   page,
@@ -68,4 +84,34 @@ test("the console refuses a wrong password without saying whether the account ex
   // Next.js keeps its own, empty role="alert" region for route changes; this is the one with words in it.
   const alert = page.getByRole("alert").filter({ hasText: /\S/ });
   await expect(alert).toHaveText("That e-mail address or password is wrong.");
+});
+
+test("a member turns on one-time codes, and signing in then asks for one", async ({ page }) => {
+  const email = `careful-${Date.now()}@shop.example`;
+  const password = "another long and unguessable test passphrase";
+  await page.goto(CONSOLE);
+  await page.getByRole("button", { name: "Create an account" }).click();
+  await page.getByLabel("E-mail address").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Organisation name").fill("Careful Ltd");
+  await page.getByRole("button", { name: "Create account" }).click();
+
+  await page.getByRole("link", { name: "Security" }).click();
+  await page.getByRole("button", { name: "Set up one-time codes" }).click();
+  const secret = (await page.getByTestId("totp-secret").textContent()) ?? "";
+  await page.getByLabel("2. Enter the code it shows").fill(oneTimeCode(secret, Date.now()));
+  await page.getByRole("button", { name: "Turn on" }).click();
+  await expect(page.getByRole("region", { name: "One-time codes" })).toContainText("On.");
+
+  // Sign out and in again: the password alone is not enough. A code is single-use, so use the next step's.
+  await page.getByRole("link", { name: "All organisations" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByLabel("E-mail address").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page
+    .getByLabel("6-digit code from your authenticator app")
+    .fill(oneTimeCode(secret, Date.now() + 30_000));
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Your organisations" })).toBeVisible();
 });

@@ -85,6 +85,9 @@ export function ConsoleHome() {
         aside={
           <>
             <span className="hidden text-zinc-500 sm:inline">{me.email}</span>
+            <Link className={quietButton} href="/console/account">
+              Security
+            </Link>
             <button type="button" className={quietButton} onClick={signOut}>
               Sign out
             </button>

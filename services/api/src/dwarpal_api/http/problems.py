@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from redis.exceptions import ConnectionError as ValkeyDown
 from redis.exceptions import TimeoutError as ValkeySlow
-from sqlalchemy.exc import InterfaceError, OperationalError
+from sqlalchemy.exc import DBAPIError, InterfaceError, OperationalError
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -87,6 +87,17 @@ async def on_dependency_down(request: Request, error: Exception) -> Response:
     logger.warning("dependency unavailable: %s", type(error).__name__, extra={"request_id": request.state.request_id})
     detail = "a service Dwarpal depends on is unavailable; try again shortly"
     return problem(request, 503, "service_unavailable", detail, {"Retry-After": RETRY_AFTER_S})
+
+
+# PostgreSQL can't store some characters in text — above all NUL (U+0000), which JSON and addresses can carry. When
+# it refuses one, the request was at fault, not the server: one answer for every route, instead of a 500.
+UNSTORABLE_TEXT = {"22021", "22P05"}  # character_not_in_repertoire, untranslatable_character
+
+
+async def on_database_error(request: Request, error: Exception) -> Response:
+    if isinstance(error, DBAPIError) and getattr(error.orig, "sqlstate", None) in UNSTORABLE_TEXT:
+        return problem(request, 422, "invalid_text", "text may not contain the NUL character (or other control bytes)")
+    return await on_unexpected(request, error)
 
 
 async def on_api_error(request: Request, error: Exception) -> Response:
@@ -170,6 +181,7 @@ def install(app: FastAPI) -> None:
     app.add_exception_handler(ApiError, on_api_error)
     app.add_exception_handler(RequestValidationError, on_invalid_request)
     app.add_exception_handler(HTTPException, on_http_error)
+    app.add_exception_handler(DBAPIError, on_database_error)  # the dependency failures below are more specific
     for failure in DEPENDENCY_FAILURES:
         app.add_exception_handler(failure, on_dependency_down)
     app.add_exception_handler(Exception, on_unexpected)

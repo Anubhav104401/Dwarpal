@@ -1,5 +1,5 @@
 ---
-fingerprint: ac9d5cfcb8b51788
+fingerprint: bed446d8a70cfdaf
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -1014,3 +1014,51 @@ The wrong mode is "not found"; the deletion worked, and the list is empty.
 
 @@ 1303-1304
 The audit log names a person (`user:…`), not a key, for both the creation and the deletion.
+
+@@ 1307-1314
+**Test — the owner rules for members (Phase 5).** Three people, each with their own browser: an owner, an admin, and one more.
+
+@@ 1315-1319
+All three sign up.
+
+@@ 1320-1322
+The owner adds the admin as an admin, and the third person as an analyst.
+
+@@ 1323-1324
+Everyone's IDs: the third person's from the answer, the owner's from `/me`, the admin's from the member list.
+
+@@ 1326-1328
+The admin promotes the analyst to developer, then tries to make them an owner; the only owner tries to step down to admin.
+
+@@ 1329-1330
+The owner makes the third person an owner, and then steps down — allowed now, since there are two.
+
+@@ 1331-1333
+The admin tries to remove the new owner; the new owner removes the admin; and tries to remove an ID that isn't anyone's.
+
+@@ 1334-1335
+What remains, and the audit log.
+
+@@ 1336
+An admin may change a member who isn't an owner.
+
+@@ 1337
+An admin may not make an owner.
+
+@@ 1338
+The last owner may not step down.
+
+@@ 1339
+With two owners, one may.
+
+@@ 1340
+An admin may not remove an owner; an owner may remove an admin; an unknown member is not found.
+
+@@ 1341
+Left: the first owner (now an admin) and the new owner.
+
+@@ 1342-1343
+The audit log holds exactly the four changes that happened — refusals leave no trace.
+
+@@ 1346-1351
+**Test — unstorable text is refused (Phase 5).** Sign in with an address containing NUL — the kind of input the contract tests found: `422 invalid_text`, not a server error.

@@ -24,6 +24,12 @@ export interface Member {
   role: Role;
 }
 
+/** A new authenticator secret, not yet in force: the text to type in, and the otpauth:// address apps read. */
+export interface TotpOffer {
+  secret: string;
+  uri: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -254,6 +260,26 @@ export class ConsoleClient {
 
   async addMember(org: string, email: string, role: Role): Promise<void> {
     await this.#call("POST", `/orgs/${encodeURIComponent(org)}/members`, { email, role });
+  }
+
+  async changeRole(org: string, user: string, role: Role): Promise<void> {
+    await this.#call("PATCH", `/orgs/${encodeURIComponent(org)}/members/${encodeURIComponent(user)}`, {
+      role,
+    });
+  }
+
+  async removeMember(org: string, user: string): Promise<void> {
+    await this.#call("DELETE", `/orgs/${encodeURIComponent(org)}/members/${encodeURIComponent(user)}`);
+  }
+
+  /** Start setting up one-time codes: a new secret, in force only once a code from it is confirmed. */
+  async totpEnrol(): Promise<TotpOffer> {
+    const data = await this.#call("POST", "/totp");
+    return { secret: asText(data.secret), uri: asText(data.uri) };
+  }
+
+  async totpConfirm(code: string): Promise<void> {
+    await this.#call("POST", "/totp/confirm", { code });
   }
 
   async projects(org: string): Promise<Project[]> {

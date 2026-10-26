@@ -154,6 +154,39 @@ describe("ConsoleClient, webhooks", () => {
   });
 });
 
+describe("ConsoleClient, members and one-time codes", () => {
+  it("changes and removes members by their IDs, and confirms a code", async () => {
+    const seen: Array<[string, string, string | null]> = [];
+    const replies = [
+      answer(200, { csrf_token: "c1", organisations: [] }),
+      answer(200, { user: "usr_2", role: "admin" }),
+      answer(204, {}),
+      answer(200, { secret: "JBSWY3DPEHPK3PXP", uri: "otpauth://totp/Dwarpal:a" }),
+      answer(204, {}),
+    ];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      seen.push([init.method ?? "GET", url, typeof init.body === "string" ? init.body : null]);
+      return replies.shift();
+    });
+    const client = new ConsoleClient();
+    await client.me();
+    await client.changeRole("org_1", "usr_2", "admin");
+    await client.removeMember("org_1", "usr_2");
+    const offer = await client.totpEnrol();
+    await client.totpConfirm("123456");
+
+    expect(seen.slice(1).map(([method, url]) => `${method} ${url}`)).toEqual([
+      "PATCH /console-api/orgs/org_1/members/usr_2",
+      "DELETE /console-api/orgs/org_1/members/usr_2",
+      "POST /console-api/totp",
+      "POST /console-api/totp/confirm",
+    ]);
+    expect(seen[1]?.[2]).toBe('{"role":"admin"}');
+    expect(offer.secret).toBe("JBSWY3DPEHPK3PXP");
+    expect(seen[4]?.[2]).toBe('{"code":"123456"}');
+  });
+});
+
 describe("CAN", () => {
   it("mirrors the API's role matrix for what the pages offer", () => {
     expect(["owner", "admin", "developer", "analyst"].map((r) => CAN.manageKeys(r as never))).toEqual([

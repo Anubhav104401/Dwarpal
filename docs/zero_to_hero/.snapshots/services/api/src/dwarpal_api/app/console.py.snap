@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from dwarpal_api.adapters.db import FIND_USER, tenant
 from dwarpal_api.adapters.passwords import hash_password, verify_password
@@ -288,6 +289,60 @@ async def add_member(svc: Services, current: ConsoleSession, org_text: str, emai
     except IntegrityError:
         raise ApiError(409, "already_a_member", "that person is already a member") from None
     return {"user": ids.encode("usr", found.id), "email": email, "role": role}
+
+
+def _member_id(user_text: str) -> uuid.UUID:
+    try:
+        return ids.decode("usr", user_text)
+    except ids.InvalidIdError:
+        raise ApiError(404, "member_not_found", "no such member") from None
+
+
+async def _lock_member(
+    session: AsyncSession, org_id: uuid.UUID, own_role: str, user_id: uuid.UUID, new_role: str | None
+) -> Membership:
+    """The membership to change (to `new_role`) or remove (`None`), locked, if the rules allow it: only an owner may
+    make, change or remove an owner, and the last owner stays one."""
+    # Lock the owners first, in one order for everyone: two owners demoting each other at once can't both succeed.
+    owners_query = select(Membership).where(Membership.org_id == org_id, Membership.role == Role.OWNER)
+    owners = list(await session.scalars(owners_query.with_for_update()))
+    member = await session.get(Membership, (org_id, user_id), with_for_update=True)
+    if member is None:
+        raise ApiError(404, "member_not_found", "no such member")
+    if Role.OWNER in (member.role, new_role) and own_role != Role.OWNER:
+        raise ApiError(403, "forbidden_for_role", "only an owner can make, change or remove an owner")
+    if member.role == Role.OWNER and new_role != Role.OWNER and len(owners) == 1:
+        raise ApiError(409, "last_owner", "an organisation needs an owner: make someone else an owner first")
+    return member
+
+
+async def change_role(
+    svc: Services, current: ConsoleSession, org_text: str, user_text: str, role: str
+) -> dict[str, Any]:
+    """Give a member another role, recorded with the old and new roles."""
+    org_id, own_role = await authorise(svc, current, org_text, Action.MANAGE_MEMBERS)
+    if role not in set(Role):
+        raise ApiError(422, "unknown_role", f"choose a role from {', '.join(Role)}")
+    user_id, now = _member_id(user_text), svc.now()
+    async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
+        member = await _lock_member(session, org_id, own_role, user_id, role)
+        before, member.role = member.role, role
+        target, facts = ids.encode("usr", user_id), {"from": before, "to": role}
+        await audit.record(session, org_id, actor_of(current.user_id), "member.role_changed", target, facts, now)
+        await session.commit()
+    return {"user": target, "role": role}
+
+
+async def remove_member(svc: Services, current: ConsoleSession, org_text: str, user_text: str) -> None:
+    """Take someone out of the organisation (their account stays). People may remove themselves, unless last owner."""
+    org_id, own_role = await authorise(svc, current, org_text, Action.MANAGE_MEMBERS)
+    user_id, now = _member_id(user_text), svc.now()
+    async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
+        member = await _lock_member(session, org_id, own_role, user_id, None)
+        target, facts = ids.encode("usr", user_id), {"role": member.role}
+        await audit.record(session, org_id, actor_of(current.user_id), "member.removed", target, facts, now)
+        await session.delete(member)
+        await session.commit()
 
 
 async def create_key(

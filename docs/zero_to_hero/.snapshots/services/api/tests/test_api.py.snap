@@ -1302,3 +1302,50 @@ async def test_the_console_manages_a_projects_webhooks(databases: tuple[str, str
     assert (wrong_mode.status_code, removed.status_code, after["data"]) == (404, 204, [])
     actions = {(e["action"], e["actor"].partition(":")[0]) for e in audit}
     assert {("webhook_endpoint.created", "user"), ("webhook_endpoint.deleted", "user")} <= actions
+
+
+@pytest.mark.anyio
+async def test_members_roles_change_under_the_owner_rules(databases: tuple[str, str]) -> None:
+    async with (
+        harness(databases, **CONSOLE_SETTINGS) as h,
+        person(h) as owner,
+        person(h) as admin,
+        person(h) as other,
+    ):
+        me = await sign_up(owner, unique("roles-owner"))
+        org, token = me["organisations"][0]["id"], {"X-CSRF-Token": me["csrf_token"]}
+        admin_email, other_email = unique("roles-admin"), unique("roles-other")
+        admin_token = {"X-CSRF-Token": (await sign_up(admin, admin_email, "A"))["csrf_token"]}
+        other_token = {"X-CSRF-Token": (await sign_up(other, other_email, "B"))["csrf_token"]}
+        members = f"{CONSOLE}/orgs/{org}/members"
+        await owner.post(members, json={"email": admin_email, "role": "admin"}, headers=token)
+        other_id = (await owner.post(members, json={"email": other_email, "role": "analyst"}, headers=token)).json()
+        other_id, owner_id = other_id["user"], (await owner.get(f"{CONSOLE}/me")).json()["id"]
+        admin_id = next(m["user"] for m in (await owner.get(members)).json()["data"] if m["email"] == admin_email)
+
+        promoted = await admin.patch(f"{members}/{other_id}", json={"role": "developer"}, headers=admin_token)
+        crowned_by_admin = await admin.patch(f"{members}/{other_id}", json={"role": "owner"}, headers=admin_token)
+        last_owner = await owner.patch(f"{members}/{owner_id}", json={"role": "admin"}, headers=token)
+        crowned = await owner.patch(f"{members}/{other_id}", json={"role": "owner"}, headers=token)
+        stepped_down = await owner.patch(f"{members}/{owner_id}", json={"role": "admin"}, headers=token)
+        admin_removes_owner = await admin.delete(f"{members}/{other_id}", headers=admin_token)
+        removed = await other.delete(f"{members}/{admin_id}", headers=other_token)
+        unknown = await other.delete(f"{members}/usr_nobody", headers=other_token)
+        left = {m["email"]: m["role"] for m in (await other.get(members)).json()["data"]}
+        audit = (await other.get(f"{CONSOLE}/orgs/{org}/audit")).json()["data"]
+    assert promoted.json() == {"user": other_id, "role": "developer"}  # an admin may change a non-owner
+    assert (crowned_by_admin.status_code, crowned_by_admin.json()["code"]) == (403, "forbidden_for_role")
+    assert (last_owner.status_code, last_owner.json()["code"]) == (409, "last_owner")
+    assert crowned.status_code == 200 and stepped_down.status_code == 200  # two owners, then one steps down
+    assert (admin_removes_owner.status_code, removed.status_code, unknown.status_code) == (403, 204, 404)
+    assert sorted(left.values()) == ["admin", "owner"]  # the first owner (now admin) and the new owner
+    changes = [e for e in audit if e["action"] in ("member.role_changed", "member.removed")]
+    assert len(changes) == 4  # three role changes and one removal; refusals leave no trace
+
+
+@pytest.mark.anyio
+async def test_text_the_database_cant_store_is_refused_not_a_server_error(databases: tuple[str, str]) -> None:
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as browser:
+        body = {"email": "nul\u0000@shop.example", "password": PASSWORD}  # found by the contract tests
+        response = await browser.post(f"{CONSOLE}/login", json=body)
+    assert (response.status_code, response.json()["code"]) == (422, "invalid_text")

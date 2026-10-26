@@ -1,5 +1,5 @@
 ---
-fingerprint: 669d950e46de1aed
+fingerprint: 2ffc555652902817
 ---
 Unit tests of the console's client (Phase 5), with the network replaced by a stand-in `fetch` that records each request and hands back prepared answers.
 
@@ -115,13 +115,34 @@ The deletion was a `DELETE`, with the mode in its address.
 End of the test and the group.
 
 @@ 157-158
+**Members and one-time codes.** The right methods and addresses, and the bodies.
+
+@@ 159-166
+Each request seen; and five prepared answers: who is signed in, a changed role, an empty `204`, a secret, and another `204`.
+
+@@ 167-170
+A stand-in `fetch` that records each request and hands back the next answer.
+
+@@ 171-176
+Sign in (for the token); change a role; remove the member; ask for a secret; confirm a code.
+
+@@ 178-183
+After `/me`, the four requests went out with these methods to these addresses.
+
+@@ 184-186
+The role change sent only the role; the secret came back; the confirmation sent the code.
+
+@@ 187-188
+End of the test and the group.
+
+@@ 190-191
 **The page's role checks** match the API's matrix where the pages use them.
 
-@@ 159-164
+@@ 192-197
 Every role but an analyst may manage keys. (`as never` lets a plain text stand in for the `Role` type in this table.)
 
-@@ 165-166
+@@ 198-199
 A developer may not manage members; an admin may read the audit log.
 
-@@ 167-168
+@@ 200-201
 End of the test and the group.

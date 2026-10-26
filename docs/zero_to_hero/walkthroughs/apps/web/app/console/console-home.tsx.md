@@ -1,5 +1,5 @@
 ---
-fingerprint: 1dcc9109e23b85f2
+fingerprint: 5e94acc1cb725fea
 ---
 The console's **home** (Phase 5, §5.5.1): signing in, creating an account, and the list of a signed-in person's organisations. It runs in the browser (`"use client"`), because it holds what the person is typing and asks the API as they act.
 
@@ -68,53 +68,53 @@ End of `submit`.
 @@ 72-80
 Still asking: show *Loading…* in a region screen readers announce politely.
 
-@@ 82-93
-**Signed in**: the frame shows the person's address (on wider screens) and a *Sign out* button.
+@@ 82-96
+**Signed in**: the frame shows the person's address (on wider screens), a link to their *Security* page (§5.5.4), and a *Sign out* button.
 
-@@ 94
+@@ 97
 The heading.
 
-@@ 95-107
+@@ 98-110
 Each organisation as a card linking to its page, with the person's role in it.
 
-@@ 108-110
+@@ 111-113
 End of the signed-in view.
 
-@@ 112
+@@ 115
 **Nobody signed in**: which mode is the form in?
 
-@@ 113-118
+@@ 116-121
 The frame, a card, and the heading for the mode.
 
-@@ 119-121
+@@ 122-124
 A sentence that says who the console is for — and that people whose age is checked never need an account.
 
-@@ 122
+@@ 125
 The form.
 
-@@ 123-125
+@@ 126-128
 The e-mail field. `autoComplete="email"` lets the browser or a password manager fill it in.
 
-@@ 126-136
+@@ 129-139
 The password. The `autoComplete` hint tells password managers whether to suggest a new one (signing up) or fill the saved one (signing in); signing up asks for 12 characters before the API would.
 
-@@ 137-147
+@@ 140-150
 When signing up, the organisation's name.
 
-@@ 148-160
+@@ 151-163
 When the API has asked for it, the one-time code: a number pad on phones (`inputMode="numeric"`), exactly six digits, and `autoComplete="one-time-code"`, which lets phones offer a code they have just received.
 
-@@ 161
+@@ 164
 The error, if there is one, announced to screen readers (`Alert`).
 
-@@ 162-164
+@@ 165-167
 The submit button, disabled while a request is under way so it can't be sent twice.
 
-@@ 165
+@@ 168
 End of the form.
 
-@@ 166-175
+@@ 169-178
 A button that switches between signing in and creating an account, clearing any error from the other mode.
 
-@@ 176-179
+@@ 179-182
 End of the card, the frame and the component.

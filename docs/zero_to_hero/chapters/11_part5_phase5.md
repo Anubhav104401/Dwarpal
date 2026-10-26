@@ -4,7 +4,7 @@ Phase 5 gives Dwarpal the faces people see: the console for its customers, a pol
 
 | Area | Status |
 | :-- | :-- |
-| **Console** — sign-in, organisations, members, keys, audit log | 🟡 first pages (§5.5.1); a project's sessions, decision traces, counts and policies (§5.5.2); webhooks (§5.5.3); one-time-code set-up and a command palette to come |
+| **Console** — sign-in, organisations, members, keys, audit log | 🟡 first pages (§5.5.1); a project's sessions, decision traces, counts and policies (§5.5.2); webhooks (§5.5.3); one-time codes and member roles (§5.5.4); a command palette to come |
 | Design system — tokens, typography, components, motion | 🗓 waits for the typeface decision; the brand colours in `globals.css` are already used |
 | Marketing site (3D face-mesh hero) | 🗓 waits for an approved 3D library |
 | Verify flow in English and Hindi | 🗓 waits for an approved translation library |
@@ -99,3 +99,29 @@ The rest changed existing files, each re-explained in its walkthrough: the webho
 
 !!! honest "Honest limitation"
     The console shows the last 100 deliveries of one endpoint at a time, with no filter, and can't yet switch an endpoint off without removing it. During the browser test nothing is actually delivered: no delivery worker runs there (the worker has its own tests, §5.4.3).
+
+### 5.5.4 One-time codes and members' roles
+
+Two pieces of the console's API from §5.4.5 had no pages: switching on one-time codes, and managing people beyond adding them.
+
+- **Security** (`/console/account`, linked from the organisations page): if one-time codes are off, *Set up one-time codes* shows a new secret (in groups of four, and as an `otpauth://` link for an app on the same device); the person enters the code their app shows, and only then are codes required at sign-in.
+- **Members**: owners and admins now see, on each member's row, a role menu and a *Remove* button. The API gained `PATCH` and `DELETE` on `/orgs/{org}/members/{user}`.
+
+!!! key "Key idea — an organisation always has an owner"
+    Two rules guard the owners. Only an owner may make, change or remove an owner. And the **last** owner can't step down or be removed: the API answers `409 last_owner` — make someone else an owner first. The second rule needs care when two requests arrive together: if two owners each demote the other at the same moment, each could see "two owners" and both succeed. So every change first **locks** the owners' rows (`SELECT … FOR UPDATE`); the second request waits, then sees only one owner left, and is refused.
+
+!walk apps/web/app/console/account/page.tsx
+
+!walk apps/web/app/console/account/account-view.tsx
+
+The rest changed existing files, each re-explained in its walkthrough: the console API (`app/console.py`, `http/console.py`) and its test (`test_api.py`), the client and its test (`console-api.ts`, `console-api.test.ts`), the organisation page (`organisation-view.tsx`), the console's home (`console-home.tsx`), and the error answers (`problems.py`), the browser test (`console.spec.ts`), which now computes one-time codes itself, exactly as an authenticator app does.
+
+**What the tests prove**:
+- an admin may change an analyst's role, but may not make, change or remove an owner; the last owner may not step down, and may once there are two; an owner may remove an admin; the audit log holds exactly the changes that happened;
+- the client uses `PATCH` and `DELETE` on the right addresses, and sends the code to confirm;
+- in a real browser, a new member turns on one-time codes; signing out and in again then asks for a code, and the next code lets them in.
+
+**A bug the contract tests found.** Running the new routes through Schemathesis (§5.4.6), one random request carried the NUL character inside an e-mail address. PostgreSQL can't store NUL in text, the error went unhandled, and the API answered `500`. The request was at fault, so `http/problems.py` now turns that one database refusal into `422 invalid_text`, for every route at once, and a test sends such an address on purpose. (The failure appeared on one run and not the next: random testing finds rare inputs only sometimes, which is why it runs on every check.)
+
+!!! honest "Honest limitation"
+    There is no QR code yet: drawing one needs a library, which is a download awaiting approval, so the secret is shown as text and as a link. One-time codes can't yet be switched off or reset from the console (a lost phone needs an operator), and there are no recovery codes. The member controls were checked by the API test and a type check, but not yet in a browser test.

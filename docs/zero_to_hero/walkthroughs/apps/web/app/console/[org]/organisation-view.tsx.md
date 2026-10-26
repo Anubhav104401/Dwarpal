@@ -1,5 +1,5 @@
 ---
-fingerprint: 02a8423f9a4094b9
+fingerprint: 896517667e5d9d98
 ---
 The **organisation page** (Phase 5, §5.5.1): its members, its projects and API keys, and — for owners and admins — its audit log, with whether the chain is intact. Forms appear only for roles that may use them (`CAN`); the API refuses anyway if someone forces them.
 
@@ -60,92 +60,110 @@ A refusal shows the API's sentence; anything else a general one.
 @@ 74
 End of `addMember`.
 
-@@ 76-79
+@@ 76-85
+**`changeMember`** (§5.5.4) — change a member's role, or remove them (`null`), then reload: the change may have been to one's own membership, which changes what the page may show — or whether it can show anything.
+
+@@ 87-90
 **`createKey`** — the key form was sent.
 
-@@ 80-83
+@@ 91-94
 Read every ticked scope (`getAll`), create the key, keep it to show **once**, and load again (the audit log now has a new line). The key lives only in this page's memory: a reload forgets it, and it is never stored in the browser.
 
-@@ 84-86
+@@ 95-97
 A refusal shows the API's sentence.
 
-@@ 87
+@@ 98
 End of `createKey`.
 
-@@ 89-95
+@@ 100-106
 Still loading: *Loading…*, or the error if loading failed.
 
-@@ 96-109
+@@ 107-120
 Signed out, or not a member: say which, with a link back to the console.
 
-@@ 111
+@@ 122
 Everything was loaded: take its parts.
 
-@@ 112-122
+@@ 123-133
 The frame, with a link back to all organisations and the person's address.
 
-@@ 123-126
+@@ 134-137
 The organisation's name, and the person's role here.
 
-@@ 127-131
+@@ 138-142
 The error, if any, announced to screen readers.
 
-@@ 133
+@@ 144
 Two panels side by side on wide screens, one above the other on narrow ones.
 
-@@ 134-137
+@@ 145-148
 **Members.** `aria-labelledby` names the section by its heading, so screen readers (and the tests) can find the region called "Members".
 
-@@ 138-145
-Each member's address and role.
+@@ 149-152
+The list of members: each one's address.
 
-@@ 146-164
+@@ 153
+For people who may manage members, controls — except on an owner's row, unless they are an owner themselves (the API's rule, mirrored).
+
+@@ 154-166
+A role menu, named for screen readers after the member ("Role of ann@…"), showing their role; choosing another changes it at once. Only owners are offered "owner".
+
+@@ 167-174
+A *Remove* button, also named after the member, so a screen reader doesn't hear a list of identical "Remove" buttons.
+
+@@ 175-178
+Otherwise, just the role.
+
+@@ 179-181
+End of the row and the list.
+
+@@ 182-200
 For owners and admins, the form to add a member: an address and a role. Only an owner is offered *owner*, as only an owner may give it.
 
-@@ 165
+@@ 201
 End of the members panel.
 
-@@ 167-170
+@@ 203-206
 **Projects and API keys.**
 
-@@ 171-183
+@@ 207-219
 Each project's name — since the project pages (§5.5.2), a link to its page — and its public ID.
 
-@@ 184-194
+@@ 220-230
 A key just created, in a highlighted box: the warning that it won't be shown again, and the key itself. `role="status"` makes screen readers announce it.
 
-@@ 195-205
+@@ 231-241
 For roles that may manage keys, and when there is a project: the form, starting with which project.
 
-@@ 206-223
+@@ 242-259
 The scopes, as tick-boxes in a `fieldset` whose `legend` names the group; the two session scopes start ticked.
 
-@@ 224-226
+@@ 260-262
 Whether the key is live — useful only once the age model is calibrated, which the API also enforces.
 
-@@ 227-231
+@@ 263-267
 The button, and the end of the form.
 
-@@ 232-233
+@@ 268-269
 End of the panel and of the two-column grid.
 
-@@ 235-240
+@@ 271-276
 **The audit log**, for owners and admins.
 
-@@ 241-249
+@@ 277-285
 The chain's verdict as a badge: teal *Chain intact*, or red *Chain broken at entry N* — the console's view of `cli verify-audit`.
 
-@@ 250
+@@ 286
 End of the heading row.
 
-@@ 251-259
+@@ 287-295
 A table with four columns: the entry's number, when, what, and who.
 
-@@ 260-271
+@@ 296-307
 One row per entry, newest first; the time in the reader's own format and time zone (`toLocaleString`).
 
-@@ 272-274
+@@ 308-310
 End of the table, the section, and the condition.
 
-@@ 275-277
+@@ 311-313
 End of the frame and the component.

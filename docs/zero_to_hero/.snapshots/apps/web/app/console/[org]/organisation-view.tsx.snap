@@ -73,6 +73,17 @@ export function OrganisationView({ org }: { org: string }) {
     }
   }
 
+  /** Change a member's role, or remove them (`null`); reload, since it may have been one's own membership. */
+  async function changeMember(user: string, role: Role | null) {
+    setError(null);
+    try {
+      await (role === null ? client.removeMember(org, user) : client.changeRole(org, user, role));
+      await load();
+    } catch (failure) {
+      setError(failure instanceof ConsoleError ? failure.message : "That didn't work. Please try again.");
+    }
+  }
+
   async function createKey(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -137,9 +148,34 @@ export function OrganisationView({ org }: { org: string }) {
           </h2>
           <ul className="mt-3 divide-y divide-zinc-200 dark:divide-white/10">
             {members.map((m) => (
-              <li key={m.user} className="flex items-center justify-between py-2.5 text-sm">
-                <span>{m.email}</span>
-                <span className="capitalize text-zinc-500">{m.role}</span>
+              <li key={m.user} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+                <span className="break-all">{m.email}</span>
+                {CAN.manageMembers(role) && (m.role !== "owner" || role === "owner") ? (
+                  <span className="flex items-center gap-1">
+                    <select
+                      aria-label={`Role of ${m.email}`}
+                      className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-white/15 dark:bg-zinc-950"
+                      value={m.role}
+                      onChange={(event) => changeMember(m.user, event.target.value as Role)}
+                    >
+                      {ROLES.filter((r) => r !== "owner" || role === "owner").map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className={quietButton}
+                      aria-label={`Remove ${m.email}`}
+                      onClick={() => changeMember(m.user, null)}
+                    >
+                      Remove
+                    </button>
+                  </span>
+                ) : (
+                  <span className="capitalize text-zinc-500">{m.role}</span>
+                )}
               </li>
             ))}
           </ul>

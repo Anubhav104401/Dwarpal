@@ -101,6 +101,12 @@ class NewMember(BaseModel):
     role: Annotated[str, Field(max_length=16)]
 
 
+class RoleChange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: Annotated[str, Field(max_length=16)]
+
+
 class NewKey(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -166,6 +172,19 @@ async def list_projects(org_text: str, current: Reader, svc: Toolbox) -> dict[st
 @router.post("/orgs/{org_text}/members", status_code=201)
 async def add_member(org_text: str, body: NewMember, current: Changer, svc: Toolbox) -> dict[str, Any]:
     return await console.add_member(svc, current, org_text, body.email, body.role)
+
+
+@router.patch("/orgs/{org_text}/members/{user_text}")
+async def change_role(
+    org_text: str, user_text: str, body: RoleChange, current: Changer, svc: Toolbox
+) -> dict[str, Any]:
+    return await console.change_role(svc, current, org_text, user_text, body.role)
+
+
+@router.delete("/orgs/{org_text}/members/{user_text}", status_code=204)
+async def remove_member(org_text: str, user_text: str, current: Changer, svc: Toolbox) -> Response:
+    await console.remove_member(svc, current, org_text, user_text)
+    return Response(status_code=204)
 
 
 @router.post("/orgs/{org_text}/projects/{project_text}/keys", status_code=201)
