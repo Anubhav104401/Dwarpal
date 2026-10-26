@@ -18,7 +18,7 @@ router = APIRouter(prefix="/v1/policies", tags=["policies"])
 class NewVersion(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: Annotated[str, Field(min_length=3, max_length=40)]
+    name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{2,39}$")]
     min_age: Annotated[int, Field(ge=13, le=25)]
     risk_budget: Annotated[float, Field(gt=0, le=0.1)] = 0.02
     max_face_attempts: Annotated[int, Field(ge=1, le=5)] = 3

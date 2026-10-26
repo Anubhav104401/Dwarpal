@@ -1,5 +1,5 @@
 ---
-fingerprint: 6779615d2b197a78
+fingerprint: 3fc1d2d7d735a341
 ---
 The **relying-party API** — the two endpoints a website's *server* calls. ("Relying party" is the standard name for a service that relies on someone else's check; here, any website that uses Dwarpal.)
 
@@ -54,7 +54,7 @@ The router: every path in this file starts with `/v1/verification-sessions`. The
 - `response` — the response being prepared, so the endpoint can add a header to it;
 - `caller` — the result of `needs("sessions:write")`: the API key was checked, and it may create sessions;
 - `svc` — the toolbox;
-- `idempotency_key` — the request's `Idempotency-Key` header, if it has one. FastAPI turns the underscore into a dash and ignores capitals when it looks for the header.
+- `idempotency_key` — the request's `Idempotency-Key` header, if it has one. FastAPI turns the underscore into a dash and ignores capitals when it looks for the header. Its `pattern` — 8 to 255 printable characters — is part of the published API document (step 6), and a key that doesn't fit is refused with `422` before the endpoint runs.
 
 `-> dict[str, Any]`: the endpoint returns a dict, which FastAPI sends as JSON.
 

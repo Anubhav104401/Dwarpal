@@ -1,5 +1,5 @@
 ---
-fingerprint: 5de99bd168705ff8
+fingerprint: b43ba2c8fc8636de
 ---
 The API's **short-term memory**, kept in **Valkey** (§4.11). Some facts only need to exist for minutes: "this browser may work on session X for the next 15 minutes", "this challenge may be used once in the next 2 minutes". Putting them in PostgreSQL would fill the database with rows that need cleaning up. Valkey stores each value with a **time to live** and deletes it by itself when the time runs out.
 
@@ -152,11 +152,14 @@ Add one and compare with the limit. `incr` is atomic in Valkey, so two requests 
 @@ 93-94
 **`drop`** — delete a key.
 
-@@ 96
+@@ 96-99
+**`fetch`** — read a value and, in the same command (`GETEX`), restart its time to live. This is a **sliding expiry**: a console session lasts 12 hours *from its last use*, so someone working all day stays signed in, and an abandoned session ends on its own.
+
+@@ 101
 **`take_challenge`** — use a challenge up. It returns the stored `Challenge` only if it existed, hadn't expired, and belongs to this session; otherwise `None`.
 
-@@ 97
+@@ 102
 `GETDEL` reads the value **and deletes it in one atomic step**. If the same challenge arrives twice at the same instant, only one request can get it — the other finds nothing. Reading first and deleting later would leave a tiny gap in which both could succeed.
 
-@@ 98-103
+@@ 103-108
 Accept only if something was found *and* its session matches. The challenge is gone either way: a wrong guess burns it. Then rebuild the `Challenge` from what was stored — the *server's* copy, which is what the frames will be checked against, whatever the browser claims.

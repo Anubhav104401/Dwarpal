@@ -6,10 +6,12 @@ import logging
 import re
 import secrets
 import time
+from typing import Any
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -18,6 +20,39 @@ from dwarpal_api.errors import ApiError
 
 SAFE_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 logger = logging.getLogger("dwarpal.api")
+
+
+class Problem(BaseModel):
+    """The shape of every refusal (RFC 9457), described once so the published API document can show it."""
+
+    type: str
+    title: str
+    status: int
+    detail: str
+    code: str
+    request_id: str
+
+
+# The refusals any operation may answer with, each as application/problem+json; the API document lists them all.
+REFUSALS = {
+    400: "the request is malformed",
+    401: "missing or wrong credentials",
+    403: "the credentials don't allow this",
+    404: "no such thing",
+    405: "the method isn't allowed here",
+    409: "it conflicts with the current state",
+    413: "the body is too large",
+    422: "the request makes no sense",
+    429: "too many requests; see Retry-After",
+    503: "a dependency is unavailable; try again",
+}
+PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
+    status: {
+        "description": description,
+        "content": {"application/problem+json": {"schema": {"$ref": "#/components/schemas/Problem"}}},
+    }
+    for status, description in REFUSALS.items()
+}
 
 
 def problem(
@@ -55,7 +90,21 @@ async def on_invalid_request(request: Request, error: Exception) -> Response:
 async def on_http_error(request: Request, error: Exception) -> Response:
     if not isinstance(error, HTTPException):
         return await on_unexpected(request, error)
-    return problem(request, error.status_code, "http_error", str(error.detail))
+    headers = dict(error.headers or {})
+    if error.status_code == 405:
+        # HTTP requires a 405 to list every method the address accepts. Starlette names only those of the first route
+        # it tried, so when GET and POST are two routes on one path, the list is gathered from all of them.
+        headers["Allow"] = ", ".join(allowed_methods(request))
+    return problem(request, error.status_code, "http_error", str(error.detail), headers)
+
+
+def allowed_methods(request: Request) -> list[str]:
+    methods: set[str] = set()
+    for route in request.app.routes:
+        pattern, route_methods = getattr(route, "path_regex", None), getattr(route, "methods", None)
+        if pattern is not None and route_methods and pattern.match(request.url.path):
+            methods |= set(route_methods)
+    return sorted(methods)
 
 
 class RequestIds:
@@ -86,7 +135,22 @@ class RequestIds:
             logger.info("request", extra={**fields, "duration_ms": elapsed})
 
 
+def describe_problems(app: FastAPI) -> None:
+    """Add the Problem shape to the API document FastAPI builds, so that every refusal listed there has a schema."""
+    build = app.openapi
+
+    def openapi() -> dict[str, Any]:
+        document = build()  # FastAPI builds the document once, then hands back the same one
+        document.setdefault("components", {}).setdefault("schemas", {}).setdefault(
+            "Problem", Problem.model_json_schema()
+        )
+        return document
+
+    app.openapi = openapi  # type: ignore[method-assign]
+
+
 def install(app: FastAPI) -> None:
+    describe_problems(app)
     app.add_middleware(RequestIds)
     app.add_exception_handler(ApiError, on_api_error)
     app.add_exception_handler(RequestValidationError, on_invalid_request)

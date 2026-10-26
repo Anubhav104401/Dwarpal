@@ -237,4 +237,33 @@ class SessionStat(Base):
     sessions: Mapped[int]
 
 
+class User(Base):
+    """A person at one of Dwarpal's customers, who signs in to the console. Never someone whose age is checked."""
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(254), unique=True)  # stored in lower case
+    password_hash: Mapped[str] = mapped_column(Text)  # Argon2id, with its salt and settings inside
+    totp_secret_sealed: Mapped[bytes | None] = mapped_column(LargeBinary)  # one-time codes, once switched on
+    totp_pending_sealed: Mapped[bytes | None] = mapped_column(LargeBinary)  # a secret offered but not yet confirmed
+    totp_last_step: Mapped[int | None] = mapped_column(BigInteger)  # the last code used, so it can't be used again
+    created_at: Mapped[datetime] = mapped_column(Timestamp)
+    last_login_at: Mapped[datetime | None] = mapped_column(Timestamp)
+
+
+class Membership(Base):
+    """A user's role in an organisation: owner, admin, developer or analyst (domain/roles.py)."""
+
+    __tablename__ = "memberships"
+    __table_args__ = (
+        CheckConstraint("role IN ('owner', 'admin', 'developer', 'analyst')", name="ck_memberships_role"),
+    )
+
+    org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True)
+    role: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(Timestamp)
+
+
 METADATA = Base.metadata

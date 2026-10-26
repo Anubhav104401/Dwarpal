@@ -21,7 +21,7 @@ from dwarpal_api.adapters.store import FlowStore
 from dwarpal_api.app import idempotency
 from dwarpal_api.app.verification import Services
 from dwarpal_api.domain.policy import load_manifest
-from dwarpal_api.http import analytics, flow, health, policies, problems, rp, tokens, webhooks, wellknown
+from dwarpal_api.http import analytics, console, flow, health, policies, problems, rp, tokens, webhooks, wellknown
 from dwarpal_api.http.limits import BodyLimit
 from dwarpal_api.settings import Settings
 
@@ -59,7 +59,7 @@ def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClie
             await valkey.aclose()
             await engine.dispose()
 
-    app = FastAPI(title="Dwarpal API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Dwarpal API", version="0.1.0", lifespan=lifespan, responses=problems.PROBLEM_RESPONSES)
     app.add_middleware(BodyLimit)
     app.add_middleware(
         CORSMiddleware,
@@ -69,6 +69,6 @@ def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClie
         expose_headers=["X-Request-Id"],
     )
     problems.install(app)
-    for module in (rp, policies, webhooks, tokens, analytics, flow, wellknown, health):
+    for module in (rp, policies, webhooks, tokens, analytics, console, flow, wellknown, health):
         app.include_router(module.router)
     return app

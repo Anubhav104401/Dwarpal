@@ -10,7 +10,8 @@
       "**",
       "!docs/zero_to_hero/**/*.html",
       "!docs/zero_to_hero/.snapshots",
-      "!models/registry/**/manifest.json"
+      "!models/registry/**/manifest.json",
+      "!docs/api/openapi.json"
     ]
   },
   "formatter": {

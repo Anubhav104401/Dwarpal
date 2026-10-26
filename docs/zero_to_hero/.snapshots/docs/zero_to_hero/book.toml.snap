@@ -26,7 +26,7 @@ include = [
   "**/*.txt", "**/Dockerfile", "**/Caddyfile", "**/.env.example",
   "**/.gitignore", "**/.gitattributes", "**/.editorconfig", "**/.python-version", "**/*.mako",
 ]
-exclude = ["docs/zero_to_hero/zero_to_hero.html", "**/pnpm-lock.yaml", "**/package-lock.json", "**/uv.lock", "**/next-env.d.ts", "apps/web/public/mediapipe/**"]
+exclude = ["docs/zero_to_hero/zero_to_hero.html", "docs/api/openapi.json", "**/pnpm-lock.yaml", "**/package-lock.json", "**/uv.lock", "**/next-env.d.ts", "apps/web/public/mediapipe/**"]
 prune = [
   ".git", ".venv", "node_modules", "__pycache__", ".next", ".turbo", "dist",
   ".datasets", ".runs", "mlruns", ".mypy_cache", ".ruff_cache", ".pytest_cache", ".hypothesis", ".snapshots", ".claude", "test-results", "playwright-report",

@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     webhook_allow_private: bool = False
     webhook_timeout_s: float = 10.0
     webhook_poll_s: float = 2.0
+    # The console: the sites its pages are served from (checked against Origin), how long a signed-in session lasts
+    # without use, and whether its cookie needs HTTPS (only tests over plain http turn this off; never production).
+    console_origins: list[str] = ["http://localhost:3000"]
+    console_session_ttl_s: int = 43_200  # 12 hours
+    console_cookie_secure: bool = True
+    # Sign-in attempts: per account and per network address, a few at once, then one every so often.
+    login_burst: int = 5
+    login_per_minute: float = 1.0
 
     @model_validator(mode="after")
     def refuse_development_values_in_production(self) -> Settings:
@@ -52,6 +60,8 @@ class Settings(BaseSettings):
             raise ValueError("DWARPAL_MASTER_KEY must be set to a real secret in production")
         if self.webhook_allow_private:
             raise ValueError("DWARPAL_WEBHOOK_ALLOW_PRIVATE must not be set in production")
+        if not self.console_cookie_secure:
+            raise ValueError("DWARPAL_CONSOLE_COOKIE_SECURE must not be turned off in production")
         for name in ("issuer", "verify_url"):
             if not getattr(self, name).startswith("https://"):
                 raise ValueError(f"DWARPAL_{name.upper()} must be an https:// address in production")

@@ -9,12 +9,14 @@ uv run --package dwarpal-api python -m dwarpal_api.cli revoke-key --lookup <key 
 uv run --package dwarpal-api python -m dwarpal_api.cli deliver-webhooks [--once]
 uv run --package dwarpal-api python -m dwarpal_api.cli maintain
 uv run --package dwarpal-api python -m dwarpal_api.cli verify-audit
+uv run --package dwarpal-api python -m dwarpal_api.cli openapi
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import statistics
 import sys
 from collections import Counter
@@ -37,6 +39,8 @@ from dwarpal_api.domain.keys import SCOPES, generate_api_key
 from dwarpal_api.settings import Settings
 
 MIGRATIONS = Path(__file__).resolve().parent / "migrations"
+# The published API document: written by `openapi`, and checked against the code by the tests.
+API_DOCUMENT = Path(__file__).resolve().parents[4] / "docs" / "api" / "openapi.json"
 OPERATOR = ("operator", "cli")  # how the audit log names a change made with these tools
 DEMO_ORIGINS = ["http://localhost:3000", "http://localhost:3100"]
 
@@ -165,6 +169,13 @@ async def deliver_webhooks(settings: Settings, once: bool = False) -> None:
             await engine.dispose()
 
 
+def api_document() -> str:
+    """The API's OpenAPI document as stable text: sorted keys, two-space indents, one final newline."""
+    from dwarpal_api.main import create_app  # here, not at the top: the app imports this module's neighbours
+
+    return json.dumps(create_app().openapi(), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+
+
 async def maintain(settings: Settings, now: datetime | None = None) -> str:
     """The scheduled jobs, once: expire abandoned sessions (announcing each), then purge what is past retention."""
     now = now or datetime.now(UTC)
@@ -265,6 +276,7 @@ def main(argv: list[str] | None = None) -> int:
         "deliver-webhooks",
         "maintain",
         "verify-audit",
+        "openapi",
     ]
     parser.add_argument("command", choices=commands)
     parser.add_argument("--since", type=datetime.fromisoformat, help="liveness-report: attempts from this time on")
@@ -282,6 +294,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "deliver-webhooks":
         asyncio.run(deliver_webhooks(Settings(), once=args.once))
+        return 0
+    if args.command == "openapi":
+        API_DOCUMENT.parent.mkdir(parents=True, exist_ok=True)
+        API_DOCUMENT.write_text(api_document(), encoding="utf-8", newline="\n")
+        print(f"wrote {API_DOCUMENT}")
         return 0
     if args.command == "maintain":
         print(asyncio.run(maintain(Settings())))

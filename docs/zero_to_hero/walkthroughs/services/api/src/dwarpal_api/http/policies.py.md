@@ -1,5 +1,5 @@
 ---
-fingerprint: 0f7ef08fc4c671f8
+fingerprint: d85eaff9217b503d
 ---
 The **policies API** (Phase 4) — two endpoints for a website's server:
 
@@ -32,7 +32,7 @@ The router: every path here starts with `/v1/policies`.
 **`NewVersion`** — the body of `POST /v1/policies`. Unknown fields are refused.
 
 @@ 21
-`name` — 3 to 40 characters (the use case checks the exact shape).
+`name` — a lower-case letter, then 2 to 39 lower-case letters, digits or `_`. Written as a `pattern` (a regular expression), the rule appears in the published API document, so callers know it before they are refused (step 6).
 
 @@ 22
 `min_age` — between 13 and 25. Whether the age model can actually serve that age is checked by the use case, against the manifest.

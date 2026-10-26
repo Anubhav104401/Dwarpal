@@ -5,6 +5,7 @@ description = "Dwarpal API: relying-party, flow and console APIs, decision engin
 requires-python = ">=3.13,<3.14"
 dependencies = [
   "alembic==1.20.0",
+  "argon2-cffi==25.1.0",
   "asyncpg==0.32.0",
   "cryptography==50.0.2",
   "dwarpal-contracts",

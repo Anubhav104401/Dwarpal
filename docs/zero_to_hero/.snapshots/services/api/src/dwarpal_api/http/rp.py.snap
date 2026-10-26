@@ -29,7 +29,7 @@ async def create_session(
     response: Response,
     caller: Annotated[Caller, Depends(needs("sessions:write"))],
     svc: Annotated[Services, Depends(services)],
-    idempotency_key: Annotated[str | None, Header()] = None,
+    idempotency_key: Annotated[str | None, Header(pattern=r"^[\x21-\x7e]{8,255}$")] = None,
 ) -> dict[str, Any]:
     async def make() -> dict[str, Any]:
         return_url = str(body.return_url) if body.return_url else None

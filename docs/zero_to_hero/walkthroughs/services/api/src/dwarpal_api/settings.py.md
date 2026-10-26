@@ -1,5 +1,5 @@
 ---
-fingerprint: 37c2906f77c4a585
+fingerprint: 916cdf4d12e052a3
 ---
 The API's **settings**: every value that may differ between a laptop, the test suite and production — addresses, secrets, time limits — in one checked place. It follows the same pattern as the inference service's `settings.py` (§5.1.1), with two additions: a **secret** that must never leak into logs, and a **guard** that refuses unsafe values in production.
 
@@ -112,24 +112,33 @@ The rate limit for each API key (`http/deps.py`): 100 requests a second on avera
 @@ 42-45
 Webhooks (Phase 4): `webhook_allow_private` lets webhooks go to private or local addresses — needed on a developer's laptop and in tests, and refused in production (below). How long to wait for a receiver's answer (10 s), and how often the idle worker looks for due deliveries (every 2 s).
 
-@@ 47-48
+@@ 46-50
+The console (Phase 4, step 2): `console_origins` — the addresses its pages are served from, checked against each change's `Origin` header (§5.4.5); how long a signed-in session lasts without use (12 hours); and whether its cookie may only travel over HTTPS. Only the tests, which talk plain HTTP inside one program, switch that off; production refuses to (below).
+
+@@ 51-53
+Sign-in attempts, counted per account and per network address: up to 5 at once, then one more a minute — slow enough that guessing a password is hopeless, generous enough for someone who mistypes.
+
+@@ 55-56
 The **production guard**. `@model_validator(mode="after")` makes Pydantic call this method after all the fields are filled in. It receives the finished settings object as `self`, and must either return it or raise an error. If it raises, the API refuses to start.
 
-@@ 49-50
+@@ 57-58
 Outside production there is nothing more to check, so the settings are returned unchanged.
 
-@@ 51-52
+@@ 59-60
 **Refuse the development key in production.** It is published in this repository, so with it anyone could unseal the signing keys and forge age tokens. The error names the exact variable to set.
 
-@@ 53-54
+@@ 61-62
 Production must never send webhooks into private networks.
 
-@@ 55-57
+@@ 63-64
+And production's cookie must always demand HTTPS.
+
+@@ 65-67
 **Refuse plain `http://` addresses in production.** Over `http://`, tokens and links travel unencrypted, and anyone on the network path could read or change them (§0.9).
 
 `getattr(self, name)` reads a field whose name is held in the variable `name`, so one loop checks both fields. `name.upper()` turns `issuer` into `ISSUER`, so the message names the exact variable: `DWARPAL_ISSUER`.
 
-@@ 58
+@@ 68
 All checks passed: return the settings.
 
 !!! try "Try it yourself"

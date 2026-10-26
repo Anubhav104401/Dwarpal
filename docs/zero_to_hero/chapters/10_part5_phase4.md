@@ -5,11 +5,11 @@ Phases 1–3 built one honest age check: a website asks, a person looks at the c
 | Step | What | Status |
 | :-- | :-- | :-- |
 | 1 | **Organisations, and row-level security** — the database itself keeps customers apart | ✅ §5.4.1 |
-| 2 | People and sign-in — users, passwords (Argon2id), one-time codes, roles | 🗓 |
+| 2 | People and sign-in — users, passwords (Argon2id), one-time codes, roles | ✅ §5.4.5 |
 | 3 | Website features — scoped and rotating keys, versioned policies, idempotency, rate limits, pagination | ✅ §5.4.2 |
 | 4 | Events — an outbox and signed webhooks; token introspection | ✅ §5.4.3 |
 | 5 | Accountability — a hash-chained audit log, retention, analytics | ✅ §5.4.4 |
-| 6 | The contract — a published OpenAPI document, tested automatically | 🗓 |
+| 6 | The contract — a published OpenAPI document, tested automatically | ✅ §5.4.6 |
 
 ### 5.4.1 Tenants, and a database that keeps them apart
 
@@ -224,3 +224,65 @@ The rest of the step changed existing files, each re-explained in its walkthroug
     - **The chain detects tampering; it doesn't prevent it.** Someone with full control of the database could rewrite an organisation's whole chain consistently. Publishing each day's latest hash outside the database would expose that, and isn't done yet.
     - **The audit log isn't purged yet.** The design keeps it for a year, but removing old entries means the chain must start from a stored anchor rather than from zero; that work comes with the console.
     - **People aren't audited yet,** because there are no people yet: logins, members and roles arrive with step 2.
+
+### 5.4.5 People: accounts, sign-in and roles
+
+Until now only programs used Dwarpal: a website's server with its API key. Step 2 adds **people** — the developers, administrators and analysts at Dwarpal's customers, who will use the web console of Phase 5. (The people whose age is checked are never stored as users; nothing in this section concerns them.)
+
+**Accounts and passwords.** Signing up creates a person, an organisation they **own**, and a first project. Passwords are stored only as **Argon2id** hashes: slow and memory-hungry on purpose (about 50 ms and 64 MiB each), so a stolen table of hashes is useless to anyone trying billions of guesses. Each hash also carries its own random salt.
+
+!walk services/api/src/dwarpal_api/adapters/passwords.py
+
+**Signing in without giving anything away.** A wrong password and an address with no account get exactly the same answer, after exactly the same work: for an unknown address, a decoy hash is checked, so not even timing reveals who has an account. Attempts are limited per account and per network address (5 at once, then one a minute). A successful sign-in creates a **session**: a long random token in an `HttpOnly`, `Secure`, `SameSite` cookie named with the `__Host-` prefix, while its facts live in Valkey for 12 hours from last use.
+
+**One-time codes.** A person can switch on **TOTP** codes from an authenticator app, the six digits that change every 30 seconds. After that, a password alone no longer signs in. Each code works only once: the step of the last code used is remembered.
+
+!walk services/api/src/dwarpal_api/domain/totp.py
+
+**Forged requests.** Because a browser sends a site's cookie with every request to it, even one triggered by another site, every change must also repeat the session's **CSRF token** in a header, and come from one of the console's own origins.
+
+**Roles.** Each person has a role in each organisation they belong to — owner, admin, developer or analyst — and the design's matrix decides what each may do. Every organisation action asks the matrix first; an organisation you don't belong to answers `404`, exactly as if it didn't exist. Row-level security now also knows the signed-in user. Sign-ins, members added, keys created and one-time codes switched on are all written to the audit log.
+
+!walk services/api/src/dwarpal_api/domain/roles.py
+
+!walk services/api/src/dwarpal_api/app/console.py
+
+!walk services/api/src/dwarpal_api/http/console.py
+
+!walk services/api/src/dwarpal_api/migrations/versions/v0007_users_and_members.py
+
+!walk services/api/tests/test_console_rules.py
+
+**What the tests prove**:
+- the role matrix, cell by cell, and an unknown role allowed nothing;
+- one-time codes matching RFC 6238's own published values, accepted once near their time and never again;
+- Argon2id hashes salted, and an unknown account never matching;
+- through the API: sign-up, sign-in and sign-out, where a wrong password and an unknown address can't be told apart, and capitals in the address don't matter;
+- changes refused without the CSRF token or from another origin;
+- codes required once switched on, and a replayed code refused;
+- the third sign-in attempt over the limit refused with `429`;
+- an analyst refused a key that a developer may create — and that key working on the API;
+- a developer refused member management, and an outsider seeing `404`;
+- the owner's audit log listing it all, in order, with an intact chain and no key in it.
+
+!!! honest "Honest limitation"
+    - **No console pages yet.** These are the API's endpoints; the pages come in Phase 5.
+    - **No invitations, password resets or account deletion yet.** All three need e-mail, which Dwarpal doesn't send yet. Members can only be added if they already have an account.
+    - **No recovery codes for one-time codes.** Someone who loses their phone needs an operator's help today; recovery codes belong with the console.
+    - **The sign-in limit is a rate, not a growing lock-out.** The design's "lockout back-off", where each failure makes the wait longer, isn't built; the rate limit already makes guessing hopeless.
+
+### 5.4.6 The contract: a published document, tested against itself
+
+A website's developers learn the API from its **OpenAPI document**: a machine-readable description of every operation, its inputs, and every answer it may give. FastAPI writes it from the code. Step 6 makes it complete and trustworthy:
+
+- **Every refusal is described.** Every operation now lists the problem statuses it may answer with (`400`, `401`, `403`, `404`, `405`, `409`, `413`, `422`, `429`, `503`), each as `application/problem+json` with the `Problem` shape (`http/problems.py`).
+- **Rules are written into the document where they can be.** The idempotency key's pattern, a policy name's pattern and a one-time code's six digits are stated there, so callers know them before they are refused.
+- **It is published** as `docs/api/openapi.json` by `cli openapi`, and a test fails whenever the code and the published file disagree.
+- **It is tested** by **Schemathesis**, a **contract tester**. It reads the document from the running API, generates 25 requests for each of the 31 operations — valid ones, odd ones, and malformed ones — and checks every answer: never a server error, and always a status, content type, body and headers that the document allows.
+
+!!! real "Real world — the contract test found real bugs"
+    On its first run, Schemathesis found that a `405 Method Not Allowed` answer had lost its `Allow` header, which HTTP requires: the problem-details handler threw away the error's headers. Fixing that revealed a second fault, inside Starlette. When `GET` and `POST` on one path are two routes, it names only one route's methods. The handler now gathers them from every route that matches. The same session's migration round-trip caught a third bug: migration `0007`'s downgrade dropped things in an order PostgreSQL refuses. Hand-written tests had covered none of these, because nobody had thought to send a `TRACE` request.
+
+One check is switched off, and the test says why: Schemathesis's "a request the document allows must succeed". Some of the API's rules depend on data rather than shape — whether the age model is calibrated for an age, whether an address is among a project's allowed origins — and refusing such requests with `422` is correct.
+
+The rest of steps 2 and 6 changed existing files, each re-explained in its walkthrough: `adapters/db.py` (the user as tenant, `FIND_USER`), `adapters/store.py` (`fetch`, a sliding expiry), `adapters/tables.py` (`User`, `Membership`), `http/problems.py` (`Problem`, the documented refusals, `Allow`), `http/rp.py` and `http/policies.py` (patterns), `main.py`, `settings.py` (console settings), `cli.py` (`openapi`), the two `pyproject.toml` files (the new packages), `book.toml` (the generated document is left out of the line count), and `test_api.py` (the console, contract and drift tests).

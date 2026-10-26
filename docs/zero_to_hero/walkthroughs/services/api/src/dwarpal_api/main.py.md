@@ -1,5 +1,5 @@
 ---
-fingerprint: b55f1e5fe10f60af
+fingerprint: e1e5def9d6cd06f0
 ---
 The file that **assembles** the API. Every other module is a part; this one connects them in the right order when the program starts, and disconnects them when it stops. It follows the same pattern as the inference service's `main.py` (§5.1.1): an **app factory** called `create_app`.
 
@@ -25,7 +25,7 @@ The project-wide type-hint setting.
 `httpx` for the inference client, FastAPI itself, its **CORS** middleware (§4.13), and the async Valkey client.
 
 @@ 17-26
-Every part, from every layer: database helpers, the inference client, the key classes, the store, the idempotency module (for its secret), the toolbox, the manifest loader, the nine HTTP modules, the body-size guard, and the settings.
+Every part, from every layer: database helpers, the inference client, the key classes, the store, the idempotency module (for its secret), the toolbox, the manifest loader, the ten HTTP modules, the body-size guard, and the settings.
 
 @@ 29
 **`create_app`** — build and return the app. Both parameters are optional, and only tests use them: `settings` to point the API at test databases, and `inference_http` to talk to an inference app running inside the same process.
@@ -61,7 +61,7 @@ Fill the toolbox and store it on the app, where the `services` dependency finds 
 `finally` runs at shutdown — even after a crash. Close the inference client only if *we* created it (a test closes its own; whoever creates a resource closes it), then the Valkey client, then the database pool.
 
 @@ 62
-Create the FastAPI app, with a title and version for its automatic documentation, and the lifespan.
+Create the FastAPI app, with a title and version for its automatic documentation, the lifespan, and (step 6) the refusals every operation may answer with, so the published API document lists them for every operation (`http/problems.py`).
 
 @@ 63
 Add the body-size guard (`limits.py`).
@@ -84,7 +84,7 @@ request → RequestIds → CORS → BodyLimit → error handlers → endpoint
 Request IDs come first, so every later step — even a refusal by the size guard — can name the request. CORS comes before the size guard, so browsers can read even a "too large" answer.
 
 @@ 72-73
-Add the eight routers — the relying-party API, policies, webhooks, token introspection, analytics, the flow API, the well-known addresses and the health checks.
+Add the nine routers — the relying-party API, policies, webhooks, token introspection, analytics, the console, the flow API, the well-known addresses and the health checks.
 
 @@ 74
 Return the finished app.

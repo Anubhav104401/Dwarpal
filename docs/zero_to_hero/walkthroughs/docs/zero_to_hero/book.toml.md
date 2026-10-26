@@ -1,5 +1,5 @@
 ---
-fingerprint: 1b9c2847d3160e41
+fingerprint: a7d4d1e8b63aba3a
 ---
 `book.toml` holds the book's **settings**. Keeping settings in a separate file, rather than inside `build.py`, means you can add a chapter or change the title **without touching any program code**. "Separate the *what* from the *how*" is one of the oldest good habits in software.
 
@@ -71,6 +71,8 @@ Markdown (`.md`) is deliberately not included: it is prose, not code.
 - `next-env.d.ts` — a file Next.js writes for itself into each web app, and which is never committed (added in Phase 1, see `.gitignore`).
 
 `apps/web/public/mediapipe/**` (added in Phase 3) — MediaPipe's WebAssembly loaders, copied in before each build: tens of thousands of lines of someone else's generated code.
+
+`docs/api/openapi.json` (Phase 4) — the API's published OpenAPI document: almost 5,000 lines that `cli openapi` writes from the code itself. The code that produces it is explained line by line instead (`http/problems.py`, `cli.py`), and a test fails if the file and the code ever disagree.
 
 @@ 30-33
 `prune = [ … ]` lists **folder names the scanner never enters**, because they hold things we didn't write:

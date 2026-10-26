@@ -1,6 +1,6 @@
 # Phase 4 report — the platform
 
-**Dates:** from 24 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Decision record:** [ADR-0011](../adr/0011-postgresql-rls-and-valkey.md) (amended 24 Oct) · **Status:** 🟡 steps 1, 3, 4 and 5 of 6 built and tested locally (step 2 waits for approval to add `argon2-cffi`; step 6 for `schemathesis`).
+**Dates:** 24–26 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Decision record:** [ADR-0011](../adr/0011-postgresql-rls-and-valkey.md) (amended 24 Oct) · **Status:** 🟢 all six steps built and tested locally; the exit criteria (contract, integration, RLS isolation and audit-chain suites green) are met locally. Remote CI has not run yet.
 
 **Goal (from the roadmap):** turn the single age check into a platform many businesses can use at once: organisations and people, safe keys and policies, events, an audit trail, and a published contract. **Exit:** contract and integration suites green; **RLS isolation tests green**; audit-chain verification green.
 
@@ -9,11 +9,11 @@
 | Step | Scope | Status |
 | :-- | :-- | :-- |
 | 1 | Organisations; row-level security on every tenant table, with isolation tests | ✅ 24 Oct |
-| 2 | Users (Argon2id), TOTP, members and roles, console sessions, CSRF | 🗓 (needs approval to add `argon2-cffi`) |
+| 2 | Users (Argon2id), TOTP, members and roles, console sessions, CSRF | ✅ 26 Oct |
 | 3 | Scoped and rotating keys, versioned policies, idempotency, rate limits, cursor pagination | ✅ 25 Oct |
 | 4 | Events, outbox, webhook worker (HMAC, retries, SSRF guard), token introspection | ✅ 25 Oct |
 | 5 | Hash-chained audit log and its verifier, retention purge, analytics | ✅ 25 Oct |
-| 6 | Published OpenAPI document, Schemathesis contract tests | 🗓 (needs approval to add `schemathesis`) |
+| 6 | Published OpenAPI document, Schemathesis contract tests | ✅ 26 Oct |
 
 ## Step 1 — organisations and row-level security
 
@@ -115,6 +115,32 @@
 | Migrations | 0001 → 0006 → 0001 → 0006 → 0002 on a fresh PostgreSQL 18.6: clean |
 | End-to-end | **4 passed** |
 
+## Steps 2 and 6 — people, and the contract
+
+| Area | Delivered |
+| :-- | :-- |
+| Packages | `argon2-cffi` 25.1.0 (+ bindings 26.1.0) in the API; `schemathesis` 4.31.1 (+ 9 dependencies) in the dev group — exactly the set approved |
+| Accounts (migration `0007`) | `users` (lower-cased unique e-mail, Argon2id hash, sealed TOTP secret and pending secret, last TOTP step) and `memberships` (owner/admin/developer/analyst, check constraint); RLS learns `app.user_id`; organisations also visible to their members; `dwarpal_find_user` for pre-tenant sign-in |
+| Sign-in | Argon2id (RFC 9106 defaults, ~50 ms) in a worker thread; a decoy hash for unknown addresses, same answer and same work; token buckets per account and per address (5 at once, then 1/min); sessions as a 32-byte token in a `__Host-` `HttpOnly` `Secure` `SameSite=Lax` cookie, stored hashed in Valkey with a 12-hour sliding expiry |
+| TOTP | RFC 6238 (SHA-1, 6 digits, 30 s, ±1 step), secrets sealed under the master key; enrolment confirmed by a code; each code single-use via the remembered step |
+| CSRF | synchroniser token (`X-CSRF-Token`, constant-time compare) plus `Origin` check on every change |
+| Roles | the design's matrix as data (`domain/roles.py`), checked before every organisation action; non-members get `404`; only owners make owners |
+| Console API | `/console/v1`: signup, login, logout, me, totp, totp/confirm, members (list/add), keys (create), audit (with chain verdict); audit entries for sign-ins, MFA, members, keys, organisation creation |
+| Contract | every operation documents its refusals as `application/problem+json` with the `Problem` schema; patterns for idempotency keys, policy names and codes; `docs/api/openapi.json` written by `cli openapi`, with a drift test; Schemathesis against a real server: 31 operations × 25 generated requests, all checks but `positive_data_acceptance` |
+| Book | §5.4.5–5.4.6; seven new walkthroughs; thirteen changed files re-explained; glossary re-sorted with six new terms; generated `openapi.json` excluded from the line count (like lockfiles); strict build 187 files, 13,376/13,376 lines |
+
+### What was measured
+
+| Check | Result |
+| :-- | :-- |
+| Python lint, format, mypy (strict) | clean (105 files) |
+| Python tests | **224 passed** (163 + 61 ML), plus 31 contract sub-tests |
+| Console rules | role matrix cell by cell; TOTP equals RFC 6238 appendix B; codes single-use; Argon2id salted; decoy never matches |
+| Console through the API | sign-up/in/out; wrong password ≡ unknown account (status and text); CSRF and origin refusals; TOTP required and single-use; analyst refused keys, developer allowed (key works on the API), developer refused members, outsider `404`; audit log in order, intact, no key; third sign-in over the limit `429` |
+| Contract | 31/31 operations conform after two fixes (below) |
+| Migrations | 0001 → 0007 → 0001 → 0007 → 0002: clean after one fix (below) |
+| JS / end-to-end | 35 passed / **4 passed** |
+
 ## Findings
 
 - **The isolation tests failed first, and only they could have.** The driver wraps `SET ROLE` in a transaction, and the pool's rollback undid it, so every connection silently reverted to the owner after first use. Every functional test still passed, because the code's own `WHERE` clauses held. Fixed with autocommit around `SET ROLE`; the test now asserts `current_user` after a rollback.
@@ -123,6 +149,9 @@
 - **`GRANT … ON ALL TABLES` includes `alembic_version`**, so it is revoked explicitly.
 - **A cached reply is a cached secret.** Idempotency has to keep the first answer, which holds the client secret; sealing it under a key the website re-presents, and keeping it only for the session's life, keeps Valkey free of usable secrets.
 - **Grants are the cheapest immutability.** Giving the API role no `UPDATE` or `DELETE` on `policies` makes "versions never change" a database fact, tested directly. The same holds for `events`.
+- **The contract test found what hand-written tests didn't**: `405` answers had lost the `Allow` header HTTP requires (the problem handler dropped the error's headers), and Starlette lists only one route's methods when two routes share a path. Both fixed in `http/problems.py`.
+- **The migration round trip found a downgrade in the wrong order** (`0007`: a policy using a function, and a policy reading a table that points back): fixed.
+- **Shared test addresses share rate limits**: console tests all sign in from one address, so they get a generous allowance and the rate-limit test its own address.
 - **Tests need their own clock.** The first delivery tests failed because the worker's clock was read before the events were written; a clock the test controls (a one-item list behind a function) also made a 24-hour retry schedule testable in a second.
 
 ## Open items
@@ -133,8 +162,9 @@
 4. **Remote CI** has not run these changes yet.
 5. **Flow-endpoint rate limits.** Per-key limits cover websites; the design's per-session and per-address limits for the verify page exist only for challenges (Phase 3 budgets), not yet for `start` and `finish`.
 6. **Guessable idempotency keys** weaken the seal for someone who also holds the master key; the docs should tell websites to use random keys (Phase 5 developer docs).
-7. **Step 2 needs approval**: adding `argon2-cffi` (password hashing) from PyPI.
+7. ~~Step 2 needs approval~~ — **approved and built 26 Oct.** Still missing from the console: invitations, password reset and account deletion (all need outgoing e-mail), TOTP recovery codes, and the design's growing lock-out back-off (a steady rate limit is in place).
 8. **Webhooks are at-least-once**: a worker dying between sending and recording resends after its lease; receivers must de-duplicate by `Dwarpal-Event-Id` (documented in §5.4.3).
 9. **DNS rebinding window** between the address check and the connection; the production backstop is egress filtering on the worker (Phase 7).
 10. ~~Lazy expiry~~ — **resolved by step 5**: `cli maintain` sweeps and announces abandoned sessions. The webhook worker and the maintenance jobs aren't yet started by the local stack or the e2e run; production scheduling belongs to Phase 7.
 11. **Audit anchoring and retention**: the chain detects edits but not a consistent rewrite of a whole chain by someone controlling the database; publishing daily head hashes outside the database would. Audit entries aren't purged yet (the design keeps one year), which needs an anchor for verification to start from.
+12. **Console pages** arrive in Phase 5; until then the console API is exercised by tests only.

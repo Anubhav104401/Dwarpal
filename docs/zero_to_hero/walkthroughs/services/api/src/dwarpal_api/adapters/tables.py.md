@@ -1,5 +1,5 @@
 ---
-fingerprint: 60dbd29a8e26e765
+fingerprint: 1605590bbf0226cd
 ---
 The **database tables**, described as Python classes. Each class is one table; each `Mapped[...]` line inside it is one **column**. SQLAlchemy's **ORM** (Object-Relational Mapper, §4.10) translates between the two worlds: code works with ordinary Python objects such as `row.status`, and SQLAlchemy writes the SQL.
 
@@ -328,5 +328,35 @@ The key is five columns together: project, mode (test and live are counted apart
 @@ 237
 The count.
 
-@@ 240
+@@ 240-241
+**`User`** — a person at one of Dwarpal's customers, who signs in to the console (Phase 4, step 2). The docstring repeats the privacy promise: the people whose age is checked are **never** stored as users.
+
+@@ 243
+Its table: `users`.
+
+@@ 245-246
+The ID, and the e-mail address — unique, and always stored in lower case, so `Ana@Shop.example` and `ana@shop.example` are one account.
+
+@@ 247
+`password_hash` — never the password: its **Argon2id hash**, a long text that also carries the random salt and the settings it was made with (`adapters/passwords.py`).
+
+@@ 248-250
+One-time codes (`domain/totp.py`): the secret, sealed under the master key, once they are switched on; a secret that has been offered but not yet confirmed; and the 30-second step of the last code used, so no code works twice.
+
+@@ 251-252
+When the account was made, and when it last signed in.
+
+@@ 255-256
+**`Membership`** — a user's role in one organisation. A person can belong to several organisations, with a different role in each.
+
+@@ 258-261
+Its table, `memberships`, with a **check constraint**: the database refuses any role but the four in `domain/roles.py`.
+
+@@ 263-264
+The key is the pair: the organisation and the user (each deleted with its parent). The user column is indexed, for "which organisations does this person belong to?".
+
+@@ 265-266
+The role, and when it was given.
+
+@@ 269
 `METADATA` — a short public name for the catalogue of all these tables. The migration tool and the tests import it from here, which makes sure every table class above has been loaded first.

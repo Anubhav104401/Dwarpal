@@ -93,6 +93,11 @@ class FlowStore:
     async def drop(self, key: str) -> None:
         await self._client.delete(key)
 
+    async def fetch(self, key: str, ttl_s: int) -> bytes | None:
+        """Read a value and restart its time to live: a sliding expiry, for sessions that last while they are used."""
+        value = await self._client.getex(key, ex=ttl_s)
+        return value if isinstance(value, bytes) else None
+
     async def take_challenge(self, challenge_id: str, session_id: uuid.UUID) -> Challenge | None:
         stored = await self._client.getdel(f"challenge:{challenge_id}")
         if stored is None:

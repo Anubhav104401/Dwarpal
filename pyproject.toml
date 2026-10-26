@@ -19,6 +19,7 @@ dev = [
   "onnx==1.23.2",
   "pytest==9.1.1",
   "ruff==0.17.0",
+  "schemathesis==4.31.1",
   "scipy-stubs==1.18.1.1",
   "testcontainers==4.15.0",
   "types-docker==7.2.0.20261006",

@@ -7,6 +7,8 @@ import hashlib
 import hmac
 import json
 import logging
+import threading
+import time
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
@@ -20,11 +22,16 @@ import docker
 import httpx
 import numpy as np
 import pytest
+import schemathesis
+import uvicorn
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
+from hypothesis import HealthCheck, settings
 from joserfc import jwt
 from joserfc.jwk import KeySet
 from redis.asyncio import Redis
+from schemathesis import Case
+from schemathesis.specs.openapi.checks import positive_data_acceptance
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError
@@ -42,10 +49,12 @@ from dwarpal_api.adapters.tables import (
     AuditHead,
     Event,
     IssuedToken,
+    Membership,
     Organization,
     PolicyVersion,
     Project,
     SessionStat,
+    User,
     VerificationAttempt,
     VerificationSession,
     WebhookDelivery,
@@ -53,8 +62,8 @@ from dwarpal_api.adapters.tables import (
 )
 from dwarpal_api.app import audit, maintenance
 from dwarpal_api.app.delivery import Deliverer
-from dwarpal_api.cli import maintain, migrate, revoke_key, rotate_key, seed_dev
-from dwarpal_api.domain import ids
+from dwarpal_api.cli import API_DOCUMENT, api_document, maintain, migrate, revoke_key, rotate_key, seed_dev
+from dwarpal_api.domain import ids, totp
 from dwarpal_api.main import create_app as create_api
 from dwarpal_api.settings import Settings
 from dwarpal_contracts import Challenge, ClientSignals, FaceRequestMeta, FrameMeta
@@ -105,6 +114,7 @@ class Harness:
     client: httpx.AsyncClient
     key: str
     project: str
+    transport: httpx.ASGITransport
 
 
 @asynccontextmanager
@@ -129,7 +139,7 @@ async def harness(
             project, key = await seed_dev(settings, livemode=livemode, scopes=scopes)
             transport = httpx.ASGITransport(app=api)
             async with httpx.AsyncClient(transport=transport, base_url="http://api") as client:
-                yield Harness(client, key, project)
+                yield Harness(client, key, project, transport)
 
 
 async def create(h: Harness, headers_extra: dict[str, str] | None = None, **body: Any) -> httpx.Response:
@@ -432,6 +442,8 @@ TENANT_TABLES = (
     AuditHead,
     AuditEntry,
     SessionStat,
+    User,
+    Membership,
 )
 NOT_TENANT_DATA = {"alembic_version", "signing_keys"}
 
@@ -580,7 +592,9 @@ async def test_a_repeated_request_with_the_same_idempotency_key_gets_the_first_a
     assert again.headers["idempotent-replayed"] == "true"
     assert "idempotent-replayed" not in first.headers
     assert (changed.status_code, changed.json()["code"]) == (422, "idempotency_key_reused")
-    assert (too_short.status_code, too_short.json()["code"]) == (422, "invalid_idempotency_key")
+    # The documented pattern refuses it before the API's own check: a general 422 naming the header.
+    assert (too_short.status_code, too_short.json()["code"]) == (422, "invalid_request")
+    assert "idempotency-key" in too_short.json()["detail"]
     assert plain[0] != plain[1]  # without a key, every request makes a new session
 
 
@@ -924,3 +938,211 @@ async def test_abandoned_sessions_are_announced_and_old_metadata_is_purged_but_c
     assert gone.status_code == 404
     assert counts["totals"] == {"expired": 1}  # the count outlives the session
     assert reports[await org_of(databases, h.project)].intact
+
+
+CONSOLE = "/console/v1"
+CONSOLE_SETTINGS: dict[str, Any] = {"console_cookie_secure": False, "login_burst": 100}
+PASSWORD = "a long and unguessable test passphrase"  # noqa: S105 - a throwaway password for a throwaway account
+
+
+def person(h: Harness) -> httpx.AsyncClient:
+    """A separate browser for one person: its own cookie jar, talking to the same API."""
+    return httpx.AsyncClient(transport=h.transport, base_url="http://api")
+
+
+async def sign_up(browser: httpx.AsyncClient, email: str, organisation: str = "Shop Ltd") -> dict[str, Any]:
+    body = {"email": email, "password": PASSWORD, "organisation": organisation}
+    response = await browser.post(f"{CONSOLE}/signup", json=body)
+    assert response.status_code == 201, response.text
+    return dict(response.json())
+
+
+def unique(name: str) -> str:
+    return f"{name}-{uuid.uuid4().hex[:8]}@shop.example"
+
+
+@pytest.mark.anyio
+async def test_a_person_signs_up_signs_in_and_out_and_wrong_details_all_look_the_same(
+    databases: tuple[str, str],
+) -> None:
+    email = unique("ana")
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as browser:
+        created = await sign_up(browser, email)
+        cookie = browser.cookies.get("dwarpal_session")
+        again = await browser.post(
+            f"{CONSOLE}/signup", json={"email": email, "password": PASSWORD, "organisation": "X"}
+        )
+        weak = await browser.post(
+            f"{CONSOLE}/signup", json={"email": unique("b"), "password": "short", "organisation": "X"}
+        )
+        wrong = await browser.post(f"{CONSOLE}/login", json={"email": email, "password": PASSWORD + "!"})
+        nobody = await browser.post(f"{CONSOLE}/login", json={"email": unique("nobody"), "password": PASSWORD})
+        signed_in = await browser.post(f"{CONSOLE}/login", json={"email": email.upper(), "password": PASSWORD})
+        csrf = {"X-CSRF-Token": signed_in.json()["csrf_token"]}
+        no_token = await browser.post(f"{CONSOLE}/logout")
+        out = await browser.post(f"{CONSOLE}/logout", headers=csrf)
+        after = await browser.get(f"{CONSOLE}/me")
+    assert created["email"] == email and created["organisations"][0]["role"] == "owner"
+    assert cookie and len(cookie) >= 40  # an opaque, unguessable token
+    assert (again.status_code, again.json()["code"]) == (409, "email_taken")
+    assert (weak.status_code, weak.json()["code"]) == (422, "weak_password")
+    assert wrong.status_code == nobody.status_code == 401  # an unknown account and a wrong password...
+    assert wrong.json()["detail"] == nobody.json()["detail"]  # ...can't be told apart
+    assert signed_in.status_code == 200  # the address is matched whatever its capitals
+    assert (no_token.status_code, no_token.json()["code"]) == (403, "csrf_failed")
+    assert out.status_code == 204
+    assert (after.status_code, after.json()["code"]) == (401, "not_signed_in")
+
+
+@pytest.mark.anyio
+async def test_changes_need_the_csrf_token_and_the_consoles_own_origin(databases: tuple[str, str]) -> None:
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as browser:
+        me = await sign_up(browser, unique("csrf"))
+        token = {"X-CSRF-Token": me["csrf_token"]}
+        forged = await browser.post(f"{CONSOLE}/totp", headers={"X-CSRF-Token": "guessed"})
+        elsewhere = await browser.post(f"{CONSOLE}/totp", headers=token | {"Origin": "https://evil.example"})
+        genuine = await browser.post(f"{CONSOLE}/totp", headers=token | {"Origin": "http://localhost:3000"})
+    assert (forged.status_code, forged.json()["code"]) == (403, "csrf_failed")
+    assert (elsewhere.status_code, elsewhere.json()["code"]) == (403, "bad_origin")
+    assert genuine.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_one_time_codes_once_switched_on_are_required_and_single_use(databases: tuple[str, str]) -> None:
+    email = unique("totp")
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as browser:
+        token = {"X-CSRF-Token": (await sign_up(browser, email))["csrf_token"]}
+        offer = (await browser.post(f"{CONSOLE}/totp", headers=token)).json()
+        now_step = int(datetime.now(UTC).timestamp() // totp.STEP_S)
+        wrong = await browser.post(f"{CONSOLE}/totp/confirm", json={"code": "000000"}, headers=token)
+        confirmed = await browser.post(
+            f"{CONSOLE}/totp/confirm", json={"code": totp.code_at(offer["secret"], now_step)}, headers=token
+        )
+        login = {"email": email, "password": PASSWORD}
+        without = await browser.post(f"{CONSOLE}/login", json=login)
+        code = totp.code_at(offer["secret"], now_step + 1)  # the next code, as a phone a moment ahead shows it
+        first = await browser.post(f"{CONSOLE}/login", json=login | {"code": code})
+        replayed = await browser.post(f"{CONSOLE}/login", json=login | {"code": code})
+    assert offer["uri"].startswith("otpauth://totp/")
+    assert wrong.status_code == 422 and confirmed.status_code == 204
+    assert (without.status_code, without.json()["code"]) == (401, "totp_required")
+    assert first.status_code == 200 and first.json()["totp_enabled"] is True
+    assert (replayed.status_code, replayed.json()["code"]) == (401, "invalid_totp")
+
+
+@pytest.mark.anyio
+async def test_roles_decide_what_each_member_may_do_and_outsiders_see_nothing(databases: tuple[str, str]) -> None:
+    owner_email, analyst_email, developer_email = unique("owner"), unique("analyst"), unique("dev")
+    async with (
+        harness(databases, **CONSOLE_SETTINGS) as h,
+        person(h) as owner,
+        person(h) as analyst,
+        person(h) as developer,
+        person(h) as outsider,
+    ):
+        me = await sign_up(owner, owner_email)
+        org = me["organisations"][0]["id"]
+        token = {"X-CSRF-Token": me["csrf_token"]}
+        tokens = {}
+        for browser, email in ((analyst, analyst_email), (developer, developer_email)):
+            tokens[email] = {"X-CSRF-Token": (await sign_up(browser, email, "Their own Ltd"))["csrf_token"]}
+        await sign_up(outsider, unique("outsider"), "Elsewhere Ltd")
+        for email, role in ((analyst_email, "analyst"), (developer_email, "developer")):
+            added = await owner.post(
+                f"{CONSOLE}/orgs/{org}/members", json={"email": email, "role": role}, headers=token
+            )
+            assert added.status_code == 201, added.text
+        owner_engine = make_engine(databases[0])
+        async with make_sessions(owner_engine)() as session:
+            project = await session.scalar(select(Project.id).where(Project.org_id == ids.decode("org", org)))
+        await owner_engine.dispose()
+        assert project is not None
+        keys = f"{CONSOLE}/orgs/{org}/projects/{ids.encode('prj', project)}/keys"
+        wanted = {"scopes": ["sessions:read"]}
+        by_analyst = await analyst.post(keys, json=wanted, headers=tokens[analyst_email])
+        by_developer = await developer.post(keys, json=wanted, headers=tokens[developer_email])
+        promoted = await developer.post(
+            f"{CONSOLE}/orgs/{org}/members",
+            json={"email": analyst_email, "role": "owner"},
+            headers=tokens[developer_email],
+        )
+        members = await analyst.get(f"{CONSOLE}/orgs/{org}/members")
+        outside = await outsider.get(f"{CONSOLE}/orgs/{org}/members")
+        works = await h.client.get("/v1/verification-sessions", headers=bearer_of(by_developer.json()["key"]))
+        log = await owner.get(f"{CONSOLE}/orgs/{org}/audit")
+        log_for_analyst = await analyst.get(f"{CONSOLE}/orgs/{org}/audit")
+    assert (by_analyst.status_code, by_analyst.json()["code"]) == (403, "forbidden_for_role")
+    assert by_developer.status_code == 201 and by_developer.json()["key"].startswith("dk_test_")
+    assert promoted.status_code == 403  # a developer can't manage members, let alone make owners
+    assert sorted(m["role"] for m in members.json()["data"]) == ["analyst", "developer", "owner"]
+    assert (outside.status_code, outside.json()["code"]) == (404, "organisation_not_found")
+    assert works.status_code == 200  # the key made in the console works on the API
+    actions = [entry["action"] for entry in reversed(log.json()["data"])]
+    assert actions == ["organisation.created", "member.added", "member.added", "api_key.created"]
+    assert log.json()["chain"]["intact"] is True
+    assert by_developer.json()["key"] not in log.text  # the audit log names keys by id, never the key itself
+    assert log_for_analyst.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_sign_in_attempts_are_limited(databases: tuple[str, str]) -> None:
+    async with harness(databases, console_cookie_secure=False, login_burst=2, login_per_minute=0.5) as h:
+        # A browser at an address of its own, so that no other test's sign-ins count against it.
+        transport = httpx.ASGITransport(app=h.transport.app, client=(f"192.0.2.{uuid.uuid4().int % 250}", 4000))
+        async with httpx.AsyncClient(transport=transport, base_url="http://api") as browser:
+            email = unique("limited")
+            await sign_up(browser, email)
+            tries = [
+                await browser.post(f"{CONSOLE}/login", json={"email": email, "password": "wrong password!"})
+                for _ in range(3)
+            ]
+    assert [t.status_code for t in tries] == [401, 401, 429]
+    assert tries[2].json()["code"] == "too_many_sign_ins" and int(tries[2].headers["retry-after"]) >= 1
+
+
+@pytest.fixture(scope="module")
+def live_api(databases: tuple[str, str]) -> Iterator[tuple[str, str]]:
+    """The API as a real server on a free local port, in a thread, with a website's key: Schemathesis speaks HTTP."""
+    config = Settings(
+        environment="test",
+        database_url=databases[0],
+        valkey_url=databases[1],
+        webhook_allow_private=True,  # fuzzed webhook addresses are never looked up on the internet
+        console_cookie_secure=False,
+        api_burst=1_000_000,  # the fuzzer's thousands of requests shouldn't all end in 429
+        login_burst=1_000_000,
+    )
+    _, key = asyncio.run(seed_dev(config))
+    server = uvicorn.Server(uvicorn.Config(create_api(config), host="127.0.0.1", port=0, log_level="warning"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    while not server.started:
+        time.sleep(0.05)
+    port = server.servers[0].sockets[0].getsockname()[1]
+    yield f"http://127.0.0.1:{port}", key
+    server.should_exit = True
+    thread.join(timeout=10)
+
+
+@pytest.fixture(scope="module")
+def live_document(live_api: tuple[str, str]) -> schemathesis.schemas.BaseSchema:
+    return schemathesis.openapi.from_url(f"{live_api[0]}/openapi.json")
+
+
+contract = schemathesis.pytest.from_fixture("live_document")
+
+
+@contract.parametrize()
+@settings(max_examples=25, deadline=None, suppress_health_check=list(HealthCheck))
+def test_every_operation_keeps_the_published_contract(case: Case[Any], live_api: tuple[str, str]) -> None:
+    base_url, key = live_api
+    # Every check but one: a request the document allows may still break a rule that depends on data (an age the
+    # model isn't calibrated for, an address outside the project's origins), and refusing it with 422 is correct.
+    excluded = [positive_data_acceptance]
+    case.call_and_validate(base_url=base_url, headers={"Authorization": f"Bearer {key}"}, excluded_checks=excluded)
+
+
+def test_the_published_api_document_matches_the_code() -> None:
+    """docs/api/openapi.json is what websites read; it must never drift from the API. To refresh it, run
+    `uv run --package dwarpal-api python -m dwarpal_api.cli openapi`."""
+    assert API_DOCUMENT.read_text(encoding="utf-8") == api_document()
