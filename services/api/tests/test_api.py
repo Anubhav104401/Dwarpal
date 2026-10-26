@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import hmac
 import json
@@ -29,6 +30,7 @@ from alembic.runtime.migration import MigrationContext
 from hypothesis import HealthCheck, settings
 from joserfc import jwt
 from joserfc.jwk import KeySet
+from pydantic import SecretStr
 from redis.asyncio import Redis
 from schemathesis import Case
 from schemathesis.specs.openapi.checks import positive_data_acceptance
@@ -1146,3 +1148,81 @@ def test_the_published_api_document_matches_the_code() -> None:
     """docs/api/openapi.json is what websites read; it must never drift from the API. To refresh it, run
     `uv run --package dwarpal-api python -m dwarpal_api.cli openapi`."""
     assert API_DOCUMENT.read_text(encoding="utf-8") == api_document()
+
+
+@pytest.mark.anyio
+async def test_when_valkey_is_unreachable_the_api_says_try_again_and_nothing_passes(databases: tuple[str, str]) -> None:
+    """Fail closed: with Valkey gone (here, an address where nothing listens), requests get 503 and Retry-After."""
+    settings = Settings(environment="test", database_url=databases[0], valkey_url="redis://127.0.0.1:1/0")
+    _, key = await seed_dev(settings)
+    api = create_api(settings, inference_http=httpx.AsyncClient(base_url="http://inference"))
+    async with api.router.lifespan_context(api):
+        transport = httpx.ASGITransport(app=api)
+        async with httpx.AsyncClient(transport=transport, base_url="http://api") as client:
+            created = await client.post("/v1/verification-sessions", json={}, headers=bearer_of(key))
+            ready = await client.get("/readyz")
+    assert (created.status_code, created.json()["code"]) == (503, "service_unavailable")
+    assert created.headers["retry-after"] == "5"
+    assert (ready.status_code, ready.json()) == (503, {"database": "ok", "valkey": "unavailable"})
+
+
+def unreachable(request: httpx.Request) -> httpx.Response:
+    raise httpx.ConnectError("the inference service is down", request=request)
+
+
+def broken(request: httpx.Request) -> httpx.Response:
+    return httpx.Response(200, content=b'{"not": "an analysis"}')
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("inference", [unreachable, broken])
+async def test_when_inference_fails_an_attempt_is_retried_never_passed(
+    databases: tuple[str, str], inference: Any
+) -> None:
+    """Fail closed: an inference service that is down, or answers nonsense, can never let anyone through."""
+    settings = Settings(environment="test", database_url=databases[0], valkey_url=databases[1])
+    _, key = await seed_dev(settings)
+    http = httpx.AsyncClient(transport=httpx.MockTransport(inference), base_url="http://inference")
+    api = create_api(settings, inference_http=http)
+    async with api.router.lifespan_context(api):
+        transport = httpx.ASGITransport(app=api)
+        h = Harness(httpx.AsyncClient(transport=transport, base_url="http://api"), key, "", transport)
+        async with h.client:
+            created = (await create(h)).json()
+            flow = await start(h, created)
+            results = [(await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json() for _ in range(2)]
+    assert all(result["outcome"] != "pass" for result in results)
+    assert results[0]["outcome"] == "retry"
+
+
+@pytest.mark.anyio
+async def test_every_answer_carries_the_security_headers(databases: tuple[str, str]) -> None:
+    async with harness(databases) as h:
+        refused = await h.client.get("/v1/verification-sessions")  # no key: a refusal gets them too
+        jwks = await h.client.get("/.well-known/jwks.json")
+        docs = await h.client.get("/docs")
+    for response in (refused, jwks):
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["content-security-policy"] == "default-src 'none'; frame-ancestors 'none'"
+        assert response.headers["referrer-policy"] == "no-referrer"
+        assert "strict-transport-security" not in response.headers  # only in production, behind HTTPS
+    assert refused.headers["cache-control"] == "no-store"
+    assert jwks.headers["cache-control"] == "public, max-age=300"  # a route that may be cached keeps its own rule
+    assert docs.status_code == 200 and "content-security-policy" not in docs.headers
+
+
+@pytest.mark.anyio
+async def test_production_has_hsts_and_no_interactive_documentation() -> None:
+    settings = Settings(
+        environment="production",
+        master_key=SecretStr(base64.b64encode(bytes(range(32))).decode()),
+        issuer="https://api.dwarpal.example",
+        verify_url="https://verify.dwarpal.example",
+    )
+    api = create_api(settings)  # not started: /livez needs no database, which is all this test asks
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api), base_url="https://api") as client:
+        alive = await client.get("/livez")
+        docs = await client.get("/docs")
+        document = await client.get("/openapi.json")
+    assert alive.headers["strict-transport-security"] == "max-age=63072000; includeSubDomains"
+    assert docs.status_code == 404 and document.status_code == 200

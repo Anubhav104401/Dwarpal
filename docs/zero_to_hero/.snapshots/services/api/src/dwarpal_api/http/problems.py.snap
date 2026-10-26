@@ -12,6 +12,9 @@ from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from redis.exceptions import ConnectionError as ValkeyDown
+from redis.exceptions import TimeoutError as ValkeySlow
+from sqlalchemy.exc import InterfaceError, OperationalError
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -72,6 +75,18 @@ def problem(
 async def on_unexpected(request: Request, error: Exception) -> Response:
     logger.error("unexpected %s", type(error).__name__, exc_info=error, extra={"request_id": request.state.request_id})
     return problem(request, 500, "internal_error", "something went wrong on our side; please try again")
+
+
+# A database or Valkey that can't be reached. Nothing can be decided without them, so nothing is: the caller is told
+# to try again shortly (503), and no check can pass by accident.
+DEPENDENCY_FAILURES = (ValkeyDown, ValkeySlow, OperationalError, InterfaceError, ConnectionError, TimeoutError)
+RETRY_AFTER_S = "5"
+
+
+async def on_dependency_down(request: Request, error: Exception) -> Response:
+    logger.warning("dependency unavailable: %s", type(error).__name__, extra={"request_id": request.state.request_id})
+    detail = "a service Dwarpal depends on is unavailable; try again shortly"
+    return problem(request, 503, "service_unavailable", detail, {"Retry-After": RETRY_AFTER_S})
 
 
 async def on_api_error(request: Request, error: Exception) -> Response:
@@ -155,4 +170,6 @@ def install(app: FastAPI) -> None:
     app.add_exception_handler(ApiError, on_api_error)
     app.add_exception_handler(RequestValidationError, on_invalid_request)
     app.add_exception_handler(HTTPException, on_http_error)
+    for failure in DEPENDENCY_FAILURES:
+        app.add_exception_handler(failure, on_dependency_down)
     app.add_exception_handler(Exception, on_unexpected)

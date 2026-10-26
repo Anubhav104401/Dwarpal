@@ -22,6 +22,7 @@ from dwarpal_api.app import idempotency
 from dwarpal_api.app.verification import Services
 from dwarpal_api.domain.policy import load_manifest
 from dwarpal_api.http import analytics, console, flow, health, policies, problems, rp, tokens, webhooks, wellknown
+from dwarpal_api.http.headers import SecurityHeaders
 from dwarpal_api.http.limits import BodyLimit
 from dwarpal_api.settings import Settings
 
@@ -59,8 +60,18 @@ def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClie
             await valkey.aclose()
             await engine.dispose()
 
-    app = FastAPI(title="Dwarpal API", version="0.1.0", lifespan=lifespan, responses=problems.PROBLEM_RESPONSES)
+    production = settings.environment == "production"
+    app = FastAPI(
+        title="Dwarpal API",
+        version="0.1.0",
+        lifespan=lifespan,
+        responses=problems.PROBLEM_RESPONSES,
+        # The interactive pages are for development; production publishes only the document itself (/openapi.json).
+        docs_url=None if production else "/docs",
+        redoc_url=None,
+    )
     app.add_middleware(BodyLimit)
+    app.add_middleware(SecurityHeaders, production=production)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
