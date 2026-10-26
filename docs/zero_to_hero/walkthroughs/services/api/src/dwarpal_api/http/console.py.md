@@ -1,5 +1,5 @@
 ---
-fingerprint: 34f6bbc7f87009f8
+fingerprint: e26782ca6a26a1cb
 ---
 The **console API** (Phase 4, §5.4.5), under `/console/v1`: what Dwarpal's own web console calls for a signed-in person. Unlike the website API, which uses API keys, it uses a **cookie**, because people sign in with a browser.
 
@@ -109,10 +109,13 @@ End the session, and tell the browser to delete the cookie.
 **`list_members`**.
 
 @@ 158-160
-**`add_member`** — `201 Created`.
+**`list_projects`** — `GET /orgs/{org}/projects`, for any signed-in member.
 
 @@ 163-165
+**`add_member`** — `201 Created`.
+
+@@ 168-170
 **`create_key`** — `201 Created`, with the key shown once.
 
-@@ 168-172
+@@ 173-177
 **`audit_log`** — up to 500 entries (100 if not asked).

@@ -32,6 +32,11 @@ const config: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // The console calls the API through this site, so its session cookie belongs to one origin (as Caddy does it in
+  // production, where both are served from one address).
+  async rewrites() {
+    return [{ source: "/console-api/:path*", destination: `${apiUrl}/console/v1/:path*` }];
+  },
 };
 
 export default config;

@@ -155,6 +155,11 @@ async def list_members(org_text: str, current: Reader, svc: Toolbox) -> dict[str
     return await console.list_members(svc, current, org_text)
 
 
+@router.get("/orgs/{org_text}/projects")
+async def list_projects(org_text: str, current: Reader, svc: Toolbox) -> dict[str, Any]:
+    return await console.list_projects(svc, current, org_text)
+
+
 @router.post("/orgs/{org_text}/members", status_code=201)
 async def add_member(org_text: str, body: NewMember, current: Changer, svc: Toolbox) -> dict[str, Any]:
     return await console.add_member(svc, current, org_text, body.email, body.role)

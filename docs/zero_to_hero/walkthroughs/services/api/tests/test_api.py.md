@@ -1,5 +1,5 @@
 ---
-fingerprint: 6c02dcc7013ebca2
+fingerprint: d4e638f26e2db0ae
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -799,140 +799,140 @@ The analyst and the developer sign up (each gets an organisation of their own), 
 @@ 1052-1056
 The owner adds the analyst and the developer to the owner's organisation, each with their role.
 
-@@ 1057-1062
-As the tables' owner, find the organisation's project, and build the address for creating its API keys.
+@@ 1057-1059
+The analyst lists the organisation's projects — any member may — and the test builds the address for creating API keys in the first one.
 
-@@ 1063-1065
+@@ 1060-1062
 The analyst and the developer each try to create a read-only key.
 
-@@ 1066-1070
+@@ 1063-1067
 The developer tries to make the analyst an owner.
 
-@@ 1071-1075
+@@ 1068-1072
 The analyst lists the members; the outsider tries to; the developer's new key is used on the API; and the owner and the analyst read the audit log.
 
-@@ 1076-1078
+@@ 1073-1075
 The analyst may not create keys (`403 forbidden_for_role`); the developer may; and the developer may not manage members.
 
-@@ 1079-1080
+@@ 1076-1077
 The analyst sees all three members; the outsider gets `404`, exactly as if the organisation didn't exist.
 
-@@ 1081
+@@ 1078
 The key made in the console works on the API.
 
-@@ 1082-1085
+@@ 1079-1082
 The owner's audit log, oldest first: the organisation's creation, two members added, a key created; the chain is intact; and the key itself appears nowhere in it.
 
-@@ 1086
+@@ 1083
 The analyst may not read the audit log.
 
-@@ 1089-1091
+@@ 1086-1088
 **Test — sign-in limits.** At most 2 attempts at once, then one every two minutes.
 
-@@ 1092-1094
+@@ 1089-1091
 A browser at an address of its own. `ASGITransport(…, client=…)` sets the address the API sees the request coming from; `192.0.2.x` is a range reserved for documentation and tests. Without it, every other test's sign-ins would already have used up this address's allowance.
 
-@@ 1095-1100
+@@ 1092-1097
 Sign up, then try a wrong password three times.
 
-@@ 1101-1102
+@@ 1098-1099
 Two ordinary refusals, then `429 too_many_sign_ins`, with a `Retry-After` of at least a second.
 
-@@ 1105-1107
+@@ 1102-1104
 **The contract test (Phase 4, step 6).** `live_api` — Schemathesis sends real HTTP, so the API runs as a real server for these tests. `scope="module"` starts it once for the whole file rather than once per test.
 
-@@ 1108-1116
+@@ 1105-1113
 Its settings: the test databases; webhook addresses never looked up (the fuzzer invents host names); a cookie allowed over plain HTTP; and limits so high that the fuzzer's many requests aren't simply refused with `429`.
 
-@@ 1117
+@@ 1114
 Seed a project and a key for it.
 
-@@ 1118
+@@ 1115
 A uvicorn server for the API, on `127.0.0.1` and **port 0**, which asks the operating system for any free port, so the test never collides with something already running.
 
-@@ 1119-1120
+@@ 1116-1117
 Run it in a background **thread**: `daemon=True` means the thread won't keep Python alive if the tests end without stopping it.
 
-@@ 1121-1122
+@@ 1118-1119
 Wait, a twentieth of a second at a time, until the server says it has started.
 
-@@ 1123
+@@ 1120
 Read which port it was given.
 
-@@ 1124
+@@ 1121
 Hand the tests the server's address and the key.
 
-@@ 1125-1126
+@@ 1122-1123
 Afterwards, ask the server to stop, and wait up to ten seconds for its thread to finish.
 
-@@ 1129-1131
+@@ 1126-1128
 **`live_document`** — Schemathesis reads the API's document from the running server, exactly as a website's developer would.
 
-@@ 1134
+@@ 1131
 `contract` — tells Schemathesis to take the document from that fixture. A document known only once the server runs can't be read while pytest is still collecting tests, so it is fetched lazily, from the fixture.
 
-@@ 1137-1138
+@@ 1134-1135
 `@contract.parametrize()` turns the test into one sub-test per operation in the document: 31 of them. `@settings` gives each 25 generated requests, no time limit per request (`deadline=None`), and turns off Hypothesis's health checks, which would complain that each example is slow (it is a real HTTP request).
 
-@@ 1139-1140
+@@ 1136-1137
 **Test — the contract.** For each generated request (`case`):
 
-@@ 1141-1143
+@@ 1138-1140
 Every check but one. `positive_data_acceptance` insists that a request the document allows must succeed. But some of the API's rules depend on data, not just shape: whether the age model is calibrated for an age, whether an address is among the project's allowed origins. Refusing such a request with `422` is correct.
 
-@@ 1144
+@@ 1141
 Send it to the server with the website's key, and check the answer: never a server error, a status code the document lists for this operation, a content type it lists, a body that matches the schema for that status, and the headers HTTP requires (such as `Allow` on a `405`). Any failure prints the exact request, as a `curl` command to reproduce it.
 
-@@ 1147-1149
+@@ 1144-1146
 **Test — no drift.** `docs/api/openapi.json` is what websites read; the docstring says how to refresh it.
 
-@@ 1150
+@@ 1147
 The file must equal, byte for byte, what the code produces now. A change to the API without refreshing the document fails here.
 
-@@ 1153-1155
+@@ 1150-1152
 **Fail-closed tests (Phase 7).** Valkey unreachable. "Gone" is simulated by an address where nothing listens: port 1 on this computer.
 
-@@ 1156-1159
+@@ 1153-1156
 Settings with that Valkey and the real database; a key; and an API started with them (its inference client is never reached).
 
-@@ 1160-1163
+@@ 1157-1160
 Try to create a session — the API key's rate limit needs Valkey — and ask whether the API is ready.
 
-@@ 1164-1166
+@@ 1161-1163
 The session request gets `503 service_unavailable` with `Retry-After: 5` (not a crash, not a pass), and readiness reports exactly what is wrong: the database is fine, Valkey isn't.
 
-@@ 1169-1170
+@@ 1166-1167
 **`unreachable`** — an inference service that is down: every request fails to connect.
 
-@@ 1173-1174
+@@ 1170-1171
 **`broken`** — an inference service that answers, but with nonsense: valid JSON that isn't an analysis.
 
-@@ 1177-1182
+@@ 1174-1179
 **Fail closed when inference fails.** The test runs twice, once with each broken service (`parametrize`).
 
-@@ 1183-1189
+@@ 1180-1186
 An API whose inference client sends every request to the broken service, and a harness around it.
 
-@@ 1190-1193
+@@ 1187-1190
 Create a session, start it, and make two attempts with a real face.
 
-@@ 1194-1195
+@@ 1191-1192
 Neither attempt passes — the face would have passed with a working service — and the first is a `retry`: the person may try again, but nobody is let in on a failure.
 
-@@ 1198-1203
+@@ 1195-1200
 **Security headers (Phase 7).** A refusal (no key), the public key set, and the interactive documentation.
 
-@@ 1204-1208
+@@ 1201-1205
 Every answer carries `nosniff`, the strict content policy and `no-referrer`. HSTS isn't sent outside production: over plain HTTP it would mean nothing.
 
-@@ 1209-1211
+@@ 1206-1208
 Answers are `no-store` unless their route says otherwise: the key set keeps its own five-minute public caching. The documentation page has no content policy, which would stop its scripts.
 
-@@ 1214-1222
+@@ 1211-1219
 **Production.** Settings a production deployment would accept: a real-looking master key and HTTPS addresses. The app isn't started, because `/livez` needs no database.
 
-@@ 1223-1226
+@@ 1220-1223
 Ask for `/livez`, the documentation page and the API document.
 
-@@ 1227-1228
+@@ 1224-1225
 HSTS is sent (two years); the interactive documentation doesn't exist (`404`); the API document is still published.

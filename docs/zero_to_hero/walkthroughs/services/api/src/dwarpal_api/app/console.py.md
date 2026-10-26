@@ -1,5 +1,5 @@
 ---
-fingerprint: 7dcbdc002963d93c
+fingerprint: 38241ff1d467aa9c
 ---
 The **console's use cases** (Phase 4, §5.4.5) — everything a person at one of Dwarpal's customers does through the web console: signing up and in, switching on one-time codes, managing members, creating API keys, reading the audit log.
 
@@ -205,64 +205,73 @@ Allowed: return the organisation and the role.
 Named as the organisation and the user, read each member's ID, address and role, in the order they joined.
 
 @@ 243-244
+**`list_projects`** (Phase 5) — the organisation's projects, oldest first. Any member may read them: the console's keys page needs them to offer a project.
+
+@@ 245-248
+Check membership, then, named as the organisation, read its projects.
+
+@@ 249-258
+Each project's public ID, name, allowed origins and retention period, as a list.
+
+@@ 261-262
 **`add_member`** — give an existing account a role.
 
-@@ 245
+@@ 263
 Only owners and admins may.
 
-@@ 246-247
+@@ 264-265
 The role must be one of the four.
 
-@@ 248-249
+@@ 266-267
 Only an owner may make another owner: an admin can't promote anyone above themselves.
 
-@@ 250
+@@ 268
 The address and the time.
 
-@@ 251-255
+@@ 269-273
 Find the account; there must be one (inviting people by e-mail comes with the console's pages).
 
-@@ 256-259
+@@ 274-277
 Add the membership, record it in the audit log, and save.
 
-@@ 260-261
+@@ 278-279
 Already a member: the membership's key refuses a second one, answered as `409`.
 
-@@ 262
+@@ 280
 Answer with the new member.
 
-@@ 265-268
+@@ 283-286
 **`create_key`** — a new API key for one of the organisation's projects; owners, admins and developers may.
 
-@@ 269-270
+@@ 287-288
 At least one scope, and only real ones.
 
-@@ 271-274
+@@ 289-292
 A malformed project ID is "not found".
 
-@@ 275
+@@ 293
 Make the key.
 
-@@ 276-279
+@@ 294-297
 Named as the organisation, read the project; it must exist and belong to this organisation.
 
-@@ 280-291
+@@ 298-309
 The key's row: only the **digest** of the secret, the project, the mode, the scopes, and neither expiring nor revoked.
 
-@@ 292-295
+@@ 310-313
 Save it, with an audit entry naming the key by its id — never the key itself.
 
-@@ 296-297
+@@ 314-315
 Answer with the key, the only time it is ever shown.
 
-@@ 300-302
+@@ 318-320
 **`audit_log`** — the organisation's newest audit entries; owners and admins only.
 
-@@ 303-306
+@@ 321-324
 Named as the organisation, read the newest entries (up to `limit`), and verify the whole chain.
 
-@@ 307-317
+@@ 325-335
 Each entry as the console shows it: its number, who, what, to what, the facts, and when.
 
-@@ 318-319
+@@ 336-337
 And the chain's verdict, so the console can show whether it is intact.

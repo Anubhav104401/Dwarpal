@@ -240,6 +240,24 @@ async def list_members(svc: Services, current: ConsoleSession, org_text: str) ->
     return {"object": "list", "data": members}
 
 
+async def list_projects(svc: Services, current: ConsoleSession, org_text: str) -> dict[str, Any]:
+    """The organisation's projects, oldest first, for any member."""
+    org_id, _ = await authorise(svc, current, org_text, Action.READ_SESSIONS)
+    async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
+        query = select(Project).where(Project.org_id == org_id).order_by(Project.created_at)
+        projects = list(await session.scalars(query))
+    data = [
+        {
+            "id": ids.encode("prj", p.id),
+            "name": p.name,
+            "allowed_origins": p.allowed_origins,
+            "retention_days": p.retention_days,
+        }
+        for p in projects
+    ]
+    return {"object": "list", "data": data}
+
+
 async def add_member(svc: Services, current: ConsoleSession, org_text: str, email: str, role: str) -> dict[str, Any]:
     """Give an existing account a role in the organisation. Only an owner may make another owner."""
     org_id, own_role = await authorise(svc, current, org_text, Action.MANAGE_MEMBERS)

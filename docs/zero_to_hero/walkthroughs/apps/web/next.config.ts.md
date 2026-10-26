@@ -1,5 +1,5 @@
 ---
-fingerprint: e92d28121f981e06
+fingerprint: 20d421cb696050a2
 ---
 The verify page's **Next.js configuration**, and above all its **security headers**: instructions sent with every page that tell the browser what this page may and may not do. The verify page handles a camera, a one-time secret and a flow token, so it gets the strictest rules the app can work with.
 
@@ -60,8 +60,11 @@ The configuration object, checked against `NextConfig`.
 @@ 32-34
 `headers()` — Next.js asks this function which headers to add. The answer: on every path (`/:path*` matches all of them), the security headers above.
 
-@@ 35
+@@ 35-39
+**`rewrites`** (Phase 5) — a request to `/console-api/…` on this site is passed on, by the Next.js server, to the API's `/console/v1/…`. The console's pages therefore only ever talk to their own origin. The session cookie belongs to one site, `SameSite` and the `__Host-` prefix work as intended, and the API's `Origin` check sees the console's own address. In production, Caddy does the same job, serving both from one address (§3.8). Requests passed on this way carry the browser's address in `X-Forwarded-For`, which the API's server (uvicorn) trusts from the local machine, so sign-in limits still count each person's own address.
+
+@@ 40
 The end of the object.
 
-@@ 37
+@@ 42
 Hand the configuration to Next.js.

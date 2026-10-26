@@ -1054,12 +1054,9 @@ async def test_roles_decide_what_each_member_may_do_and_outsiders_see_nothing(da
                 f"{CONSOLE}/orgs/{org}/members", json={"email": email, "role": role}, headers=token
             )
             assert added.status_code == 201, added.text
-        owner_engine = make_engine(databases[0])
-        async with make_sessions(owner_engine)() as session:
-            project = await session.scalar(select(Project.id).where(Project.org_id == ids.decode("org", org)))
-        await owner_engine.dispose()
-        assert project is not None
-        keys = f"{CONSOLE}/orgs/{org}/projects/{ids.encode('prj', project)}/keys"
+        projects = (await analyst.get(f"{CONSOLE}/orgs/{org}/projects")).json()["data"]
+        assert [p["name"] for p in projects] == ["Default project"]  # any member may list them
+        keys = f"{CONSOLE}/orgs/{org}/projects/{projects[0]['id']}/keys"
         wanted = {"scopes": ["sessions:read"]}
         by_analyst = await analyst.post(keys, json=wanted, headers=tokens[analyst_email])
         by_developer = await developer.post(keys, json=wanted, headers=tokens[developer_email])

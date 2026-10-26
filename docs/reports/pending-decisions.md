@@ -19,6 +19,7 @@ Work that needs your answer — a download, a design choice, an account, or some
 | D9 | Security scanners: Semgrep, pip-audit, Trivy, OWASP ZAP | Phase 7 scans | |
 | D10 | Locust | Phase 7 load tests | |
 | D11 | OpenTelemetry SDK + collector, Grafana | Phase 7 observability | |
+| **D12** | **Upgrade Next.js** (16.4.0 → the patched release) | **security**: `next build` reports a known vulnerability in 16.4.0 | **priority**: some `next build` runs now stop with `SecurityFatalError` (Next.js refuses to build a vulnerable version, judged by an online advisory check), so CI would fail intermittently. Version to be checked against the 7-day cooldown |
 
 ## Design choices
 
@@ -42,3 +43,4 @@ Kept up to date as work lands; see the commit log for details.
 - `95f3e91` — **Phase 4 complete**: console accounts, Argon2id, TOTP, CSRF, roles; published OpenAPI document; Schemathesis contract tests (which found and fixed a missing `Allow` header).
 - **Phase 6 begun**: the MRZ (passport/ID) parser and age rule, proved against ICAO's specimens and generated documents (`docs/reports/phase-6.md`).
 - **Phase 7 begun**: `503` with `Retry-After` when the database or Valkey is down; inference failures never pass; security headers on every API answer (`docs/reports/phase-7.md`).
+- **Phase 5 begun**: the console's first pages — sign-in/sign-up, organisations, members, keys (shown once), audit log with chain badge — tested in Chromium (`docs/reports/phase-5.md`).
