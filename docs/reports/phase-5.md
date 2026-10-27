@@ -27,7 +27,7 @@
 
 ## Findings
 
-- **Next.js 16.4.0 reports a known security vulnerability** during `next build` (an advisory fetched from the npm registry); upgrading is a download → pending decision D12.
+- **Next.js 16.4.0 reported known security vulnerabilities** during `next build` (two critical, one high). **Fixed 27 Oct**: upgraded to 16.4.2 (decision D12); `pnpm audit` clean; builds no longer stop with `SecurityFatalError`.
 - Next.js's route announcer is also `role="alert"`, so tests must pick the alert with text.
 - **Contract tests found a 500**: a NUL character in a text field (an e-mail address) reached PostgreSQL, which can't store it. Fixed for every route in `http/problems.py` (`422 invalid_text`), with a regression test. It appeared on one random run only.
 

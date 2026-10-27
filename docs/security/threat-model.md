@@ -99,7 +99,7 @@ The browser and everything on the internet is untrusted. The inference service i
 
 ## 5. Gaps and residual risks (ordered by severity)
 
-1. **Next.js 16.4.0 has two critical remote-code-execution flaws and one high denial-of-service flaw** (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r; `pnpm audit`, 26 Oct) — fixed in 16.4.1+; upgrade to 16.4.2 pending approval (decision D12). Nothing is deployed yet.
+1. ~~Next.js 16.4.0's two critical remote-code-execution flaws and one high denial-of-service flaw~~ (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r) — **fixed 27 Oct**: both apps upgraded to 16.4.2 (decision D12); `pnpm audit` reports no known vulnerabilities.
 2. **The API logs in as the database owner and switches role** — a fully attacker-controlled statement could `RESET ROLE`. Production must use a login that is only a member of `dwarpal_app` (Phase 8).
 3. **Untested presentation attacks** — virtual camera, deepfake, mask; one-person measurement (Phase 3 open items).
 4. **No dependency or container scanning yet** — Semgrep, pip-audit, Trivy, ZAP pending (D9).

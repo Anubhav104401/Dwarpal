@@ -1,5 +1,5 @@
 ---
-fingerprint: f06be59fd11f9754
+fingerprint: 1ec96438c9a67485
 ---
 The package description of **Amber Cellars**, the **demo shop**: a pretend wine shop that plays the part of a real customer — a **relying party** — so the whole journey can be seen and tested end to end. Its code is written exactly as a real website should integrate Dwarpal, so it doubles as a working example for developers.
 

@@ -142,7 +142,7 @@ footer { margin-top: 4em; color: var(--text-3); font: 12px var(--mono); }
 <div class="topbar"><button id="top" type="button">Top</button><button id="theme" type="button">Theme</button></div>
 <div class="shell">
   <aside class="side">
-    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">334,501 words · 203 files · 16,006/16,006 lines explained (100.0%)</div></div>
+    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">334,573 words · 203 files · 16,006/16,006 lines explained (100.0%)</div></div>
     <input id="q" type="search" placeholder="Filter sections (Ctrl+K)" autocomplete="off" aria-label="Filter sections">
     <nav class="toc"><a class="h1" href="#dwarpal-zero-to-hero">Dwarpal — Zero to Hero</a>
 <a class="h2" href="#what-this-book-is">What this book is</a>
@@ -649,6 +649,10 @@ footer { margin-top: 4em; color: var(--text-3); font: 12px var(--mono); }
 <tr>
 <td style="text-align: left;">27 Oct 2026</td>
 <td style="text-align: left;"><strong>Phase 5, security and members:</strong> §5.5.4 (setting up one-time codes in the console; changing members' roles and removing members, with an owner always kept — and the row locks that make that hold when two requests race; text the database can't store refused with <code>422</code>, a bug found by the contract tests); two new walkthroughs, nine re-explained. Coverage: 203 files, 16,006/16,006 lines</td>
+</tr>
+<tr>
+<td style="text-align: left;">27 Oct 2026</td>
+<td style="text-align: left;"><strong>Security update:</strong> Next.js upgraded from 16.4.0 to 16.4.2 in both web apps, closing two critical remote-code-execution flaws and a denial-of-service flaw; the package walkthroughs updated. Coverage: 203 files, 16,006/16,006 lines</td>
 </tr>
 </tbody>
 </table></div>
@@ -9995,13 +9999,13 @@ transaction 2: lock the row — check again — decide — record — commit
 <span class="ln">5</span><span class="w">  </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The hosted verify page: where a person takes a Dwarpal age check with their camera."</span><span class="p">,</span></code></pre><div class="wnote"><p>Name, version, <code>private</code> (it is an app to run, never a library to publish) and a one-line description.</p></div></div><div class="wrow"><pre class="hl"><code><span class="ln">6</span><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"module"</span><span class="p">,</span></code></pre><div class="wnote"><p><code>"type": "module"</code> — the files are ES modules.</p></div></div><div class="wrow"><pre class="hl"><code><span class="ln">7</span><span class="w">  </span><span class="nt">"scripts"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span></code></pre><div class="wnote"><p>The scripts:</p></div></div><div class="wrow"><pre class="hl"><code><span class="ln">8</span><span class="w">    </span><span class="nt">"dev"</span><span class="p">:</span><span class="w"> </span><span class="s2">"node scripts/mediapipe.mjs &amp;&amp; next dev --port 3000"</span><span class="p">,</span></code></pre><div class="wnote"><p><code>dev</code> — first copy MediaPipe's files into <code>public/</code> (<code>scripts/mediapipe.mjs</code>), then start Next.js's <strong>development server</strong> on port 3000, which rebuilds the page the moment a file is saved. <code>&amp;&amp;</code> runs the second command only if the first succeeded.</p></div></div><div class="wrow"><pre class="hl"><code><span class="ln">9</span><span class="w">    </span><span class="nt">"build"</span><span class="p">:</span><span class="w"> </span><span class="s2">"node scripts/mediapipe.mjs &amp;&amp; next build"</span><span class="p">,</span></code></pre><div class="wnote"><p><code>build</code> — the same copying, then an optimised <strong>production build</strong> into <code>.next/</code>. (pnpm doesn't run <code>prebuild</code> scripts by default, so the copy step is written into the command itself.)</p></div></div><div class="wrow"><pre class="hl"><code><span class="ln">10</span><span class="w">    </span><span class="nt">"start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"next start --port 3000"</span><span class="p">,</span></code></pre><div class="wnote"><p><code>start</code> — serve that production build on port 3000.</p></div></div><div class="wrow"><pre class="hl"><code><span class="ln">11</span><span class="w">    </span><span class="nt">"typecheck"</span><span class="p">:</span><span class="w"> </span><span class="s2">"tsc --noEmit"</span><span class="p">,</span></code></pre><div class="wnote"><p><code>typecheck</code> — check every TypeScript file without writing anything.</p></div></div><div class="wrow"><pre class="hl"><code><span class="ln">12</span><span class="w">    </span><span class="nt">"test"</span><span class="p">:</span><span class="w"> </span><span class="s2">"vitest run"</span></code></pre><div class="wnote"><p><code>test</code> — run the unit tests once with Vitest.</p></div></div><div class="wrow"><pre class="hl"><code><span class="ln">13</span><span class="w">  </span><span class="p">},</span></code></pre><div class="wnote"><p>The end of the scripts.</p></div></div><div class="wrow"><pre class="hl"><code><span class="ln">14</span><span class="w">  </span><span class="nt">"dependencies"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="ln">15</span><span class="w">    </span><span class="nt">"@mediapipe/tasks-vision"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.1.0"</span><span class="p">,</span>
 <span class="ln">16</span><span class="w">    </span><span class="nt">"geist"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.7.2"</span><span class="p">,</span>
-<span class="ln">17</span><span class="w">    </span><span class="nt">"next"</span><span class="p">:</span><span class="w"> </span><span class="s2">"16.4.0"</span><span class="p">,</span>
+<span class="ln">17</span><span class="w">    </span><span class="nt">"next"</span><span class="p">:</span><span class="w"> </span><span class="s2">"16.4.2"</span><span class="p">,</span>
 <span class="ln">18</span><span class="w">    </span><span class="nt">"react"</span><span class="p">:</span><span class="w"> </span><span class="s2">"19.3.0"</span><span class="p">,</span>
 <span class="ln">19</span><span class="w">    </span><span class="nt">"react-dom"</span><span class="p">:</span><span class="w"> </span><span class="s2">"19.3.0"</span>
 <span class="ln">20</span><span class="w">  </span><span class="p">},</span></code></pre><div class="wnote"><p>What the page needs to run, each pinned exactly:</p>
 <ul>
 <li><code>geist</code> — the <strong>Geist</strong> typeface, as font files inside the package (its licence, the SIL Open Font License, allows exactly this). The page serves the fonts itself, so a visitor's browser never contacts a font service;</li>
-<li><code>next</code> 16.4.0 — the framework;</li>
+<li><code>next</code> 16.4.2 — the framework (upgraded from 16.4.0 on 27 Oct 2026 to fix two critical remote-code-execution flaws and a denial-of-service flaw that <code>pnpm audit</code> reported);</li>
 <li><code>react</code> and <code>react-dom</code> 19.3.0 — the library that draws the page (§4.16), and its part for web browsers.</li>
 </ul>
 <p>Each version was at least seven days old when chosen — the workspace's cooldown rule (<code>pnpm-workspace.yaml</code>).</p>
@@ -11049,7 +11053,7 @@ finish()        →  the address to return to
 <span class="ln">13</span><span class="w">  </span><span class="p">},</span></code></pre><div class="wnote"><p>The scripts — the same as the verify page's, on port 3100.</p></div></div><div class="wrow"><pre class="hl"><code><span class="ln">14</span><span class="w">  </span><span class="nt">"dependencies"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="ln">15</span><span class="w">    </span><span class="nt">"@dwarpal/node"</span><span class="p">:</span><span class="w"> </span><span class="s2">"workspace:*"</span><span class="p">,</span>
 <span class="ln">16</span><span class="w">    </span><span class="nt">"geist"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.7.2"</span><span class="p">,</span>
-<span class="ln">17</span><span class="w">    </span><span class="nt">"next"</span><span class="p">:</span><span class="w"> </span><span class="s2">"16.4.0"</span><span class="p">,</span>
+<span class="ln">17</span><span class="w">    </span><span class="nt">"next"</span><span class="p">:</span><span class="w"> </span><span class="s2">"16.4.2"</span><span class="p">,</span>
 <span class="ln">18</span><span class="w">    </span><span class="nt">"react"</span><span class="p">:</span><span class="w"> </span><span class="s2">"19.3.0"</span><span class="p">,</span>
 <span class="ln">19</span><span class="w">    </span><span class="nt">"react-dom"</span><span class="p">:</span><span class="w"> </span><span class="s2">"19.3.0"</span>
 <span class="ln">20</span><span class="w">  </span><span class="p">},</span></code></pre><div class="wnote"><p>What the shop needs to run:</p>
@@ -20667,7 +20671,7 @@ These three lines ...
 <dt>Webhook</dt>
 <dd>A request a service sends to an address on your server when something happens, so you needn't keep asking. (§5.4.3)</dd>
 </dl>
-    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-10-26 22:01 UTC</footer>
+    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-10-27 11:22 UTC</footer>
   </main>
 </div>
 <script>

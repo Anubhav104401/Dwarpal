@@ -1,5 +1,5 @@
 ---
-fingerprint: 28ccb5cb18af9906
+fingerprint: 09413fdb4be347f4
 ---
 The package description of **`@dwarpal/web`** — the **hosted verify page**: the website a person is sent to by a shop, where they take the age check with their camera. It is built with **Next.js** (§4.17), the React framework chosen in ADR-0012.
 
@@ -39,7 +39,7 @@ The end of the scripts.
 What the page needs to run, each pinned exactly:
 
 - `geist` — the **Geist** typeface, as font files inside the package (its licence, the SIL Open Font License, allows exactly this). The page serves the fonts itself, so a visitor's browser never contacts a font service;
-- `next` 16.4.0 — the framework;
+- `next` 16.4.2 — the framework (upgraded from 16.4.0 on 27 Oct 2026 to fix two critical remote-code-execution flaws and a denial-of-service flaw that `pnpm audit` reported);
 - `react` and `react-dom` 19.3.0 — the library that draws the page (§4.16), and its part for web browsers.
 
 Each version was at least seven days old when chosen — the workspace's cooldown rule (`pnpm-workspace.yaml`).
