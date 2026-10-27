@@ -1,0 +1,8 @@
+# Grafana (Phase 7, D11): Tempo as its one data source, set up when Grafana starts.
+apiVersion: 1
+datasources:
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    isDefault: true

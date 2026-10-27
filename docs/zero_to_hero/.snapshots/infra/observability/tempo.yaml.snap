@@ -1,0 +1,18 @@
+# Tempo (Phase 7, D11): stores traces on local disk and answers Grafana's searches. For local viewing only.
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal

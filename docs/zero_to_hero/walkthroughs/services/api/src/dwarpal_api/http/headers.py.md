@@ -1,5 +1,5 @@
 ---
-fingerprint: 4e22488a74934c9a
+fingerprint: d2a71613dc1c823c
 ---
 **Security headers** on every answer the API sends (Phase 7, §5.7.1). The API serves only JSON to programs, so browsers are told to treat its answers as nothing else. The web apps already send their own, stricter-for-pages policies (`next.config.ts`).
 
@@ -21,35 +21,35 @@ The project-wide type-hint setting.
 @@ 6-7
 Starlette's editable headers, and the ASGI types for a middleware.
 
-@@ 9-15
-**`HEADERS`** — the headers every answer gets, each with its reason in a comment.
+@@ 9-18
+**`HEADERS`** — the headers every answer gets, each with its reason in a comment. Phase 7 added **`Cross-Origin-Resource-Policy: same-origin`**, after OWASP ZAP's baseline scan noted it was missing: another site's page can't load an API answer as an image, script or frame. A site's `fetch()` calls are governed by CORS instead, so the verify page still works.
 
-@@ 16-17
+@@ 19-20
 The interactive documentation is a real page with scripts and styles, so the strict content policy is left off those two paths.
 
-@@ 18
+@@ 21
 **`HSTS`** — *HTTP Strict Transport Security*: two years of HTTPS only, for this host and its sub-domains. Sent only in production; over plain HTTP during development it would mean nothing.
 
-@@ 21-24
+@@ 24-27
 **`SecurityHeaders`** — a middleware, written like `RequestIds` (`http/problems.py`): it wraps the app, and is told whether this is production.
 
-@@ 26-29
+@@ 29-32
 Only HTTP requests get headers; anything else passes straight through.
 
-@@ 30
+@@ 33
 Is this request for the documentation pages?
 
-@@ 32-33
+@@ 35-36
 A function that sends each message on — but when the message starts a response, it first adds the headers.
 
-@@ 34-37
+@@ 37-40
 Add each header **unless the route already set it**, so a route that may be cached (the public key set) keeps its own `Cache-Control`; and leave the content policy off the documentation pages.
 
-@@ 38-39
+@@ 41-42
 In production, add HSTS too.
 
-@@ 40
+@@ 43
 Send the message on.
 
-@@ 42
+@@ 45
 Run the app with the wrapped sender.

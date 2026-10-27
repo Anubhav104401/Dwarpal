@@ -18,6 +18,7 @@ coverage/
 next-env.d.ts
 test-results/
 .lighthouseci/
+.scan/
 playwright-report/
 e2e/.cache/
 apps/web/public/mediapipe/

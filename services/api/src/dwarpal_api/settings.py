@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     # Sign-in attempts: per account and per network address, a few at once, then one every so often.
     login_burst: int = 5
     login_per_minute: float = 1.0
+    # Where to send traces (an OpenTelemetry collector's address, such as http://127.0.0.1:4318); none means no traces.
+    otel_endpoint: str | None = None
 
     @model_validator(mode="after")
     def refuse_development_values_in_production(self) -> Settings:

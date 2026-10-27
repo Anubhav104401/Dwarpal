@@ -1,0 +1,22 @@
+# The OpenTelemetry collector (Phase 7, D11): receives the API's traces over HTTP and passes them to Tempo.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true # inside Docker's private network, between two local containers
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/tempo]

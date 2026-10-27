@@ -1,5 +1,5 @@
 ---
-fingerprint: edeea4716450b135
+fingerprint: 1ad2bf64cde7776f
 ---
 `book.toml` holds the book's **settings**. Keeping settings in a separate file, rather than inside `build.py`, means you can add a chapter or change the title **without touching any program code**. "Separate the *what* from the *how*" is one of the oldest good habits in software.
 
@@ -89,7 +89,7 @@ Markdown (`.md`) is deliberately not included: it is prose, not code.
 - training runs and experiment logs (`.runs`, `mlruns`);
 - the builder's own snapshots (`.snapshots`) — copies of code, which would otherwise be counted twice;
 - local AI-assistant settings (`.claude`), which are not part of the project and are never committed (see `.gitignore`);
-- the end-to-end tests' results (`test-results`, `playwright-report`), recreated on every run (added in Phase 1), and Lighthouse CI's scratch folder (`.lighthouseci`, Phase 5).
+- the end-to-end tests' results (`test-results`, `playwright-report`), recreated on every run (added in Phase 1), Lighthouse CI's scratch folder (`.lighthouseci`, Phase 5), and the scans' output (`.scan`, Phase 7) — which holds a full copy of the project for Trivy, and once made the book count 431 files instead of 215.
 
 !!! warn "Careful — a loophole we closed"
     An earlier version also pruned folders called `data` and `build`. That was a hidden loophole: a real code folder named, say, `ml/data/` would silently escape the check. Only names that are *always* generated or downloaded are pruned. That is also why the training data folder is deliberately called `.datasets`.

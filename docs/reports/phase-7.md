@@ -15,6 +15,11 @@
 | Privacy | `docs/privacy/dpia.md` (reference deployment, every data item with its retention and code) and `docs/privacy/practice-statement.md` (ISO/IEC 27566-1 style) — both drafts for legal review |
 | Book | §5.7, §5.7.1–5.7.2; one new walkthrough, three re-explained |
 
+| Scans (`tasks.py scan`, `zap`) | pip-audit 2.10.1, Trivy 0.76.0 (on a copy of tracked files), ZAP `zap-stable:20261016` baseline (web) and API scan; Semgrep 1.182.0 wired, waits for its cooldown |
+| Traces (`adapters/telemetry.py`) | OpenTelemetry SDK 1.45.1 + FastAPI instrumentation 0.66b1; on only with `DWARPAL_OTEL_ENDPOINT`; query string, caller address and browser blanked; compose profile `observability`: collector 0.163.1 → Tempo 2.10.9 → Grafana 13.0.11 (port 3300) |
+| Load test (`infra/load/locustfile.py`) | Locust 2.46.7: 50 users, create → start → challenge → 8-frame attempt; unanalysed attempts count as failures |
+| API header | `Cross-Origin-Resource-Policy: same-origin` (from ZAP) |
+
 ## What was measured
 
 | Check | Result |
@@ -23,11 +28,21 @@
 | Inference unreachable / nonsense | two attempts with a passing face: none passes; first is `retry` |
 | Headers | present on refusals and successes; JWKS keeps `public, max-age=300`; no CSP on `/docs` |
 | Production | HSTS sent; `/docs` → 404; `/openapi.json` → 200 |
+| pip-audit (27 Oct) | 47 known flaws in 4 packages: `pillow` 12.3.0 (38, via torchvision), `filelock` 4.1.0 (6), `certifi` 2026.7.22 (2), `setuptools` 84.0.0 (1); `torch`/`torchvision` (CUDA builds) can't be audited — not on PyPI → **D15** |
+| Trivy (27 Oct) | `uv.lock`: 30 (24 high, 6 critical) — the same packages; `pnpm-lock.yaml`: none high/critical; **no secrets**, no misconfigurations |
+| `pnpm audit` | 8 → 4 after D14: `extract-zip` ×2 (no fix), `body-parser` (fix after 29 Oct), `tmp` 0.2.6 (new advisory; 0.2.7 → **D14b**) — all inside Lighthouse CI, development only |
+| ZAP web (27 Oct) | **0 fail**, 64 pass; warnings triaged: CSP `script-src 'unsafe-inline'` (open: needs per-request nonces), COEP missing (not needed: no cross-origin isolation features used), non-storable content and "modern web app" (informational) |
+| ZAP API (27 Oct) | **0 fail**, 119 pass; one warning — CORP missing → **fixed** |
+| Traces through Tempo | 6 traces stored for 6 requests; span attributes hold route, status, timing; no query string, caller address or browser |
+| Load, first run (50 users, 3 min) | 9,256 requests, 0 HTTP failures — **misleading**: inference answered 2,136 "busy", analysed 84 |
+| Load, one user (60 s) | face attempt **4.3–4.7 s**; analysis 4.27–4.53 s, of which the age model ≈ 4.0 s (profiled); detection, mesh, hands, anti-spoofing < 0.6 s together |
+| Age model threads (one analysis) | 1 thread 4.1–4.5 s · 2 threads 2.3–2.4 s · 4 threads 1.43–1.45 s |
 
 ## Open items
 
-1. **Scanners** (Semgrep, pip-audit, pnpm audit, Trivy, ZAP) — D9.
-2. **Load tests against the SLOs**, and failures **mid-flow under load** — D10.
-3. **Observability** (OpenTelemetry, Grafana, burn-rate alerts) — D11.
+1. **Scanners** — run and triaged (27 Oct). Left: Semgrep after its cooldown; Python fixes (D15); `tmp` 0.2.7 (D14b); a nonce-based CSP for the web app.
+2. **Performance — NFR-05 not met**: 4.5 s per attempt alone, against 1.5 s p95 at 50 concurrent on 4 cores; at 50 users almost every attempt was turned away as "busy". Options are the owner's decision (**P1**). Failures mid-flow under load still to test.
+3. **Observability** — traces done; dashboards, metrics (Prometheus, approved, not yet needed) and burn-rate alerts to come.
+6. **Process slip**: a local test API key was printed in tool output while preparing the load test; revoked at once.
 4. ~~Privacy documents~~ — **drafted 26 Oct**; need legal review (O5) and the operator's contact details (O6). The final model card waits for a calibrated model.
 5. ~~Threat-model review~~ — **done 26 Oct**; its top residual risks are the Next.js advisory (D12), the owner-login role switch (Phase 8), and untested presentation attacks.

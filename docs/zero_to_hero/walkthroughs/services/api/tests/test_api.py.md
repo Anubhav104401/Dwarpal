@@ -1,5 +1,5 @@
 ---
-fingerprint: 9aecd2c25c367fc9
+fingerprint: f988ddb5601bceb1
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -922,158 +922,158 @@ Neither attempt passes — the face would have passed with a working service —
 @@ 1195-1200
 **Security headers (Phase 7).** A refusal (no key), the public key set, and the interactive documentation.
 
-@@ 1201-1205
-Every answer carries `nosniff`, the strict content policy and `no-referrer`. HSTS isn't sent outside production: over plain HTTP it would mean nothing.
+@@ 1201-1206
+Every answer carries `nosniff`, the strict content policy, `no-referrer` and (since Phase 7) `Cross-Origin-Resource-Policy: same-origin`. HSTS isn't sent outside production: over plain HTTP it would mean nothing.
 
-@@ 1206-1208
+@@ 1207-1209
 Answers are `no-store` unless their route says otherwise: the key set keeps its own five-minute public caching. The documentation page has no content policy, which would stop its scripts.
 
-@@ 1211-1219
+@@ 1212-1220
 **Production.** Settings a production deployment would accept: a real-looking master key and HTTPS addresses. The app isn't started, because `/livez` needs no database.
 
-@@ 1220-1223
+@@ 1221-1224
 Ask for `/livez`, the documentation page and the API document.
 
-@@ 1224-1225
+@@ 1225-1226
 HSTS is sent (two years); the interactive documentation doesn't exist (`404`); the API document is still published.
 
-@@ 1228-1234
+@@ 1229-1235
 **Test — the console's project pages (Phase 5).** An owner and an analyst, each with their own browser.
 
-@@ 1235-1240
+@@ 1236-1241
 The owner signs up; the analyst signs up; the owner adds the analyst to the organisation.
 
-@@ 1241-1244
+@@ 1242-1245
 The owner finds the organisation's project and creates a key for it in the console.
 
-@@ 1245
+@@ 1246
 A website using that key: the harness, copied with the key changed (`replace`).
 
-@@ 1246-1248
+@@ 1247-1249
 The website creates a session — without a return address, because this new project hasn't allowed any yet — and a person passes it.
 
-@@ 1250-1252
+@@ 1251-1253
 The analyst reads the project's sessions, the passed session's trace, and the last week's counts.
 
-@@ 1253-1256
+@@ 1254-1257
 The analyst and then the owner try to add a policy version; the analyst lists the policies.
 
-@@ 1257
+@@ 1258
 The analyst tries the harness's own project — which belongs to another organisation — under this organisation's address.
 
-@@ 1258-1259
+@@ 1259-1260
 The one session is listed; its trace has one attempt, and it passed.
 
-@@ 1260-1261
+@@ 1261-1262
 The attempt carries its numbers: the age probability, the line it met, and the liveness evidence.
 
-@@ 1262
+@@ 1263
 Reading a trace made no token.
 
-@@ 1263
+@@ 1264
 The counts show one pass.
 
-@@ 1264-1266
+@@ 1265-1267
 An analyst may not add a policy version; the owner may, and it is listed as `console_18@1`.
 
-@@ 1267
+@@ 1268
 Another organisation's project, named under this organisation, is not found — the check that the project belongs to the organisation in the address.
 
-@@ 1270-1273
+@@ 1271-1274
 **Test — the console's webhooks (Phase 5).** An owner and an analyst. Private addresses are allowed, so the endpoint can point at this computer (`localhost:9`, where nothing listens — nothing is sent in this test).
 
-@@ 1274-1280
+@@ 1275-1281
 The owner signs up, the analyst signs up and is added, and the owner finds the project.
 
-@@ 1281-1282
+@@ 1282-1283
 The project's webhook address, and an endpoint for finished sessions.
 
-@@ 1284-1287
+@@ 1285-1288
 The analyst tries to add it; the owner adds it; the analyst tries to list them; the owner lists the live ones.
 
-@@ 1288-1292
+@@ 1289-1293
 The owner sends a test event, reads the endpoint's deliveries, and replays the first.
 
-@@ 1293-1296
+@@ 1294-1297
 The owner tries to delete it as a live endpoint, then deletes it as the test one it is; lists again; and reads the audit log.
 
-@@ 1297
+@@ 1298
 An analyst may not add one.
 
-@@ 1298
+@@ 1299
 The owner's new endpoint came with its secret, and is a test endpoint.
 
-@@ 1299
+@@ 1300
 An analyst may not even list them; and the live mode has none — modes never mix.
 
-@@ 1300-1301
+@@ 1301-1302
 The test event is waiting to be delivered (no worker runs here); the replay is accepted.
 
-@@ 1302
+@@ 1303
 The wrong mode is "not found"; the deletion worked, and the list is empty.
 
-@@ 1303-1304
+@@ 1304-1305
 The audit log names a person (`user:…`), not a key, for both the creation and the deletion.
 
-@@ 1307-1314
+@@ 1308-1315
 **Test — the owner rules for members (Phase 5).** Three people, each with their own browser: an owner, an admin, and one more.
 
-@@ 1315-1319
+@@ 1316-1320
 All three sign up.
 
-@@ 1320-1322
+@@ 1321-1323
 The owner adds the admin as an admin, and the third person as an analyst.
 
-@@ 1323-1324
+@@ 1324-1325
 Everyone's IDs: the third person's from the answer, the owner's from `/me`, the admin's from the member list.
 
-@@ 1326-1328
+@@ 1327-1329
 The admin promotes the analyst to developer, then tries to make them an owner; the only owner tries to step down to admin.
 
-@@ 1329-1330
+@@ 1330-1331
 The owner makes the third person an owner, and then steps down — allowed now, since there are two.
 
-@@ 1331-1333
+@@ 1332-1334
 The admin tries to remove the new owner; the new owner removes the admin; and tries to remove an ID that isn't anyone's.
 
-@@ 1334-1335
+@@ 1335-1336
 What remains, and the audit log.
 
-@@ 1336
+@@ 1337
 An admin may change a member who isn't an owner.
 
-@@ 1337
+@@ 1338
 An admin may not make an owner.
 
-@@ 1338
+@@ 1339
 The last owner may not step down.
 
-@@ 1339
+@@ 1340
 With two owners, one may.
 
-@@ 1340
+@@ 1341
 An admin may not remove an owner; an owner may remove an admin; an unknown member is not found.
 
-@@ 1341
+@@ 1342
 Left: the first owner (now an admin) and the new owner.
 
-@@ 1342-1343
+@@ 1343-1344
 The audit log holds exactly the four changes that happened — refusals leave no trace.
 
-@@ 1346-1351
+@@ 1347-1352
 **Test — unstorable text is refused (Phase 5).** Sign in with an address containing NUL — the kind of input the contract tests found: `422 invalid_text`, not a server error.
 
-@@ 1354-1358
+@@ 1355-1359
 **Test — the production session cookie (Phase 5).** The browser tests now run with a plain cookie (WebKit drops `Secure` ones on plain HTTP), so this test checks the real one: with the production setting, sign up and read the `Set-Cookie` header.
 
-@@ 1359-1360
+@@ 1360-1361
 Sign up.
 
-@@ 1361-1362
+@@ 1362-1363
 The cookie's name starts with `__Host-`, so browsers insist it is `Secure`, for path `/`, with no `Domain`: no other site can set or read it.
 
-@@ 1363-1364
+@@ 1364-1365
 Its attributes include `HttpOnly` (no script can read it), `Secure` (HTTPS only), `Path=/` and `SameSite=Lax`.
 
-@@ 1365
+@@ 1366
 And no `Domain`, which would share it with other hosts.

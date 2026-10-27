@@ -1202,6 +1202,7 @@ async def test_every_answer_carries_the_security_headers(databases: tuple[str, s
         assert response.headers["x-content-type-options"] == "nosniff"
         assert response.headers["content-security-policy"] == "default-src 'none'; frame-ancestors 'none'"
         assert response.headers["referrer-policy"] == "no-referrer"
+        assert response.headers["cross-origin-resource-policy"] == "same-origin"
         assert "strict-transport-security" not in response.headers  # only in production, behind HTTPS
     assert refused.headers["cache-control"] == "no-store"
     assert jwks.headers["cache-control"] == "public, max-age=300"  # a route that may be cached keeps its own rule

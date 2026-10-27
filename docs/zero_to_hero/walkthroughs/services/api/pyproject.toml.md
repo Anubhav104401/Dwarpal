@@ -1,5 +1,5 @@
 ---
-fingerprint: e54994d085d279e3
+fingerprint: cbe49b53b732232f
 ---
 The `pyproject.toml` of the **API service** package: its name, version, purpose, supported Python versions, libraries it needs, and how to build it. The other four packages follow exactly the same pattern, so this one is explained in the most detail.
 
@@ -21,7 +21,7 @@ The `pyproject.toml` of the **API service** package: its name, version, purpose,
 !!! why "Why an upper limit?"
     Libraries usually avoid upper limits, so their users can upgrade freely. A **service** is different: we test it on exactly one Python version and deploy exactly that version, so declaring anything wider would be a promise we haven't checked.
 
-@@ 6-20
+@@ 6-23
 `dependencies = [...]` — the libraries this package needs in order to run, added in Phase 1. Each one is pinned to an exact version with `==`, for the reason given above: a service is tested and deployed with exactly one set of versions.
 
 | Library | Version | What the API uses it for |
@@ -43,16 +43,18 @@ Only these direct dependencies are listed here. The libraries *they* need in tur
 
 Phase 4 added `argon2-cffi` 25.1.0 — **Argon2id**, the password-hashing function the console's sign-in uses (`adapters/passwords.py`, §5.4.5). It needs `argon2-cffi-bindings`, the compiled part, which the lockfile pins.
 
-@@ 22-23
+Phase 7 added **OpenTelemetry** (decision D11, `adapters/telemetry.py`, §5.7.2): `opentelemetry-sdk` 1.45.1 (traces), `opentelemetry-exporter-otlp-proto-http` 1.45.1 (sends them to a collector), and `opentelemetry-instrumentation-fastapi` 0.66b1 (records each request). The last is a *beta* (`b1`): every version of it so far is.
+
+@@ 25-26
 `[tool.uv.sources]` tells uv *where* to get a dependency when that isn't the public package index (PyPI). `dwarpal-contracts = { workspace = true }` means "use the workspace member of that name" — the folder `libs/contracts` in this repository. The curly brackets are an **inline table**: TOML's way of writing a small table on one line.
 
 Because the contracts come from the same repository, the API always uses them exactly as they are in the same commit. That is why they need no version number.
 
-@@ 25
+@@ 28
 `[build-system]` — how to turn this folder into an installable package. Every installer, including uv and pip, reads this table first.
 
-@@ 26
+@@ 29
 `requires = ["uv_build>=0.13.1,<0.14"]` — the **build backend** needed to build it: `uv_build`, made by the uv team. It is small, fast, and fits the `src/` layout (§4.2). The range allows bug-fix releases of 0.13 but not 0.14, which could change behaviour.
 
-@@ 27
+@@ 30
 `build-backend = "uv_build"` — the Python module that installers should call to perform the build.

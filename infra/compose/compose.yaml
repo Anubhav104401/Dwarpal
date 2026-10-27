@@ -1,6 +1,8 @@
 # Dwarpal: local development infrastructure (the databases the services need).
 #   start:  docker compose -f infra/compose/compose.yaml up -d --wait
 #   stop:   docker compose -f infra/compose/compose.yaml down      (add -v to delete the data too)
+#   traces: docker compose -f infra/compose/compose.yaml --profile observability up -d
+#           then run the API with DWARPAL_OTEL_ENDPOINT=http://127.0.0.1:4318, and open Grafana at http://localhost:3300
 
 name: dwarpal
 
@@ -36,6 +38,43 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # Seeing traces (Phase 7, D11), only when asked for (`--profile observability`): collector -> Tempo -> Grafana.
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.163.1
+    profiles: [observability]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ../observability/collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4318:4318"
+    depends_on: [tempo]
+
+  tempo:
+    image: grafana/tempo:2.10.9
+    profiles: [observability]
+    command: ["-config.file=/etc/tempo.yaml"]
+    user: "0" # the data volume starts owned by root
+    volumes:
+      - ../observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempodata:/var/tempo
+    ports:
+      - "127.0.0.1:3200:3200"
+
+  grafana:
+    image: grafana/grafana:13.0.11
+    profiles: [observability]
+    environment:
+      # No sign-in, as an admin: acceptable only because it listens on this computer alone (127.0.0.1).
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ../observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+    ports:
+      - "127.0.0.1:3300:3000"
+    depends_on: [tempo]
+
 volumes:
   pgdata:
   valkeydata:
+  tempodata:

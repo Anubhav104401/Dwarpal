@@ -1,5 +1,5 @@
 ---
-fingerprint: 916cdf4d12e052a3
+fingerprint: c392ebd4323686e5
 ---
 The API's **settings**: every value that may differ between a laptop, the test suite and production — addresses, secrets, time limits — in one checked place. It follows the same pattern as the inference service's `settings.py` (§5.1.1), with two additions: a **secret** that must never leak into logs, and a **guard** that refuses unsafe values in production.
 
@@ -118,27 +118,30 @@ The console (Phase 4, step 2): `console_origins` — the addresses its pages are
 @@ 51-53
 Sign-in attempts, counted per account and per network address: up to 5 at once, then one more a minute — slow enough that guessing a password is hopeless, generous enough for someone who mistypes.
 
-@@ 55-56
-The **production guard**. `@model_validator(mode="after")` makes Pydantic call this method after all the fields are filled in. It receives the finished settings object as `self`, and must either return it or raise an error. If it raises, the API refuses to start.
+@@ 54-55
+**`otel_endpoint`** (Phase 7) — the address of an OpenTelemetry collector to send traces to (`DWARPAL_OTEL_ENDPOINT`). `None` by default: no traces are made at all unless someone asks for them.
 
 @@ 57-58
-Outside production there is nothing more to check, so the settings are returned unchanged.
+The **production guard**. `@model_validator(mode="after")` makes Pydantic call this method after all the fields are filled in. It receives the finished settings object as `self`, and must either return it or raise an error. If it raises, the API refuses to start.
 
 @@ 59-60
-**Refuse the development key in production.** It is published in this repository, so with it anyone could unseal the signing keys and forge age tokens. The error names the exact variable to set.
+Outside production there is nothing more to check, so the settings are returned unchanged.
 
 @@ 61-62
-Production must never send webhooks into private networks.
+**Refuse the development key in production.** It is published in this repository, so with it anyone could unseal the signing keys and forge age tokens. The error names the exact variable to set.
 
 @@ 63-64
+Production must never send webhooks into private networks.
+
+@@ 65-66
 And production's cookie must always demand HTTPS.
 
-@@ 65-67
+@@ 67-69
 **Refuse plain `http://` addresses in production.** Over `http://`, tokens and links travel unencrypted, and anyone on the network path could read or change them (§0.9).
 
 `getattr(self, name)` reads a field whose name is held in the variable `name`, so one loop checks both fields. `name.upper()` turns `issuer` into `ISSUER`, so the message names the exact variable: `DWARPAL_ISSUER`.
 
-@@ 68
+@@ 70
 All checks passed: return the settings.
 
 !!! try "Try it yourself"

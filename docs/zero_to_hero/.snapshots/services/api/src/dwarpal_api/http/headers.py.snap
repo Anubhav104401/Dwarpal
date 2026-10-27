@@ -12,6 +12,9 @@ HEADERS = {
     "X-Frame-Options": "DENY",  # for browsers too old for frame-ancestors
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
     "Cache-Control": "no-store",  # answers carry secrets and tokens; a route that may be cached says so itself
+    # Another site's page may not load an answer as an image, script or frame (ZAP's baseline scan, Phase 7). Its
+    # fetch() requests, which CORS governs, are unaffected.
+    "Cross-Origin-Resource-Policy": "same-origin",
 }
 # The interactive documentation is a real page with scripts and styles, so it is left without the strict policy.
 DOCUMENTATION = ("/docs", "/redoc")
