@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import QRCode from "qrcode";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 
 import {
@@ -19,9 +20,12 @@ const client = new ConsoleClient();
 /** The secret in groups of four, as authenticator apps show and people type it. */
 const grouped = (secret: string) => secret.match(/.{1,4}/g)?.join(" ") ?? secret;
 
+/** A secret on offer, with its otpauth:// address drawn as a QR code (a PNG, as a data: URL), made in the browser. */
+type Offer = TotpOffer & { picture: string };
+
 export function AccountView() {
   const [me, setMe] = useState<Me | "signed-out" | null>(null);
-  const [offer, setOffer] = useState<TotpOffer | null>(null);
+  const [offer, setOffer] = useState<Offer | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -41,7 +45,11 @@ export function AccountView() {
     }
   }
 
-  const start = () => attempt(async () => setOffer(await client.totpEnrol()));
+  const start = () =>
+    attempt(async () => {
+      const made = await client.totpEnrol();
+      setOffer({ ...made, picture: await QRCode.toDataURL(made.uri, { margin: 2, width: 200 }) });
+    });
 
   async function confirm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -110,7 +118,16 @@ export function AccountView() {
         ) : (
           <div className="mt-2 space-y-4 text-sm">
             <div>
-              <p className="font-medium">1. Add this key to your authenticator app</p>
+              <p className="font-medium">1. Scan this QR code with your authenticator app</p>
+              {/* biome-ignore lint/performance/noImgElement: a data: URL made in this browser; next/image would add nothing */}
+              <img
+                src={offer.picture}
+                alt="QR code holding the key, for an authenticator app to scan"
+                width={200}
+                height={200}
+                className="mt-2 rounded-lg bg-white"
+              />
+              <p className="mt-3 text-zinc-600 dark:text-zinc-400">Or type this key into the app:</p>
               <code
                 className="mt-2 block break-all rounded-lg bg-zinc-100 p-2 dark:bg-zinc-950"
                 data-testid="totp-secret"

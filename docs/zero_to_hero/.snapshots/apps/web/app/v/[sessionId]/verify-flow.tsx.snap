@@ -225,7 +225,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
           <ol className="mt-6 space-y-3">
             {PROMISES.map((promise, index) => (
               <li key={promise} className="flex gap-3 text-[15px] leading-relaxed">
-                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-500/20 text-xs font-semibold text-brand-600 dark:text-brand-300">
+                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-500/20 text-xs font-semibold text-brand-700 dark:text-brand-300">
                   {index + 1}
                 </span>
                 {promise}

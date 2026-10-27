@@ -1,5 +1,5 @@
 ---
-fingerprint: bed446d8a70cfdaf
+fingerprint: 9aecd2c25c367fc9
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -1062,3 +1062,18 @@ The audit log holds exactly the four changes that happened — refusals leave no
 
 @@ 1346-1351
 **Test — unstorable text is refused (Phase 5).** Sign in with an address containing NUL — the kind of input the contract tests found: `422 invalid_text`, not a server error.
+
+@@ 1354-1358
+**Test — the production session cookie (Phase 5).** The browser tests now run with a plain cookie (WebKit drops `Secure` ones on plain HTTP), so this test checks the real one: with the production setting, sign up and read the `Set-Cookie` header.
+
+@@ 1359-1360
+Sign up.
+
+@@ 1361-1362
+The cookie's name starts with `__Host-`, so browsers insist it is `Secure`, for path `/`, with no `Domain`: no other site can set or read it.
+
+@@ 1363-1364
+Its attributes include `HttpOnly` (no script can read it), `Secure` (HTTPS only), `Path=/` and `SameSite=Lax`.
+
+@@ 1365
+And no `Domain`, which would share it with other hosts.

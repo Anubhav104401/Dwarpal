@@ -5,10 +5,10 @@ Phase 5 gives Dwarpal the faces people see: the console for its customers, a pol
 | Area | Status |
 | :-- | :-- |
 | **Console** — sign-in, organisations, members, keys, audit log | 🟡 first pages (§5.5.1); a project's sessions, decision traces, counts and policies (§5.5.2); webhooks (§5.5.3); one-time codes and member roles (§5.5.4); a command palette to come |
-| Design system — tokens, typography, components, motion | 🗓 waits for the typeface decision; the brand colours in `globals.css` are already used |
+| Design system — tokens, typography, components, motion | 🗓 next: Geist kept (decision C1); the brand colours in `globals.css` are already used |
 | Marketing site (3D face-mesh hero) | 🗓 waits for an approved 3D library |
 | Verify flow in English and Hindi | 🗓 waits for an approved translation library |
-| Exit tests on three browser engines, accessibility and Lighthouse checks | 🗓 wait for approved downloads |
+| Exit tests on three browser engines, accessibility and Lighthouse checks | 🟢 built (§5.5.5): Chromium and WebKit pass here, Firefox can't start on this computer; axe clean on the key pages; Lighthouse ≥ 90 |
 
 ### 5.5.1 The console's first pages
 
@@ -124,4 +124,36 @@ The rest changed existing files, each re-explained in its walkthrough: the conso
 **A bug the contract tests found.** Running the new routes through Schemathesis (§5.4.6), one random request carried the NUL character inside an e-mail address. PostgreSQL can't store NUL in text, the error went unhandled, and the API answered `500`. The request was at fault, so `http/problems.py` now turns that one database refusal into `422 invalid_text`, for every route at once, and a test sends such an address on purpose. (The failure appeared on one run and not the next: random testing finds rare inputs only sometimes, which is why it runs on every check.)
 
 !!! honest "Honest limitation"
-    There is no QR code yet: drawing one needs a library, which is a download awaiting approval, so the secret is shown as text and as a link. One-time codes can't yet be switched off or reset from the console (a lost phone needs an operator), and there are no recovery codes. The member controls were checked by the API test and a type check, but not yet in a browser test.
+    (The QR code came next, in §5.5.5.) One-time codes can't yet be switched off or reset from the console (a lost phone needs an operator), and there are no recovery codes. The member controls were checked by the API test and a type check, but not yet in a browser test.
+
+### 5.5.5 The exit tests: three engines, accessibility, Lighthouse — and a QR code
+
+Phase 5 ends when three checks pass (§3.9): the browser tests on **Chromium, Firefox and WebKit**; **axe** finding nothing on the key pages; and **Lighthouse** scoring at least 90. The owner approved the four downloads they needed (decisions D3, D4, D5 and D13), and each is now wired in:
+
+- **Three engines.** `playwright.config.ts` has a project per engine. Firefox and WebKit run everything that doesn't need a camera — only Chromium can play a video file as one, so the age-check story stays there. `E2E_ENGINES` can name fewer engines.
+- **axe** (`tests/accessibility.spec.ts`) checks the shop, the verify page, and every console page against WCAG 2.2 A and AA, on each engine.
+- **Lighthouse** (`tests/lighthouse.spec.ts`, `lighthouserc.json`) scores the shop, the console's sign-in and the verify page.
+- **A QR code** on the *Security* page, drawn in the browser by `qrcode`, so phones can scan the one-time-code secret.
+
+!walk e2e/tests/accessibility.spec.ts
+
+!walk e2e/tests/lighthouse.spec.ts
+
+!walk e2e/lighthouserc.json
+
+The rest changed existing files, each re-explained in its walkthrough: the Security page (`account-view.tsx`), the colours and controls the tests found wanting (`globals.css`, `console-shell.tsx`, `verify-flow.tsx`, `webhooks-panel.tsx`), the browser tests and their servers (`console.spec.ts`, `playwright.config.ts`), the packages (`apps/web/package.json`, `e2e/package.json`), `turbo.json`, `.gitignore`, the book's own `book.toml` (which now skips Lighthouse CI's scratch folder), and a new API test of the production session cookie (`test_api.py`).
+
+**What the new tests found** — each fixed, or explained:
+
+1. **Text too faint.** The *Console* badge and the verify page's step numbers used `brand-600` saffron text on a pale saffron circle: 2.8:1, where WCAG AA asks 4.5:1. A darker `brand-700` measures at least 5.3:1.
+2. **Checkboxes too close.** WCAG 2.2 asks that small controls have room around them for a finger. The webhook form's two event checkboxes didn't; their rows are taller now.
+3. **A false alarm.** axe first reported a faint button on the verify page. It had measured the card while it was still fading in, so the colours were halfway blends. The test now waits for one-off animations to finish.
+4. **WebKit and secure cookies.** WebKit drops a `Secure` cookie on plain `http://localhost`, so every console page after sign-in looked signed out. The test servers now use a plain session cookie, and an API test checks the production one (`__Host-`, `Secure`, `HttpOnly`) instead. Production refuses to start without it.
+5. **A limiter with a memory.** Three engines signing in from one computer ran into the sign-in limit, which remembers earlier runs in Valkey. The test API gets a larger allowance that refills fast.
+6. **Private pages and search engines.** Lighthouse gave the console and the verify page 60 for search engines, because both ask not to be indexed — on purpose. So the rule for them is the opposite: the test fails if they ever *stop* asking.
+
+!!! real "Real world — browsers that won't start"
+    On the owner's Windows 11 computer (build 26200), Playwright's Firefox and its full Chromium both fail to start, with Windows reporting an incorrect "side-by-side configuration": it can't find the private parts each program declares, although the files are there. Reinstalling didn't help, and an older Chromium fails the same way, so the cause is in this Windows installation, not the downloads. Two workarounds keep the checks honest. Lighthouse uses Playwright's **headless shell**, a windowless Chromium that does start. And Firefox is left out here (`E2E_ENGINES=chromium,webkit`), to run on the Linux CI machine once the code is on GitHub. Until then, "passes on Firefox" is not proven.
+
+!!! honest "Honest limitation"
+    Lighthouse CI brought 262 packages, and `pnpm audit` reports known flaws in eight of them (one low, one moderate, six high: `tmp`, `uuid`, `extract-zip`, `basic-ftp`, `zod`, `body-parser`). All are tools that run only on a developer's or CI machine, against local test servers, and none ships in the apps. Fixed versions exist for all but `extract-zip`, and installing them is a new download, so it waits for the owner (decision D14). Lighthouse scores also vary a few points from run to run.

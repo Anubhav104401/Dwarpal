@@ -1349,3 +1349,17 @@ async def test_text_the_database_cant_store_is_refused_not_a_server_error(databa
         body = {"email": "nul\u0000@shop.example", "password": PASSWORD}  # found by the contract tests
         response = await browser.post(f"{CONSOLE}/login", json=body)
     assert (response.status_code, response.json()["code"]) == (422, "invalid_text")
+
+
+@pytest.mark.anyio
+async def test_the_console_session_cookie_is_host_only_secure_and_hidden_from_scripts(
+    databases: tuple[str, str],
+) -> None:
+    async with harness(databases, login_burst=100) as h:  # the production setting: a Secure cookie
+        body = {"email": unique("cookie"), "password": PASSWORD, "organisation": "Shop Ltd"}
+        response = await h.client.post(f"{CONSOLE}/signup", json=body)
+    cookie = response.headers["set-cookie"]
+    assert cookie.startswith("__Host-dwarpal_session=")  # browsers insist on Secure, Path=/ and no Domain
+    attributes = {part.strip().lower() for part in cookie.split(";")[1:]}
+    assert {"httponly", "secure", "path=/", "samesite=lax"} <= attributes
+    assert not any(a.startswith("domain=") for a in attributes)

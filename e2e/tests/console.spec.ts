@@ -98,6 +98,7 @@ test("a member turns on one-time codes, and signing in then asks for one", async
 
   await page.getByRole("link", { name: "Security" }).click();
   await page.getByRole("button", { name: "Set up one-time codes" }).click();
+  await expect(page.getByRole("img", { name: /QR code/ })).toBeVisible();
   const secret = (await page.getByTestId("totp-secret").textContent()) ?? "";
   await page.getByLabel("2. Enter the code it shows").fill(oneTimeCode(secret, Date.now()));
   await page.getByRole("button", { name: "Turn on" }).click();

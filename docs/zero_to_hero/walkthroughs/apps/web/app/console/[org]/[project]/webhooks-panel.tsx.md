@@ -1,5 +1,5 @@
 ---
-fingerprint: 8c4ba47ff2832fa8
+fingerprint: 64ef9fbddf9e3bee
 ---
 The webhooks panel of a project's page (Phase 5, §5.5.3): the endpoints for the chosen mode, a form to add one — whose signing secret is shown **once** — and, for each, buttons to send a test event, see its recent deliveries (and replay a finished one), or remove it.
 
@@ -100,7 +100,7 @@ End of the row, the table and the deliveries.
 **The add form**: the address, with `type="url"` so the browser checks its shape first; the API checks again, and refuses an unsafe one (§5.4.3).
 
 @@ 190-198
-The events, one checkbox each, all ticked at first, inside a `fieldset` named "Events".
+The events, one checkbox each, all ticked at first, inside a `fieldset` named "Events". Each row is at least 32 pixels tall (`min-h-8`), so the two boxes sit far enough apart for a finger: WCAG 2.2 asks that small targets have room around them, and the accessibility test (§5.5.5) found they didn't.
 
 @@ 199-202
 The button, and the end of the form.

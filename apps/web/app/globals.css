@@ -7,6 +7,8 @@
   --color-brand-400: oklch(0.8 0.15 68);
   --color-brand-500: oklch(0.75 0.17 60);
   --color-brand-600: oklch(0.67 0.17 52);
+  /* Text on a light background: at least 5.3:1 against white tinted with brand-500 (WCAG AA asks 4.5:1). */
+  --color-brand-700: oklch(0.5 0.13 48);
 
   --animate-march: march 0.9s linear infinite;
   --animate-rise: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;

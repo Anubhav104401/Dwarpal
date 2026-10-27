@@ -1,5 +1,5 @@
 ---
-fingerprint: 21e631cea5841695
+fingerprint: b1b15ab8dae1bc4c
 ---
 The console's **frame and building blocks** (Phase 5): shared styles, a labelled form field, an alert, and the page frame with the Dwarpal mark, a "Console" badge, and room for who is signed in. The styles reuse the verify page's palette (`globals.css`): the warm brand colour for focus and highlights, zinc greys, and a dark version of everything.
 
@@ -31,7 +31,7 @@ The Dwarpal mark, from the verify page's shell.
 **`ConsoleShell`** — the frame of every console page: the content, and an optional `aside` for the header's right-hand side.
 
 @@ 43-55
-A centred column up to 5xl wide: the header (mark, name, badge, then the aside pushed right by `ml-auto`), and the page's `main` content.
+A centred column up to 5xl wide: the header (mark, name, the *Console* badge — dark saffron text, light in dark mode, for contrast — then the aside pushed right by `ml-auto`), and the page's `main` content.
 
 @@ 56
 End of the component.

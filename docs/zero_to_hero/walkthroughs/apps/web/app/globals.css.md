@@ -1,5 +1,5 @@
 ---
-fingerprint: 70c55f5aace1f9cf
+fingerprint: 82e3ac23629c01ac
 ---
 The verify page's one stylesheet. Almost all styling happens through **Tailwind** classes written directly on the elements (§4.18); this file only brings Tailwind in and adds the project's own **design tokens** — named values such as the brand colour, which every class can then use.
 
@@ -17,22 +17,25 @@ The verify page's one stylesheet. Almost all styling happens through **Tailwind*
 
 Saffron is the colour of marigolds and temple doorways — the place where a *dwarpal*, a doorkeeper, stands.
 
-@@ 11
+@@ 10-11
+**`brand-700`** (Phase 5) — a darker saffron for **text** on light backgrounds. The accessibility test found `brand-600` text on a pale saffron badge at 2.8:1; WCAG AA asks for 4.5:1. This shade measures at least 5.3:1 there.
+
+@@ 13
 `--animate-march` — an animation token, used as `animate-march`: the "marching ants" movement of the face guide's dotted outline while photos are taken. It runs the `march` keyframes over 0.9 seconds, at even speed (`linear`), for ever (`infinite`).
 
-@@ 12
+@@ 14
 `--animate-rise` — cards fade in while rising 8 pixels, in 0.45 seconds. `cubic-bezier(0.2, 0.8, 0.2, 1)` describes the speed curve: fast at first, then gently slowing to a stop, which feels natural. `both` keeps the starting state before the animation begins and the end state after it.
 
-@@ 14-18
+@@ 16-20
 `@keyframes march` — the animation's steps. It only says the end state: the outline's dash pattern shifted by 32 units. Repeating that endlessly makes the dashes appear to travel around the oval.
 
-@@ 20-29
+@@ 22-31
 `@keyframes rise` — from invisible and 8 pixels lower, to fully visible in its place.
 
-@@ 30
+@@ 32
 The end of the theme.
 
-@@ 32-34
+@@ 34-36
 `color-scheme: light dark` — tells the browser that the page supports both light and dark modes, so its own parts — scrollbars, form controls — follow the visitor's system setting too.
 
 !!! key "Respecting reduced motion"

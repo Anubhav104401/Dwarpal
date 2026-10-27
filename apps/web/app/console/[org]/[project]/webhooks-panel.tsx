@@ -190,8 +190,8 @@ export function WebhooksPanel({ client, org, project, livemode }: Props) {
         <fieldset>
           <legend className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Events</legend>
           {EVENT_TYPES.map((type) => (
-            <label key={type} className="mt-1 flex items-center gap-2 text-sm">
-              <input type="checkbox" name="events" value={type} defaultChecked />
+            <label key={type} className="flex min-h-8 items-center gap-2 text-sm">
+              <input type="checkbox" className="size-4" name="events" value={type} defaultChecked />
               <code className="text-xs">{type}</code>
             </label>
           ))}

@@ -1,5 +1,5 @@
 ---
-fingerprint: 0ad4a2ed02e4abe1
+fingerprint: 5fd7f2f384face69
 ---
 **The verify flow** — every screen a person sees during an age check, and the logic that moves between them. It is a **state machine** like the API's session (§5.1.2), but for the screen: at any moment the page is in exactly one **stage**, and each stage draws one screen.
 
@@ -185,7 +185,7 @@ From here on, every stage has a session: take it out, and make the label for the
 **The intro**: the heading names the age; the paragraph names the website.
 
 @@ 225-234
-The three promises as a **numbered list** (`<ol>`). `PROMISES.map(…)` turns each text into a list item; React needs a stable **`key`** for every item of a list, to tell them apart between redraws — the text itself serves. Each number sits in a small saffron circle.
+The three promises as a **numbered list** (`<ol>`). `PROMISES.map(…)` turns each text into a list item; React needs a stable **`key`** for every item of a list, to tell them apart between redraws — the text itself serves. Each number sits in a small saffron circle, in the darker `brand-700` so it is readable (§5.5.5).
 
 @@ 235-241
 "Start the camera" moves to the camera stage, with no tip yet. The camera is only switched on *after* the person has read what will happen, and clicked.

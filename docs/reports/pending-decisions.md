@@ -10,10 +10,10 @@ Work that needs your answer — a download, a design choice, an account, or some
 | :-: | :-- |
 | D12 | **Approved**: Next.js 16.4.0 → 16.4.2 (`next`, `@next/swc-win32-x64-msvc`, `@next/env`) in both apps; done first |
 | C1 | **Keep Geist**; the design system builds on it |
-| D13 | **Approved**: `qrcode` 1.5.4 (+ `pngjs`, `yargs`, `dijkstrajs`) and `@types/qrcode` 1.5.6 |
-| D4 | **Approved**: `@axe-core/playwright` 4.14.0 (+ `axe-core` 4.14.0) |
-| D3 | **Approved**: Playwright 1.64.0's Firefox and WebKit browsers (~200 MB, Playwright's CDN) |
-| D5 | **Approved**: `@lhci/cli` 0.15.1 (+ `lighthouse` 13.5.0 and its dependencies) |
+| D13 | **Done** (QR code on the Security page). **Approved**: `qrcode` 1.5.4 (+ `pngjs`, `yargs`, `dijkstrajs`) and `@types/qrcode` 1.5.6 |
+| D4 | **Done** (axe tests, clean). **Approved**: `@axe-core/playwright` 4.14.0 (+ `axe-core` 4.14.0) |
+| D3 | **Done**: WebKit passes; Firefox installed but **can't start on this Windows build** (side-by-side error; runs on CI). **Approved**: Playwright 1.64.0's Firefox and WebKit browsers (~200 MB, Playwright's CDN) |
+| D5 | **Done** (Lighthouse ≥ 90; uses Playwright's headless shell). **Approved**: `@lhci/cli` 0.15.1 (+ `lighthouse` 13.5.0 and its dependencies) |
 | D1, D2 | Not approved yet (`three` 0.186.1, 20.4 MB; `next-intl` 4.14.9 with `@swc/core`) — marketing hero and Hindi wait |
 | D6–D11 | To prepare next: exact files, sources and sizes will be brought back for approval before any download |
 | O1 | The owner creates an empty private GitHub repository and gives its URL; push only after the owner confirms |
@@ -36,6 +36,7 @@ Work that needs your answer — a download, a design choice, an account, or some
 | D11 | OpenTelemetry SDK + collector, Grafana | Phase 7 observability | |
 | ~~D12~~ | ~~Upgrade Next.js 16.4.0 → 16.4.2~~ | **done 27 Oct** — both apps on 16.4.2; `pnpm audit`: no known vulnerabilities; all checks and the 7 browser tests pass | |
 | D13 | A QR-code library for the web app (e.g. `qrcode`, npm; version and size to be confirmed when asked) | Phase 5: a QR code on the console's *Security* page, so phones can scan the one-time-code secret (today: text and an `otpauth://` link) | |
+| D14 | Patched versions of Lighthouse CI's dependencies, forced with `pnpm.overrides`, from registry.npmjs.org: `tmp` 0.2.6 (40 KB), `uuid` 11.1.1 (134 KB), `basic-ftp` 6.2.1 (155 KB), `zod` 4.6.6 (6.1 MB); and `body-parser` 1.20.9 (62 KB), released 22 Oct, so only after 29 Oct (cooldown). `extract-zip` has **no** fixed version | clears 7 of `pnpm audit`'s 8 findings (1 low, 1 moderate, 6 high), all in development-only tools run against local servers; nothing ships in the apps | overriding may break Lighthouse CI: re-run its test after |
 
 ## Design choices
 

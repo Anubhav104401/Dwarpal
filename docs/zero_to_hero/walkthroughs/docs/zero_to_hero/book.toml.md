@@ -1,5 +1,5 @@
 ---
-fingerprint: 837d7abc704434a9
+fingerprint: edeea4716450b135
 ---
 `book.toml` holds the book's **settings**. Keeping settings in a separate file, rather than inside `build.py`, means you can add a chapter or change the title **without touching any program code**. "Separate the *what* from the *how*" is one of the oldest good habits in software.
 
@@ -78,7 +78,7 @@ Markdown (`.md`) is deliberately not included: it is prose, not code.
 
 `docs/api/openapi.json` (Phase 4) — the API's published OpenAPI document: almost 5,000 lines that `cli openapi` writes from the code itself. The code that produces it is explained line by line instead (`http/problems.py`, `cli.py`), and a test fails if the file and the code ever disagree.
 
-@@ 33-36
+@@ 33-37
 `prune = [ … ]` lists **folder names the scanner never enters**, because they hold things we didn't write:
 
 - Git's own history (`.git`);
@@ -89,7 +89,7 @@ Markdown (`.md`) is deliberately not included: it is prose, not code.
 - training runs and experiment logs (`.runs`, `mlruns`);
 - the builder's own snapshots (`.snapshots`) — copies of code, which would otherwise be counted twice;
 - local AI-assistant settings (`.claude`), which are not part of the project and are never committed (see `.gitignore`);
-- the end-to-end tests' results (`test-results`, `playwright-report`), recreated on every run (added in Phase 1).
+- the end-to-end tests' results (`test-results`, `playwright-report`), recreated on every run (added in Phase 1), and Lighthouse CI's scratch folder (`.lighthouseci`, Phase 5).
 
 !!! warn "Careful — a loophole we closed"
     An earlier version also pruned folders called `data` and `build`. That was a hidden loophole: a real code folder named, say, `ml/data/` would silently escape the check. Only names that are *always* generated or downloaded are pruned. That is also why the training data folder is deliberately called `.datasets`.

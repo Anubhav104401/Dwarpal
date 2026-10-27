@@ -1,5 +1,5 @@
 ---
-fingerprint: 496260b0d7c39298
+fingerprint: d74b8d77c1f9f035
 ---
 The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page, adds a policy version and a webhook endpoint; a wrong password is refused without revealing whether the account exists; and a member turns on one-time codes, after which signing in needs one.
 
@@ -84,17 +84,17 @@ End of the test.
 @@ 92-97
 Create an account.
 
-@@ 99-101
-Open *Security*, start setting up, and read the secret the page shows — as a person would type it into their app.
+@@ 99-102
+Open *Security* and start setting up: a QR code appears. Read the secret the page shows in text, as a person would type it into their app.
 
-@@ 102-104
+@@ 103-105
 Enter the current code and turn it on: the page says "On."
 
-@@ 106-111
+@@ 107-112
 Sign out, and sign in with the password alone: the console asks for a code. A code works only once, so the test uses the next 30 seconds' code, which the API accepts for clocks that run a little fast.
 
-@@ 112-116
+@@ 113-117
 Enter it and sign in: the organisations appear.
 
-@@ 117
+@@ 118
 End of the test.

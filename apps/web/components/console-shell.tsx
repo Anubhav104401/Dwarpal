@@ -45,7 +45,7 @@ export function ConsoleShell({ children, aside }: { children: ReactNode; aside?:
       <header className="flex items-center gap-2.5 border-b border-zinc-200 pb-4 dark:border-white/10">
         <Mark />
         <span className="text-[15px] font-semibold tracking-tight">Dwarpal</span>
-        <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-xs font-semibold text-brand-600">
+        <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-xs font-semibold text-brand-700 dark:text-brand-300">
           Console
         </span>
         <div className="ml-auto flex items-center gap-2 text-sm">{aside}</div>

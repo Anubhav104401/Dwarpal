@@ -1,5 +1,5 @@
 ---
-fingerprint: 09413fdb4be347f4
+fingerprint: 2e30e33b6732a20d
 ---
 The package description of **`@dwarpal/web`** — the **hosted verify page**: the website a person is sent to by a shop, where they take the age check with their camera. It is built with **Next.js** (§4.17), the React framework chosen in ADR-0012.
 
@@ -35,19 +35,20 @@ The scripts:
 @@ 13
 The end of the scripts.
 
-@@ 14-20
+@@ 14-21
 What the page needs to run, each pinned exactly:
 
 - `geist` — the **Geist** typeface, as font files inside the package (its licence, the SIL Open Font License, allows exactly this). The page serves the fonts itself, so a visitor's browser never contacts a font service;
 - `next` 16.4.2 — the framework (upgraded from 16.4.0 on 27 Oct 2026 to fix two critical remote-code-execution flaws and a denial-of-service flaw that `pnpm audit` reported);
+- `qrcode` 1.5.4 (Phase 5, approved as D13) — draws the QR code on the console's *Security* page;
 - `react` and `react-dom` 19.3.0 — the library that draws the page (§4.16), and its part for web browsers.
 
 Each version was at least seven days old when chosen — the workspace's cooldown rule (`pnpm-workspace.yaml`).
 
 Added in Phase 3: `@mediapipe/tasks-vision` 1.1.0 — Google's **MediaPipe** vision tasks for the browser (Apache-2.0), which includes the face landmarker used for live guidance (`lib/landmarker.ts`). Version 1.1.1 existed, but was less than a week old.
 
-@@ 21-30
-What's needed only to develop and build it: the shared TypeScript settings; **Tailwind CSS** and its PostCSS plugin (§4.18); type descriptions of Node.js, React and React DOM; the TypeScript compiler; and Vitest.
+@@ 22-32
+What's needed only to develop and build it: the shared TypeScript settings; **Tailwind CSS** and its PostCSS plugin (§4.18); type descriptions of Node.js, `qrcode`, React and React DOM; the TypeScript compiler; and Vitest.
 
-@@ 31
+@@ 33
 The closing brace.

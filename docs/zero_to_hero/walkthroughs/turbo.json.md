@@ -1,5 +1,5 @@
 ---
-fingerprint: 5226bc6fa664c942
+fingerprint: b6054a7e4cd65028
 ---
 `turbo.json` configures **Turborepo**: which tasks exist, the order they must run in, and what can be cached (§4.4).
 
@@ -39,7 +39,7 @@ If nothing in a package changed, the next build restores these files from the ca
 **`e2e`** — the end-to-end test (added in Phase 1):
 
 - `"dependsOn": ["^build"]` — build the packages it depends on first: the SDK and both web apps;
-- `"passThroughEnv": ["UV", "CI"]` — Turborepo runs tasks in a **strict environment**: a task sees only the environment variables it was told about, so that no stray setting can change a result without anyone knowing. This line lets two through: `UV` (where the uv program is, on machines where it isn't on the `PATH`) and `CI` (set by GitHub Actions, which makes the test stricter there);
+- `"passThroughEnv": [...]` — Turborepo runs tasks in a **strict environment**: a task sees only the environment variables it was told about, so that no stray setting can change a result without anyone knowing. This line lets three through: `UV` (where the uv program is, on machines where it isn't on the `PATH`), `CI` (set by GitHub Actions, which makes the test stricter there), and `E2E_ENGINES` (which browser engines to test, Phase 5);
 - `"cache": false` — never reuse an old result: the test checks the live system, which a cached "passed" would hide.
 
 !!! real "Real world — the variable that vanished"

@@ -15,7 +15,7 @@
     },
     "e2e": {
       "dependsOn": ["^build"],
-      "passThroughEnv": ["UV", "CI"],
+      "passThroughEnv": ["UV", "CI", "E2E_ENGINES"],
       "cache": false
     },
     "dev": {
