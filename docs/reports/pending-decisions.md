@@ -15,7 +15,8 @@ Work that needs your answer — a download, a design choice, an account, or some
 | D3 | **Done**: WebKit passes; Firefox installed but **can't start on this Windows build** (side-by-side error; runs on CI). **Approved**: Playwright 1.64.0's Firefox and WebKit browsers (~200 MB, Playwright's CDN) |
 | D5 | **Done** (Lighthouse ≥ 90; uses Playwright's headless shell). **Approved**: `@lhci/cli` 0.15.1 (+ `lighthouse` 13.5.0 and its dependencies) |
 | D1, D2 | Not approved yet (`three` 0.186.1, 20.4 MB; `next-intl` 4.14.9 with `@swc/core`) — marketing hero and Hindi wait |
-| D6–D11 | **Details ready** (27 Oct): exact versions, sources, sizes and licences are in the Downloads table below, for approval item by item. All versions passed the 7-day cooldown |
+| D6–D11 | **Approved 27 Oct** ("approved", after the details below were listed), with the recommendations as written: Tesseract's own `eng` model limited to MRZ characters before any OCR-B model (D6c); SFace's training data checked before it is used (D7); UIDAI material from uidai.gov.in only (D8) |
+| D14 | **Done 27 Oct** for `tmp` 0.2.6, `uuid` 11.1.1, `basic-ftp` 6.2.1, `zod` 4.6.6 (`pnpm-workspace.yaml` overrides; Lighthouse test still passes): `pnpm audit` 8 → 4 findings. Left: `body-parser` 1.20.9 after 29 Oct (cooldown); `extract-zip` has no fix; and a **new** advisory (GHSA-7c78-jf6q-g5cm) says `tmp` 0.2.6 is affected too — fixed in **0.2.7** (40 KB, registry.npmjs.org, 27 May 2026): **needs approval** (D14b) |
 | O1 | The owner creates an empty private GitHub repository and gives its URL; push only after the owner confirms |
 | O6 | Placeholder stays in the practice statement; publishing it stays blocked |
 

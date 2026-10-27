@@ -1,5 +1,5 @@
 ---
-fingerprint: 2da3294a61a90791
+fingerprint: 926f2c3a09abb872
 ---
 This file tells pnpm that this repository is a **workspace**: several JavaScript packages managed together, installed together and able to depend on each other (§4.4).
 
@@ -28,3 +28,9 @@ Why wait? When an attacker takes over a popular package and publishes a poisoned
 
 !!! key "A cooldown that checks itself"
     pnpm also checks the cooldown when it reads an *existing* lockfile. On its first run it caught `turbo` 2.11.8, pinned in Phase 0 only two days after its release, and refused to go on until it was replaced (see `package.json`).
+
+@@ 8-9
+**`overrides`** (Phase 5, decision D14) — versions pnpm must use for a package wherever it appears in the tree, whatever the package that asked for it wanted. Lighthouse CI (§5.5.5) brought older versions of these four with known flaws (`pnpm audit`); these are the fixed ones. They are development tools only — nothing here reaches the apps.
+
+@@ 10-13
+The four: `tmp` (temporary files), `uuid` (random IDs), `basic-ftp` (an FTP client deep in Lighthouse's proxy support) and `zod` (data validation in the browser driver). Three of them jump a major version, which can break a program; the Lighthouse test ran after the change and still passed.
