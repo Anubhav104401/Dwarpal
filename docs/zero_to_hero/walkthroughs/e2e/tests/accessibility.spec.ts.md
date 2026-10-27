@@ -1,5 +1,5 @@
 ---
-fingerprint: 4549560a10a99690
+fingerprint: f9d745b52f7818f7
 ---
 The accessibility checks (Phase 5's exit criterion "axe clean"): **axe** inspects each key page against the rules of WCAG 2.2 at levels A and AA, on every browser engine, and the test fails if any rule is broken — naming the rule and the elements.
 
@@ -53,3 +53,15 @@ The *Security* page, with a QR code on show.
 
 @@ 62
 End of the test.
+
+@@ 64-66
+**Test — the design system's specimen** (§5.5.6), in both themes.
+
+@@ 67-68
+For the light theme, then the dark: tell the browser to report that colour scheme (`emulateMedia`), as a visitor's system setting would.
+
+@@ 69-71
+Open the specimen; once its heading is there, no rule may be broken — the failure message names the theme.
+
+@@ 72-73
+End of the loop and the test.

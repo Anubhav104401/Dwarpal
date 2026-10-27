@@ -60,3 +60,14 @@ test("the console's pages break no accessibility rule", async ({ page }) => {
   await expect(page.getByRole("img", { name: /QR code/ })).toBeVisible();
   expect(await violations(page)).toEqual([]);
 });
+
+test("the design system's specimen breaks no accessibility rule, in the light or the dark theme", async ({
+  page,
+}) => {
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.goto("http://localhost:3000/design");
+    await expect(page.getByRole("heading", { name: "Design system" })).toBeVisible();
+    expect(await violations(page), `${colorScheme} theme`).toEqual([]);
+  }
+});

@@ -12,6 +12,7 @@ import {
   quietButton,
   smallButton,
 } from "@/components/console-shell";
+import { Badge } from "@/components/ui";
 import {
   type AuditLog,
   CAN,
@@ -100,7 +101,7 @@ export function OrganisationView({ org }: { org: string }) {
   if (state === null) {
     return (
       <ConsoleShell>
-        {error === null ? <p className="text-sm text-zinc-500">Loading…</p> : <Alert>{error}</Alert>}
+        {error === null ? <p className="text-sm text-ink-500">Loading…</p> : <Alert>{error}</Alert>}
       </ConsoleShell>
     );
   }
@@ -127,12 +128,12 @@ export function OrganisationView({ org }: { org: string }) {
           <Link className={quietButton} href="/console">
             All organisations
           </Link>
-          <span className="hidden text-zinc-500 sm:inline">{me.email}</span>
+          <span className="hidden text-ink-500 sm:inline">{me.email}</span>
         </>
       }
     >
       <h1 className="text-2xl font-semibold tracking-tight">{name}</h1>
-      <p className="mt-1 text-sm text-zinc-500">
+      <p className="mt-1 text-sm text-ink-500">
         Your role: <span className="capitalize">{role}</span>
       </p>
       {error === null ? null : (
@@ -146,7 +147,7 @@ export function OrganisationView({ org }: { org: string }) {
           <h2 id="members" className="text-lg font-semibold">
             Members
           </h2>
-          <ul className="mt-3 divide-y divide-zinc-200 dark:divide-white/10">
+          <ul className="mt-3 divide-y divide-ink-200 dark:divide-white/10">
             {members.map((m) => (
               <li key={m.user} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
                 <span className="break-all">{m.email}</span>
@@ -154,7 +155,7 @@ export function OrganisationView({ org }: { org: string }) {
                   <span className="flex items-center gap-1">
                     <select
                       aria-label={`Role of ${m.email}`}
-                      className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-white/15 dark:bg-zinc-950"
+                      className="rounded-lg border border-ink-300 bg-white px-2 py-1 text-sm dark:border-white/15 dark:bg-ink-950"
                       value={m.role}
                       onChange={(event) => changeMember(m.user, event.target.value as Role)}
                     >
@@ -174,7 +175,7 @@ export function OrganisationView({ org }: { org: string }) {
                     </button>
                   </span>
                 ) : (
-                  <span className="capitalize text-zinc-500">{m.role}</span>
+                  <span className="capitalize text-ink-500">{m.role}</span>
                 )}
               </li>
             ))}
@@ -213,7 +214,7 @@ export function OrganisationView({ org }: { org: string }) {
                 >
                   {p.name}
                 </Link>{" "}
-                <code className="text-xs text-zinc-500">{p.id}</code>
+                <code className="text-xs text-ink-500">{p.id}</code>
               </li>
             ))}
           </ul>
@@ -240,9 +241,7 @@ export function OrganisationView({ org }: { org: string }) {
                 </select>
               </Field>
               <fieldset>
-                <legend className="mb-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  Scopes
-                </legend>
+                <legend className="mb-1.5 text-sm font-medium text-ink-700 dark:text-ink-300">Scopes</legend>
                 <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
                   {SCOPES.map((scope) => (
                     <label key={scope} className="flex items-center gap-1.5">
@@ -274,18 +273,12 @@ export function OrganisationView({ org }: { org: string }) {
             <h2 id="audit" className="text-lg font-semibold">
               Audit log
             </h2>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                audit.intact
-                  ? "bg-teal-500/15 text-teal-700 dark:text-teal-300"
-                  : "bg-red-500/15 text-red-700"
-              }`}
-            >
+            <Badge tone={audit.intact ? "success" : "danger"}>
               {audit.intact ? "Chain intact" : `Chain broken at entry ${audit.firstBroken}`}
-            </span>
+            </Badge>
           </div>
           <table className="mt-3 w-full text-left text-sm">
-            <thead className="text-xs uppercase text-zinc-500">
+            <thead className="text-xs uppercase text-ink-500">
               <tr>
                 <th className="py-2 pr-3 font-medium">#</th>
                 <th className="py-2 pr-3 font-medium">When</th>
@@ -293,15 +286,15 @@ export function OrganisationView({ org }: { org: string }) {
                 <th className="py-2 font-medium">Who</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200 dark:divide-white/10">
+            <tbody className="divide-y divide-ink-200 dark:divide-white/10">
               {audit.entries.map((e) => (
                 <tr key={e.seq}>
-                  <td className="py-2 pr-3 tabular-nums text-zinc-500">{e.seq}</td>
+                  <td className="py-2 pr-3 tabular-nums text-ink-500">{e.seq}</td>
                   <td className="py-2 pr-3 tabular-nums">{new Date(e.createdAt).toLocaleString()}</td>
                   <td className="py-2 pr-3">
                     <code>{e.action}</code>
                   </td>
-                  <td className="py-2 text-zinc-500">{e.actor}</td>
+                  <td className="py-2 text-ink-500">{e.actor}</td>
                 </tr>
               ))}
             </tbody>

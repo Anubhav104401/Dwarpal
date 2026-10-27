@@ -1,6 +1,6 @@
 # Phase 5 report — front-end excellence
 
-**Dates:** from 26 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** 🟡 in progress — the console is built and tested; the exit tests are built and pass on Chromium and WebKit (Firefox can't start on this computer, so it waits for CI); the design system is next (Geist kept); the marketing site and Hindi wait for downloads ([pending decisions](pending-decisions.md)).
+**Dates:** from 26 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** 🟡 in progress — the console is built and tested; the exit tests are built and pass on Chromium and WebKit (Firefox can't start on this computer, so it waits for CI); the design system's first version is built (Geist kept); the marketing site and Hindi wait for downloads ([pending decisions](pending-decisions.md)).
 
 **Exit (from the roadmap):** Lighthouse ≥ 90 in all categories on key pages; axe clean; Playwright passes on Chromium, Firefox and WebKit.
 
@@ -15,6 +15,7 @@
 | Accessibility | labels tied to controls; `role="alert"` errors; `role="status"` for the new key; sections named by headings; tests locate by role and label |
 | Book | §5.5, §5.5.1–§5.5.4; thirteen new walkthroughs; seventeen re-explained |
 
+| Design system | OKLCH tokens in `globals.css` (ink, saffron, teal; display size; Geist Sans and Mono; motion presets); `components/ui.tsx` (button tones and sizes, panel, card, input, field, alert, notice, badge); specimen at `/design`, axe-checked in light and dark; every page moved from zinc to ink |
 | Exit tests | Playwright projects for Chromium, Firefox, WebKit (`E2E_ENGINES` picks); axe on shop, verify page and every console page (WCAG 2.2 A/AA); Lighthouse CI on the shop, console sign-in and verify page (≥ 0.9 in each category; private pages must stay `noindex`); QR code on the Security page |
 
 ## What was measured
@@ -40,5 +41,5 @@
 
 ## Open items
 
-1. Design system on Geist (C1 decided); marketing site (D1) and Hindi (D2) not approved; Firefox proof on CI (O1); Lighthouse CI dependency fixes (D14).
+1. Design system: a display serif, the console's sidebar and command palette, and token colours for the verify flow's icons; marketing site (D1) and Hindi (D2) not approved; Firefox proof on CI (O1); Lighthouse CI dependency fixes (D14).
 2. Console pages still to build without new packages: search and filters for sessions; switching a webhook endpoint off; switching one-time codes off or resetting them, recovery codes; a browser test for member controls. QR code for one-time codes needs a library (download). (Sessions, traces, counts, policies, webhooks, one-time-code set-up, member roles: done.)

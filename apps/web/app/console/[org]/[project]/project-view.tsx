@@ -45,15 +45,15 @@ function ScoreList({ scores }: { scores: Record<string, unknown> }) {
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
         {plain.map(([name, value]) => (
           <div key={name} className="contents">
-            <dt className="text-zinc-500">{name}</dt>
+            <dt className="text-ink-500">{name}</dt>
             <dd className="font-mono">{String(value)}</dd>
           </div>
         ))}
       </dl>
       {nested.map(([name, value]) => (
         <details key={name} className="text-xs">
-          <summary className="cursor-pointer text-zinc-500">{name}</summary>
-          <pre className="mt-1 overflow-x-auto rounded-lg bg-zinc-100 p-2 dark:bg-zinc-950">
+          <summary className="cursor-pointer text-ink-500">{name}</summary>
+          <pre className="mt-1 overflow-x-auto rounded-lg bg-ink-100 p-2 dark:bg-ink-950">
             {JSON.stringify(value, null, 2)}
           </pre>
         </details>
@@ -119,7 +119,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
   if (state === null) {
     return (
       <ConsoleShell>
-        {error === null ? <p className="text-sm text-zinc-500">Loading…</p> : <Alert>{error}</Alert>}
+        {error === null ? <p className="text-sm text-ink-500">Loading…</p> : <Alert>{error}</Alert>}
       </ConsoleShell>
     );
   }
@@ -149,14 +149,14 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{projectName}</h1>
-          <p className="mt-1 text-xs text-zinc-500">{project}</p>
+          <p className="mt-1 text-xs text-ink-500">{project}</p>
         </div>
-        <fieldset className="flex rounded-xl border border-zinc-300 p-1 text-sm dark:border-white/15">
+        <fieldset className="flex rounded-xl border border-ink-300 p-1 text-sm dark:border-white/15">
           <legend className="sr-only">Mode</legend>
           {[false, true].map((live) => (
             <label
               key={String(live)}
-              className={`cursor-pointer rounded-lg px-3 py-1.5 ${livemode === live ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : ""}`}
+              className={`cursor-pointer rounded-lg px-3 py-1.5 ${livemode === live ? "bg-ink-900 text-white dark:bg-white dark:text-ink-900" : ""}`}
             >
               <input
                 type="radio"
@@ -181,13 +181,13 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
           Last 30 days
         </h2>
         {outcomes.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-500">No finished checks yet.</p>
+          <p className="mt-2 text-sm text-ink-500">No finished checks yet.</p>
         ) : (
           <ul className="mt-3 flex flex-wrap gap-3">
             {outcomes.map(([outcome, count]) => (
-              <li key={outcome} className="rounded-xl border border-zinc-200 px-4 py-2 dark:border-white/10">
+              <li key={outcome} className="rounded-xl border border-ink-200 px-4 py-2 dark:border-white/10">
                 <span className="block text-2xl font-semibold tabular-nums">{count}</span>
-                <span className="text-xs capitalize text-zinc-500">{outcome.replace("_", " ")}</span>
+                <span className="text-xs capitalize text-ink-500">{outcome.replace("_", " ")}</span>
               </li>
             ))}
           </ul>
@@ -200,10 +200,10 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
             Sessions
           </h2>
           {page.sessions.length === 0 ? (
-            <p className="mt-2 text-sm text-zinc-500">No sessions yet.</p>
+            <p className="mt-2 text-sm text-ink-500">No sessions yet.</p>
           ) : (
             <table className="mt-3 w-full text-left text-sm">
-              <thead className="text-xs uppercase text-zinc-500">
+              <thead className="text-xs uppercase text-ink-500">
                 <tr>
                   <th className="py-2 pr-3 font-medium">Created</th>
                   <th className="py-2 pr-3 font-medium">Status</th>
@@ -213,7 +213,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-white/10">
+              <tbody className="divide-y divide-ink-200 dark:divide-white/10">
                 {page.sessions.map((s) => (
                   <tr key={s.id}>
                     <td className="py-2 pr-3 tabular-nums">{new Date(s.createdAt).toLocaleString()}</td>
@@ -245,7 +245,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
             Decision trace
           </h2>
           {trace === null ? (
-            <p className="mt-2 text-sm text-zinc-500">Choose a session to see why it ended as it did.</p>
+            <p className="mt-2 text-sm text-ink-500">Choose a session to see why it ended as it did.</p>
           ) : (
             <div className="mt-2 text-sm">
               <p>
@@ -256,10 +256,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
               </p>
               <ol className="mt-3 space-y-3">
                 {trace.traced.map((a, index) => (
-                  <li
-                    key={a.createdAt}
-                    className="rounded-xl border border-zinc-200 p-3 dark:border-white/10"
-                  >
+                  <li key={a.createdAt} className="rounded-xl border border-ink-200 p-3 dark:border-white/10">
                     <p className="font-medium">
                       Attempt {index + 1}: {a.outcome}
                       {a.reasons.length > 0 ? ` (${a.reasons.join(", ")})` : ""}
@@ -268,7 +265,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
                   </li>
                 ))}
               </ol>
-              {trace.traced.length === 0 ? <p className="mt-2 text-zinc-500">No attempts.</p> : null}
+              {trace.traced.length === 0 ? <p className="mt-2 text-ink-500">No attempts.</p> : null}
             </div>
           )}
         </section>
@@ -279,7 +276,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
           Policies
         </h2>
         <table className="mt-3 w-full text-left text-sm">
-          <thead className="text-xs uppercase text-zinc-500">
+          <thead className="text-xs uppercase text-ink-500">
             <tr>
               <th className="py-2 pr-3 font-medium">Policy</th>
               <th className="py-2 pr-3 font-medium">Age</th>
@@ -287,12 +284,11 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
               <th className="py-2 font-medium">Attempts</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-white/10">
+          <tbody className="divide-y divide-ink-200 dark:divide-white/10">
             {policies.map((p) => (
               <tr key={p.id}>
                 <td className="py-2 pr-3">
-                  <code>{p.id}</code>{" "}
-                  {p.preset ? <span className="text-xs text-zinc-500">preset</span> : null}
+                  <code>{p.id}</code> {p.preset ? <span className="text-xs text-ink-500">preset</span> : null}
                 </td>
                 <td className="py-2 pr-3 tabular-nums">{p.minAge}+</td>
                 <td className="py-2 pr-3 tabular-nums">{(p.riskBudget * 100).toFixed(1)} %</td>

@@ -188,7 +188,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     return (
       <Shell>
         <div className={`${card} grid h-64 place-items-center`} aria-busy="true">
-          <p className="text-sm text-zinc-500">Opening your age check…</p>
+          <p className="text-sm text-ink-500">Opening your age check…</p>
         </div>
       </Shell>
     );
@@ -198,13 +198,13 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     return (
       <Shell>
         <section className={card}>
-          <Icon tone="bg-zinc-500/15 text-zinc-600 dark:text-zinc-300">
+          <Icon tone="bg-ink-500/15 text-ink-600 dark:text-ink-300">
             <path d="M12 8v5m0 3.5h.01M10.3 3.9L2.6 17.3A2 2 0 0 0 4.3 20.3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
           </Icon>
           <h1 className="mt-5 text-2xl font-semibold tracking-tight">{stage.problem.title}</h1>
-          <p className="mt-2 leading-relaxed text-zinc-600 dark:text-zinc-400">{stage.problem.detail}</p>
+          <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">{stage.problem.detail}</p>
           {stage.requestId === null ? null : (
-            <p className="mt-6 font-mono text-xs text-zinc-500">Reference: {stage.requestId}</p>
+            <p className="mt-6 font-mono text-xs text-ink-500">Reference: {stage.requestId}</p>
           )}
         </section>
       </Shell>
@@ -219,7 +219,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
       <Shell label={label}>
         <section className={card}>
           <h1 className="text-2xl font-semibold tracking-tight">Confirm you are {session.minAge} or over</h1>
-          <p className="mt-2 leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">
             {session.projectName} asks for a quick age check before you continue.
           </p>
           <ol className="mt-6 space-y-3">
@@ -254,7 +254,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
             onCaptured={(captured) => onCaptured(session, captured)}
             onCameraError={onCameraError}
           />
-          <p className="mt-4 text-center text-xs text-zinc-500">
+          <p className="mt-4 text-center text-xs text-ink-500">
             {session.attemptsRemaining === 1 ? "Last try" : `${session.attemptsRemaining} tries left`}
           </p>
         </section>
@@ -271,7 +271,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
             <p className="mt-5 font-medium" role="status">
               Checking your photos…
             </p>
-            <p className="mt-1 text-sm text-zinc-500">This takes a second.</p>
+            <p className="mt-1 text-sm text-ink-500">This takes a second.</p>
           </div>
         </section>
       </Shell>
@@ -286,7 +286,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
           <path d={ending.path} strokeLinecap="round" strokeLinejoin="round" />
         </Icon>
         <h1 className="mt-5 text-2xl font-semibold tracking-tight">{ending.title}</h1>
-        <p className="mt-2 leading-relaxed text-zinc-600 dark:text-zinc-400">{ending.body(session)}</p>
+        <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">{ending.body(session)}</p>
         <button type="button" className={`${primaryButton} mt-8`} disabled={leaving} onClick={leave}>
           {leaving ? "Returning…" : `Continue to ${session.projectName}`}
         </button>

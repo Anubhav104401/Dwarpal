@@ -221,7 +221,7 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
             </div>,
             document.body,
           )}
-      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-black/5 dark:ring-white/10">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-ink-900 ring-1 ring-black/5 dark:ring-white/10">
         <video
           ref={video}
           autoPlay
@@ -232,7 +232,7 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
         />
         <FaceGuide active={running} good={guide?.good ?? false} />
         {ready ? null : (
-          <p className="absolute inset-0 grid place-items-center text-sm text-zinc-300">
+          <p className="absolute inset-0 grid place-items-center text-sm text-ink-300">
             Starting the camera…
           </p>
         )}
@@ -243,7 +243,7 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
               // How far the head has got: it fills as the person turns, so they can see when it is enough.
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20" aria-hidden="true">
                 <div
-                  className={`h-full rounded-full transition-[width] duration-100 ${reach === 1 ? "bg-emerald-400" : "bg-brand-400"}`}
+                  className={`h-full rounded-full motion-safe:transition-[width] motion-safe:duration-100 ${reach === 1 ? "bg-emerald-400" : "bg-brand-400"}`}
                   style={{ width: `${reach * 100}%` }}
                 />
               </div>
@@ -253,7 +253,7 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
       </div>
       <p
         aria-live="polite"
-        className="mt-4 min-h-12 text-center text-[15px] leading-relaxed text-zinc-700 dark:text-zinc-300"
+        className="mt-4 min-h-12 text-center text-[15px] leading-relaxed text-ink-700 dark:text-ink-300"
       >
         {message}
       </p>

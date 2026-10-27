@@ -72,7 +72,7 @@ export function ConsoleHome() {
   if (me === undefined) {
     return (
       <ConsoleShell>
-        <p className="text-sm text-zinc-500" aria-live="polite">
+        <p className="text-sm text-ink-500" aria-live="polite">
           Loading…
         </p>
       </ConsoleShell>
@@ -84,7 +84,7 @@ export function ConsoleHome() {
       <ConsoleShell
         aside={
           <>
-            <span className="hidden text-zinc-500 sm:inline">{me.email}</span>
+            <span className="hidden text-ink-500 sm:inline">{me.email}</span>
             <Link className={quietButton} href="/console/account">
               Security
             </Link>
@@ -100,10 +100,10 @@ export function ConsoleHome() {
             <li key={org.id}>
               <Link
                 href={`/console/${org.id}`}
-                className={`${panel} block transition hover:border-brand-500`}
+                className={`${panel} block motion-safe:transition hover:border-brand-500`}
               >
                 <span className="block font-semibold">{org.name}</span>
-                <span className="mt-1 block text-sm capitalize text-zinc-500">{org.role}</span>
+                <span className="mt-1 block text-sm capitalize text-ink-500">{org.role}</span>
               </Link>
             </li>
           ))}
@@ -119,7 +119,7 @@ export function ConsoleHome() {
         <h1 className="text-2xl font-semibold tracking-tight">
           {signingUp ? "Create an account" : "Sign in"}
         </h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-sm text-ink-600 dark:text-ink-400">
           For the people who run websites with Dwarpal. The people whose age is checked never need an account.
         </p>
         <form className="mt-6 space-y-4" onSubmit={submit}>

@@ -1,5 +1,5 @@
 ---
-fingerprint: 51f692fb93f8ffe7
+fingerprint: 97774f883d73a016
 ---
 The *Security* page (Phase 5, §5.5.4): whether one-time codes are on, and, if not, setting them up — show a new secret, then confirm a code from the person's authenticator app. Until a code is confirmed, nothing changes: a secret typed in wrongly can't lock anyone out.
 

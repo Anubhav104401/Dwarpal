@@ -1,5 +1,5 @@
 ---
-fingerprint: 5e94acc1cb725fea
+fingerprint: faffe751d5ee61a5
 ---
 The console's **home** (Phase 5, §5.5.1): signing in, creating an account, and the list of a signed-in person's organisations. It runs in the browser (`"use client"`), because it holds what the person is typing and asks the API as they act.
 
@@ -75,7 +75,7 @@ Still asking: show *Loading…* in a region screen readers announce politely.
 The heading.
 
 @@ 98-110
-Each organisation as a card linking to its page, with the person's role in it.
+Each organisation as a card linking to its page, with the person's role in it. Its border turns saffron on hover, with a short transition — only for people who haven't asked for reduced motion (`motion-safe:`).
 
 @@ 111-113
 End of the signed-in view.

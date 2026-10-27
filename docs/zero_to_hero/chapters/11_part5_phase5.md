@@ -5,7 +5,7 @@ Phase 5 gives Dwarpal the faces people see: the console for its customers, a pol
 | Area | Status |
 | :-- | :-- |
 | **Console** — sign-in, organisations, members, keys, audit log | 🟡 first pages (§5.5.1); a project's sessions, decision traces, counts and policies (§5.5.2); webhooks (§5.5.3); one-time codes and member roles (§5.5.4); a command palette to come |
-| Design system — tokens, typography, components, motion | 🗓 next: Geist kept (decision C1); the brand colours in `globals.css` are already used |
+| Design system — tokens, typography, components, motion | 🟢 first version (§5.5.6): OKLCH tokens (midnight-indigo ink, saffron, teal), Geist Sans and Mono, a type scale, motion presets, shared components and a specimen page, checked in light and dark |
 | Marketing site (3D face-mesh hero) | 🗓 waits for an approved 3D library |
 | Verify flow in English and Hindi | 🗓 waits for an approved translation library |
 | Exit tests on three browser engines, accessibility and Lighthouse checks | 🟢 built (§5.5.5): Chromium and WebKit pass here, Firefox can't start on this computer; axe clean on the key pages; Lighthouse ≥ 90 |
@@ -157,3 +157,37 @@ The rest changed existing files, each re-explained in its walkthrough: the Secur
 
 !!! honest "Honest limitation"
     Lighthouse CI brought 262 packages, and `pnpm audit` reports known flaws in eight of them (one low, one moderate, six high: `tmp`, `uuid`, `extract-zip`, `basic-ftp`, `zod`, `body-parser`). All are tools that run only on a developer's or CI machine, against local test servers, and none ships in the apps. Fixed versions exist for all but `extract-zip`, and installing them is a new download, so it waits for the owner (decision D14). Lighthouse scores also vary a few points from run to run.
+
+### 5.5.6 The design system
+
+The roadmap asks for a design system: tokens, typography, components, motion presets, light and dark. The owner kept **Geist** as the typeface (decision C1). The design also names shadcn/ui and the Motion library, but both are downloads nobody has approved, so this first version uses only what was already installed: Tailwind, and Geist's two families.
+
+- **Tokens** (`globals.css`). The colours are in OKLCH:
+    - **ink**, a midnight-indigo neutral scale;
+    - **saffron**, the accent;
+    - **teal**, for success.
+
+    Alongside them: a display type size that grows with the window, Geist Mono for code, and motion presets (one easing curve, three durations).
+- **Components** (`components/ui.tsx`): buttons in three tones and three sizes, panel and card, input and field, alert and notice, and badges in four tones. The console's and the verify page's shells pass them on under their old names, so the pages didn't have to change.
+- **A specimen** (`/design`) shows every token and component. The accessibility test checks it in **both** themes.
+
+!!! key "Key idea — change the tint, not the lightness"
+    Contrast — what the accessibility rules measure — depends almost entirely on **lightness**. The new ink scale keeps the lightness of every step of Tailwind's grey `zinc`, which the pages used before, and changes only the hue and a little chroma. So moving every page from grey to midnight indigo was a mechanical rename (`zinc-` → `ink-`), and every contrast the tests had measured stayed where it was. OKLCH makes this possible: in older colour models such as HSL, two colours with the same "lightness" number can look very different in brightness.
+
+!walk apps/web/components/ui.tsx
+
+!walk apps/web/app/design/page.tsx
+
+The rest changed existing files, each re-explained in its walkthrough:
+- the tokens (`globals.css`);
+- the two fonts and theme colours (`layout.tsx`);
+- the shells (`shell.tsx`, `console-shell.tsx`);
+- the renamed colours on every page;
+- the accessibility test.
+
+**Reduced motion, decided twice.** The first attempt switched off *all* animation for people who ask their system for less. Then the light challenge came to mind. It eases between colours on purpose, to stay far below three flashes a second, and forcing it to snap would make it harsher for exactly the people the setting protects. So the rule is narrower: decorative motion is written `motion-safe:…`, and that one protective fade always runs.
+
+**What the tests prove**: the specimen breaks no WCAG 2.2 A or AA rule in the light or the dark theme, on Chromium and WebKit; and every earlier page still passes axe and Lighthouse after the change of palette.
+
+!!! honest "Honest limitation"
+    This is a first version. There is no display serif for headlines, as the design suggested: that would be another download. The console has no sidebar or command palette yet. The verify flow's own icons still use Tailwind's emerald, rose and amber, not the tokens. And only the light and dark themes the visitor's system asks for exist — there is no switch on the page.

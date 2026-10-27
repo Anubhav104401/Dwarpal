@@ -1,5 +1,5 @@
 ---
-fingerprint: 4b70e6e1ff60190d
+fingerprint: 1eb3aeaf82511312
 ---
 A project's page in the console (Phase 5, §5.5.2): its counts for the last 30 days, its sessions with each one's **decision trace** — why it ended as it did, down to the numbers — and its policies, with a form to add a version. A switch chooses test or live data. Everything comes from the console API; the page decides nothing about who may do what — it only hides a form the API would refuse.
 
@@ -171,62 +171,62 @@ No session chosen yet: say what the panel is for.
 @@ 249-256
 Otherwise the session's ID, then its policy, status and outcome.
 
-@@ 257-262
+@@ 257-259
 Its attempts, in order, each in a box.
 
-@@ 263-266
+@@ 260-263
 "Attempt 1: pass" — with its reasons in brackets, if any.
 
-@@ 267
+@@ 264
 Its numbers.
 
-@@ 268-270
+@@ 265-267
 End of the attempt and the list.
 
-@@ 271
+@@ 268
 A session with no attempts says so.
 
-@@ 272-275
+@@ 269-272
 End of the trace, the panel and the side-by-side area.
 
-@@ 277-280
+@@ 274-277
 **Policies** — a panel.
 
-@@ 281-289
+@@ 278-286
 A table: the policy's label, its minimum age, its risk budget, and its face attempts.
 
-@@ 290-296
+@@ 287-292
 One row per policy: its label, marked "preset" if it's one of Dwarpal's own.
 
-@@ 297-299
+@@ 293-295
 Its minimum age ("18+"), its risk budget as a percentage to one decimal place, and its attempts.
 
-@@ 300-303
+@@ 296-299
 End of the row and the table.
 
-@@ 304-305
+@@ 300-301
 **The add form** — only for roles that may manage policies (`CAN.managePolicies`); the API checks again.
 
-@@ 306-308
+@@ 302-304
 The name: lower-case letters, digits and underscores, 3 to 40 characters, starting with a letter — the API's own rule, so the browser can say so before sending (`pattern`).
 
-@@ 309-317
+@@ 305-313
 The minimum age, from a short list: 13, 16, 18 (chosen at first) or 21.
 
-@@ 318-326
+@@ 314-322
 The face attempts, 1 to 5 (3 at first).
 
-@@ 327-329
+@@ 323-325
 The button.
 
-@@ 330-331
+@@ 326-327
 End of the form, if shown.
 
-@@ 332
+@@ 328
 End of the policies panel.
 
-@@ 334-336
+@@ 330-332
 **Webhooks** — for roles that may manage them, the panel, given the page's own client (it holds the CSRF token) and the current mode.
 
-@@ 337-339
+@@ 333-335
 End of the page and `ProjectView`.

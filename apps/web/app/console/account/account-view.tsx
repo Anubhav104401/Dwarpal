@@ -67,7 +67,7 @@ export function AccountView() {
         {error !== null ? (
           <Alert>{error}</Alert>
         ) : me === null ? (
-          <p className="text-sm text-zinc-500">Loading…</p>
+          <p className="text-sm text-ink-500">Loading…</p>
         ) : (
           <p>
             Please sign in first.{" "}
@@ -89,7 +89,7 @@ export function AccountView() {
       }
     >
       <h1 className="text-2xl font-semibold tracking-tight">Security</h1>
-      <p className="mt-1 text-sm text-zinc-500">{me.email}</p>
+      <p className="mt-1 text-sm text-ink-500">{me.email}</p>
       {error === null ? null : (
         <div className="mt-4">
           <Alert>{error}</Alert>
@@ -107,7 +107,7 @@ export function AccountView() {
           </p>
         ) : offer === null ? (
           <>
-            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mt-2 text-sm text-ink-600 dark:text-ink-400">
               Off. With one-time codes, a stolen password isn't enough to sign in: you'll also need the code
               your authenticator app shows, which changes every 30 seconds.
             </p>
@@ -127,9 +127,9 @@ export function AccountView() {
                 height={200}
                 className="mt-2 rounded-lg bg-white"
               />
-              <p className="mt-3 text-zinc-600 dark:text-zinc-400">Or type this key into the app:</p>
+              <p className="mt-3 text-ink-600 dark:text-ink-400">Or type this key into the app:</p>
               <code
-                className="mt-2 block break-all rounded-lg bg-zinc-100 p-2 dark:bg-zinc-950"
+                className="mt-2 block break-all rounded-lg bg-ink-100 p-2 dark:bg-ink-950"
                 data-testid="totp-secret"
               >
                 {grouped(offer.secret)}

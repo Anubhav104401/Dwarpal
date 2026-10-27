@@ -1,5 +1,5 @@
 ---
-fingerprint: 97b8fe666de18f51
+fingerprint: 67718a7700fb14cc
 ---
 The **camera screen**: the live preview with an oval to line the face up with, a line of guidance, and the **Start** button. Since Phase 3 it does three new things (§5.3):
 
@@ -287,7 +287,7 @@ The instruction — or, once the meter is full, "That's it — hold still…" wh
 The meter's track: a thin, rounded, faint white bar. `aria-hidden` — screen readers get the instruction instead.
 
 @@ 245-248
-The filled part: as wide as the share reached (`width: 40%` for 0.4), saffron while filling and green when full. `transition-[width] duration-100` smooths each change over a tenth of a second.
+The filled part: as wide as the share reached (`width: 40%` for 0.4), saffron while filling and green when full. The width glides over a tenth of a second — `motion-safe:`, so for people who asked their system for reduced motion it simply jumps.
 
 @@ 249-252
 The closing tags.

@@ -1,5 +1,5 @@
 ---
-fingerprint: 572ad1e76eb867f3
+fingerprint: 82a2abfda11274d8
 ---
 The **home page**, at `/`. Nobody is meant to start here — people arrive through a link from a website — so it simply explains what the site is, for anyone who types the address by hand. In Next.js's App Router, a file named `page.tsx` is the page for its folder's address: `app/page.tsx` is `/`.
 

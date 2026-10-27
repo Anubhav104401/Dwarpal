@@ -80,7 +80,7 @@ export function WebhooksPanel({ client, org, project, livemode }: Props) {
       <h2 id="webhooks" className="text-lg font-semibold">
         Webhooks
       </h2>
-      <p className="mt-1 text-sm text-zinc-500">
+      <p className="mt-1 text-sm text-ink-500">
         Addresses Dwarpal tells when a {livemode ? "live" : "test"} session finishes or expires. Every request
         is signed with the endpoint's secret.
       </p>
@@ -101,16 +101,16 @@ export function WebhooksPanel({ client, org, project, livemode }: Props) {
       )}
 
       {endpoints === null ? (
-        <p className="mt-3 text-sm text-zinc-500">Loading…</p>
+        <p className="mt-3 text-sm text-ink-500">Loading…</p>
       ) : endpoints.length === 0 ? (
-        <p className="mt-3 text-sm text-zinc-500">No endpoints yet.</p>
+        <p className="mt-3 text-sm text-ink-500">No endpoints yet.</p>
       ) : (
-        <ul className="mt-3 divide-y divide-zinc-200 dark:divide-white/10">
+        <ul className="mt-3 divide-y divide-ink-200 dark:divide-white/10">
           {endpoints.map((e) => (
             <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
               <div className="min-w-0">
                 <p className="break-all font-mono text-xs">{e.url}</p>
-                <p className="text-xs text-zinc-500">{e.events.join(", ")}</p>
+                <p className="text-xs text-ink-500">{e.events.join(", ")}</p>
               </div>
               <div className="flex gap-2">
                 <button type="button" className={quietButton} onClick={() => sendTest(e.id)}>
@@ -136,10 +136,10 @@ export function WebhooksPanel({ client, org, project, livemode }: Props) {
         <div className="mt-4" aria-live="polite">
           <h3 className="text-sm font-semibold">Recent deliveries</h3>
           {shown.deliveries.length === 0 ? (
-            <p className="mt-1 text-sm text-zinc-500">None yet.</p>
+            <p className="mt-1 text-sm text-ink-500">None yet.</p>
           ) : (
             <table className="mt-2 w-full text-left text-sm" aria-label="Recent deliveries">
-              <thead className="text-xs uppercase text-zinc-500">
+              <thead className="text-xs uppercase text-ink-500">
                 <tr>
                   <th className="py-2 pr-3 font-medium">Created</th>
                   <th className="py-2 pr-3 font-medium">Status</th>
@@ -150,7 +150,7 @@ export function WebhooksPanel({ client, org, project, livemode }: Props) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-white/10">
+              <tbody className="divide-y divide-ink-200 dark:divide-white/10">
                 {shown.deliveries.map((d) => (
                   <tr key={d.id}>
                     <td className="py-2 pr-3 tabular-nums">{new Date(d.createdAt).toLocaleString()}</td>
@@ -188,7 +188,7 @@ export function WebhooksPanel({ client, org, project, livemode }: Props) {
           />
         </Field>
         <fieldset>
-          <legend className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Events</legend>
+          <legend className="text-sm font-medium text-ink-700 dark:text-ink-300">Events</legend>
           {EVENT_TYPES.map((type) => (
             <label key={type} className="flex min-h-8 items-center gap-2 text-sm">
               <input type="checkbox" className="size-4" name="events" value={type} defaultChecked />

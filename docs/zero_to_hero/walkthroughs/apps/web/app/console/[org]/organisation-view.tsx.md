@@ -1,5 +1,5 @@
 ---
-fingerprint: 896517667e5d9d98
+fingerprint: ef5c4141083a1648
 ---
 The **organisation page** (Phase 5, §5.5.1): its members, its projects and API keys, and — for owners and admins — its audit log, with whether the chain is intact. Forms appear only for roles that may use them (`CAN`); the API refuses anyway if someone forces them.
 
@@ -12,158 +12,161 @@ Next.js's `Link`, and React's form-event type and three hooks: `useCallback` (ke
 @@ 6-14
 The console's building blocks.
 
-@@ 15-25
+@@ 15
+The design system's badge, for the audit chain's verdict.
+
+@@ 16-26
 The client, the role checks, the error, and the types of everything this page shows.
 
-@@ 27
+@@ 28
 One client for the page.
 
-@@ 28
+@@ 29
 The roles a member may be given, least powerful first.
 
-@@ 29
+@@ 30
 The four scopes a key may have.
 
-@@ 31-38
+@@ 32-39
 **`Loaded`** — everything the page shows once loaded: who is signed in, their role here, the organisation's name, its members and projects, and the audit log (or `null` for roles that may not read it).
 
-@@ 40-43
+@@ 41-44
 **`OrganisationView`**, and what it remembers: what was loaded — or `"signed-out"`, `"not-found"`, or `null` while loading — the current error, and a newly created key.
 
-@@ 45-47
+@@ 46-48
 **`load`** — read everything. Nobody signed in: say so.
 
-@@ 48-49
+@@ 49-50
 Find this organisation among the person's own. Not there: the same message as an organisation that doesn't exist.
 
-@@ 50-54
+@@ 51-55
 Ask for the members, the projects and (if the role allows) the audit log **at the same time** (`Promise.all`), rather than one after another.
 
-@@ 55
+@@ 56
 Remember it all.
 
-@@ 56
+@@ 57
 `useCallback` keeps the same `load` unless the organisation changes, so the effect below runs once per organisation.
 
-@@ 58-60
+@@ 59-61
 When the page appears, load; if anything fails, say so in plain words.
 
-@@ 62-65
+@@ 63-66
 **`addMember`** — the add-member form was sent: read its fields.
 
-@@ 66-70
+@@ 67-71
 Add the member, empty the form, and load again to show them.
 
-@@ 71-73
+@@ 72-74
 A refusal shows the API's sentence; anything else a general one.
 
-@@ 74
+@@ 75
 End of `addMember`.
 
-@@ 76-85
+@@ 77-86
 **`changeMember`** (§5.5.4) — change a member's role, or remove them (`null`), then reload: the change may have been to one's own membership, which changes what the page may show — or whether it can show anything.
 
-@@ 87-90
+@@ 88-91
 **`createKey`** — the key form was sent.
 
-@@ 91-94
+@@ 92-95
 Read every ticked scope (`getAll`), create the key, keep it to show **once**, and load again (the audit log now has a new line). The key lives only in this page's memory: a reload forgets it, and it is never stored in the browser.
 
-@@ 95-97
+@@ 96-98
 A refusal shows the API's sentence.
 
-@@ 98
+@@ 99
 End of `createKey`.
 
-@@ 100-106
+@@ 101-107
 Still loading: *Loading…*, or the error if loading failed.
 
-@@ 107-120
+@@ 108-121
 Signed out, or not a member: say which, with a link back to the console.
 
-@@ 122
+@@ 123
 Everything was loaded: take its parts.
 
-@@ 123-133
+@@ 124-134
 The frame, with a link back to all organisations and the person's address.
 
-@@ 134-137
+@@ 135-138
 The organisation's name, and the person's role here.
 
-@@ 138-142
+@@ 139-143
 The error, if any, announced to screen readers.
 
-@@ 144
+@@ 145
 Two panels side by side on wide screens, one above the other on narrow ones.
 
-@@ 145-148
+@@ 146-149
 **Members.** `aria-labelledby` names the section by its heading, so screen readers (and the tests) can find the region called "Members".
 
-@@ 149-152
+@@ 150-153
 The list of members: each one's address.
 
-@@ 153
+@@ 154
 For people who may manage members, controls — except on an owner's row, unless they are an owner themselves (the API's rule, mirrored).
 
-@@ 154-166
+@@ 155-167
 A role menu, named for screen readers after the member ("Role of ann@…"), showing their role; choosing another changes it at once. Only owners are offered "owner".
 
-@@ 167-174
+@@ 168-175
 A *Remove* button, also named after the member, so a screen reader doesn't hear a list of identical "Remove" buttons.
 
-@@ 175-178
+@@ 176-179
 Otherwise, just the role.
 
-@@ 179-181
+@@ 180-182
 End of the row and the list.
 
-@@ 182-200
+@@ 183-201
 For owners and admins, the form to add a member: an address and a role. Only an owner is offered *owner*, as only an owner may give it.
 
-@@ 201
+@@ 202
 End of the members panel.
 
-@@ 203-206
+@@ 204-207
 **Projects and API keys.**
 
-@@ 207-219
+@@ 208-220
 Each project's name — since the project pages (§5.5.2), a link to its page — and its public ID.
 
-@@ 220-230
+@@ 221-231
 A key just created, in a highlighted box: the warning that it won't be shown again, and the key itself. `role="status"` makes screen readers announce it.
 
-@@ 231-241
+@@ 232-242
 For roles that may manage keys, and when there is a project: the form, starting with which project.
 
-@@ 242-259
+@@ 243-258
 The scopes, as tick-boxes in a `fieldset` whose `legend` names the group; the two session scopes start ticked.
 
-@@ 260-262
+@@ 259-261
 Whether the key is live — useful only once the age model is calibrated, which the API also enforces.
 
-@@ 263-267
+@@ 262-266
 The button, and the end of the form.
 
-@@ 268-269
+@@ 267-268
 End of the panel and of the two-column grid.
 
-@@ 271-276
+@@ 270-275
 **The audit log**, for owners and admins.
 
-@@ 277-285
-The chain's verdict as a badge: teal *Chain intact*, or red *Chain broken at entry N* — the console's view of `cli verify-audit`.
+@@ 276-278
+The chain's verdict as a **badge** from the design system (§5.5.6): *Chain intact* in the success tone, or *Chain broken at entry N* in the danger tone — the console's view of `cli verify-audit`.
 
-@@ 286
+@@ 279
 End of the heading row.
 
-@@ 287-295
+@@ 280-288
 A table with four columns: the entry's number, when, what, and who.
 
-@@ 296-307
+@@ 289-300
 One row per entry, newest first; the time in the reader's own format and time zone (`toLocaleString`).
 
-@@ 308-310
+@@ 301-303
 End of the table, the section, and the condition.
 
-@@ 311-313
+@@ 304-306
 End of the frame and the component.

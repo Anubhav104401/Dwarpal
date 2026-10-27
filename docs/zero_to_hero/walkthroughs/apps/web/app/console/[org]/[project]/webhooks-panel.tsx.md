@@ -1,5 +1,5 @@
 ---
-fingerprint: 64ef9fbddf9e3bee
+fingerprint: f43dfb397eed70e8
 ---
 The webhooks panel of a project's page (Phase 5, §5.5.3): the endpoints for the chosen mode, a form to add one — whose signing secret is shown **once** — and, for each, buttons to send a test event, see its recent deliveries (and replay a finished one), or remove it.
 

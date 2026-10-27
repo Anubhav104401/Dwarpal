@@ -1,5 +1,5 @@
 ---
-fingerprint: 5fd7f2f384face69
+fingerprint: 7be7be0ba77af190
 ---
 **The verify flow** — every screen a person sees during an age check, and the logic that moves between them. It is a **state machine** like the API's session (§5.1.2), but for the screen: at any moment the page is in exactly one **stage**, and each stage draws one screen.
 
