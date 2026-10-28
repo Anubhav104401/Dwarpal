@@ -1355,6 +1355,25 @@ async def test_text_the_database_cant_store_is_refused_not_a_server_error(databa
 
 
 @pytest.mark.anyio
+async def test_the_console_describes_the_age_model_to_anyone_signed_in_and_nothing_of_its_build(
+    databases: tuple[str, str],
+) -> None:
+    trained = "registry/age/age-convnext-tiny-2026.10.17/manifest.json"
+    async with harness(databases, age_manifest=trained, **CONSOLE_SETTINGS) as h, person(h) as browser:
+        signed_out = await browser.get(f"{CONSOLE}/model")
+        await sign_up(browser, unique("model"))
+        model = (await browser.get(f"{CONSOLE}/model")).json()
+    assert (signed_out.status_code, signed_out.json()["code"]) == (401, "not_signed_in")
+    assert (model["version"], model["calibrated"]) == ("age-convnext-tiny-2026.10.17", False)
+    assert model["permitted_use"] == "non-commercial research only"
+    assert model["training"]["dataset"]["name"] == "fairface" and model["calibration"]["faces"] == 11301
+    eighteen = next(row for row in model["thresholds"] if row["min_age"] == 18)
+    assert eighteen["risk_budget"] == 0.075 and eighteen["minor_bound"] < eighteen["risk_budget"]
+    for internal in ("sha256", "git", "model.onnx", "uncommitted"):
+        assert internal not in json.dumps(model)
+
+
+@pytest.mark.anyio
 async def test_the_console_session_cookie_is_host_only_secure_and_hidden_from_scripts(
     databases: tuple[str, str],
 ) -> None:

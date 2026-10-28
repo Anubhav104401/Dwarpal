@@ -94,6 +94,17 @@ The rest changed existing files, each re-explained in its walkthrough: the conso
 
 The client (`console-api.ts`) now keeps the daily rows, and its test checks them; the project page orders the totals as the legend does and shows the chart. Each was re-explained.
 
+**The age model's page** (added 29 Oct). The design asks the console for *model information* (FR-10). A new page, *Age model*, linked from the console's front page, shows anyone signed in which model is deciding, whether it may decide live checks, what it learnt from, and its lines for each age with the worst cases measured for them. It is the same for every organisation, so it needs no tenant and no role — only a signed-in person (`GET /console/v1/model`). The API keeps the manifest's whole file at start-up for this page; decisions never read it.
+
+!!! key "Key idea — show the guarantee, and only the guarantee there is"
+    A page like this could easily overclaim. So it says *Test checks only* for an uncalibrated model, quotes the manifest's own note on why, and, for the stand-in model, says its lines were "chosen by hand for testing; nothing was measured" rather than showing empty bounds as 0 %. It also leaves out what customers don't need — the file's checksum, the commit it was built from — and a test checks that those never appear.
+
+!walk apps/web/app/console/model/page.tsx
+
+!walk apps/web/app/console/model/model-view.tsx
+
+The manifest's loader (`domain/policy.py`), the console's use cases and routes (`app/console.py`, `http/console.py`), their test (`test_api.py`), the published contract (`docs/api/openapi.json`), the client and its test, the front page's link, and the browser and accessibility tests changed too; each was re-explained.
+
 ### 5.5.3 Webhooks in the console
 
 A project's page now ends with a **Webhooks** panel, for the chosen mode: its endpoints, a form to add one, and for each one *Send test*, *Deliveries* (with *Replay* for a finished delivery) and *Remove*. A new endpoint's signing secret is shown once, exactly like a new API key.

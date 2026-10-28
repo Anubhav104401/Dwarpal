@@ -164,6 +164,20 @@ async function signUp(page: Page, email: string, organisation: string): Promise<
   await expect(page.getByRole("heading", { name: "Your organisations" })).toBeVisible();
 }
 
+test("the model page names the model the API is deciding with, and its line for each age", async ({
+  page,
+}) => {
+  const configuration = await (await fetch(`${API}/.well-known/dwarpal-configuration`)).json();
+  await signUp(page, `model-${Date.now()}@shop.example`, "Model Ltd");
+  await page.getByRole("link", { name: "Age model" }).click();
+
+  await expect(page.getByRole("heading", { name: "The age model" })).toBeVisible();
+  await expect(page.getByText(configuration.age_model, { exact: true })).toBeVisible();
+  const lines = page.getByRole("region", { name: "Its lines for each age" });
+  for (const age of ["13+", "16+", "18+", "21+"])
+    await expect(lines.getByRole("cell", { name: age })).toBeVisible();
+});
+
 test("an owner adds a member, changes their role, and removes them", async ({ page, browser }) => {
   const owner = `team-owner-${Date.now()}@shop.example`;
   const colleague = `colleague-${Date.now()}@shop.example`;

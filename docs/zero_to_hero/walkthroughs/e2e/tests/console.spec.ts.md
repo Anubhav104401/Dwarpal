@@ -1,5 +1,5 @@
 ---
-fingerprint: 63e3e2b532c400d6
+fingerprint: 42b209907c321d9d
 ---
 The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page, adds a policy version and a webhook endpoint; a wrong password is refused without revealing whether the account exists; and a member turns on one-time codes, after which signing in needs one.
 
@@ -124,34 +124,52 @@ End of the test.
 **`signUp`** — create an account in a given browser page, with its own organisation, and wait for the organisations page: the steps of the first test, made reusable.
 
 @@ 167-169
-**Test — managing a member** (Phase 5). Two fresh addresses: the owner's and a colleague's.
+**Test — the model page** (§5.5.2).
 
-@@ 170-172
-The colleague signs up in a browser of their own — a second **context**, with its own cookies, so their session never mixes with the owner's — which is then closed.
+@@ 170
+Ask the API itself which model it is deciding with: its public configuration names it.
 
-@@ 173-175
-The owner signs up and opens the organisation; the members' panel is where everything happens.
+@@ 171-172
+Sign up, and follow the *Age model* link.
 
-@@ 177-181
-Add the colleague as an analyst: their row appears, with a role menu showing *analyst*.
+@@ 174-175
+The page has its heading and shows exactly the version the API named — the page and the API can't disagree.
 
-@@ 183-186
-Change it to developer; then reload the page, to prove the change was saved, not just shown.
+@@ 176-178
+And in the table of lines, a row for each of the four ages.
 
-@@ 188-189
-Remove them: their address is gone from the members.
-
-@@ 190
+@@ 179
 End of the test.
 
-@@ 192-197
+@@ 181-183
+**Test — managing a member** (Phase 5). Two fresh addresses: the owner's and a colleague's.
+
+@@ 184-186
+The colleague signs up in a browser of their own — a second **context**, with its own cookies, so their session never mixes with the owner's — which is then closed.
+
+@@ 187-189
+The owner signs up and opens the organisation; the members' panel is where everything happens.
+
+@@ 191-195
+Add the colleague as an analyst: their row appears, with a role menu showing *analyst*.
+
+@@ 197-200
+Change it to developer; then reload the page, to prove the change was saved, not just shown.
+
+@@ 202-203
+Remove them: their address is gone from the members.
+
+@@ 204
+End of the test.
+
+@@ 206-211
 **Test — a fresh nonce each time** (Phase 7). Ask for the console's page twice, as the website API's client would, and keep each answer's content security policy.
 
-@@ 198-199
+@@ 212-213
 Pick out each policy's script rule, and the nonce in it.
 
-@@ 200-202
+@@ 214-216
 There is a nonce; the two differ; and inline scripts are not allowed.
 
-@@ 203
+@@ 217
 End of the test.

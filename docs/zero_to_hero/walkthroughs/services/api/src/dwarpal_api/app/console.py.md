@@ -1,5 +1,5 @@
 ---
-fingerprint: 34302d78f516eb77
+fingerprint: 2ba93623b2711346
 ---
 The **console's use cases** (Phase 4, §5.4.5) — everything a person at one of Dwarpal's customers does through the web console: signing up and in, switching on one-time codes, managing members, creating API keys, reading the audit log.
 
@@ -394,34 +394,49 @@ The session's summary — never a token: reading a trace must not mint one — a
 **`project_analytics`** — the project's daily counts, for roles allowed to read analytics.
 
 @@ 541-543
+**`model_information`** — the age model now deciding, for any signed-in person: it is the same for every organisation, so it needs no tenant and no role. It is not `async`: it reads only what the manifest loaded at start-up.
+
+@@ 544-546
+The manifest's whole file, its training section (or an empty dictionary, for the stub, which has none), and its calibration section if there is one.
+
+@@ 547-552
+The answer: the version; whether it may decide live sessions; its note and permitted use as written in the manifest; and only the backbone and dataset of its training — not the run's name, the pretrained file's checksum or the commit it was built from.
+
+@@ 553
+Where its lines were measured, as the manifest records it: which faces, under what licence, how their ages were known, and how many.
+
+@@ 554-565
+For each age and risk budget, the two lines and the two **measured bounds** — the worst plausible share of people under the age who would pass, and of people comfortably over it who would fail. `row.get(...)` gives `None` for the stub, which measured nothing.
+
+@@ 568-570
 **`project_policies`** — the presets and the project's own policy versions, for any member.
 
-@@ 546-549
+@@ 573-576
 **`add_policy_version`** — the next version of a policy, for roles allowed to manage policies.
 
-@@ 550-554
+@@ 577-581
 Check the project and the role, then add the version, with the person (not an API key) named in the audit log.
 
-@@ 557-562
+@@ 584-589
 **`project_webhooks`** (Phase 5, §5.5.3) — a project's endpoints in one mode. Only roles that may manage webhooks may even **see** them: an endpoint's address says where the project's events go, which is the kind of thing an attacker would like to know.
 
-@@ 565-574
+@@ 592-601
 **`add_webhook`** — a new endpoint, from the console.
 
-@@ 575-577
+@@ 602-604
 Check the project and the role, then create it with the website API's own use case — the same allowed events, the same SSRF guard, the same limit of 16, the same secret shown once — with the person named in the audit log.
 
-@@ 580-585
+@@ 607-612
 **`remove_webhook`** — the same check, then delete it, the person named.
 
-@@ 588-599
+@@ 615-626
 **`switch_webhook`** — the same from the console, for roles that may manage webhooks, naming the person.
 
-@@ 602-606
+@@ 629-633
 **`send_test_event`** — queue a test event for one endpoint.
 
-@@ 609-613
+@@ 636-640
 **`webhook_deliveries`** — an endpoint's recent deliveries.
 
-@@ 616-620
+@@ 643-647
 **`replay_delivery`** — send a delivery again from the start of its retry schedule.

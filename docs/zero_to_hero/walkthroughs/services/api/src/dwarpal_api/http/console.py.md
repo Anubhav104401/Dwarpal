@@ -1,5 +1,5 @@
 ---
-fingerprint: 77a0c0363ed04fd7
+fingerprint: 46db95a57950767c
 ---
 The **console API** (Phase 4, §5.4.5), under `/console/v1`: what Dwarpal's own web console calls for a signed-in person. Unlike the website API, which uses API keys, it uses a **cookie**, because people sign in with a browser.
 
@@ -108,71 +108,74 @@ End the session, and tell the browser to delete the cookie.
 @@ 157-159
 **`me`** — who is signed in.
 
-@@ 162-164
+@@ 162-165
+**`model`** — `GET /console/v1/model`: the age model's details. `current` isn't used inside, but asking for it makes the route refuse anyone not signed in.
+
+@@ 168-170
 **`totp_enrol`** — start switching on one-time codes.
 
-@@ 167-181
+@@ 173-187
 **`totp_confirm`** — finish it with a code; the answer holds the recovery codes. **`replace_recovery_codes`** — `POST /totp/recovery-codes`: a fresh set. **`totp_disable`** — `POST /totp/disable`, with the network address for the sign-in limits: `204` when codes are off.
 
-@@ 184-186
+@@ 190-192
 **`list_members`**.
 
-@@ 189-191
+@@ 195-197
 **`list_projects`** — `GET /orgs/{org}/projects`, for any signed-in member.
 
-@@ 194-196
+@@ 200-202
 **`add_member`** — `201 Created`.
 
-@@ 199-203
+@@ 205-209
 **`change_role`** — `PATCH …/members/{user}`. `PATCH` is the HTTP method for changing part of something: here, one field of a membership.
 
-@@ 206-209
+@@ 212-215
 **`remove_member`** — `DELETE …/members/{user}`: `204`.
 
-@@ 212-214
+@@ 218-220
 **`create_key`** — `201 Created`, with the key shown once.
 
-@@ 217-221
+@@ 223-227
 **`audit_log`** — up to 500 entries (100 if not asked).
 
-@@ 224-225
+@@ 230-231
 The path every project route starts with, written once; and `Live`, the `livemode` query parameter (`?livemode=true`), which chooses test or live data.
 
-@@ 228-241
+@@ 234-247
 **`project_sessions`** — `GET …/sessions`: test sessions unless asked for live, 20 a page (at most 100), after the given cursor — and, like the website API, optionally only one outcome or one reference.
 
-@@ 244-248
+@@ 250-254
 **`session_trace`** — `GET …/sessions/{id}`: one session's decision trace.
 
-@@ 251-260
+@@ 257-266
 **`project_analytics`** — `GET …/analytics`: the last 30 days (1 to 365), test or live.
 
-@@ 263-265
+@@ 269-271
 **`project_policies`** — `GET …/policies`.
 
-@@ 268-273
+@@ 274-279
 **`add_policy_version`** — `POST …/policies`, a change (so it needs the CSRF token): build the draft from the body, and add it.
 
-@@ 276-279
+@@ 282-285
 **`ConsoleEndpoint`** — that body plus `livemode` (test unless asked). A website's key is already test or live; a person in the console chooses.
 
-@@ 282-286
+@@ 288-292
 **`project_webhooks`** — `GET …/webhooks`: the endpoints, test or live.
 
-@@ 289-293
+@@ 295-299
 **`add_webhook`** — `POST …/webhooks`, a change: `201`, with the secret.
 
-@@ 296-301
+@@ 302-307
 **`remove_webhook`** — `DELETE …/webhooks/{id}`: `204`. The mode comes in the address (`?livemode=true`), like every other webhook route here.
 
-@@ 304-314
+@@ 310-320
 **`switch_webhook`** — `PATCH …/webhooks/{id}`, a change: on or off, in the mode the address names.
 
-@@ 317-321
+@@ 323-327
 **`send_test_event`** — `POST …/webhooks/{id}/test`: `202 Accepted` — queued, not yet sent.
 
-@@ 324-328
+@@ 330-334
 **`webhook_deliveries`** — `GET …/webhooks/{id}/deliveries`.
 
-@@ 331-335
+@@ 337-341
 **`replay_delivery`** — `POST …/webhook-deliveries/{id}/replay`: `202`.

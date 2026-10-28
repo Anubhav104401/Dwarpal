@@ -1,5 +1,5 @@
 ---
-fingerprint: a38a38ed9a0ef874
+fingerprint: 08b176d611bdca00
 ---
 A **policy** is a website's rule for one age check: *how old* a person must be, and *how strict* the check is. A UK site under the Online Safety Act needs 18+; an Australian social network needs 16+. Each policy also carries a **risk budget**: the largest share of under-age people the system may let through, at 95 % confidence (§1.7, ADR-0006). Every preset here uses 2 %.
 
@@ -11,16 +11,16 @@ The docstring: policies, and the calibrated thresholds that go with them.
 @@ 3
 The project-wide type-hint setting.
 
-@@ 5-8
-The tools: `json` (reading the manifest file), `dataclass`, `fnmatchcase` (simple wildcard matching, explained below) and `Path`.
+@@ 5-10
+The tools: `json` (reading the manifest file); `Mapping`, the type of any read-only dictionary; `dataclass` and `field` (for a default that is made fresh each time, below); `fnmatchcase` (simple wildcard matching, explained below); `Path`; and `Any`, for values of any type.
 
-@@ 11-12
+@@ 13-14
 `UnknownPolicyError` — asked for a policy name that doesn't exist. It is a kind of `LookupError`, Python's family of "I looked for it and it isn't there" errors (`KeyError` belongs to the same family).
 
-@@ 15-16
+@@ 17-18
 `UncalibratedPolicyError` — the policy exists, but the active model has **no thresholds** for it. That is a refusal, never a guess: using thresholds made for a different age would break the safety promise.
 
-@@ 19-25
+@@ 21-27
 **`Policy`** — one rule, read-only once made (`frozen=True`):
 
 - `id` — its name, such as `uk_osa_18`;
@@ -31,13 +31,13 @@ The tools: `json` (reading the manifest file), `dataclass`, `fnmatchcase` (simpl
 
 The last two have **default values** (`= 3`, `= 600`), so a policy only needs to say them when it differs.
 
-@@ 26
+@@ 28
 `version` — `0` for a built-in preset; 1, 2, 3, … for the versions of a project's own policy (Phase 4).
 
-@@ 28-31
+@@ 30-33
 **`label`** — how results and tokens name the rules they followed. `@property` makes it read like a field (`policy.label`) while being computed: a preset is just its name, `uk_osa_18`; a project's policy adds its version, `shop_18@2`.
 
-@@ 34-44
+@@ 36-46
 **`PRESETS`** — the six ready-made policies, stored in a dict from name to policy:
 
 | Name | Minimum age | Where it comes from (§1.2, §1.4) |
@@ -53,17 +53,17 @@ The dict is built by a **dict comprehension** (lines 29–30): "for each policy 
 
 In Phase 4, websites get their own versioned policies stored in the database. Presets keep Phase 1 simple.
 
-@@ 47-51
+@@ 49-53
 **`get_policy`** — find a preset by name. A missing name raises Python's `KeyError`, which is turned into our own `UnknownPolicyError`. `from None` hides the original `KeyError` from the error report, because it adds nothing.
 
-@@ 54-57
+@@ 56-59
 **`Thresholds`** — the two numbers the decision engine compares against `p`, the model's probability that the person is at least the policy's age:
 
 - `tau_pass` (τ, the Greek letter "tau") — at or above it, **pass**;
 - `tau_fail` — at or below it, **fail**;
 - anything in between is too uncertain to call: **step up** to a stronger check.
 
-@@ 60-66
+@@ 62-68
 **`ModelManifest`** — the age model's certificate:
 
 - `name` and `version` — which model this is;
@@ -71,25 +71,28 @@ In Phase 4, websites get their own versioned policies stored in the database. Pr
 - `calibrated` — whether these thresholds really came from risk calibration. Only calibrated models may decide **live** sessions;
 - `thresholds` — one `Thresholds` for each `(min_age, risk_budget)` pair. A **tuple** of two values works as a dict key, so a lookup asks one precise question: "the thresholds for age 18 at 2 %".
 
-@@ 68-69
+@@ 69
+- `details` — the whole manifest file as read, for the console's model page (§5.5.2), which shows where the model's faces came from and how its lines were measured. Decisions never read it. `field(default_factory=dict)` gives each manifest its own empty dictionary when none is passed; a plain `= {}` would share one dictionary between them all, which Python's dataclasses refuse.
+
+@@ 71-72
 **`serves_model`** — does a model version reported by the inference service belong to this manifest? `fnmatchcase` matches **shell-style wildcards**: `*` means "any characters", so `stub-age-*` matches `stub-age-1` and `stub-age-30`. The `case` in its name means capital letters matter (`Stub-age-1` doesn't match).
 
 The decision engine uses it as a safety catch: if the inference service ever ran a different model than the one these thresholds were made for, no decision is taken.
 
-@@ 71-76
+@@ 74-79
 **`thresholds_for`** — the thresholds for a policy, or `UncalibratedPolicyError` with a message that names the model, the age and the budget. `message = …` builds the text on its own line first, so the `raise` stays short and readable.
 
-@@ 79
+@@ 82
 **`load_manifest`** — read a manifest file into a `ModelManifest`. It runs once, when the API starts.
 
-@@ 80
+@@ 83
 Read the file as UTF-8 text and parse the JSON.
 
-@@ 81-84
+@@ 84-87
 Build the thresholds dict with a dict comprehension: for each row of the file's `thresholds` list, the key is `(min_age, risk_budget)` and the value a `Thresholds`. `int(...)` and `float(...)` turn the file's values into exact Python numbers, so `18` and `18.0` can't end up as two different keys.
 
-@@ 85-87
+@@ 88-90
 **Sanity check.** Every pair must satisfy 0 ≤ τ_fail < τ_pass ≤ 1. Python allows **chained comparisons**, so this reads exactly like the maths. A broken file — say, with the two thresholds swapped — stops the API at start-up with a clear message, instead of producing nonsense decisions later.
 
-@@ 88
-Build and return the manifest. `bool(...)` makes sure `calibrated` is a true `True` or `False`.
+@@ 91
+Build and return the manifest, with the whole file as its details. `bool(...)` makes sure `calibrated` is a true `True` or `False`.

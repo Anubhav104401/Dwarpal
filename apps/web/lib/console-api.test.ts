@@ -247,3 +247,53 @@ describe("CAN", () => {
     expect(CAN.readAudit("admin")).toBe(true);
   });
 });
+
+describe("ConsoleClient, the model page", () => {
+  it("reads the model's sources and lines, keeps a missing bound as unknown, and is null when signed out", async () => {
+    const replies = [
+      answer(200, {
+        version: "age-1",
+        calibrated: false,
+        note: "Test mode only.",
+        permitted_use: "research",
+        training: {
+          backbone: "convnext",
+          dataset: { name: "fairface", licence: "CC BY 4.0", age_source: "guessed" },
+        },
+        calibration: { dataset: "utkface", licence: "research", age_source: "checked", faces: 11301 },
+        thresholds: [
+          {
+            min_age: 18,
+            risk_budget: 0.075,
+            tau_pass: 0.96,
+            tau_fail: 0.38,
+            minor_bound: 0.07,
+            adult_bound: null,
+          },
+        ],
+      }),
+      answer(401, { code: "not_signed_in", detail: "sign in" }),
+    ];
+    vi.stubGlobal("fetch", async () => replies.shift());
+    const client = new ConsoleClient();
+
+    const model = await client.model();
+
+    expect(model?.trainedOn).toEqual({
+      name: "fairface",
+      licence: "CC BY 4.0",
+      ageSource: "guessed",
+      faces: null,
+    });
+    expect(model?.calibratedOn?.faces).toBe(11301);
+    expect(model?.lines[0]).toEqual({
+      minAge: 18,
+      riskBudget: 0.075,
+      tauPass: 0.96,
+      tauFail: 0.38,
+      minorBound: 0.07,
+      adultBound: null,
+    });
+    expect(await client.model()).toBeNull();
+  });
+});

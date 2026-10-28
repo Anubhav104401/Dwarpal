@@ -538,6 +538,33 @@ async def project_analytics(
     return await analytics.session_counts(svc, project_id, livemode, days)
 
 
+def model_information(svc: Services) -> dict[str, Any]:
+    """The age model now deciding, for anyone signed in: what it is, what it learnt from and was calibrated on, whether
+    it may decide live sessions, and its lines for each age. Not its file, checksums or the build that made it."""
+    details = svc.manifest.details
+    training = details.get("training", {})
+    calibration = details.get("calibration")
+    return {
+        "version": svc.manifest.version,
+        "calibrated": svc.manifest.calibrated,
+        "note": details.get("note"),
+        "permitted_use": details.get("permitted_use"),
+        "training": {"backbone": training["backbone"], "dataset": training["dataset"]} if training else None,
+        "calibration": calibration,
+        "thresholds": [
+            {
+                "min_age": row["min_age"],
+                "risk_budget": row["risk_budget"],
+                "tau_pass": row["tau_pass"],
+                "tau_fail": row["tau_fail"],
+                "minor_bound": row.get("minor_bound"),  # worst plausible share of those under the age who pass
+                "adult_bound": row.get("adult_bound"),  # and of those comfortably over it who fail
+            }
+            for row in details.get("thresholds", [])
+        ],
+    }
+
+
 async def project_policies(svc: Services, current: ConsoleSession, org_text: str, project_text: str) -> dict[str, Any]:
     _, project_id = await project_in(svc, current, org_text, project_text, Action.READ_SESSIONS)
     return await policies.list_all(svc.sessions, project_id)

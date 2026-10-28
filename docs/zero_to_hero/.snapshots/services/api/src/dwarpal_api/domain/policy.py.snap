@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from fnmatch import fnmatchcase
 from pathlib import Path
+from typing import Any
 
 
 class UnknownPolicyError(LookupError):
@@ -64,6 +66,7 @@ class ModelManifest:
     serves: str
     calibrated: bool
     thresholds: dict[tuple[int, float], Thresholds]
+    details: Mapping[str, Any] = field(default_factory=dict)  # the whole file, for the console's model page
 
     def serves_model(self, model_version: str) -> bool:
         return fnmatchcase(model_version, self.serves)
@@ -85,4 +88,4 @@ def load_manifest(path: Path) -> ModelManifest:
     for value in thresholds.values():
         if not 0.0 <= value.tau_fail < value.tau_pass <= 1.0:
             raise ValueError(f"invalid thresholds in {path}: {value}")
-    return ModelManifest(data["name"], data["version"], data["serves"], bool(data["calibrated"]), thresholds)
+    return ModelManifest(data["name"], data["version"], data["serves"], bool(data["calibrated"]), thresholds, data)

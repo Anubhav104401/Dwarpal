@@ -1,5 +1,5 @@
 ---
-fingerprint: 8eb5ad70e8d45b9a
+fingerprint: ac4762fc9a1deb2e
 ---
 The console's **home** (Phase 5, §5.5.1): signing in, creating an account, and the list of a signed-in person's organisations. It runs in the browser (`"use client"`), because it holds what the person is typing and asks the API as they act.
 
@@ -68,53 +68,53 @@ End of `submit`.
 @@ 72-80
 Still asking: show *Loading…* in a region screen readers announce politely.
 
-@@ 82-96
-**Signed in**: the frame shows the person's address (on wider screens), a link to their *Security* page (§5.5.4), and a *Sign out* button.
+@@ 82-99
+**Signed in**: the frame shows the person's address (on wider screens), a link to the *Age model* page (§5.5.2), a link to their *Security* page (§5.5.4), and a *Sign out* button.
 
-@@ 97
+@@ 100
 The heading.
 
-@@ 98-110
+@@ 101-113
 Each organisation as a card linking to its page, with the person's role in it. Its border turns saffron on hover, with a short transition — only for people who haven't asked for reduced motion (`motion-safe:`).
 
-@@ 111-113
+@@ 114-116
 End of the signed-in view.
 
-@@ 115
+@@ 118
 **Nobody signed in**: which mode is the form in?
 
-@@ 116-121
+@@ 119-124
 The frame, a card, and the heading for the mode.
 
-@@ 122-124
+@@ 125-127
 A sentence that says who the console is for — and that people whose age is checked never need an account.
 
-@@ 125
+@@ 128
 The form.
 
-@@ 126-128
+@@ 129-131
 The e-mail field. `autoComplete="email"` lets the browser or a password manager fill it in.
 
-@@ 129-139
+@@ 132-142
 The password. The `autoComplete` hint tells password managers whether to suggest a new one (signing up) or fill the saved one (signing in); signing up asks for 12 characters before the API would.
 
-@@ 140-150
+@@ 143-153
 When signing up, the organisation's name.
 
-@@ 151-166
+@@ 154-169
 When the API has asked for it, the code: `autoComplete="one-time-code"` lets phones offer a code they have just received; the pattern accepts six digits or a recovery code, and a hint underneath — tied to the field with `aria-describedby`, so screen readers read it too — says a recovery code works when the phone is lost.
 
-@@ 167
+@@ 170
 The error, if there is one, announced to screen readers (`Alert`).
 
-@@ 168-170
+@@ 171-173
 The submit button, disabled while a request is under way so it can't be sent twice.
 
-@@ 171
+@@ 174
 End of the form.
 
-@@ 172-181
+@@ 175-184
 A button that switches between signing in and creating an account, clearing any error from the other mode.
 
-@@ 182-185
+@@ 185-188
 End of the card, the frame and the component.

@@ -1,5 +1,5 @@
 ---
-fingerprint: fd8860b9c0486438
+fingerprint: 9356db9bdc33abba
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -1063,98 +1063,119 @@ The audit log holds exactly the four changes that happened — refusals leave no
 @@ 1349-1354
 **Test — unstorable text is refused (Phase 5).** Sign in with an address containing NUL — the kind of input the contract tests found: `422 invalid_text`, not a server error.
 
-@@ 1357-1361
+@@ 1357-1360
+**Test — the model page** (§5.5.2): anyone signed in can read which model is deciding and how it was made, and nothing about its build.
+
+@@ 1361-1362
+Run the API with the trained model's manifest — the one with sources and measured bounds — rather than the stub.
+
+@@ 1363-1365
+Ask before signing in, then sign up and ask again.
+
+@@ 1366
+Signed out, the answer is the usual 401.
+
+@@ 1367-1369
+Signed in: the version, that it isn't calibrated for live use, its permitted use, the faces it learnt from and the number it was calibrated on.
+
+@@ 1370-1371
+The line for 18: its 7.5 % risk budget, and a measured worst case for minors within it.
+
+@@ 1372-1373
+And none of the internal details of the file — the checksum, the build's commit, the file's name or the note that it was built from uncommitted code — is in the answer.
+
+@@ 1376-1380
 **Test — the production session cookie (Phase 5).** The browser tests now run with a plain cookie (WebKit drops `Secure` ones on plain HTTP), so this test checks the real one: with the production setting, sign up and read the `Set-Cookie` header.
 
-@@ 1362-1363
+@@ 1381-1382
 Sign up.
 
-@@ 1364-1365
+@@ 1383-1384
 The cookie's name starts with `__Host-`, so browsers insist it is `Secure`, for path `/`, with no `Domain`: no other site can set or read it.
 
-@@ 1366-1367
+@@ 1385-1386
 Its attributes include `HttpOnly` (no script can read it), `Secure` (HTTPS only), `Path=/` and `SameSite=Lax`.
 
-@@ 1368
+@@ 1387
 And no `Domain`, which would share it with other hosts.
 
-@@ 1371-1377
+@@ 1390-1396
 **Test — switching an endpoint off and on** (Phase 5). A website registers an endpoint.
 
-@@ 1378-1380
+@@ 1397-1399
 Switch it off, send a test event, and read its deliveries.
 
-@@ 1381-1383
+@@ 1400-1402
 Switch it back on, and do the same.
 
-@@ 1384
+@@ 1403
 And try to switch an endpoint that doesn't exist.
 
-@@ 1385
+@@ 1404
 The answers said off, then on.
 
-@@ 1386
+@@ 1405
 While off, nothing was queued for it.
 
-@@ 1387
+@@ 1406
 Back on, the test event waits to be delivered.
 
-@@ 1388
+@@ 1407
 An unknown endpoint is not found.
 
-@@ 1391-1393
+@@ 1410-1412
 **Test — listing sessions by outcome and by reference** (Phase 5).
 
-@@ 1394-1396
+@@ 1413-1415
 A session with the website's reference `order-1`, which a person passes.
 
-@@ 1397
+@@ 1416
 Another, `order-2`, not yet started.
 
-@@ 1398-1402
+@@ 1417-1421
 List the passed ones; the one for `order-2`; one for a reference nobody used; and ask for an outcome that doesn't exist.
 
-@@ 1403-1405
+@@ 1422-1424
 Exactly the passed session; exactly `order-2`'s; and nothing.
 
-@@ 1406
+@@ 1425
 An unknown outcome is refused, not silently ignored.
 
-@@ 1409-1414
+@@ 1428-1433
 **Test — recovery codes, and switching codes off** (Phase 5).
 
-@@ 1415-1419
+@@ 1434-1438
 Sign up, ask for a secret, and confirm the current code: the answer holds the recovery codes.
 
-@@ 1420-1423
+@@ 1439-1442
 Sign in with the first recovery code, typed as someone might copy it from paper — capitals, a space instead of the dash. Keep the new session's CSRF token.
 
-@@ 1424
+@@ 1443
 Try the same recovery code again.
 
-@@ 1425-1426
+@@ 1444-1445
 Ask for a fresh set, then try one of the old set.
 
-@@ 1427-1433
+@@ 1446-1452
 Try to switch codes off with a wrong password, then with the right password and the next code.
 
-@@ 1434
+@@ 1453
 Sign in with the password alone.
 
-@@ 1435
+@@ 1454
 Ten different codes, each of the shape `abcde-fghij`.
 
-@@ 1436
+@@ 1455
 The recovery code signed in, and nine are left.
 
-@@ 1437
+@@ 1456
 Each works once.
 
-@@ 1438
+@@ 1457
 The fresh set shares nothing with the old, and the old no longer works.
 
-@@ 1439
+@@ 1458
 A wrong password is refused.
 
-@@ 1440-1441
+@@ 1459-1460
 With the right password and code, codes are off — and the password alone signs in again.

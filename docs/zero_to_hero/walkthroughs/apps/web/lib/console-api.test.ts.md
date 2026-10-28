@@ -1,5 +1,5 @@
 ---
-fingerprint: f5dfd01f039021f2
+fingerprint: 47e1fd6e4f874de5
 ---
 Unit tests of the console's client (Phase 5), with the network replaced by a stand-in `fetch` that records each request and hands back prepared answers.
 
@@ -181,4 +181,25 @@ Every role but an analyst may manage keys. (`as never` lets a plain text stand i
 A developer may not manage members; an admin may read the audit log.
 
 @@ 248-249
+End of the test and the group.
+
+@@ 251-252
+**The model page's client.**
+
+@@ 253-276
+Two prepared answers: a model's details, with a training dataset that records no number of faces and one line whose adult bound is missing; then a 401.
+
+@@ 277-278
+Every request gets the next answer; a fresh client.
+
+@@ 280
+Ask for the model.
+
+@@ 282-296
+The training faces are read with their number of faces unknown (`null`), the calibration's number is kept, and the line arrives with every field renamed and the missing bound as `null`.
+
+@@ 297
+Signed out, the client answers `null` rather than failing.
+
+@@ 298-299
 End of the test and the group.

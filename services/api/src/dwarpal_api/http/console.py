@@ -159,6 +159,12 @@ async def me(current: Reader, svc: Toolbox) -> dict[str, Any]:
     return await console.me(svc, current)
 
 
+@router.get("/model")
+async def model(current: Reader, svc: Toolbox) -> dict[str, Any]:
+    """The age model now deciding — for anyone signed in, whatever their organisation."""
+    return console.model_information(svc)
+
+
 @router.post("/totp")
 async def totp_enrol(current: Changer, svc: Toolbox) -> dict[str, Any]:
     return await console.totp_enrol(svc, current)

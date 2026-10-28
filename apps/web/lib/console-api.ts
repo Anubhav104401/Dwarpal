@@ -95,6 +95,35 @@ export interface SessionTrace extends SessionSummary {
   traced: TracedAttempt[];
 }
 
+/** One age's lines: pass at or above `tauPass`, fail at or below `tauFail`, a second check in between. */
+export interface ModelLine {
+  minAge: number;
+  riskBudget: number;
+  tauPass: number;
+  tauFail: number;
+  minorBound: number | null;
+  adultBound: number | null;
+}
+
+/** Where a set of faces and their ages came from. */
+export interface FaceSource {
+  name: string;
+  licence: string;
+  ageSource: string;
+  faces: number | null;
+}
+
+export interface ModelInfo {
+  version: string;
+  calibrated: boolean;
+  note: string | null;
+  permittedUse: string | null;
+  backbone: string | null;
+  trainedOn: FaceSource | null;
+  calibratedOn: FaceSource | null;
+  lines: ModelLine[];
+}
+
 export interface Analytics {
   since: string;
   totals: Record<string, number>;
@@ -164,6 +193,18 @@ const asList = (value: unknown): Json[] => (Array.isArray(value) ? value.map(asJ
 const asCount = (value: unknown): number => (typeof value === "number" ? value : 0);
 const asTexts = (value: unknown): string[] => (Array.isArray(value) ? value.map(asText) : []);
 const orNull = (value: unknown): string | null => (typeof value === "string" ? value : null);
+const orNumber = (value: unknown): number | null => (typeof value === "number" ? value : null);
+
+function asFaceSource(value: unknown, nameKey: string): FaceSource | null {
+  if (typeof value !== "object" || value === null) return null;
+  const s = asJson(value);
+  return {
+    name: asText(s[nameKey]),
+    licence: asText(s.licence),
+    ageSource: asText(s.age_source),
+    faces: orNumber(s.faces),
+  };
+}
 
 function asSession(s: Json): SessionSummary {
   return {
@@ -387,6 +428,35 @@ export class ConsoleClient {
       sessions: asCount(row.sessions),
     }));
     return { since: asText(data.since), totals, daily };
+  }
+
+  /** The age model now deciding, or null when signed out. */
+  async model(): Promise<ModelInfo | null> {
+    let data: Json;
+    try {
+      data = await this.#call("GET", "/model");
+    } catch (error) {
+      if (error instanceof ConsoleError && error.status === 401) return null;
+      throw error;
+    }
+    const training = data.training === null ? null : asJson(data.training);
+    return {
+      version: asText(data.version),
+      calibrated: data.calibrated === true,
+      note: orNull(data.note),
+      permittedUse: orNull(data.permitted_use),
+      backbone: training === null ? null : orNull(training.backbone),
+      trainedOn: training === null ? null : asFaceSource(training.dataset, "name"),
+      calibratedOn: asFaceSource(data.calibration, "dataset"),
+      lines: asList(data.thresholds).map((t) => ({
+        minAge: asCount(t.min_age),
+        riskBudget: asCount(t.risk_budget),
+        tauPass: asCount(t.tau_pass),
+        tauFail: asCount(t.tau_fail),
+        minorBound: orNumber(t.minor_bound),
+        adultBound: orNumber(t.adult_bound),
+      })),
+    };
   }
 
   async policies(org: string, project: string): Promise<PolicyVersion[]> {
