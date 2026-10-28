@@ -87,7 +87,11 @@ describe("ConsoleClient, a project's pages", () => {
         policy: "uk_osa_18",
         attempts: [{ kind: "face", outcome: "pass", reasons: [], scores: { p_over: 0.99, tau: 0.9 } }],
       }),
-      answer(200, { since: "2026-09-27", totals: { pass: 3, step_up: 1 } }),
+      answer(200, {
+        since: "2026-09-27",
+        data: [{ day: "2026-10-01", policy: "uk_osa_18", outcome: "pass", sessions: 3 }],
+        totals: { pass: 3, step_up: 1 },
+      }),
     ];
     vi.stubGlobal("fetch", async (url: string) => {
       seen.push(url);
@@ -104,6 +108,7 @@ describe("ConsoleClient, a project's pages", () => {
     expect([page.sessions[0]?.outcome, page.nextCursor]).toEqual(["pass", "vs_1"]);
     expect(trace.traced[0]?.scores).toEqual({ p_over: 0.99, tau: 0.9 });
     expect(counts.totals).toEqual({ pass: 3, step_up: 1 });
+    expect(counts.daily).toEqual([{ day: "2026-10-01", outcome: "pass", sessions: 3 }]);
   });
 });
 

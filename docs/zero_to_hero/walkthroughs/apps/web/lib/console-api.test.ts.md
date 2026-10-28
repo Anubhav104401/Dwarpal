@@ -1,5 +1,5 @@
 ---
-fingerprint: 55c07ae49a122383
+fingerprint: f5dfd01f039021f2
 ---
 Unit tests of the console's client (Phase 5), with the network replaced by a stand-in `fetch` that records each request and hands back prepared answers.
 
@@ -63,122 +63,122 @@ End of the test and the group.
 @@ 75-76
 **The project pages' requests.** Sessions by mode and cursor, a trace, and the counts.
 
-@@ 77-91
-Three prepared answers: a page of one session with a cursor; that session's trace with one attempt and two scores; and the counts.
-
-@@ 92-95
-A stand-in `fetch` that records each address and hands back the next answer.
+@@ 77-95
+Three prepared answers: a page of one session with a cursor; that session's trace with one attempt and two scores; and the counts — the first day, one daily row and the totals.
 
 @@ 96-99
-Ask for live sessions after a cursor, the trace, and the test counts.
+A stand-in `fetch` that records each address and hands back the next answer.
 
 @@ 100-103
+Ask for live sessions after a cursor, the trace, and the test counts.
+
+@@ 104-107
 The first request's address carried the mode, the page size and the cursor exactly.
 
-@@ 104-106
-The page, the trace's scores and the totals came back as they were sent.
+@@ 108-111
+The page, the trace's scores, the totals and the daily rows came back as they were sent — each row without its policy.
 
-@@ 107-108
+@@ 112-113
 End of the test and the group.
 
-@@ 110-111
+@@ 115-116
 **The webhook requests.** Every one carries the mode, and the new endpoint's secret comes back.
 
-@@ 112
+@@ 117
 Each request seen: its method, address and body.
 
-@@ 113-123
+@@ 118-128
 Four prepared answers: who is signed in (with a CSRF token), the new endpoint with its secret, one dead delivery, and an empty `204`.
 
-@@ 124-127
+@@ 129-132
 A stand-in `fetch` that records each request and hands back the next answer.
 
-@@ 128-134
+@@ 133-139
 Sign in (for the token), add a live endpoint, read its deliveries, and delete it.
 
-@@ 136
+@@ 141
 The secret came back.
 
-@@ 137-141
+@@ 142-146
 The creation's body carried the address, the events and the mode.
 
-@@ 142-144
+@@ 147-149
 The deliveries' address carried the mode.
 
-@@ 145-149
+@@ 150-154
 The delivery was read as sent: dead, last answered `500`, with no error text.
 
-@@ 150-153
+@@ 155-158
 The deletion was a `DELETE`, with the mode in its address.
 
-@@ 154-155
+@@ 159-160
 End of the test and the group.
 
-@@ 157-158
+@@ 162-163
 **Searching sessions.** Only the filters that are set go into the address.
 
-@@ 159-163
+@@ 164-168
 A stand-in `fetch` that records each address and answers with an empty page.
 
-@@ 164-166
+@@ 169-171
 Search with an outcome and a reference (with a space in it), then with an empty outcome.
 
-@@ 168-170
+@@ 173-175
 The first address carried both filters — the space written as `+`, as addresses require.
 
-@@ 171
+@@ 176
 The second carried neither: an empty filter means any.
 
-@@ 172-173
+@@ 177-178
 End of the test and the group.
 
-@@ 175-176
+@@ 180-181
 **Switching a webhook.** The request's method, address and body, and the answer read back.
 
-@@ 177-185
+@@ 182-190
 Two prepared answers: who is signed in, and the endpoint, now off; a stand-in `fetch` records each request.
 
-@@ 186-188
+@@ 191-193
 Sign in (for the token), and switch the endpoint off.
 
-@@ 190-194
+@@ 195-199
 It was a `PATCH` to the endpoint's address, with the mode, carrying `enabled: false`.
 
-@@ 195-197
+@@ 200-202
 The endpoint came back off. End of the test and the group.
 
-@@ 199-200
+@@ 204-205
 **Members and one-time codes.** The right methods and addresses, and the bodies.
 
-@@ 201-208
+@@ 206-213
 Each request seen; and five prepared answers: who is signed in, a changed role, an empty `204`, a secret, and the recovery codes.
 
-@@ 209-212
+@@ 214-217
 A stand-in `fetch` that records each request and hands back the next answer.
 
-@@ 213-218
+@@ 218-223
 Sign in (for the token); change a role; remove the member; ask for a secret; confirm a code, keeping the recovery codes.
 
-@@ 220-225
+@@ 225-230
 After `/me`, the four requests went out with these methods to these addresses.
 
-@@ 226-228
+@@ 231-233
 The role change sent only the role; the secret came back; the confirmation sent the code.
 
-@@ 229
+@@ 234
 And the recovery codes came back as sent.
 
-@@ 230-231
+@@ 235-236
 End of the test and the group.
 
-@@ 233-234
+@@ 238-239
 **The page's role checks** match the API's matrix where the pages use them.
 
-@@ 235-240
+@@ 240-245
 Every role but an analyst may manage keys. (`as never` lets a plain text stand in for the `Role` type in this table.)
 
-@@ 241-242
+@@ 246-247
 A developer may not manage members; an admin may read the audit log.
 
-@@ 243-244
+@@ 248-249
 End of the test and the group.

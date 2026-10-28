@@ -24,10 +24,12 @@ import {
   type SessionTrace,
 } from "@/lib/console-api";
 
+import { everyDay, OUTCOME_ORDER } from "@/lib/daily";
+
+import { DailyChart } from "./daily-chart";
 import { WebhooksPanel } from "./webhooks-panel";
 
 const client = new ConsoleClient();
-const OUTCOMES = ["pass", "fail", "step_up", "retry", "reject"];
 
 type Loaded = {
   role: Role;
@@ -148,7 +150,12 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
   }
 
   const { role, projectName, analytics, page, policies } = state;
-  const outcomes = Object.entries(analytics.totals);
+  // In the chart's order, so each total sits where its colour does in the legend; any outcome it doesn't know goes last.
+  const rank = (outcome: string) => {
+    const place = (OUTCOME_ORDER as readonly string[]).indexOf(outcome);
+    return place === -1 ? OUTCOME_ORDER.length : place;
+  };
+  const outcomes = Object.entries(analytics.totals).sort(([a], [b]) => rank(a) - rank(b));
   return (
     <ConsoleShell
       aside={
@@ -203,6 +210,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
             ))}
           </ul>
         )}
+        {outcomes.length > 0 && <DailyChart days={everyDay(analytics.since, 30, analytics.daily)} />}
       </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr]">
@@ -217,7 +225,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
             <Field label="Outcome" id="search-outcome">
               <select id="search-outcome" className={input} name="outcome" defaultValue="">
                 <option value="">Any</option>
-                {OUTCOMES.map((outcome) => (
+                {OUTCOME_ORDER.map((outcome) => (
                   <option key={outcome} value={outcome}>
                     {outcome.replace("_", " ")}
                   </option>

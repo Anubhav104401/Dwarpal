@@ -3,6 +3,8 @@
  * the API (next.config.ts), so the session cookie stays on one origin. Every change repeats the CSRF token from /me.
  */
 
+import type { DailyCount } from "./daily";
+
 export type Role = "owner" | "admin" | "developer" | "analyst";
 
 export interface Organisation {
@@ -96,6 +98,7 @@ export interface SessionTrace extends SessionSummary {
 export interface Analytics {
   since: string;
   totals: Record<string, number>;
+  daily: DailyCount[];
 }
 
 export interface PolicyVersion {
@@ -378,7 +381,12 @@ export class ConsoleClient {
     const data = await this.#call("GET", `${this.#project(org, project)}/analytics?${query}`);
     const totals: Record<string, number> = {};
     for (const [outcome, count] of Object.entries(asJson(data.totals))) totals[outcome] = asCount(count);
-    return { since: asText(data.since), totals };
+    const daily = asList(data.data).map((row) => ({
+      day: asText(row.day),
+      outcome: asText(row.outcome),
+      sessions: asCount(row.sessions),
+    }));
+    return { since: asText(data.since), totals, daily };
   }
 
   async policies(org: string, project: string): Promise<PolicyVersion[]> {

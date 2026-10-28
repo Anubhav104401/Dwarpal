@@ -81,6 +81,19 @@ The rest changed existing files, each re-explained in its walkthrough: the conso
 
 **Searching sessions** (added 29 Oct). The list can be narrowed to one **outcome**, one **reference** of the website's own (such as an order number), or both — in the console's search form, and in the website API (`?outcome=pass`, `?external_ref=order-1`). There is no status filter, on purpose: "expired" is worked out when a session is read, not stored, so filtering the stored status would show expired sessions as still waiting.
 
+**The counts as a chart** (added 29 Oct). Beneath the tiles, the 30 days now appear as bars, one per day, each stacked by outcome — the "chart waits for the design system" limitation above, now lifted. The API already sent the counts day by day; the console had only been adding them up. `everyDay` turns its rows into one entry for every day of the window, so a day without checks is a visible gap rather than missing.
+
+!walk apps/web/lib/daily.ts
+
+!walk apps/web/lib/daily.test.ts
+
+!!! key "Key idea — colour is not enough on its own"
+    Five outcomes need five colours that stay distinct for people with the common kinds of colour blindness, on both a light and a dark panel. They weren't chosen by eye: a validator measured every neighbouring pair as colour-blind eyes would see it, and the contrast of each against its background. All passed except contrast in light mode, where three colours are paler than 3:1 against white. The rule for that case is that the numbers must also be available as text — so every day's numbers appear on hover *or keyboard focus*, each day's button speaks its total, and the whole series is one click away as a table.
+
+!walk apps/web/app/console/[org]/[project]/daily-chart.tsx
+
+The client (`console-api.ts`) now keeps the daily rows, and its test checks them; the project page orders the totals as the legend does and shows the chart. Each was re-explained.
+
 ### 5.5.3 Webhooks in the console
 
 A project's page now ends with a **Webhooks** panel, for the chosen mode: its endpoints, a form to add one, and for each one *Send test*, *Deliveries* (with *Replay* for a finished delivery) and *Remove*. A new endpoint's signing secret is shown once, exactly like a new API key.

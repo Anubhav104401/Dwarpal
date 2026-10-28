@@ -1,5 +1,5 @@
 ---
-fingerprint: ad0d3fd864846af0
+fingerprint: 32211a780e5f3c23
 ---
 **The API's dashboard** (Phase 7, D11, §5.7.7): four graphs of the metrics, loaded into Grafana from this file. JSON allows no comments, so everything is explained here. Each graph's *query* is written in **PromQL**, Prometheus's query language.
 
@@ -48,11 +48,11 @@ The end of the third graph.
 @@ 41-45
 The fourth, bottom right: the face attempts' 95th percentile, against the 1.5-second target of NFR-05.
 
-@@ 46-58
+@@ 46-55
 Shown in milliseconds, with *thresholds*: green below 1,500, red from 1,500 (`null` means "from the very bottom"), drawn as a line across the graph (`thresholdsStyle`), so a glance shows whether the target is being met.
 
-@@ 59-64
+@@ 56-61
 Its query: the same percentile as the third graph, but only for the face-attempt route and merged into a single line.
 
-@@ 65-67
+@@ 62-64
 The end of the fourth graph, the list and the dashboard.

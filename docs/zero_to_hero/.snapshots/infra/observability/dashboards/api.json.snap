@@ -48,10 +48,7 @@
           "unit": "ms",
           "thresholds": {
             "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 1500 }
-            ]
+            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1500 }]
           },
           "custom": { "thresholdsStyle": { "mode": "line" } }
         }
