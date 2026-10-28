@@ -16,7 +16,7 @@ from dwarpal_api.domain.policy import Policy
 from dwarpal_api.errors import ApiError
 from dwarpal_api.http.deps import services
 from dwarpal_api.http.policies import NewVersion
-from dwarpal_api.http.webhooks import NewEndpoint
+from dwarpal_api.http.webhooks import NewEndpoint, Switch
 
 router = APIRouter(prefix="/console/v1", tags=["console"])
 Toolbox = Annotated[Services, Depends(services)]
@@ -274,6 +274,19 @@ async def remove_webhook(
 ) -> Response:
     await console.remove_webhook(svc, current, org_text, project_text, livemode, endpoint_text)
     return Response(status_code=204)
+
+
+@router.patch(PROJECT + "/webhooks/{endpoint_text}")
+async def switch_webhook(
+    org_text: str,
+    project_text: str,
+    endpoint_text: str,
+    body: Switch,
+    current: Changer,
+    svc: Toolbox,
+    livemode: Live = False,
+) -> dict[str, Any]:
+    return await console.switch_webhook(svc, current, org_text, project_text, livemode, endpoint_text, body.enabled)
 
 
 @router.post(PROJECT + "/webhooks/{endpoint_text}/test", status_code=202)

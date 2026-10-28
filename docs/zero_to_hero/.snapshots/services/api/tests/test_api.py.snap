@@ -1364,3 +1364,23 @@ async def test_the_console_session_cookie_is_host_only_secure_and_hidden_from_sc
     attributes = {part.strip().lower() for part in cookie.split(";")[1:]}
     assert {"httponly", "secure", "path=/", "samesite=lax"} <= attributes
     assert not any(a.startswith("domain=") for a in attributes)
+
+
+@pytest.mark.anyio
+async def test_a_switched_off_endpoint_gets_nothing_until_switched_back_on(databases: tuple[str, str]) -> None:
+    async with harness(databases, webhook_allow_private=True) as h:
+        auth = {"Authorization": f"Bearer {h.key}"}
+        hook = {"url": "http://localhost:9/hooks", "events": ["verification_session.completed"]}
+        endpoint = (await h.client.post("/v1/webhook-endpoints", json=hook, headers=auth)).json()
+        address = f"/v1/webhook-endpoints/{endpoint['id']}"
+        off = await h.client.patch(address, json={"enabled": False}, headers=auth)
+        await h.client.post(f"{address}/test", headers=auth)
+        while_off = (await h.client.get(f"{address}/deliveries", headers=auth)).json()["data"]
+        on = await h.client.patch(address, json={"enabled": True}, headers=auth)
+        await h.client.post(f"{address}/test", headers=auth)
+        while_on = (await h.client.get(f"{address}/deliveries", headers=auth)).json()["data"]
+        unknown = await h.client.patch("/v1/webhook-endpoints/whe_nobody", json={"enabled": False}, headers=auth)
+    assert (off.json()["enabled"], on.json()["enabled"]) == (False, True)
+    assert while_off == []  # switched off: the test event was recorded, but nothing was queued for it
+    assert [d["status"] for d in while_on] == ["pending"]
+    assert unknown.status_code == 404

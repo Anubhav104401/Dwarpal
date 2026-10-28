@@ -179,6 +179,27 @@ async def delete_endpoint(
         await session.commit()
 
 
+async def set_enabled(
+    svc: Services,
+    project_id: uuid.UUID,
+    org_id: uuid.UUID,
+    livemode: bool,
+    actor: tuple[str, str],
+    endpoint_text: str,
+    enabled: bool,
+) -> dict[str, Any]:
+    """Switch an endpoint off (no new deliveries; any still pending are closed unsent) or back on, keeping its address,
+    events and secret — for a receiver that is down for maintenance, say."""
+    async with tenant(svc.sessions, project_id) as session:
+        endpoint = await load_endpoint(session, livemode, endpoint_text)
+        if endpoint.enabled != enabled:
+            endpoint.enabled = enabled
+            action = "webhook_endpoint.enabled" if enabled else "webhook_endpoint.disabled"
+            await audit.record(session, org_id, actor, action, endpoint_text, {"url": endpoint.url}, svc.now())
+        await session.commit()
+    return endpoint_view(endpoint)
+
+
 async def send_test(svc: Services, project_id: uuid.UUID, livemode: bool, endpoint_text: str) -> dict[str, Any]:
     """Queue a test event for one endpoint, whatever it subscribes to, so a website can check its receiver."""
     async with tenant(svc.sessions, project_id) as session:

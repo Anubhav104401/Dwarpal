@@ -516,6 +516,20 @@ async def remove_webhook(
     await webhooks.delete_endpoint(svc, project_id, org_id, livemode, actor, endpoint_text)
 
 
+async def switch_webhook(
+    svc: Services,
+    current: ConsoleSession,
+    org_text: str,
+    project_text: str,
+    livemode: bool,
+    endpoint_text: str,
+    enabled: bool,
+) -> dict[str, Any]:
+    org_id, project_id = await project_in(svc, current, org_text, project_text, Action.MANAGE_WEBHOOKS)
+    actor = actor_of(current.user_id)
+    return await webhooks.set_enabled(svc, project_id, org_id, livemode, actor, endpoint_text, enabled)
+
+
 async def send_test_event(
     svc: Services, current: ConsoleSession, org_text: str, project_text: str, livemode: bool, endpoint_text: str
 ) -> dict[str, Any]:

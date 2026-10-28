@@ -43,6 +43,20 @@ async def delete_endpoint(endpoint_text: str, caller: Manager, svc: Toolbox) -> 
     return Response(status_code=204)
 
 
+class Switch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool
+
+
+@router.patch("/webhook-endpoints/{endpoint_text}")
+async def switch_endpoint(endpoint_text: str, body: Switch, caller: Manager, svc: Toolbox) -> dict[str, Any]:
+    project = caller.project
+    return await webhooks.set_enabled(
+        svc, project.id, project.org_id, caller.livemode, caller.actor, endpoint_text, body.enabled
+    )
+
+
 @router.post("/webhook-endpoints/{endpoint_text}/test", status_code=202)
 async def send_test(endpoint_text: str, caller: Manager, svc: Toolbox) -> dict[str, Any]:
     return await webhooks.send_test(svc, caller.project.id, caller.livemode, endpoint_text)

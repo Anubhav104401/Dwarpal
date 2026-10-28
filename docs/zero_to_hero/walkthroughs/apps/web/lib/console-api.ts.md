@@ -1,5 +1,5 @@
 ---
-fingerprint: d52093761277ad51
+fingerprint: a8c32853ef3f7597
 ---
 The console's **client** (Phase 5, §5.5.1): the one place in the web app that talks to the console API, in the same way as `flow-api.ts` talks to the flow API for the verify page. Every page calls these methods and never `fetch` directly.
 
@@ -188,14 +188,17 @@ End of `#remember`.
 @@ 401-403
 **`removeWebhook`** — delete one; the mode in the address.
 
-@@ 405-409
+@@ 405-415
+**`switchWebhook`** — switch an endpoint off or on with `PATCH`, the mode in the address, and read the endpoint back.
+
+@@ 417-421
 **`testWebhook`** — queue a test event; returns its ID.
 
-@@ 411-425
+@@ 423-437
 **`deliveries`** — an endpoint's recent deliveries. The receiver's last answer is a number only if it is one, and its error a text only if there was one.
 
-@@ 427-431
+@@ 439-443
 **`replay`** — send a delivery again.
 
-@@ 432
+@@ 444
 End of the class.

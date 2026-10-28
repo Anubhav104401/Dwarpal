@@ -1,5 +1,5 @@
 ---
-fingerprint: aee258e3a0a03de3
+fingerprint: 39e1936a2d23fa1c
 ---
 The **webhooks API** (Phase 4, §5.4.3) — six endpoints for a website's server, all needing the `webhooks:write` scope:
 
@@ -51,11 +51,17 @@ Two **type aliases**: names for long types, written once. `Manager` means "a cal
 @@ 39-43
 **`delete_endpoint`** — the same for a deletion; answers `204 No Content`: done, and nothing to say.
 
-@@ 46-48
+@@ 46-49
+**`Switch`** — the body of a switch: just `enabled`, true or false.
+
+@@ 52-57
+**`switch_endpoint`** — `PATCH /v1/webhook-endpoints/{id}`: switch it, naming the key in the audit log.
+
+@@ 60-62
 **`send_test`** — answers `202 Accepted`: the event is queued, and the worker will send it shortly.
 
-@@ 51-53
+@@ 65-67
 **`list_deliveries`** — for one endpoint.
 
-@@ 56-58
+@@ 70-72
 **`replay`** — also `202`: queued again.

@@ -1,5 +1,5 @@
 ---
-fingerprint: 0900e897b9fd922a
+fingerprint: bb4e10a1afe8dbc8
 ---
 The **console's use cases** (Phase 4, §5.4.5) — everything a person at one of Dwarpal's customers does through the web console: signing up and in, switching on one-time codes, managing members, creating API keys, reading the audit log.
 
@@ -387,11 +387,14 @@ Check the project and the role, then create it with the website API's own use ca
 @@ 511-516
 **`remove_webhook`** — the same check, then delete it, the person named.
 
-@@ 519-523
-**`send_test_event`** — queue a test event for one endpoint.
-
-@@ 526-530
-**`webhook_deliveries`** — an endpoint's recent deliveries.
+@@ 519-530
+**`switch_webhook`** — the same from the console, for roles that may manage webhooks, naming the person.
 
 @@ 533-537
+**`send_test_event`** — queue a test event for one endpoint.
+
+@@ 540-544
+**`webhook_deliveries`** — an endpoint's recent deliveries.
+
+@@ 547-551
 **`replay_delivery`** — send a delivery again from the start of its retry schedule.

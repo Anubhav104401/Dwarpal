@@ -1,5 +1,5 @@
 ---
-fingerprint: f457d60845e681b6
+fingerprint: c74850829117ab88
 ---
 The **console API** (Phase 4, §5.4.5), under `/console/v1`: what Dwarpal's own web console calls for a signed-in person. Unlike the website API, which uses API keys, it uses a **cookie**, because people sign in with a browser.
 
@@ -37,7 +37,7 @@ The console use cases and session type, the toolbox type, the `Policy` type, our
 The body of a new policy version, as the website API defines it (`http/policies.py`): one shape, one set of rules.
 
 @@ 19
-The body of a new webhook endpoint, as the website API defines it (`http/webhooks.py`).
+The body of a new webhook endpoint, and of a switch, as the website API defines them (`http/webhooks.py`).
 
 @@ 21-22
 The router, under `/console/v1`, and a short name for the toolbox parameter.
@@ -165,11 +165,14 @@ The path every project route starts with, written once; and `Live`, the `livemod
 @@ 271-276
 **`remove_webhook`** — `DELETE …/webhooks/{id}`: `204`. The mode comes in the address (`?livemode=true`), like every other webhook route here.
 
-@@ 279-283
+@@ 279-289
+**`switch_webhook`** — `PATCH …/webhooks/{id}`, a change: on or off, in the mode the address names.
+
+@@ 292-296
 **`send_test_event`** — `POST …/webhooks/{id}/test`: `202 Accepted` — queued, not yet sent.
 
-@@ 286-290
+@@ 299-303
 **`webhook_deliveries`** — `GET …/webhooks/{id}/deliveries`.
 
-@@ 293-297
+@@ 306-310
 **`replay_delivery`** — `POST …/webhook-deliveries/{id}/replay`: `202`.

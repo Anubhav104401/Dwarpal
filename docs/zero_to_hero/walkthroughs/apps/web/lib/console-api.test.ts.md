@@ -1,5 +1,5 @@
 ---
-fingerprint: 2ffc555652902817
+fingerprint: 330ee701a497a027
 ---
 Unit tests of the console's client (Phase 5), with the network replaced by a stand-in `fetch` that records each request and hands back prepared answers.
 
@@ -115,34 +115,49 @@ The deletion was a `DELETE`, with the mode in its address.
 End of the test and the group.
 
 @@ 157-158
+**Switching a webhook.** The request's method, address and body, and the answer read back.
+
+@@ 159-167
+Two prepared answers: who is signed in, and the endpoint, now off; a stand-in `fetch` records each request.
+
+@@ 168-170
+Sign in (for the token), and switch the endpoint off.
+
+@@ 172-176
+It was a `PATCH` to the endpoint's address, with the mode, carrying `enabled: false`.
+
+@@ 177-179
+The endpoint came back off. End of the test and the group.
+
+@@ 181-182
 **Members and one-time codes.** The right methods and addresses, and the bodies.
 
-@@ 159-166
+@@ 183-190
 Each request seen; and five prepared answers: who is signed in, a changed role, an empty `204`, a secret, and another `204`.
 
-@@ 167-170
+@@ 191-194
 A stand-in `fetch` that records each request and hands back the next answer.
 
-@@ 171-176
+@@ 195-200
 Sign in (for the token); change a role; remove the member; ask for a secret; confirm a code.
 
-@@ 178-183
+@@ 202-207
 After `/me`, the four requests went out with these methods to these addresses.
 
-@@ 184-186
+@@ 208-210
 The role change sent only the role; the secret came back; the confirmation sent the code.
 
-@@ 187-188
+@@ 211-212
 End of the test and the group.
 
-@@ 190-191
+@@ 214-215
 **The page's role checks** match the API's matrix where the pages use them.
 
-@@ 192-197
+@@ 216-221
 Every role but an analyst may manage keys. (`as never` lets a plain text stand in for the `Role` type in this table.)
 
-@@ 198-199
+@@ 222-223
 A developer may not manage members; an admin may read the audit log.
 
-@@ 200-201
+@@ 224-225
 End of the test and the group.

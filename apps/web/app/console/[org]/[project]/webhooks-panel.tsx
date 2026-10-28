@@ -3,6 +3,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 
 import { Alert, Field, input, panel, quietButton, smallButton } from "@/components/console-shell";
+import { Badge } from "@/components/ui";
 import {
   type ConsoleClient,
   ConsoleError,
@@ -62,6 +63,12 @@ export function WebhooksPanel({ client, org, project, livemode }: Props) {
       await showDeliveries(endpoint);
     });
 
+  const switchTo = (endpoint: string, enabled: boolean) =>
+    attempt(async () => {
+      await client.switchWebhook(org, project, livemode, endpoint, enabled);
+      await load();
+    });
+
   const remove = (endpoint: string) =>
     attempt(async () => {
       await client.removeWebhook(org, project, livemode, endpoint);
@@ -109,10 +116,12 @@ export function WebhooksPanel({ client, org, project, livemode }: Props) {
           {endpoints.map((e) => (
             <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
               <div className="min-w-0">
-                <p className="break-all font-mono text-xs">{e.url}</p>
+                <p className="break-all font-mono text-xs">
+                  {e.url} {e.enabled ? null : <Badge tone="neutral">Off</Badge>}
+                </p>
                 <p className="text-xs text-ink-500">{e.events.join(", ")}</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button type="button" className={quietButton} onClick={() => sendTest(e.id)}>
                   Send test
                 </button>
@@ -122,6 +131,9 @@ export function WebhooksPanel({ client, org, project, livemode }: Props) {
                   onClick={() => attempt(() => showDeliveries(e.id))}
                 >
                   Deliveries
+                </button>
+                <button type="button" className={quietButton} onClick={() => switchTo(e.id, !e.enabled)}>
+                  {e.enabled ? "Switch off" : "Switch on"}
                 </button>
                 <button type="button" className={quietButton} onClick={() => remove(e.id)}>
                   Remove

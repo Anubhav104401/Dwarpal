@@ -402,6 +402,18 @@ export class ConsoleClient {
     await this.#call("DELETE", `${this.#hooks(org, project, endpoint)}?livemode=${livemode}`);
   }
 
+  /** Switch an endpoint off (it keeps its address, events and secret, but gets nothing) or back on. */
+  async switchWebhook(
+    org: string,
+    project: string,
+    livemode: boolean,
+    endpoint: string,
+    enabled: boolean,
+  ): Promise<WebhookEndpoint> {
+    const path = `${this.#hooks(org, project, endpoint)}?livemode=${livemode}`;
+    return asEndpoint(await this.#call("PATCH", path, { enabled }));
+  }
+
   /** Queue a test event for one endpoint; returns the event's ID. */
   async testWebhook(org: string, project: string, livemode: boolean, endpoint: string): Promise<string> {
     const data = await this.#call("POST", `${this.#hooks(org, project, endpoint)}/test?livemode=${livemode}`);

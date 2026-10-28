@@ -74,6 +74,12 @@ test("a new customer signs up, creates an API key, and sees it in an intact audi
   await expect(page.getByTestId("new-secret")).toHaveText(/^whsec_/);
   await page.getByRole("button", { name: "Send test" }).click();
   await expect(page.getByRole("table", { name: "Recent deliveries" })).toContainText("pending");
+  // Switched off, it is marked so; switched on again, the mark goes.
+  await page.getByRole("button", { name: "Switch off" }).click();
+  const webhooks = page.getByRole("region", { name: "Webhooks" });
+  await expect(webhooks.getByText("Off", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Switch on" }).click();
+  await expect(webhooks.getByText("Off", { exact: true })).toHaveCount(0);
 });
 
 test("the console refuses a wrong password without saying whether the account exists", async ({ page }) => {

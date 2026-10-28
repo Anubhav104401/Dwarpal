@@ -98,7 +98,9 @@ The rest changed existing files, each re-explained in its walkthrough: the webho
 - in a real browser, an owner adds an endpoint, sees its secret, and sees the test event waiting.
 
 !!! honest "Honest limitation"
-    The console shows the last 100 deliveries of one endpoint at a time, with no filter, and can't yet switch an endpoint off without removing it. During the browser test nothing is actually delivered: no delivery worker runs there (the worker has its own tests, §5.4.3).
+    The console shows the last 100 deliveries of one endpoint at a time, with no filter. (Switching an endpoint off came later — see below.) During the browser test nothing is actually delivered: no delivery worker runs there (the worker has its own tests, §5.4.3).
+
+**Switching an endpoint off** (added 29 Oct). A website whose receiver is down for maintenance can now switch its endpoint off instead of deleting it, which would lose the secret: `PATCH /v1/webhook-endpoints/{id}` with `{"enabled": false}`, or *Switch off* in the console. Off, it keeps its address, events and secret but gets nothing: new events skip it, and deliveries still pending are closed unsent. Each switch is in the audit log; a test proves a switched-off endpoint is sent nothing until switched back on.
 
 ### 5.5.4 One-time codes and members' roles
 

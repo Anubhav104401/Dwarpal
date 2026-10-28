@@ -1,5 +1,5 @@
 ---
-fingerprint: 2558cdaa2b96d765
+fingerprint: 101c2530376cfd85
 ---
 The use cases of **events and webhooks** (Phase 4, §5.4.3): writing events, and letting a website manage the endpoints that hear about them.
 
@@ -100,29 +100,44 @@ Answer with the endpoint **and its secret**. This is the only time the secret is
 @@ 171-179
 **`delete_endpoint`** — for a project, in one mode, by an actor: find it, record its deletion (with its address) in the audit log, and delete it. Its deliveries go with it (the foreign key's `CASCADE`).
 
-@@ 182-183
+@@ 182-190
+**`set_enabled`** (Phase 5) — switch an endpoint off or back on, for a project in one mode, by an actor.
+
+@@ 191-192
+Switched off, an endpoint keeps its address, events and secret but gets nothing: new events skip it (`emit` only queues for enabled endpoints) and the delivery worker closes any still pending without sending. Useful while a website's receiver is down for maintenance — instead of deleting it and losing the secret.
+
+@@ 193-194
+Find it, in this mode.
+
+@@ 195-198
+Only if that changes anything: set it, and record `webhook_endpoint.enabled` or `.disabled` in the audit log with its address. Switching off something already off records nothing.
+
+@@ 199-200
+Save, and answer with the endpoint as it now is.
+
+@@ 203-204
 **`send_test`** — queue a test event for one endpoint.
 
-@@ 184-188
+@@ 205-209
 Find the endpoint, and emit a `webhook_endpoint.test` event with a short message, to it alone. Commit.
 
-@@ 189
+@@ 210
 Answer with the event.
 
-@@ 192-202
+@@ 213-223
 **`list_deliveries`** — an endpoint's most recent deliveries, newest first, at most 100.
 
-@@ 205-206
+@@ 226-227
 **`replay`** — send a delivery again from the start of the schedule: after a receiver was fixed, or for a dead delivery.
 
-@@ 207-210
+@@ 228-231
 A malformed ID is simply "not found".
 
-@@ 211-215
+@@ 232-236
 In the tenant, find the delivery, **locked**, and its endpoint; it must exist and be in the caller's mode.
 
-@@ 216-217
+@@ 237-238
 Make it pending again, with no attempts, due now, and clear what happened before.
 
-@@ 218-219
+@@ 239-240
 Save, and answer with its new state.

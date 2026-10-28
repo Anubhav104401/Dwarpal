@@ -1,5 +1,5 @@
 ---
-fingerprint: d74b8d77c1f9f035
+fingerprint: 5cabeb1ef893e01b
 ---
 The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page, adds a policy version and a webhook endpoint; a wrong password is refused without revealing whether the account exists; and a member turns on one-time codes, after which signing in needs one.
 
@@ -66,35 +66,38 @@ Its decision trace opens: no attempts yet.
 @@ 71-76
 **A webhook endpoint**: add one on the demo shop's address; its secret (`whsec_…`) is shown; send a test event; it is listed as `pending` — no delivery worker runs during the test.
 
-@@ 77
+@@ 77-82
+**Switching it off and on**: off, and the endpoint is marked *Off*; on again, and the mark is gone.
+
+@@ 83
 End of the test.
 
-@@ 79-83
+@@ 85-89
 **Test — a wrong password**, for an address nobody has.
 
-@@ 84-86
+@@ 90-92
 The refusal says only that the address or password is wrong. (Next.js keeps its own empty `role="alert"` region for announcing page changes; the test picks the alert that has words in it.)
 
-@@ 87
+@@ 93
 End of the test.
 
-@@ 89-91
+@@ 95-97
 **Test — one-time codes.** A fresh address, and a password to use twice.
 
-@@ 92-97
+@@ 98-103
 Create an account.
 
-@@ 99-102
+@@ 105-108
 Open *Security* and start setting up: a QR code appears. Read the secret the page shows in text, as a person would type it into their app.
 
-@@ 103-105
+@@ 109-111
 Enter the current code and turn it on: the page says "On."
 
-@@ 107-112
+@@ 113-118
 Sign out, and sign in with the password alone: the console asks for a code. A code works only once, so the test uses the next 30 seconds' code, which the API accepts for clocks that run a little fast.
 
-@@ 113-117
+@@ 119-123
 Enter it and sign in: the organisations appear.
 
-@@ 118
+@@ 124
 End of the test.

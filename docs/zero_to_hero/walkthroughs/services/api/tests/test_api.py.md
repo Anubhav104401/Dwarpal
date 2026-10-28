@@ -1,5 +1,5 @@
 ---
-fingerprint: f988ddb5601bceb1
+fingerprint: 60ddc051f1091068
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -1077,3 +1077,27 @@ Its attributes include `HttpOnly` (no script can read it), `Secure` (HTTPS only)
 
 @@ 1366
 And no `Domain`, which would share it with other hosts.
+
+@@ 1369-1375
+**Test — switching an endpoint off and on** (Phase 5). A website registers an endpoint.
+
+@@ 1376-1378
+Switch it off, send a test event, and read its deliveries.
+
+@@ 1379-1381
+Switch it back on, and do the same.
+
+@@ 1382
+And try to switch an endpoint that doesn't exist.
+
+@@ 1383
+The answers said off, then on.
+
+@@ 1384
+While off, nothing was queued for it.
+
+@@ 1385
+Back on, the test event waits to be delivered.
+
+@@ 1386
+An unknown endpoint is not found.

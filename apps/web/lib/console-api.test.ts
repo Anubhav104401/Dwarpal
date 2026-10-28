@@ -154,6 +154,30 @@ describe("ConsoleClient, webhooks", () => {
   });
 });
 
+describe("ConsoleClient, switching a webhook", () => {
+  it("sends PATCH with the new state and the mode, and reads the endpoint back", async () => {
+    const seen: Array<[string, string, string | null]> = [];
+    const replies = [
+      answer(200, { csrf_token: "c1", organisations: [] }),
+      answer(200, { id: "whe_1", url: "https://shop.example/hooks", events: [], enabled: false }),
+    ];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      seen.push([init.method ?? "GET", url, typeof init.body === "string" ? init.body : null]);
+      return replies.shift();
+    });
+    const client = new ConsoleClient();
+    await client.me();
+    const endpoint = await client.switchWebhook("org_1", "prj_1", false, "whe_1", false);
+
+    expect(seen[1]).toEqual([
+      "PATCH",
+      "/console-api/orgs/org_1/projects/prj_1/webhooks/whe_1?livemode=false",
+      '{"enabled":false}',
+    ]);
+    expect(endpoint.enabled).toBe(false);
+  });
+});
+
 describe("ConsoleClient, members and one-time codes", () => {
   it("changes and removes members by their IDs, and confirms a code", async () => {
     const seen: Array<[string, string, string | null]> = [];
