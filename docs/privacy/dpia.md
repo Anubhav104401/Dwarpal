@@ -23,7 +23,7 @@
 | Daily counts (no person, no session) | derived | indefinitely — anonymous | `session_stats` |
 | Device budget counters (a random ID the page keeps; the network address) | visitor's browser | **one hour**, and only as SHA-256 digests in Valkey | `adapters/store.py` (`spend_budget`) |
 | Request logs | — | per the operator's log retention | method, path, status, duration and request ID only — **no IP addresses, no bodies** (`logs.py`) |
-| Console users: e-mail, Argon2id password hash, sealed TOTP secret | console user | while the account exists | `users` |
+| Console users: e-mail, Argon2id password hash, sealed TOTP secret, HMACs of unused recovery codes (never the codes) | console user | while the account exists; recovery codes until used, replaced, or codes switched off | `users` |
 | Audit log | console users' and keys' actions | design: one year (purge not yet built) | `audit_log` |
 | Document step-up (planned): year and month of birth only | visitor | as session facts | `domain/mrz.py` (`birth_year_month`) |
 

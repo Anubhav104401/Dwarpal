@@ -45,3 +45,24 @@ def provisioning_uri(secret: str, account: str, issuer: str = "Dwarpal") -> str:
     return (
         f"otpauth://totp/{label}?secret={secret}&issuer={quote(issuer)}&algorithm=SHA1&digits={DIGITS}&period={STEP_S}"
     )
+
+
+RECOVERY_CODES = 10
+# Base32's alphabet in lower case: no 0, 1, 8 or 9, which are easy to mistake for letters when copied by hand.
+RECOVERY_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567"
+
+
+def new_recovery_codes(count: int = RECOVERY_CODES) -> list[str]:
+    """Single-use codes for when the phone is lost: 10 random letters each (50 bits), shown as abcde-fghij."""
+    codes = []
+    for _ in range(count):
+        letters = "".join(secrets.choice(RECOVERY_ALPHABET) for _ in range(10))
+        codes.append(f"{letters[:5]}-{letters[5:]}")
+    return codes
+
+
+def recovery_digest(key: bytes, user_id: bytes, code: str) -> str:
+    """What is stored instead of a recovery code: an HMAC of it, keyed by a server secret and bound to its user.
+    Spaces, dashes and capitals don't matter, so a code typed as ABCDE FGHIJ still counts."""
+    letters = "".join(code.split()).replace("-", "").lower()
+    return hmac.new(key, user_id + letters.encode(), hashlib.sha256).hexdigest()

@@ -86,12 +86,22 @@ class SignIn(BaseModel):
 
     email: Annotated[str, Field(max_length=254)]
     password: Annotated[str, Field(max_length=256)]
-    code: Annotated[str | None, Field(pattern=r"^[0-9]{6}$")] = None
+    # A 6-digit code from the phone, or one of the recovery codes (abcde-fghij, capitals and spaces allowed).
+    code: Annotated[str | None, Field(pattern=r"^([0-9]{6}|[A-Za-z2-7]{5}[- ]?[A-Za-z2-7]{5})$")] = None
 
 
 class Code(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    code: Annotated[str, Field(pattern=r"^[0-9]{6}$")]
+
+
+class Reauthentication(BaseModel):
+    """The password and a current code: proof that the person, not just their browser, is asking."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    password: Annotated[str, Field(max_length=256)]
     code: Annotated[str, Field(pattern=r"^[0-9]{6}$")]
 
 
@@ -154,9 +164,20 @@ async def totp_enrol(current: Changer, svc: Toolbox) -> dict[str, Any]:
     return await console.totp_enrol(svc, current)
 
 
-@router.post("/totp/confirm", status_code=204)
-async def totp_confirm(body: Code, current: Changer, svc: Toolbox) -> Response:
-    await console.totp_confirm(svc, current, body.code)
+@router.post("/totp/confirm")
+async def totp_confirm(body: Code, current: Changer, svc: Toolbox) -> dict[str, Any]:
+    return await console.totp_confirm(svc, current, body.code)
+
+
+@router.post("/totp/recovery-codes")
+async def replace_recovery_codes(current: Changer, svc: Toolbox) -> dict[str, Any]:
+    return await console.replace_recovery_codes(svc, current)
+
+
+@router.post("/totp/disable", status_code=204)
+async def totp_disable(body: Reauthentication, request: Request, current: Changer, svc: Toolbox) -> Response:
+    address = request.client.host if request.client else "unknown"
+    await console.totp_disable(svc, current, body.password, body.code, address)
     return Response(status_code=204)
 
 

@@ -9,7 +9,7 @@
 | The **age decision** | a wrong *pass* admits a child — the harm the system exists to prevent | decided in `domain/decision.py`; recorded in `verification_sessions` |
 | **Faces** | biometric data; must never be stored | memory only, inside one request (ADR-0013) |
 | **Signing keys** | whoever holds them can forge age tokens | `signing_keys`, sealed under the master key |
-| **Master key** | unseals signing keys, webhook secrets, TOTP secrets, idempotent replies | environment variable only |
+| **Master key** | unseals signing keys, webhook secrets, TOTP secrets, idempotent replies; keys recovery-code HMACs | environment variable only |
 | **API keys, webhook secrets, session cookies** | impersonating a customer or a console user | stored as digests or sealed; shown once |
 | **Tenant data** | one customer must never see another's | PostgreSQL with row-level security |
 | **Audit history** | accountability; must not be silently rewritten | hash-chained `audit_log` |
@@ -58,7 +58,7 @@ The browser and everything on the internet is untrusted. The inference service i
 
 | Threat | Mitigation | Proof |
 | :-- | :-- | :-- |
-| Password guessing | Argon2id; per-account and per-address limits; TOTP | `test_sign_in_attempts_are_limited`; `test_one_time_codes_*` |
+| Password guessing | Argon2id; per-account and per-address limits; TOTP (switching it off needs password + code, under the same limits) | `test_sign_in_attempts_are_limited`; `test_one_time_codes_*`; `test_a_recovery_code_signs_in_once_*` |
 | Account enumeration | same answer and same work for unknown accounts (decoy hash) | `test_a_person_signs_up_*` |
 | Session theft | `__Host-` `HttpOnly` `Secure` `SameSite=Lax` cookie; token stored hashed; 12-hour sliding expiry | `http/console.py` |
 | CSRF | synchroniser token plus `Origin` check | `test_changes_need_the_csrf_token_and_the_consoles_own_origin` |
@@ -105,7 +105,7 @@ The browser and everything on the internet is untrusted. The inference service i
 4. **No dependency or container scanning yet** — Semgrep, pip-audit, Trivy, ZAP pending (D9).
 5. **DNS rebinding window** between the webhook address check and the connection — worker egress filtering in Phase 8.
 6. **Audit chain not anchored outside the database** — a consistent rewrite by someone controlling the database would go unnoticed.
-7. **No recovery codes for TOTP**, no e-mail verification of accounts, no password reset.
+7. ~~No recovery codes for TOTP~~ — **added 29 Oct** (single-use, stored as HMACs). Still no e-mail verification of accounts, and no password reset.
 8. **Console sessions aren't bound to a device** — a stolen cookie works until it expires or the person signs out.
 
 ## 6. Review triggers

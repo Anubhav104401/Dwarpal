@@ -1,5 +1,5 @@
 ---
-fingerprint: 3bcb12307fbd56bb
+fingerprint: 5a81a006a0c5bfb0
 ---
 The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page, adds a policy version and a webhook endpoint; a wrong password is refused without revealing whether the account exists; and a member turns on one-time codes, after which signing in needs one.
 
@@ -99,35 +99,47 @@ Open *Security* and start setting up: a QR code appears. Read the secret the pag
 @@ 116-118
 Enter the current code and turn it on: the page says "On."
 
-@@ 120-125
+@@ 119-122
+Keep the first recovery code the page showed, and check its shape.
+
+@@ 124-129
 Sign out, and sign in with the password alone: the console asks for a code. A code works only once, so the test uses the next 30 seconds' code, which the API accepts for clocks that run a little fast.
 
-@@ 126-130
+@@ 130-134
 Enter it and sign in: the organisations appear.
 
-@@ 131
-End of the test.
-
-@@ 133-142
-**`signUp`** — create an account in a given browser page, with its own organisation, and wait for the organisations page: the steps of the first test, made reusable.
-
-@@ 144-146
-**Test — managing a member** (Phase 5). Two fresh addresses: the owner's and a colleague's.
+@@ 136-145
+**A lost phone**: sign out and in again with the recovery code instead of a code — it works, and the Security page now says nine are left.
 
 @@ 147-149
+**Switching codes off** needs a code nobody has used. The next one was just used to sign in, so wait for the clock's next 30-second step, as a person would wait for a new code…
+
+@@ 150-153
+…then give the password and the code after it, and turn codes off: the page offers to set them up again.
+
+@@ 154
+End of the test.
+
+@@ 156-165
+**`signUp`** — create an account in a given browser page, with its own organisation, and wait for the organisations page: the steps of the first test, made reusable.
+
+@@ 167-169
+**Test — managing a member** (Phase 5). Two fresh addresses: the owner's and a colleague's.
+
+@@ 170-172
 The colleague signs up in a browser of their own — a second **context**, with its own cookies, so their session never mixes with the owner's — which is then closed.
 
-@@ 150-152
+@@ 173-175
 The owner signs up and opens the organisation; the members' panel is where everything happens.
 
-@@ 154-158
+@@ 177-181
 Add the colleague as an analyst: their row appears, with a role menu showing *analyst*.
 
-@@ 160-163
+@@ 183-186
 Change it to developer; then reload the page, to prove the change was saved, not just shown.
 
-@@ 165-166
+@@ 188-189
 Remove them: their address is gone from the members.
 
-@@ 167
+@@ 190
 End of the test.

@@ -15,6 +15,7 @@ export interface Me {
   id: string;
   email: string;
   totpEnabled: boolean;
+  recoveryCodesLeft: number;
   organisations: Organisation[];
 }
 
@@ -222,6 +223,7 @@ export class ConsoleClient {
       id: asText(data.id),
       email: asText(data.email),
       totpEnabled: data.totp_enabled === true,
+      recoveryCodesLeft: asCount(data.recovery_codes_left),
       organisations: asList(data.organisations).map((o) => ({
         id: asText(o.id),
         name: asText(o.name),
@@ -284,8 +286,19 @@ export class ConsoleClient {
     return { secret: asText(data.secret), uri: asText(data.uri) };
   }
 
-  async totpConfirm(code: string): Promise<void> {
-    await this.#call("POST", "/totp/confirm", { code });
+  /** Confirm a code from the app: one-time codes are on, and the answer holds the recovery codes, shown once. */
+  async totpConfirm(code: string): Promise<string[]> {
+    return asTexts((await this.#call("POST", "/totp/confirm", { code })).recovery_codes);
+  }
+
+  /** A fresh set of recovery codes, replacing every old one. */
+  async newRecoveryCodes(): Promise<string[]> {
+    return asTexts((await this.#call("POST", "/totp/recovery-codes")).recovery_codes);
+  }
+
+  /** Switch one-time codes off: only with the password and a current code. */
+  async totpDisable(password: string, code: string): Promise<void> {
+    await this.#call("POST", "/totp/disable", { password, code });
   }
 
   async projects(org: string): Promise<Project[]> {

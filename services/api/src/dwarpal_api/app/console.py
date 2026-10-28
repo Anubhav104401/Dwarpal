@@ -3,7 +3,9 @@ the audit log. Every organisation action checks the person's role first (domain/
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import hmac
 import json
 import re
 import secrets
@@ -154,9 +156,13 @@ async def sign_in(
                 raise ApiError(401, "totp_required", "enter the 6-digit code from your authenticator app")
             secret = _master(svc).open(user.totp_secret_sealed, user.id.bytes).decode()
             step = totp.accepted_step(secret, code, now.timestamp(), user.totp_last_step)
-            if step is None:
+            if step is not None:
+                user.totp_last_step = step
+            elif _use_recovery_code(svc, user, code):
+                left = {"recovery_codes_left": len(user.recovery_digests)}
+                await _record_for_all(session, user, "user.recovery_code_used", left, now)
+            else:
                 raise ApiError(401, "invalid_totp", "that code is wrong or already used")
-            user.totp_last_step = step
         user.last_login_at = now
         for org_id in await session.scalars(select(Membership.org_id).where(Membership.user_id == user.id)):
             await audit.record(
@@ -184,9 +190,40 @@ async def me(svc: Services, current: ConsoleSession) -> dict[str, Any]:
         "object": "user",
         "email": user.email,
         "totp_enabled": user.totp_secret_sealed is not None,
+        "recovery_codes_left": len(user.recovery_digests),
         "csrf_token": current.csrf,
         "organisations": [{"id": ids.encode("org", org.id), "name": org.name, "role": role} for org, role in rows],
     }
+
+
+def _recovery_key(svc: Services) -> bytes:
+    """The key for recovery codes' HMACs, derived from the master key for this purpose alone."""
+    master = base64.b64decode(svc.settings.master_key.get_secret_value())
+    return hmac.new(master, b"dwarpal recovery codes", hashlib.sha256).digest()
+
+
+def _new_recovery_codes(svc: Services, user: User) -> list[str]:
+    """Replace the user's recovery codes with a fresh set, and return them: the only time they exist in plain text."""
+    codes = totp.new_recovery_codes()
+    key = _recovery_key(svc)
+    user.recovery_digests = [totp.recovery_digest(key, user.id.bytes, code) for code in codes]
+    return codes
+
+
+def _use_recovery_code(svc: Services, user: User, code: str) -> bool:
+    """Whether `code` is one of the user's unused recovery codes; if so, it is used up."""
+    digest = totp.recovery_digest(_recovery_key(svc), user.id.bytes, code)
+    if not any(hmac.compare_digest(digest, kept) for kept in user.recovery_digests):
+        return False
+    user.recovery_digests = [kept for kept in user.recovery_digests if kept != digest]
+    return True
+
+
+async def _record_for_all(session: AsyncSession, user: User, action: str, facts: dict[str, Any], now: Any) -> None:
+    """Record something a person did to their own account in every organisation they belong to."""
+    target = ids.encode("usr", user.id)
+    for org_id in await session.scalars(select(Membership.org_id).where(Membership.user_id == user.id)):
+        await audit.record(session, org_id, actor_of(user.id), action, target, facts, now)
 
 
 async def totp_enrol(svc: Services, current: ConsoleSession) -> dict[str, Any]:
@@ -201,7 +238,7 @@ async def totp_enrol(svc: Services, current: ConsoleSession) -> dict[str, Any]:
     return {"secret": secret, "uri": totp.provisioning_uri(secret, user.email)}
 
 
-async def totp_confirm(svc: Services, current: ConsoleSession, code: str) -> None:
+async def totp_confirm(svc: Services, current: ConsoleSession, code: str) -> dict[str, Any]:
     now = svc.now()
     async with tenant(svc.sessions, user_id=current.user_id) as session:
         user = await session.get(User, current.user_id, with_for_update=True)
@@ -212,10 +249,41 @@ async def totp_confirm(svc: Services, current: ConsoleSession, code: str) -> Non
         if step is None:
             raise ApiError(422, "invalid_totp", "that code is wrong; check the time on your phone")
         user.totp_secret_sealed, user.totp_pending_sealed, user.totp_last_step = user.totp_pending_sealed, None, step
-        for org_id in await session.scalars(select(Membership.org_id).where(Membership.user_id == user.id)):
-            await audit.record(
-                session, org_id, actor_of(user.id), "user.mfa_enabled", ids.encode("usr", user.id), {}, now
-            )
+        codes = _new_recovery_codes(svc, user)
+        await _record_for_all(session, user, "user.mfa_enabled", {}, now)
+        await session.commit()
+    return {"recovery_codes": codes}
+
+
+async def replace_recovery_codes(svc: Services, current: ConsoleSession) -> dict[str, Any]:
+    """A fresh set of recovery codes, replacing all the old ones (used or not): for when they were lost or used up."""
+    now = svc.now()
+    async with tenant(svc.sessions, user_id=current.user_id) as session:
+        user = await session.get(User, current.user_id, with_for_update=True)
+        if user is None or user.totp_secret_sealed is None:
+            raise ApiError(409, "totp_not_enabled", "switch on one-time codes first")
+        codes = _new_recovery_codes(svc, user)
+        await _record_for_all(session, user, "user.recovery_codes_replaced", {}, now)
+        await session.commit()
+    return {"recovery_codes": codes}
+
+
+async def totp_disable(svc: Services, current: ConsoleSession, password: str, code: str, address: str) -> None:
+    """Switch one-time codes off — only with the password and a current code, so a borrowed signed-in browser isn't
+    enough to remove the protection. Attempts count against the same limits as signing in."""
+    now = svc.now()
+    async with tenant(svc.sessions, user_id=current.user_id) as session:
+        user = await session.get(User, current.user_id, with_for_update=True)
+        if user is None or user.totp_secret_sealed is None:
+            raise ApiError(409, "totp_not_enabled", "one-time codes are already off")
+        await _spend_sign_in(svc, user.email, address)
+        secret = _master(svc).open(user.totp_secret_sealed, user.id.bytes).decode()
+        step = totp.accepted_step(secret, code, now.timestamp(), user.totp_last_step)
+        if not await verify_password(user.password_hash, password) or step is None:
+            raise ApiError(403, "reauthentication_failed", "that password or code is wrong")
+        user.totp_secret_sealed, user.totp_pending_sealed, user.totp_last_step = None, None, None
+        user.recovery_digests = []
+        await _record_for_all(session, user, "user.mfa_disabled", {}, now)
         await session.commit()
 
 

@@ -154,11 +154,14 @@ export function ConsoleHome() {
                 id="code"
                 className={input}
                 name="code"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
                 autoComplete="one-time-code"
+                pattern="\s*([0-9]{6}|[A-Za-z2-7]{5}[\- ]?[A-Za-z2-7]{5})\s*"
+                aria-describedby="code-hint"
                 required
               />
+              <p id="code-hint" className="mt-1.5 text-xs text-ink-500">
+                Lost your phone? Enter one of your recovery codes instead.
+              </p>
             </Field>
           ) : null}
           {error === null ? null : <Alert>{error}</Alert>}

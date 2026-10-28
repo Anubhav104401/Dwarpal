@@ -131,3 +131,4 @@ You will learn exactly how that works — line by line — in [Part X](#part-x-h
 | 29 Oct 2026 | **Decision P2, and switching webhooks off:** NFR-05's load settled as 50 people in a check (§5.7.4); webhook endpoints can be switched off and on, from the website API and the console (§5.5.3); nine re-explained. Coverage: 216 files, 17,116/17,116 lines |
 | 29 Oct 2026 | **Searching sessions:** by outcome and by the website's own reference, in the API and the console (§5.5.2); nine re-explained. Coverage: 216 files, 17,225/17,225 lines |
 | 29 Oct 2026 | **A browser test of the member controls** (§5.5.4); one re-explained. Coverage: 216 files, 17,256/17,256 lines |
+| 29 Oct 2026 | **Recovery codes, and switching one-time codes off** (§5.5.4): ten single-use codes stored as HMACs (migration 0008); turning codes off needs the password and a current code; one new walkthrough, ten re-explained. Coverage: 217 files, 17,499/17,499 lines |

@@ -42,4 +42,4 @@
 ## Open items
 
 1. Design system: a display serif, the console's sidebar and command palette, and token colours for the verify flow's icons; marketing site (D1) and Hindi (D2) not approved; Firefox proof on CI (O1); Lighthouse CI dependency fixes (D14).
-2. Console pages still to build without new packages: switching one-time codes off or resetting them, recovery codes. QR code for one-time codes needs a library (download). (Sessions, traces, counts, policies, webhooks, one-time-code set-up, member roles: done.)
+2. Console pages: the planned set is done — sessions (with search), traces, counts, policies, webhooks (with an on/off switch), one-time codes (with a QR code, recovery codes, and switching off), member roles (with a browser test). Still missing from the design: the console's sidebar and command palette, a dashboard chart, and a model page.

@@ -1,5 +1,5 @@
 ---
-fingerprint: af60c4f8bd6da848
+fingerprint: 55c07ae49a122383
 ---
 Unit tests of the console's client (Phase 5), with the network replaced by a stand-in `fetch` that records each request and hands back prepared answers.
 
@@ -151,13 +151,13 @@ The endpoint came back off. End of the test and the group.
 **Members and one-time codes.** The right methods and addresses, and the bodies.
 
 @@ 201-208
-Each request seen; and five prepared answers: who is signed in, a changed role, an empty `204`, a secret, and another `204`.
+Each request seen; and five prepared answers: who is signed in, a changed role, an empty `204`, a secret, and the recovery codes.
 
 @@ 209-212
 A stand-in `fetch` that records each request and hands back the next answer.
 
 @@ 213-218
-Sign in (for the token); change a role; remove the member; ask for a secret; confirm a code.
+Sign in (for the token); change a role; remove the member; ask for a secret; confirm a code, keeping the recovery codes.
 
 @@ 220-225
 After `/me`, the four requests went out with these methods to these addresses.
@@ -165,17 +165,20 @@ After `/me`, the four requests went out with these methods to these addresses.
 @@ 226-228
 The role change sent only the role; the secret came back; the confirmation sent the code.
 
-@@ 229-230
+@@ 229
+And the recovery codes came back as sent.
+
+@@ 230-231
 End of the test and the group.
 
-@@ 232-233
+@@ 233-234
 **The page's role checks** match the API's matrix where the pages use them.
 
-@@ 234-239
+@@ 235-240
 Every role but an analyst may manage keys. (`as never` lets a plain text stand in for the `Role` type in this table.)
 
-@@ 240-241
+@@ 241-242
 A developer may not manage members; an admin may read the audit log.
 
-@@ 242-243
+@@ 243-244
 End of the test and the group.

@@ -1,5 +1,5 @@
 ---
-fingerprint: 7b0681954c469d99
+fingerprint: 07793866341b2a7a
 ---
 **One-time codes** (Phase 4, §5.4.5): the six digits an authenticator app shows, changing every 30 seconds. This is **TOTP**, *Time-based One-Time Password* (RFC 6238), built on HOTP (RFC 4226). With codes switched on, a stolen password alone is no longer enough to sign in: the thief also needs the person's phone.
 
@@ -60,3 +60,12 @@ The label the app displays, `Dwarpal:ana@shop.example`, made safe for an address
 
 @@ 45-47
 The address: the label, the secret, the issuer, and the settings — SHA-1, 6 digits, 30 seconds — so any standard app computes the same codes.
+
+@@ 50-52
+**Recovery codes** (Phase 5, §5.5.4): ten per person. Their letters come from Base32's alphabet in lower case — the 26 letters and the digits 2 to 7 — which leaves out 0, 1, 8 and 9, easily mistaken for O, l, B and g when copied from paper.
+
+@@ 55-61
+**`new_recovery_codes`** — ten codes of 10 letters each, chosen by `secrets.choice` (the unpredictable kind of random). 32 letters, 10 times over, give 2⁵⁰ — about a thousand million million — possible codes. Each is shown with a dash in the middle, `abcde-fghij`, to be easier to read.
+
+@@ 64-68
+**`recovery_digest`** — what is stored instead of a code: an **HMAC** of it (§4.12) — a fingerprint that only someone holding the key can make — keyed by a server secret, and including the user's ID, so a digest copied to another account matches nothing. First the code is tidied: spaces and dashes removed, capitals lowered, so `ABCDE FGHIJ` counts as `abcde-fghij`.

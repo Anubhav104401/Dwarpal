@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import threading
 import time
 import uuid
@@ -1026,7 +1027,8 @@ async def test_one_time_codes_once_switched_on_are_required_and_single_use(datab
         first = await browser.post(f"{CONSOLE}/login", json=login | {"code": code})
         replayed = await browser.post(f"{CONSOLE}/login", json=login | {"code": code})
     assert offer["uri"].startswith("otpauth://totp/")
-    assert wrong.status_code == 422 and confirmed.status_code == 204
+    assert wrong.status_code == 422 and confirmed.status_code == 200
+    assert len(confirmed.json()["recovery_codes"]) == totp.RECOVERY_CODES  # shown once, now
     assert (without.status_code, without.json()["code"]) == (401, "totp_required")
     assert first.status_code == 200 and first.json()["totp_enabled"] is True
     assert (replayed.status_code, replayed.json()["code"]) == (401, "invalid_totp")
@@ -1402,3 +1404,38 @@ async def test_sessions_can_be_listed_by_outcome_and_by_the_websites_reference(d
     assert [s["id"] for s in by_ref] == [waiting["id"]]
     assert nothing == []
     assert wrong.status_code == 422  # only the outcomes that exist
+
+
+@pytest.mark.anyio
+async def test_a_recovery_code_signs_in_once_and_codes_go_off_only_with_password_and_code(
+    databases: tuple[str, str],
+) -> None:
+    email = unique("recovery")
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as browser:
+        token = {"X-CSRF-Token": (await sign_up(browser, email))["csrf_token"]}
+        secret = (await browser.post(f"{CONSOLE}/totp", headers=token)).json()["secret"]
+        step = int(datetime.now(UTC).timestamp() // totp.STEP_S)
+        confirm = {"code": totp.code_at(secret, step)}
+        codes = (await browser.post(f"{CONSOLE}/totp/confirm", json=confirm, headers=token)).json()["recovery_codes"]
+        login = {"email": email, "password": PASSWORD}
+        typed = codes[0].upper().replace("-", " ")  # as someone might type it from paper
+        with_recovery = await browser.post(f"{CONSOLE}/login", json=login | {"code": typed})
+        token = {"X-CSRF-Token": with_recovery.json()["csrf_token"]}
+        reused = await browser.post(f"{CONSOLE}/login", json=login | {"code": codes[0]})
+        replaced = (await browser.post(f"{CONSOLE}/totp/recovery-codes", headers=token)).json()["recovery_codes"]
+        old_after_replacing = await browser.post(f"{CONSOLE}/login", json=login | {"code": codes[1]})
+        now_code = totp.code_at(secret, step + 1)
+        bad_password = await browser.post(
+            f"{CONSOLE}/totp/disable", json={"password": "not it, at all", "code": now_code}, headers=token
+        )
+        disabled = await browser.post(
+            f"{CONSOLE}/totp/disable", json={"password": PASSWORD, "code": now_code}, headers=token
+        )
+        plain = await browser.post(f"{CONSOLE}/login", json=login)
+    assert len(set(codes)) == totp.RECOVERY_CODES and all(re.fullmatch(r"[a-z2-7]{5}-[a-z2-7]{5}", c) for c in codes)
+    assert with_recovery.status_code == 200 and with_recovery.json()["recovery_codes_left"] == 9
+    assert (reused.status_code, reused.json()["code"]) == (401, "invalid_totp")  # each code works once
+    assert set(replaced).isdisjoint(codes) and old_after_replacing.status_code == 401  # the old set is gone
+    assert (bad_password.status_code, bad_password.json()["code"]) == (403, "reauthentication_failed")
+    assert disabled.status_code == 204
+    assert plain.status_code == 200 and plain.json()["totp_enabled"] is False  # no code needed any more

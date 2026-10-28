@@ -26,6 +26,7 @@ type Offer = TotpOffer & { picture: string };
 export function AccountView() {
   const [me, setMe] = useState<Me | "signed-out" | null>(null);
   const [offer, setOffer] = useState<Offer | null>(null);
+  const [codes, setCodes] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -55,8 +56,25 @@ export function AccountView() {
     event.preventDefault();
     const code = String(new FormData(event.currentTarget).get("code")).replace(/\s/g, "");
     await attempt(async () => {
-      await client.totpConfirm(code);
+      setCodes(await client.totpConfirm(code));
       setOffer(null);
+      await load();
+    });
+  }
+
+  const replaceCodes = () =>
+    attempt(async () => {
+      setCodes(await client.newRecoveryCodes());
+      await load();
+    });
+
+  async function turnOff(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const code = String(data.get("code")).replace(/\s/g, "");
+    await attempt(async () => {
+      await client.totpDisable(String(data.get("password")), code);
+      setCodes(null);
       await load();
     });
   }
@@ -100,11 +118,58 @@ export function AccountView() {
         <h2 id="totp" className="text-lg font-semibold">
           One-time codes
         </h2>
+        {codes === null ? null : (
+          <div
+            className="mt-3 rounded-xl border border-brand-500/40 bg-brand-500/10 p-3 text-sm"
+            role="status"
+          >
+            <p className="font-semibold">
+              Your recovery codes — save them somewhere safe. They won't be shown again.
+            </p>
+            <p className="mt-1">If you lose your phone, each one signs you in once instead of a code.</p>
+            <ol className="mt-2 grid grid-cols-2 gap-1 font-mono" data-testid="recovery-codes">
+              {codes.map((code) => (
+                <li key={code}>{code}</li>
+              ))}
+            </ol>
+          </div>
+        )}
         {me.totpEnabled ? (
-          <p className="mt-2 text-sm" role="status">
-            <strong>On.</strong> Each time you sign in, you'll be asked for the 6-digit code from your
-            authenticator app.
-          </p>
+          <div className="mt-2 space-y-4 text-sm">
+            <p role="status">
+              <strong>On.</strong> Each time you sign in, you'll be asked for the 6-digit code from your
+              authenticator app. Recovery codes left: <strong>{me.recoveryCodesLeft}</strong>.
+            </p>
+            <button type="button" className={quietButton} onClick={replaceCodes}>
+              New recovery codes
+            </button>
+            <form className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" onSubmit={turnOff}>
+              <Field label="Your password" id="off-password">
+                <input
+                  id="off-password"
+                  className={input}
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                />
+              </Field>
+              <Field label="Code from your app" id="off-code">
+                <input
+                  id="off-code"
+                  className={input}
+                  name="code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="\s*(\d\s*){6}"
+                  required
+                />
+              </Field>
+              <button type="submit" className={quietButton}>
+                Turn off
+              </button>
+            </form>
+          </div>
         ) : offer === null ? (
           <>
             <p className="mt-2 text-sm text-ink-600 dark:text-ink-400">

@@ -204,7 +204,7 @@ describe("ConsoleClient, members and one-time codes", () => {
       answer(200, { user: "usr_2", role: "admin" }),
       answer(204, {}),
       answer(200, { secret: "JBSWY3DPEHPK3PXP", uri: "otpauth://totp/Dwarpal:a" }),
-      answer(204, {}),
+      answer(200, { recovery_codes: ["abcde-fghij", "klmno-pqrst"] }),
     ];
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
       seen.push([init.method ?? "GET", url, typeof init.body === "string" ? init.body : null]);
@@ -215,7 +215,7 @@ describe("ConsoleClient, members and one-time codes", () => {
     await client.changeRole("org_1", "usr_2", "admin");
     await client.removeMember("org_1", "usr_2");
     const offer = await client.totpEnrol();
-    await client.totpConfirm("123456");
+    const codes = await client.totpConfirm("123456");
 
     expect(seen.slice(1).map(([method, url]) => `${method} ${url}`)).toEqual([
       "PATCH /console-api/orgs/org_1/members/usr_2",
@@ -226,6 +226,7 @@ describe("ConsoleClient, members and one-time codes", () => {
     expect(seen[1]?.[2]).toBe('{"role":"admin"}');
     expect(offer.secret).toBe("JBSWY3DPEHPK3PXP");
     expect(seen[4]?.[2]).toBe('{"code":"123456"}');
+    expect(codes).toEqual(["abcde-fghij", "klmno-pqrst"]); // the recovery codes, shown once
   });
 });
 

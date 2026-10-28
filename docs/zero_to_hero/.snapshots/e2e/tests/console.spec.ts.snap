@@ -116,6 +116,10 @@ test("a member turns on one-time codes, and signing in then asks for one", async
   await page.getByLabel("2. Enter the code it shows").fill(oneTimeCode(secret, Date.now()));
   await page.getByRole("button", { name: "Turn on" }).click();
   await expect(page.getByRole("region", { name: "One-time codes" })).toContainText("On.");
+  const recovery = (
+    (await page.getByTestId("recovery-codes").locator("li").first().textContent()) ?? ""
+  ).trim();
+  expect(recovery).toMatch(/^[a-z2-7]{5}-[a-z2-7]{5}$/);
 
   // Sign out and in again: the password alone is not enough. A code is single-use, so use the next step's.
   await page.getByRole("link", { name: "All organisations" }).click();
@@ -128,6 +132,25 @@ test("a member turns on one-time codes, and signing in then asks for one", async
     .fill(oneTimeCode(secret, Date.now() + 30_000));
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: "Your organisations" })).toBeVisible();
+
+  // A lost phone: sign in again with a recovery code instead, which is then used up.
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByLabel("E-mail address").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByLabel("6-digit code from your authenticator app").fill(recovery);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Your organisations" })).toBeVisible();
+  await page.getByRole("link", { name: "Security" }).click();
+  await expect(page.getByRole("region", { name: "One-time codes" })).toContainText("Recovery codes left: 9");
+
+  // Turning codes off needs the password and a current code. Each code works once, and the next one was used to sign
+  // in, so wait for the clock's next 30-second step — as a person would wait for a new code — and use the one after.
+  await page.waitForTimeout(30_000 - (Date.now() % 30_000) + 200);
+  await page.getByLabel("Your password").fill(password);
+  await page.getByLabel("Code from your app").fill(oneTimeCode(secret, Date.now() + 30_000));
+  await page.getByRole("button", { name: "Turn off" }).click();
+  await expect(page.getByRole("button", { name: "Set up one-time codes" })).toBeVisible();
 });
 
 /** Create an account in this browser, with its own organisation. */

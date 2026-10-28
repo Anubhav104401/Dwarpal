@@ -1,5 +1,5 @@
 ---
-fingerprint: faffe751d5ee61a5
+fingerprint: 8eb5ad70e8d45b9a
 ---
 The console's **home** (Phase 5, §5.5.1): signing in, creating an account, and the list of a signed-in person's organisations. It runs in the browser (`"use client"`), because it holds what the person is typing and asks the API as they act.
 
@@ -101,20 +101,20 @@ The password. The `autoComplete` hint tells password managers whether to suggest
 @@ 140-150
 When signing up, the organisation's name.
 
-@@ 151-163
-When the API has asked for it, the one-time code: a number pad on phones (`inputMode="numeric"`), exactly six digits, and `autoComplete="one-time-code"`, which lets phones offer a code they have just received.
+@@ 151-166
+When the API has asked for it, the code: `autoComplete="one-time-code"` lets phones offer a code they have just received; the pattern accepts six digits or a recovery code, and a hint underneath — tied to the field with `aria-describedby`, so screen readers read it too — says a recovery code works when the phone is lost.
 
-@@ 164
+@@ 167
 The error, if there is one, announced to screen readers (`Alert`).
 
-@@ 165-167
+@@ 168-170
 The submit button, disabled while a request is under way so it can't be sent twice.
 
-@@ 168
+@@ 171
 End of the form.
 
-@@ 169-178
+@@ 172-181
 A button that switches between signing in and creating an account, clearing any error from the other mode.
 
-@@ 179-182
+@@ 182-185
 End of the card, the frame and the component.

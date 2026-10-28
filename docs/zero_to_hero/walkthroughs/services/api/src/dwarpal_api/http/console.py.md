@@ -1,5 +1,5 @@
 ---
-fingerprint: 9a11071859623dd3
+fingerprint: 77a0c0363ed04fd7
 ---
 The **console API** (Phase 4, §5.4.5), under `/console/v1`: what Dwarpal's own web console calls for a signed-in person. Unlike the website API, which uses API keys, it uses a **cookie**, because people sign in with a browser.
 
@@ -78,101 +78,101 @@ Short names for the two kinds of caller, used in every endpoint below.
 @@ 76-81
 **`SignUp`** — the body for signing up: an address, a password, and the organisation's name, each with a length limit.
 
-@@ 84-89
-**`SignIn`** — an address, a password, and optionally a one-time code: exactly six digits, as the published document states.
+@@ 84-90
+**`SignIn`** — an address, a password, and optionally a code: six digits from the phone, or one of the recovery codes (five letters, a dash or space or nothing, five letters; capitals allowed), as the published document states.
 
-@@ 92-95
-**`Code`** — a body holding just a six-digit code.
+@@ 93-105
+**`Code`** — a body holding just a six-digit code. **`Reauthentication`** (Phase 5) — the password and a current six-digit code, for turning one-time codes off. Recovery codes aren't accepted there: they are for signing in when the phone is lost, not for removing the protection.
 
-@@ 98-102
+@@ 108-112
 **`NewMember`** — an address and a role.
 
-@@ 105-108
+@@ 115-118
 **`RoleChange`** — the body of a role change: just the new role.
 
-@@ 111-115
+@@ 121-125
 **`NewKey`** — one to eight scopes, and whether the key is live (test by default).
 
-@@ 118-123
+@@ 128-133
 **`sign_up`** — check the origin, create the account, give the cookie, and answer with who is now signed in.
 
-@@ 126-132
+@@ 136-142
 **`sign_in`** — the same, with the network address the request came from, for the sign-in limit.
 
-@@ 135-140
+@@ 145-150
 **`sign_out`** — a change (so it needs the CSRF token); the `_` parameter runs that check, and its value isn't needed.
 
-@@ 141-144
+@@ 151-154
 End the session, and tell the browser to delete the cookie.
 
-@@ 147-149
+@@ 157-159
 **`me`** — who is signed in.
 
-@@ 152-154
+@@ 162-164
 **`totp_enrol`** — start switching on one-time codes.
 
-@@ 157-160
-**`totp_confirm`** — finish it with a code; `204` means done, nothing to show.
+@@ 167-181
+**`totp_confirm`** — finish it with a code; the answer holds the recovery codes. **`replace_recovery_codes`** — `POST /totp/recovery-codes`: a fresh set. **`totp_disable`** — `POST /totp/disable`, with the network address for the sign-in limits: `204` when codes are off.
 
-@@ 163-165
+@@ 184-186
 **`list_members`**.
 
-@@ 168-170
+@@ 189-191
 **`list_projects`** — `GET /orgs/{org}/projects`, for any signed-in member.
 
-@@ 173-175
+@@ 194-196
 **`add_member`** — `201 Created`.
 
-@@ 178-182
+@@ 199-203
 **`change_role`** — `PATCH …/members/{user}`. `PATCH` is the HTTP method for changing part of something: here, one field of a membership.
 
-@@ 185-188
+@@ 206-209
 **`remove_member`** — `DELETE …/members/{user}`: `204`.
 
-@@ 191-193
+@@ 212-214
 **`create_key`** — `201 Created`, with the key shown once.
 
-@@ 196-200
+@@ 217-221
 **`audit_log`** — up to 500 entries (100 if not asked).
 
-@@ 203-204
+@@ 224-225
 The path every project route starts with, written once; and `Live`, the `livemode` query parameter (`?livemode=true`), which chooses test or live data.
 
-@@ 207-220
+@@ 228-241
 **`project_sessions`** — `GET …/sessions`: test sessions unless asked for live, 20 a page (at most 100), after the given cursor — and, like the website API, optionally only one outcome or one reference.
 
-@@ 223-227
+@@ 244-248
 **`session_trace`** — `GET …/sessions/{id}`: one session's decision trace.
 
-@@ 230-239
+@@ 251-260
 **`project_analytics`** — `GET …/analytics`: the last 30 days (1 to 365), test or live.
 
-@@ 242-244
+@@ 263-265
 **`project_policies`** — `GET …/policies`.
 
-@@ 247-252
+@@ 268-273
 **`add_policy_version`** — `POST …/policies`, a change (so it needs the CSRF token): build the draft from the body, and add it.
 
-@@ 255-258
+@@ 276-279
 **`ConsoleEndpoint`** — that body plus `livemode` (test unless asked). A website's key is already test or live; a person in the console chooses.
 
-@@ 261-265
+@@ 282-286
 **`project_webhooks`** — `GET …/webhooks`: the endpoints, test or live.
 
-@@ 268-272
+@@ 289-293
 **`add_webhook`** — `POST …/webhooks`, a change: `201`, with the secret.
 
-@@ 275-280
+@@ 296-301
 **`remove_webhook`** — `DELETE …/webhooks/{id}`: `204`. The mode comes in the address (`?livemode=true`), like every other webhook route here.
 
-@@ 283-293
+@@ 304-314
 **`switch_webhook`** — `PATCH …/webhooks/{id}`, a change: on or off, in the mode the address names.
 
-@@ 296-300
+@@ 317-321
 **`send_test_event`** — `POST …/webhooks/{id}/test`: `202 Accepted` — queued, not yet sent.
 
-@@ 303-307
+@@ 324-328
 **`webhook_deliveries`** — `GET …/webhooks/{id}/deliveries`.
 
-@@ 310-314
+@@ 331-335
 **`replay_delivery`** — `POST …/webhook-deliveries/{id}/replay`: `202`.

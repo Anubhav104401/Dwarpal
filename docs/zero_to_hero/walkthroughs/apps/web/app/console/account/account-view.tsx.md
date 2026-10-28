@@ -1,5 +1,5 @@
 ---
-fingerprint: 97774f883d73a016
+fingerprint: 1621e9bdfeedf5ee
 ---
 The *Security* page (Phase 5, §5.5.4): whether one-time codes are on, and, if not, setting them up — show a new secret, then confirm a code from the person's authenticator app. Until a code is confirmed, nothing changes: a secret typed in wrongly can't lock anyone out.
 
@@ -27,62 +27,65 @@ One client for the page.
 @@ 26
 **`AccountView`**.
 
-@@ 27-29
-Its state: who is signed in (or `"signed-out"`, or `null` while loading), a secret on offer with its picture, and an error.
+@@ 27-30
+Its state: who is signed in (or `"signed-out"`, or `null` while loading), a secret on offer with its picture, recovery codes to show, and an error.
 
-@@ 31-37
+@@ 32-38
 **`load`** — who is signed in; run on arrival, with a message if it fails.
 
-@@ 39-46
+@@ 40-47
 **`attempt`** — run one piece of work, showing the API's words if it is refused.
 
-@@ 48-52
+@@ 49-53
 **`start`** — ask for a new secret, then draw its `otpauth://` address as a QR code: a PNG image, 200 pixels square, as a `data:` URL. It is drawn **in the browser**, so the secret never goes to any other service.
 
-@@ 54-56
+@@ 55-57
 **`confirm`** — the form was sent: read the code, without any spaces the person typed between the digits.
 
-@@ 57-62
-Confirm it; on success, hide the secret and reload — the page now says "On".
+@@ 58-80
+Confirm it; on success, show the recovery codes, hide the secret and reload — the page now says "On". **`replaceCodes`** — ask for a fresh set and show it. **`turnOff`** — the turn-off form was sent: read the password and the code (spaces removed), and switch codes off; hide any codes shown.
 
-@@ 64-81
+@@ 82-99
 Loading, a failure, or nobody signed in — with a way back to the console.
 
-@@ 83-90
+@@ 101-108
 The page, framed by the console, with a link back to the organisations.
 
-@@ 91-97
+@@ 109-115
 The heading, the person's address, and the error, if any.
 
-@@ 99-102
+@@ 117-120
 **One-time codes** — a panel.
 
-@@ 103-107
-Already on: say so, announced (`role="status"`), and what it means at sign-in.
+@@ 121-136
+**The recovery codes**, when there are some to show — just after switching codes on, or after asking for a fresh set: announced (`role="status"`), with what they are for and a warning that they won't be shown again, in two columns of fixed-width type so each letter is easy to copy.
 
-@@ 108-117
+@@ 137-172
+**Already on**: say so, announced, with how many recovery codes are left. A button for a fresh set. And the **turn-off form**: the password (`autoComplete="current-password"`, so a password manager can fill it) and a code from the app, then *Turn off*.
+
+@@ 173-182
 Off, and nothing on offer: what one-time codes are for, and a button to set them up.
 
-@@ 118-121
+@@ 183-186
 **Step 1** — scan the QR code with the authenticator app,
 
-@@ 122-129
+@@ 187-194
 the picture itself. Next.js prefers its `<Image>`, which resizes and caches images from a server; a picture made in the browser gains nothing from that, so a plain `<img>` is used and the lint rule is told why (`biome-ignore`). Its `alt` text tells a screen-reader user what it is.
 
-@@ 130
+@@ 195
 Or type the key in by hand:
 
-@@ 131-136
+@@ 196-201
 shown in groups of four;
 
-@@ 137-140
+@@ 202-205
 or, on a phone with an authenticator app, a link that opens it there (`otpauth://`). A QR code would need a new library (a download), so it waits.
 
-@@ 141-152
+@@ 206-217
 **Step 2** — the code the app shows: a numeric keyboard on phones (`inputMode`), filled in by the phone itself where it can (`autoComplete="one-time-code"`), and six digits, spaces allowed (`pattern`).
 
-@@ 153-158
+@@ 218-223
 The button, and the end of the steps.
 
-@@ 159-162
+@@ 224-227
 End of the panel, the page and `AccountView`.

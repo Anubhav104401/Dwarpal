@@ -1,5 +1,5 @@
 ---
-fingerprint: 1605590bbf0226cd
+fingerprint: 316b7e7febb0d85a
 ---
 The **database tables**, described as Python classes. Each class is one table; each `Mapped[...]` line inside it is one **column**. SQLAlchemy's **ORM** (Object-Relational Mapper, §4.10) translates between the two worlds: code works with ordinary Python objects such as `row.status`, and SQLAlchemy writes the SQL.
 
@@ -343,20 +343,23 @@ The ID, and the e-mail address — unique, and always stored in lower case, so `
 @@ 248-250
 One-time codes (`domain/totp.py`): the secret, sealed under the master key, once they are switched on; a secret that has been offered but not yet confirmed; and the 30-second step of the last code used, so no code works twice.
 
-@@ 251-252
+@@ 251
+`recovery_digests` (Phase 5) — the HMACs of the person's unused recovery codes; never the codes themselves.
+
+@@ 252-253
 When the account was made, and when it last signed in.
 
-@@ 255-256
+@@ 256-257
 **`Membership`** — a user's role in one organisation. A person can belong to several organisations, with a different role in each.
 
-@@ 258-261
+@@ 259-262
 Its table, `memberships`, with a **check constraint**: the database refuses any role but the four in `domain/roles.py`.
 
-@@ 263-264
+@@ 264-265
 The key is the pair: the organisation and the user (each deleted with its parent). The user column is indexed, for "which organisations does this person belong to?".
 
-@@ 265-266
+@@ 266-267
 The role, and when it was given.
 
-@@ 269
+@@ 270
 `METADATA` — a short public name for the catalogue of all these tables. The migration tool and the tests import it from here, which makes sure every table class above has been loaded first.

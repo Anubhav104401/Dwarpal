@@ -128,7 +128,11 @@ The rest changed existing files, each re-explained in its walkthrough: the conso
 **A bug the contract tests found.** Running the new routes through Schemathesis (§5.4.6), one random request carried the NUL character inside an e-mail address. PostgreSQL can't store NUL in text, the error went unhandled, and the API answered `500`. The request was at fault, so `http/problems.py` now turns that one database refusal into `422 invalid_text`, for every route at once, and a test sends such an address on purpose. (The failure appeared on one run and not the next: random testing finds rare inputs only sometimes, which is why it runs on every check.)
 
 !!! honest "Honest limitation"
-    (The QR code came next, in §5.5.5.) One-time codes can't yet be switched off or reset from the console (a lost phone needs an operator), and there are no recovery codes. (A browser test of the member controls came later: an owner adds a colleague, changes their role, reloads to see it kept, and removes them.)
+    (The QR code came next, in §5.5.5.) (Switching codes off, and recovery codes, came later — see below.) (A browser test of the member controls came later: an owner adds a colleague, changes their role, reloads to see it kept, and removes them.)
+
+**Recovery codes, and switching codes off** (added 29 Oct). A lost phone used to mean a locked account. Now switching one-time codes on also gives **ten recovery codes**, shown once: each signs the person in once, typed where the code goes. Only an HMAC of each is stored, under a key made from the master key, so a copy of the database can't reveal them (migration `0008`). The *Security* page shows how many are left, makes a fresh set on request, and can **switch codes off** — but only with the password *and* a current code, so someone who found a signed-in browser left open can't remove the protection. Every use is in each organisation's audit log.
+
+!walk services/api/src/dwarpal_api/migrations/versions/v0008_recovery_codes.py
 
 ### 5.5.5 The exit tests: three engines, accessibility, Lighthouse — and a QR code
 
