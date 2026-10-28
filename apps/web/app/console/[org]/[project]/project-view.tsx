@@ -158,6 +158,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
   const outcomes = Object.entries(analytics.totals).sort(([a], [b]) => rank(a) - rank(b));
   return (
     <ConsoleShell
+      signedIn
       aside={
         <Link className={quietButton} href={`/console/${org}`}>
           Back to the organisation

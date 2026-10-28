@@ -63,6 +63,10 @@ test("the console's pages break no accessibility rule", async ({ page }) => {
   await page.goto(`${CONSOLE}/model`);
   await expect(page.getByRole("heading", { name: "The age model" })).toBeVisible();
   expect(await violations(page)).toEqual([]);
+
+  await page.getByRole("button", { name: /Go to/ }).click();
+  await expect(page.getByRole("searchbox", { name: "Search the console" })).toBeFocused();
+  expect(await violations(page)).toEqual([]);
 });
 
 test("the design system's specimen breaks no accessibility rule, in the light or the dark theme", async ({

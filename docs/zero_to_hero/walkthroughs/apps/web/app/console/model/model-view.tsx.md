@@ -1,5 +1,5 @@
 ---
-fingerprint: 503aa6c4787959b9
+fingerprint: 424a7bc7d6727222
 ---
 **The age model's page** (§5.5.2): which model is deciding, whether it may decide live checks, what it learnt from, and its lines for each age with what was measured about them. A website's team can see what stands behind each decision without asking.
 
@@ -36,65 +36,65 @@ When the page first appears, ask for the model; no answer means signed out. A fa
 @@ 37-54
 Not loaded yet, failed, or signed out: the frame alone, with the error, *Loading…*, or a link to sign in — as on the *Security* page.
 
-@@ 56-63
-Loaded: the frame, with a way back to all organisations.
+@@ 56-64
+Loaded: the frame, with its sidebar (`signedIn`) and a way back to all organisations.
 
-@@ 64
+@@ 65
 The heading.
 
-@@ 65-72
+@@ 66-73
 Under it, the model's version in code font and a badge: green *Decides live checks* for a calibrated model, amber *Test checks only* otherwise — the same rule the API applies to every session.
 
-@@ 73
+@@ 74
 The manifest's own note, when it has one: why the model is or isn't allowed to decide live checks, in its makers' words.
 
-@@ 75-78
+@@ 76-79
 **What it learnt from** — a panel.
 
-@@ 79
+@@ 80
 A list of terms and their descriptions (`dl`), as two columns on wider screens and one on phones.
 
-@@ 80-81
+@@ 81-82
 The use its licences permit, such as "non-commercial research only".
 
-@@ 82-89
+@@ 83-90
 The network it started from (its *backbone*), in code font — or, for the stub, plain words saying there is none.
 
-@@ 90-93
+@@ 91-94
 The faces it was trained on, or none for the stub.
 
-@@ 94-95
+@@ 95-96
 The faces its lines were set on, or "not measured".
 
-@@ 96-97
+@@ 97-98
 The end of the list and the panel.
 
-@@ 99-102
+@@ 100-103
 **Its lines for each age** — a panel.
 
-@@ 103-106
+@@ 104-107
 How to read the lines, in plain words: the model gives a chance; above the pass line, pass; below the fail line, fail; between them, another way to prove one's age.
 
-@@ 107-110
+@@ 108-111
 And where they came from: for a calibrated model, set on faces of known age within the risk budget; for the stub, chosen by hand, with nothing measured — so the page never claims a guarantee the model doesn't have.
 
-@@ 111
+@@ 112
 The table may be wider than a phone, so it scrolls sideways inside its own box rather than making the whole page scroll.
 
-@@ 112-122
+@@ 113-123
 The table and its header row: the age, the risk budget, the two lines, and the two measured worst cases.
 
-@@ 123-125
+@@ 124-126
 One row per age.
 
-@@ 126-127
+@@ 127-128
 The age, such as "18+", and its risk budget as a percentage.
 
-@@ 128-129
+@@ 129-130
 The two lines, to three decimals, with ≥ and ≤ to say which side of each line counts. `whitespace-nowrap` keeps each sign beside its number.
 
-@@ 130-131
+@@ 131-132
 The measured worst cases: the share of younger people who could pass, and of older people who could fail — or "not measured".
 
-@@ 132-140
+@@ 133-141
 The end of the row, the table, its box, the panel, the frame and the function.

@@ -123,6 +123,7 @@ export function OrganisationView({ org }: { org: string }) {
   const { me, role, name, members, projects, audit } = state;
   return (
     <ConsoleShell
+      signedIn
       aside={
         <>
           <Link className={quietButton} href="/console">

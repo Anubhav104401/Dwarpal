@@ -1,5 +1,5 @@
 ---
-fingerprint: 42b209907c321d9d
+fingerprint: 4fe9c265d473b192
 ---
 The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page, adds a policy version and a webhook endpoint; a wrong password is refused without revealing whether the account exists; and a member turns on one-time codes, after which signing in needs one.
 
@@ -141,35 +141,53 @@ And in the table of lines, a row for each of the four ages.
 @@ 179
 End of the test.
 
-@@ 181-183
-**Test — managing a member** (Phase 5). Two fresh addresses: the owner's and a colleague's.
+@@ 181-182
+**Test — the command palette** (§5.5.6): find a project by typing, and go there without the mouse.
 
-@@ 184-186
-The colleague signs up in a browser of their own — a second **context**, with its own cookies, so their session never mixes with the owner's — which is then closed.
+@@ 183-188
+Press ⌘K or Ctrl+K (`ControlOrMeta` picks the right one for the system) until the search box has the focus. "Until": the shortcut works only once the page's script has started, which in a busy test run can trail the page's first appearance by a moment — so press again, within a second each time, as a person would.
 
-@@ 187-189
-The owner signs up and opens the organisation; the members' panel is where everything happens.
+@@ 190-191
+Type two words — the organisation's name and part of the project's — and only the project is left in the results.
 
-@@ 191-195
-Add the colleague as an analyst: their row appears, with a role menu showing *analyst*.
+@@ 192-193
+The down arrow moves from the box into the list, onto the project's link.
 
-@@ 197-200
-Change it to developer; then reload the page, to prove the change was saved, not just shown.
+@@ 194-196
+Enter follows it: the project's page opens, and the palette has closed.
 
-@@ 202-203
-Remove them: their address is gone from the members.
-
-@@ 204
+@@ 197
 End of the test.
 
-@@ 206-211
+@@ 199-201
+**Test — managing a member** (Phase 5). Two fresh addresses: the owner's and a colleague's.
+
+@@ 202-204
+The colleague signs up in a browser of their own — a second **context**, with its own cookies, so their session never mixes with the owner's — which is then closed.
+
+@@ 205-207
+The owner signs up and opens the organisation; the members' panel is where everything happens.
+
+@@ 209-213
+Add the colleague as an analyst: their row appears, with a role menu showing *analyst*.
+
+@@ 215-218
+Change it to developer; then reload the page, to prove the change was saved, not just shown.
+
+@@ 220-221
+Remove them: their address is gone from the members.
+
+@@ 222
+End of the test.
+
+@@ 224-229
 **Test — a fresh nonce each time** (Phase 7). Ask for the console's page twice, as the website API's client would, and keep each answer's content security policy.
 
-@@ 212-213
+@@ 230-231
 Pick out each policy's script rule, and the nonce in it.
 
-@@ 214-216
+@@ 232-234
 There is a nonce; the two differ; and inline scripts are not allowed.
 
-@@ 217
+@@ 235
 End of the test.

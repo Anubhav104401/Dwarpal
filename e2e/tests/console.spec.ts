@@ -178,6 +178,24 @@ test("the model page names the model the API is deciding with, and its line for 
     await expect(lines.getByRole("cell", { name: age })).toBeVisible();
 });
 
+test("the command palette finds a project by name and goes there from the keyboard", async ({ page }) => {
+  await signUp(page, `palette-${Date.now()}@shop.example`, "Palette Ltd");
+  const search = page.getByRole("searchbox", { name: "Search the console" });
+  // The shortcut works once the page's script has started, which can trail the first paint by a moment.
+  await expect(async () => {
+    await page.keyboard.press("ControlOrMeta+k");
+    await expect(search).toBeFocused({ timeout: 1_000 });
+  }).toPass();
+
+  await search.fill("palette default");
+  await expect(page.getByRole("list", { name: "Results" }).getByRole("link")).toHaveText([/Default project/]);
+  await search.press("ArrowDown");
+  await expect(page.getByRole("link", { name: /Default project/ })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Webhooks" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Go to" })).toBeHidden();
+});
+
 test("an owner adds a member, changes their role, and removes them", async ({ page, browser }) => {
   const owner = `team-owner-${Date.now()}@shop.example`;
   const colleague = `colleague-${Date.now()}@shop.example`;

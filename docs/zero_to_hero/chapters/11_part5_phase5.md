@@ -222,4 +222,18 @@ The rest changed existing files, each re-explained in its walkthrough:
 **What the tests prove**: the specimen breaks no WCAG 2.2 A or AA rule in the light or the dark theme, on Chromium and WebKit; and every earlier page still passes axe and Lighthouse after the change of palette.
 
 !!! honest "Honest limitation"
-    This is a first version. There is no display serif for headlines, as the design suggested: that would be another download. The console has no sidebar or command palette yet. The verify flow's own icons still use Tailwind's emerald, rose and amber, not the tokens. And only the light and dark themes the visitor's system asks for exist — there is no switch on the page.
+    This is a first version. There is no display serif for headlines, as the design suggested: that would be another download. (The console's sidebar and command palette came later the same night; see the end of this section.) The verify flow's own icons still use Tailwind's emerald, rose and amber, not the tokens. And only the light and dark themes the visitor's system asks for exist — there is no switch on the page.
+
+**A sidebar and a command palette** (added 29 Oct), as the design asks. Once someone is signed in, every console page has a sidebar of places — *Organisations*, *Age model*, *Security* — which on a phone becomes a row above the page; the current one is marked for screen readers as well as by its look. At the top of the sidebar, *Go to…* opens the **command palette**, as does ⌘K (Ctrl+K on Windows and Linux): type part of an organisation's or project's name and press Enter to go there, or use the arrow keys to choose.
+
+!walk apps/web/lib/places.ts
+
+!walk apps/web/lib/places.test.ts
+
+!walk apps/web/components/command-palette.tsx
+
+!!! key "Key idea — build on what the browser already does"
+    Command palettes are often a *combobox*: a text box that owns a pop-up list, with the screen-reader wiring that entails. This one is simpler on purpose: a search box and a list of ordinary links, inside the browser's own modal `<dialog>`. The browser then does the hard parts — keeping focus inside, closing on Escape, hiding the page behind from assistive technology — and every result is a real link, which can be opened in a new tab like any other.
+
+The frame (`console-shell.tsx`) now draws the sidebar and the palette when a page says `signedIn`; each signed-in page says so, and the front page's *Age model* and *Security* links moved into the sidebar. A browser test opens the palette from the keyboard, searches, and arrives at a project, and the accessibility test checks the open palette too. Each changed file was re-explained.
+

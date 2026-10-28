@@ -41,5 +41,5 @@
 
 ## Open items
 
-1. Design system: a display serif, the console's sidebar and command palette, and token colours for the verify flow's icons; marketing site (D1) and Hindi (D2) not approved; Firefox proof on CI (O1); Lighthouse CI dependency fixes (D14).
-2. Console pages: the planned set is done — sessions (with search), traces, counts, policies, webhooks (with an on/off switch), one-time codes (with a QR code, recovery codes, and switching off), member roles (with a browser test). Still missing from the design: the console's sidebar and command palette, a dashboard chart, and a model page.
+1. Design system: a display serif and token colours for the verify flow's icons; marketing site (D1) and Hindi (D2) not approved; Firefox proof on CI (O1); Lighthouse CI dependency fixes (D14).
+2. Console pages: the planned set is done — sessions (with search), traces, counts, policies, webhooks (with an on/off switch), one-time codes (with a QR code, recovery codes, and switching off), member roles (with a browser test). The rest of the design's list was added on 29 Oct: a daily chart of the counts, the age model's page, and the sidebar with a command palette (⌘K). Still not built: the dashboard's latency, liveness-reject and step-up figures, the policy editor's projected step-up rate, and the model page's fairness charts (no fairness results are published yet).

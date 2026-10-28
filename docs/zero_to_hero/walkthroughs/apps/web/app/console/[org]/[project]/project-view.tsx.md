@@ -1,5 +1,5 @@
 ---
-fingerprint: 093a9ccff245a00f
+fingerprint: fd26a9f992aae40c
 ---
 A project's page in the console (Phase 5, §5.5.2): its counts for the last 30 days, its sessions with each one's **decision trace** — why it ended as it did, down to the numbers — and its policies, with a form to add a version. A switch chooses test or live data. Everything comes from the console API; the page decides nothing about who may do what — it only hides a form the API would refuse.
 
@@ -108,149 +108,149 @@ Not available: say so, with a way back to the console. It doesn't say which of t
 @@ 152-158
 The loaded values; and the counts as a list of (outcome, number) pairs, sorted into the chart's order of outcomes, so each total sits where its colour does in the legend. `rank` gives an outcome's place in that order; one it doesn't know (`indexOf` gives −1) goes after all the others.
 
-@@ 159-166
-The page, framed by the console, with a link back to the organisation.
+@@ 159-167
+The page, framed by the console with its sidebar (`signedIn`), and a link back to the organisation.
 
-@@ 167-171
+@@ 168-172
 The project's name as the heading, with its ID beneath.
 
-@@ 172-173
+@@ 173-174
 **The mode switch** — a `fieldset` of two radio buttons, named "Mode" for screen readers (`sr-only`: read aloud, not shown).
 
-@@ 174-178
+@@ 175-179
 One label each for test and live; the chosen one is drawn dark.
 
-@@ 179-185
+@@ 180-186
 The radio button itself is hidden from sight but not from the keyboard or screen readers; choosing it changes the mode, which reloads the page's data.
 
-@@ 186-189
+@@ 187-190
 Its words, "Test" or "Live"; end of the switch.
 
-@@ 190
+@@ 191
 End of the heading row.
 
-@@ 191-195
+@@ 192-196
 The error, if there is one.
 
-@@ 197-200
+@@ 198-201
 **Counts** — a panel headed "Last 30 days".
 
-@@ 201-202
+@@ 202-203
 None yet: say so.
 
-@@ 203-212
+@@ 204-213
 Otherwise, one tile per outcome: the number large, the outcome beneath (`step_up` shown as "step up").
 
-@@ 213
+@@ 214
 When there are counts, the chart beneath the tiles: the 30 days from the first day counted, each with its numbers.
 
-@@ 214
+@@ 215
 End of the panel.
 
-@@ 216
+@@ 217
 Sessions and the trace side by side on wide screens, one above the other on narrow ones.
 
-@@ 217-220
+@@ 218-221
 **Sessions** — a panel.
 
-@@ 221-224
+@@ 222-225
 **The search form**: in a row on wider screens.
 
-@@ 225-234
+@@ 226-235
 The outcome to look for, from a menu that starts with *Any* and then lists the outcomes in the same shared order (`OUTCOME_ORDER`, from `daily.ts`).
 
-@@ 235-237
+@@ 236-238
 The website's reference, up to 200 characters, as the API allows.
 
-@@ 238-241
+@@ 239-242
 The button, and the end of the form.
 
-@@ 242-245
+@@ 243-246
 Nothing to show: "No sessions match." when searching, "No sessions yet." otherwise.
 
-@@ 246-257
+@@ 247-258
 Otherwise a table: when it was created, its status, its outcome, and a column for the buttons (named "Trace" for screen readers only).
 
-@@ 258-263
+@@ 259-264
 One row per session: its time in the reader's own format, its status, and its outcome (a dash if none yet).
 
-@@ 264-272
+@@ 265-273
 A **Trace** button: fetch this session's trace and show it.
 
-@@ 273-277
+@@ 274-278
 End of the row and the table.
 
-@@ 278-282
+@@ 279-283
 If there are older sessions, a button to show them.
 
-@@ 283
+@@ 284
 End of the panel.
 
-@@ 285-288
+@@ 286-289
 **Decision trace** — a panel. `aria-live="polite"` makes a screen reader read out a new trace when it appears, once it has finished speaking.
 
-@@ 289-290
+@@ 290-291
 No session chosen yet: say what the panel is for.
 
-@@ 291-298
+@@ 292-299
 Otherwise the session's ID, then its policy, status and outcome.
 
-@@ 299-301
+@@ 300-302
 Its attempts, in order, each in a box.
 
-@@ 302-305
+@@ 303-306
 "Attempt 1: pass" — with its reasons in brackets, if any.
 
-@@ 306
+@@ 307
 Its numbers.
 
-@@ 307-309
+@@ 308-310
 End of the attempt and the list.
 
-@@ 310
+@@ 311
 A session with no attempts says so.
 
-@@ 311-314
+@@ 312-315
 End of the trace, the panel and the side-by-side area.
 
-@@ 316-319
+@@ 317-320
 **Policies** — a panel.
 
-@@ 320-328
+@@ 321-329
 A table: the policy's label, its minimum age, its risk budget, and its face attempts.
 
-@@ 329-334
+@@ 330-335
 One row per policy: its label, marked "preset" if it's one of Dwarpal's own.
 
-@@ 335-337
+@@ 336-338
 Its minimum age ("18+"), its risk budget as a percentage to one decimal place, and its attempts.
 
-@@ 338-341
+@@ 339-342
 End of the row and the table.
 
-@@ 342-343
+@@ 343-344
 **The add form** — only for roles that may manage policies (`CAN.managePolicies`); the API checks again.
 
-@@ 344-346
+@@ 345-347
 The name: lower-case letters, digits and underscores, 3 to 40 characters, starting with a letter — the API's own rule, so the browser can say so before sending (`pattern`).
 
-@@ 347-355
+@@ 348-356
 The minimum age, from a short list: 13, 16, 18 (chosen at first) or 21.
 
-@@ 356-364
+@@ 357-365
 The face attempts, 1 to 5 (3 at first).
 
-@@ 365-367
+@@ 366-368
 The button.
 
-@@ 368-369
+@@ 369-370
 End of the form, if shown.
 
-@@ 370
+@@ 371
 End of the policies panel.
 
-@@ 372-374
+@@ 373-375
 **Webhooks** — for roles that may manage them, the panel, given the page's own client (it holds the CSRF token) and the current mode.
 
-@@ 375-377
+@@ 376-378
 End of the page and `ProjectView`.

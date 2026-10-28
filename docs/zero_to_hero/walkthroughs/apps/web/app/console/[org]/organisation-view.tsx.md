@@ -1,5 +1,5 @@
 ---
-fingerprint: ef5c4141083a1648
+fingerprint: 184b32de4027fd31
 ---
 The **organisation page** (Phase 5, §5.5.1): its members, its projects and API keys, and — for owners and admins — its audit log, with whether the chain is intact. Forms appear only for roles that may use them (`CAN`); the API refuses anyway if someone forces them.
 
@@ -87,86 +87,86 @@ Signed out, or not a member: say which, with a link back to the console.
 @@ 123
 Everything was loaded: take its parts.
 
-@@ 124-134
-The frame, with a link back to all organisations and the person's address.
+@@ 124-135
+The frame, with its sidebar (`signedIn`), a link back to all organisations and the person's address.
 
-@@ 135-138
+@@ 136-139
 The organisation's name, and the person's role here.
 
-@@ 139-143
+@@ 140-144
 The error, if any, announced to screen readers.
 
-@@ 145
+@@ 146
 Two panels side by side on wide screens, one above the other on narrow ones.
 
-@@ 146-149
+@@ 147-150
 **Members.** `aria-labelledby` names the section by its heading, so screen readers (and the tests) can find the region called "Members".
 
-@@ 150-153
+@@ 151-154
 The list of members: each one's address.
 
-@@ 154
+@@ 155
 For people who may manage members, controls — except on an owner's row, unless they are an owner themselves (the API's rule, mirrored).
 
-@@ 155-167
+@@ 156-168
 A role menu, named for screen readers after the member ("Role of ann@…"), showing their role; choosing another changes it at once. Only owners are offered "owner".
 
-@@ 168-175
+@@ 169-176
 A *Remove* button, also named after the member, so a screen reader doesn't hear a list of identical "Remove" buttons.
 
-@@ 176-179
+@@ 177-180
 Otherwise, just the role.
 
-@@ 180-182
+@@ 181-183
 End of the row and the list.
 
-@@ 183-201
+@@ 184-202
 For owners and admins, the form to add a member: an address and a role. Only an owner is offered *owner*, as only an owner may give it.
 
-@@ 202
+@@ 203
 End of the members panel.
 
-@@ 204-207
+@@ 205-208
 **Projects and API keys.**
 
-@@ 208-220
+@@ 209-221
 Each project's name — since the project pages (§5.5.2), a link to its page — and its public ID.
 
-@@ 221-231
+@@ 222-232
 A key just created, in a highlighted box: the warning that it won't be shown again, and the key itself. `role="status"` makes screen readers announce it.
 
-@@ 232-242
+@@ 233-243
 For roles that may manage keys, and when there is a project: the form, starting with which project.
 
-@@ 243-258
+@@ 244-259
 The scopes, as tick-boxes in a `fieldset` whose `legend` names the group; the two session scopes start ticked.
 
-@@ 259-261
+@@ 260-262
 Whether the key is live — useful only once the age model is calibrated, which the API also enforces.
 
-@@ 262-266
+@@ 263-267
 The button, and the end of the form.
 
-@@ 267-268
+@@ 268-269
 End of the panel and of the two-column grid.
 
-@@ 270-275
+@@ 271-276
 **The audit log**, for owners and admins.
 
-@@ 276-278
+@@ 277-279
 The chain's verdict as a **badge** from the design system (§5.5.6): *Chain intact* in the success tone, or *Chain broken at entry N* in the danger tone — the console's view of `cli verify-audit`.
 
-@@ 279
+@@ 280
 End of the heading row.
 
-@@ 280-288
+@@ 281-289
 A table with four columns: the entry's number, when, what, and who.
 
-@@ 289-300
+@@ 290-301
 One row per entry, newest first; the time in the reader's own format and time zone (`toLocaleString`).
 
-@@ 301-303
+@@ 302-304
 End of the table, the section, and the condition.
 
-@@ 304-306
+@@ 305-307
 End of the frame and the component.

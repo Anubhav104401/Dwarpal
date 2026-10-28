@@ -55,6 +55,7 @@ export function ModelView() {
 
   return (
     <ConsoleShell
+      signedIn
       aside={
         <Link className={quietButton} href="/console">
           All organisations

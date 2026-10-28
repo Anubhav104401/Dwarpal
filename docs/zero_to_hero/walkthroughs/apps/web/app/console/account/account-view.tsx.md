@@ -1,5 +1,5 @@
 ---
-fingerprint: 1621e9bdfeedf5ee
+fingerprint: 77c291c13fe1c6b4
 ---
 The *Security* page (Phase 5, §5.5.4): whether one-time codes are on, and, if not, setting them up — show a new secret, then confirm a code from the person's authenticator app. Until a code is confirmed, nothing changes: a secret typed in wrongly can't lock anyone out.
 
@@ -48,44 +48,44 @@ Confirm it; on success, show the recovery codes, hide the secret and reload — 
 @@ 82-99
 Loading, a failure, or nobody signed in — with a way back to the console.
 
-@@ 101-108
-The page, framed by the console, with a link back to the organisations.
+@@ 101-109
+The page, framed by the console with its sidebar (`signedIn`), and a link back to the organisations.
 
-@@ 109-115
+@@ 110-116
 The heading, the person's address, and the error, if any.
 
-@@ 117-120
+@@ 118-121
 **One-time codes** — a panel.
 
-@@ 121-136
+@@ 122-137
 **The recovery codes**, when there are some to show — just after switching codes on, or after asking for a fresh set: announced (`role="status"`), with what they are for and a warning that they won't be shown again, in two columns of fixed-width type so each letter is easy to copy.
 
-@@ 137-172
+@@ 138-173
 **Already on**: say so, announced, with how many recovery codes are left. A button for a fresh set. And the **turn-off form**: the password (`autoComplete="current-password"`, so a password manager can fill it) and a code from the app, then *Turn off*.
 
-@@ 173-182
+@@ 174-183
 Off, and nothing on offer: what one-time codes are for, and a button to set them up.
 
-@@ 183-186
+@@ 184-187
 **Step 1** — scan the QR code with the authenticator app,
 
-@@ 187-194
+@@ 188-195
 the picture itself. Next.js prefers its `<Image>`, which resizes and caches images from a server; a picture made in the browser gains nothing from that, so a plain `<img>` is used and the lint rule is told why (`biome-ignore`). Its `alt` text tells a screen-reader user what it is.
 
-@@ 195
+@@ 196
 Or type the key in by hand:
 
-@@ 196-201
+@@ 197-202
 shown in groups of four;
 
-@@ 202-205
+@@ 203-206
 or, on a phone with an authenticator app, a link that opens it there (`otpauth://`). A QR code would need a new library (a download), so it waits.
 
-@@ 206-217
+@@ 207-218
 **Step 2** — the code the app shows: a numeric keyboard on phones (`inputMode`), filled in by the phone itself where it can (`autoComplete="one-time-code"`), and six digits, spaces allowed (`pattern`).
 
-@@ 218-223
+@@ 219-224
 The button, and the end of the steps.
 
-@@ 224-227
+@@ 225-228
 End of the panel, the page and `AccountView`.
