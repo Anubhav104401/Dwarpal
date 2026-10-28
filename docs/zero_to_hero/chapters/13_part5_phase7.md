@@ -138,7 +138,7 @@ Three frames and eight differ by one or two people per line — chance, at these
 | 50 people, 15–25 s apart, 3 frames, 1 s queue | 407 | **6 %** | 1.01 / **1.21 s** | 1.9 s |
 
 !!! key "Key idea — a target needs its load spelled out"
-    "50 concurrent attempts" can mean 50 people in the middle of a check — each sending one attempt every 20 seconds or so — or 50 attempts arriving in the same instant. The first is now met for the server's processing (p95 1.21 s, under 1.5 s), on a throttled laptop. The second would need about 50 × 1 s of computing within 1.5 s: some 30 cores, not 4. No setting closes that gap; only a GPU, or more machines, could. The design's sentence has to say which it means — a decision for the owner.
+    "50 concurrent attempts" can mean 50 people in the middle of a check — each sending one attempt every 20 seconds or so — or 50 attempts arriving in the same instant. The first is now met for the server's processing (p95 1.21 s, under 1.5 s), on a throttled laptop. The second would need about 50 × 1 s of computing within 1.5 s: some 30 cores, not 4. No setting closes that gap; only a GPU, or more machines, could. The design's sentence has to say which it means. The owner decided (P2, 29 Oct): **50 people in a check**, on 4 cores — and the design documents now say so.
 
 **Semgrep** could finally run (its approved version was past the cooldown). Of its 67 findings:
 

@@ -239,7 +239,7 @@ RP backend        RP page (SDK)        verify page          API                 
 | **Security** | A tenant's API key leaks | Scoped, revocable keys. RLS confines damage to that project. Audit log shows usage. Rotation without downtime (two keys active) |
 | **Security** | A forged "pass" in the RP's front end | RP verifies an EdDSA signature with our JWKS. `aud` binds the token to their project; `exp`/`jti` limit replay |
 | **Availability** | Inference node crashes mid-attempt | API timeout → `retry`, nothing decided. Compose restarts it; readiness gates traffic |
-| **Performance** | 50 concurrent face attempts on 4 vCPU | Batched ONNX inference, bounded concurrency, 503 back-pressure instead of collapse. Scale inference replicas horizontally |
+| **Performance** | 50 people in a check at once on 4 vCPU (an attempt every ~20 s each; decision P2) | Batched ONNX inference, bounded concurrency, 503 back-pressure instead of collapse. Scale inference replicas horizontally |
 | **Modifiability** | Replace the age model with a licensed commercial-grade one | Drop a new registry version with a manifest. Gates run in CI, shadow-compare, promote. No API change |
 | **Modifiability** | Add a new step-up method (EU wallet / OpenID4VP) | Implement `StepUpVerifier`; add to policy method list and the flow UI |
 | **Testability** | Verify the whole camera flow in CI without a camera or weights | Playwright fake camera + stub inference backend + test-mode magic inputs |

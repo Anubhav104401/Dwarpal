@@ -584,7 +584,7 @@ class StepUpVerifier(Protocol):
 | ML | pytest; small fixtures | metric functions vs hand-computed values; Clopper–Pearson vs reference values; split leakage checks |
 | Front end | Vitest + Testing Library | capture state machine; SDK postMessage protocol; policy-editor maths |
 | End-to-end | **Playwright** with Chromium's fake camera (`--use-file-for-fake-video-capture`) | demo shop → verify → token verified; step-up flows; accessibility (axe) |
-| Load | Locust | 50 concurrent attempts → latency SLO |
+| Load | Locust | 50 people in a check (an attempt every 15–25 s each, `DWARPAL_LOAD_PAUSE_S=15-25`) → latency SLO (decision P2) |
 | Security | ruff security rules / Semgrep, pip-audit, pnpm audit, Trivy, ZAP baseline | |
 | Red team | scripted attacks | print/screen replay videos as fake cameras; payload replay; challenge mismatch; game-render video |
 | Docs | `build.py --strict` | 100 % line coverage, no stale walkthroughs |

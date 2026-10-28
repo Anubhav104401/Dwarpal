@@ -1,10 +1,12 @@
 """Load test (Phase 7, decision D10): many people taking the age check at once.
 
-The design's target (NFR-05): with 50 people sending face attempts concurrently, the server answers each attempt within
-1.5 seconds at the 95th percentile, on 4 CPU cores. Each simulated person does what the verify page does: the shop's
-server creates a session, the page starts the flow and asks for a challenge, then sends one face attempt of 8 frames.
+The design's target (NFR-05, as the owner settled it in decision P2): with 50 people in a check at once, each sending a
+face attempt every 20 seconds or so, the server answers each within 1.5 seconds at the 95th percentile, on 4 CPU cores.
+Each simulated person does what the verify page does: the shop's server creates a session, the page starts the flow
+and asks for a challenge, then sends one face attempt of 8 frames.
 
-Run it with `uv run tasks.py load` (see that task for the servers' settings); Locust prints and saves the timings.
+Run it with `uv run tasks.py load` (see that task for the servers' settings), with DWARPAL_LOAD_PAUSE_S=15-25 for the
+target's pace; Locust prints and saves the timings.
 """
 
 from __future__ import annotations

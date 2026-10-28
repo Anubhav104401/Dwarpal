@@ -21,7 +21,7 @@ Work that needs your answer — a download, a design choice, an account, or some
 | D8 | **Blocked on material**: UIDAI's technical Secure QR specification and current certificate weren't found on uidai.gov.in; the 2021 regulations require OVSE registration (O7). Nothing downloaded |
 | D9 | **Done 27–28 Oct**: pip-audit, Trivy, ZAP and Semgrep run and triaged (`docs/reports/phase-7.md`); Semgrep now reports 0 |
 | D10, D11 | **Done 27 Oct**: Locust load test (result → **P1**); OpenTelemetry traces with collector, Tempo, Grafana (Prometheus approved, not pulled: no metrics yet) |
-| D14 | **Done 27 Oct** for `tmp` 0.2.6, `uuid` 11.1.1, `basic-ftp` 6.2.1, `zod` 4.6.6 (`pnpm-workspace.yaml` overrides; Lighthouse test still passes): `pnpm audit` 8 → 4 findings. Left: `body-parser` 1.20.9 after 29 Oct (cooldown); `extract-zip` has no fix; and a **new** advisory (GHSA-7c78-jf6q-g5cm) says `tmp` 0.2.6 is affected too — fixed in **0.2.7** (40 KB, registry.npmjs.org, 27 May 2026): **needs approval** (D14b) |
+| D14 | **Done 27 Oct** for `tmp` 0.2.6, `uuid` 11.1.1, `basic-ftp` 6.2.1, `zod` 4.6.6 (`pnpm-workspace.yaml` overrides; Lighthouse test still passes): `pnpm audit` 8 → 4 findings. Left: `body-parser` 1.20.9 from 29 Oct 11:38 UTC (cooldown; pnpm refused it at 18:57 UTC on 28 Oct, as it should); `extract-zip` has no fix; and a **new** advisory (GHSA-7c78-jf6q-g5cm) says `tmp` 0.2.6 is affected too — fixed in **0.2.7** (40 KB, registry.npmjs.org, 27 May 2026): **needs approval** (D14b) |
 | O1 | The owner creates an empty private GitHub repository and gives its URL; push only after the owner confirms |
 | O6 | Placeholder stays in the practice statement; publishing it stays blocked |
 
@@ -51,7 +51,7 @@ Work that needs your answer — a download, a design choice, an account, or some
 | # | Question | Unblocks |
 | :-: | :-- | :-- |
 | ~~P1~~ | **Decided 28 Oct: (a), then (b) if needed.** Done: the age model sees the 3 sharpest frames (safety lines re-checked, unchanged within chance); dynamic INT8 tried — slower, not adopted; a 1 s queue for workers. Result: server processing p95 1.21 s for 50 people at a realistic pace | |
-| **P2** | **What does NFR-05's load mean?** "50 concurrent face attempts" is met if it means 50 people in a check (each sending an attempt every ~20 s): p95 1.21 s. If it means 50 attempts at the same instant, 4 CPU cores can't do it (~30 would be needed); only a GPU (the design's 0.5 s target) or several machines can. Choose: **(a)** read it as 50 people in a check, and keep 4 cores; **(b)** plan a GPU for production; **(c)** plan more machines | Phase 7 exit; Phase 8 sizing |
+| ~~P2~~ | **Decided 29 Oct: 50 people in a check** — each sending an attempt every ~20 s; 4 cores kept. Met on the laptop (analysis p95 1.21 s, throttled); to be measured again on the Phase 8 server. Design documents reworded (NFR-05, §10/§13 of the implementation design, architecture quality table) | |
 | C1 | The console/marketing **typeface** (the design says: chosen from a type specimen). The web app already uses **Geist** (installed in Phase 1): keep it, or choose another? | Phase 5 design system |
 
 ## Things only you can do

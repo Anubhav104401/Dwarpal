@@ -46,7 +46,7 @@
 ## Open items
 
 1. **Scanners** — run and triaged (27–28 Oct); Semgrep clean. Left: Python fixes (D15); `tmp` 0.2.7 (D14b); a nonce-based CSP for the web app.
-2. **Performance** — P1 (a) done: 3 frames, a 1 s queue; server processing p95 1.21 s for 50 people at a realistic pace (throttled laptop). Open: **P2** — which load NFR-05 means (50 simultaneous attempts would need ~30 cores, or a GPU); measuring on the real 4-core server (Phase 8); static INT8; certifying the lines on webcam-degraded images; failures mid-flow under load.
+2. **Performance** — P1 (a) done: 3 frames, a 1 s queue; server processing p95 1.21 s for 50 people at a realistic pace (throttled laptop). **P2 decided (29 Oct)**: NFR-05 means 50 people in a check (an attempt every ~20 s each) — met on the laptop. Open: measuring on the real 4-core server (Phase 8); static INT8; certifying the lines on webcam-degraded images; failures mid-flow under load.
 3. **Observability** — traces done; dashboards, metrics (Prometheus, approved, not yet needed) and burn-rate alerts to come.
 6. **Process slip**: a local test API key was printed in tool output while preparing the load test; revoked at once.
 4. ~~Privacy documents~~ — **drafted 26 Oct**; need legal review (O5) and the operator's contact details (O6). The final model card waits for a calibrated model.

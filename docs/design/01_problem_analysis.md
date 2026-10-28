@@ -244,7 +244,7 @@ Each extra step costs users, and failure is embarrassing. The flow needs:
 | NFR-02 | **Usability** | ≥ 85 % of adults aged 25+ pass without step-up; median flow ≤ 15 s |
 | NFR-03 | **Accuracy** | Face-only MAE competitive with strongest open specialist (~4.2 y on UTKFace protocol); teen-band MAE reported separately |
 | NFR-04 | **Fairness** | FAR-minor gap between best and worst demographic group ≤ 2 percentage points (gate), all groups published |
-| NFR-05 | **Latency** | Server processing of one submission (≈ 8 frames) p95 ≤ 1.5 s on 4 vCPU, ≤ 0.5 s on GPU |
+| NFR-05 | **Latency** | Server processing of one submission p95 ≤ 1.5 s on 4 vCPU, ≤ 0.5 s on GPU, with **50 people in a check at once** — each sending a face attempt every ~20 s, not 50 attempts in the same instant (owner's decision P2, 29 Oct 2026) |
 | NFR-06 | **Scalability** | Stateless inference; horizontal scaling; back-pressure instead of collapse |
 | NFR-07 | **Availability** | 99.9 % design target; **fail closed** — no error path may produce a pass |
 | NFR-08 | **Privacy** | No image persisted anywhere; tokens reveal only the predicate; no stable cross-site IDs |
