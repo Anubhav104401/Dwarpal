@@ -216,6 +216,17 @@
         "title": "NewVersion",
         "type": "object"
       },
+      "Outcome": {
+        "enum": [
+          "pass",
+          "fail",
+          "step_up",
+          "retry",
+          "reject"
+        ],
+        "title": "Outcome",
+        "type": "string"
+      },
       "Problem": {
         "description": "The shape of every refusal (RFC 9457), described once so the published API document can show it.",
         "properties": {
@@ -2559,6 +2570,39 @@
                 }
               ],
               "title": "Starting After"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Outcome"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "external_ref",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "External Ref"
             }
           }
         ],
@@ -5886,6 +5930,39 @@
                 }
               ],
               "title": "Starting After"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Outcome"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "external_ref",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "External Ref"
             }
           },
           {

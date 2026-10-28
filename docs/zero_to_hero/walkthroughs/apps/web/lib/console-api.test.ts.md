@@ -1,5 +1,5 @@
 ---
-fingerprint: 330ee701a497a027
+fingerprint: af60c4f8bd6da848
 ---
 Unit tests of the console's client (Phase 5), with the network replaced by a stand-in `fetch` that records each request and hands back prepared answers.
 
@@ -115,49 +115,67 @@ The deletion was a `DELETE`, with the mode in its address.
 End of the test and the group.
 
 @@ 157-158
-**Switching a webhook.** The request's method, address and body, and the answer read back.
+**Searching sessions.** Only the filters that are set go into the address.
 
-@@ 159-167
-Two prepared answers: who is signed in, and the endpoint, now off; a stand-in `fetch` records each request.
+@@ 159-163
+A stand-in `fetch` that records each address and answers with an empty page.
+
+@@ 164-166
+Search with an outcome and a reference (with a space in it), then with an empty outcome.
 
 @@ 168-170
-Sign in (for the token), and switch the endpoint off.
+The first address carried both filters — the space written as `+`, as addresses require.
 
-@@ 172-176
-It was a `PATCH` to the endpoint's address, with the mode, carrying `enabled: false`.
+@@ 171
+The second carried neither: an empty filter means any.
 
-@@ 177-179
-The endpoint came back off. End of the test and the group.
-
-@@ 181-182
-**Members and one-time codes.** The right methods and addresses, and the bodies.
-
-@@ 183-190
-Each request seen; and five prepared answers: who is signed in, a changed role, an empty `204`, a secret, and another `204`.
-
-@@ 191-194
-A stand-in `fetch` that records each request and hands back the next answer.
-
-@@ 195-200
-Sign in (for the token); change a role; remove the member; ask for a secret; confirm a code.
-
-@@ 202-207
-After `/me`, the four requests went out with these methods to these addresses.
-
-@@ 208-210
-The role change sent only the role; the secret came back; the confirmation sent the code.
-
-@@ 211-212
+@@ 172-173
 End of the test and the group.
 
-@@ 214-215
+@@ 175-176
+**Switching a webhook.** The request's method, address and body, and the answer read back.
+
+@@ 177-185
+Two prepared answers: who is signed in, and the endpoint, now off; a stand-in `fetch` records each request.
+
+@@ 186-188
+Sign in (for the token), and switch the endpoint off.
+
+@@ 190-194
+It was a `PATCH` to the endpoint's address, with the mode, carrying `enabled: false`.
+
+@@ 195-197
+The endpoint came back off. End of the test and the group.
+
+@@ 199-200
+**Members and one-time codes.** The right methods and addresses, and the bodies.
+
+@@ 201-208
+Each request seen; and five prepared answers: who is signed in, a changed role, an empty `204`, a secret, and another `204`.
+
+@@ 209-212
+A stand-in `fetch` that records each request and hands back the next answer.
+
+@@ 213-218
+Sign in (for the token); change a role; remove the member; ask for a secret; confirm a code.
+
+@@ 220-225
+After `/me`, the four requests went out with these methods to these addresses.
+
+@@ 226-228
+The role change sent only the role; the secret came back; the confirmation sent the code.
+
+@@ 229-230
+End of the test and the group.
+
+@@ 232-233
 **The page's role checks** match the API's matrix where the pages use them.
 
-@@ 216-221
+@@ 234-239
 Every role but an analyst may manage keys. (`as never` lets a plain text stand in for the `Role` type in this table.)
 
-@@ 222-223
+@@ 240-241
 A developer may not manage members; an admin may read the audit log.
 
-@@ 224-225
+@@ 242-243
 End of the test and the group.

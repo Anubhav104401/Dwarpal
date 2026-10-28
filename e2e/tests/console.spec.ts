@@ -60,6 +60,13 @@ test("a new customer signs up, creates an API key, and sees it in an intact audi
   await expect(page.getByRole("heading", { name: "Default project" })).toBeVisible();
   const sessions = page.getByRole("region", { name: "Sessions" });
   await expect(sessions).toContainText("created");
+  // Searching for an outcome nothing has yet finds nothing; "Any" finds it again.
+  await page.getByLabel("Outcome").selectOption("pass");
+  await sessions.getByRole("button", { name: "Search" }).click();
+  await expect(sessions).toContainText("No sessions match.");
+  await page.getByLabel("Outcome").selectOption("");
+  await sessions.getByRole("button", { name: "Search" }).click();
+  await expect(sessions).toContainText("created");
   await sessions.getByRole("button", { name: "Trace" }).click();
   await expect(page.getByRole("region", { name: "Decision trace" })).toContainText("No attempts.");
 

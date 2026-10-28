@@ -11,7 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from dwarpal_api.app import console
 from dwarpal_api.app.console import ConsoleSession
-from dwarpal_api.app.verification import Services
+from dwarpal_api.app.verification import Services, SessionFilter
+from dwarpal_api.domain.decision import Outcome
 from dwarpal_api.domain.policy import Policy
 from dwarpal_api.errors import ApiError
 from dwarpal_api.http.deps import services
@@ -212,8 +213,11 @@ async def project_sessions(
     livemode: Live = False,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     starting_after: Annotated[str | None, Query(max_length=64)] = None,
+    outcome: Annotated[Outcome | None, Query()] = None,
+    external_ref: Annotated[str | None, Query(max_length=200)] = None,
 ) -> dict[str, Any]:
-    return await console.project_sessions(svc, current, org_text, project_text, livemode, limit, starting_after)
+    only = SessionFilter(outcome, external_ref)
+    return await console.project_sessions(svc, current, org_text, project_text, livemode, limit, starting_after, only)
 
 
 @router.get(PROJECT + "/sessions/{session_text}")

@@ -154,6 +154,24 @@ describe("ConsoleClient, webhooks", () => {
   });
 });
 
+describe("ConsoleClient, searching sessions", () => {
+  it("adds only the filters that are set to the address", async () => {
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      seen.push(url);
+      return answer(200, { data: [], next_cursor: null });
+    });
+    const client = new ConsoleClient();
+    await client.sessions("org_1", "prj_1", false, undefined, { outcome: "pass", externalRef: "order 7" });
+    await client.sessions("org_1", "prj_1", false, undefined, { outcome: "" });
+
+    expect(seen[0]).toBe(
+      "/console-api/orgs/org_1/projects/prj_1/sessions?livemode=false&limit=20&outcome=pass&external_ref=order+7",
+    );
+    expect(seen[1]).toBe("/console-api/orgs/org_1/projects/prj_1/sessions?livemode=false&limit=20");
+  });
+});
+
 describe("ConsoleClient, switching a webhook", () => {
   it("sends PATCH with the new state and the mode, and reads the endpoint back", async () => {
     const seen: Array<[string, string, string | null]> = [];

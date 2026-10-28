@@ -10,6 +10,7 @@ from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
 from dwarpal_api.app import idempotency, verification
 from dwarpal_api.app.verification import Services
+from dwarpal_api.domain.decision import Outcome
 from dwarpal_api.http.deps import Caller, needs, services
 
 router = APIRouter(prefix="/v1/verification-sessions", tags=["verification sessions"])
@@ -57,8 +58,11 @@ async def list_sessions(
     svc: Annotated[Services, Depends(services)],
     limit: Annotated[int, Query(ge=1, le=verification.MAX_PAGE)] = 20,
     starting_after: Annotated[str | None, Query(max_length=64)] = None,
+    outcome: Annotated[Outcome | None, Query()] = None,
+    external_ref: Annotated[str | None, Query(max_length=200)] = None,
 ) -> dict[str, Any]:
-    return await verification.list_sessions(svc, caller.project.id, caller.livemode, limit, starting_after)
+    only = verification.SessionFilter(outcome, external_ref)
+    return await verification.list_sessions(svc, caller.project.id, caller.livemode, limit, starting_after, only)
 
 
 @router.get("/{session_text}")

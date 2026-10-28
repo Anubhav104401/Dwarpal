@@ -1,5 +1,5 @@
 ---
-fingerprint: 6b44e4928f80b480
+fingerprint: ba6b85aeab318da0
 ---
 The **use cases**: each step of a verification, written once as an ordinary function. This is where the pieces meet — the domain's rules, the database, Valkey, the inference service and the signing keys.
 
@@ -343,40 +343,46 @@ Commit: save any expiry, and the record of the token just issued.
 @@ 333-345
 The summary: the ID and `object` label; the status (corrected for expiry); the outcome, mode and policy label; the number of attempts; the website's own reference; and three times in ISO 8601 form (`completed_at` only once there is one).
 
-@@ 348-350
-**`list_sessions`** — one page of a project's sessions, for one mode (Phase 4). It takes the page size and the cursor.
+@@ 348-354
+**`SessionFilter`** (Phase 5, §5.5.2) — which sessions to list: those with this **outcome**, and with this **reference** of the website's own (`external_ref`, such as an order number); `None` means any. There is deliberately no status filter: "expired" isn't stored but worked out when a session is read, so filtering on the stored status would miss expired sessions and list them under their old status. `frozen=True` makes it unchangeable.
 
-@@ 351-353
+@@ 357-364
+**`list_sessions`** — one page of a project's sessions, for one mode (Phase 4). It takes the page size, the cursor, and (since Phase 5) a filter — no filter by default. A function's default value is made once and shared by every call, which is a classic trap with changeable values; this one is frozen, so sharing it is safe, as the comment tells the linter (`B008`).
+
+@@ 365-367
 The docstring explains the **cursor**. The obvious way to page through a list is "skip the first 40, give me 20" (an *offset*). But if three sessions are created while someone is reading page 2, everything moves along by three, and page 3 repeats rows. A cursor says instead "the 20 sessions older than this one". Because a UUIDv7 begins with the time it was made, "older" is just "has a smaller ID", and new sessions can't disturb pages already read.
 
-@@ 354-356
+@@ 368-370
 The query: sessions of this project, in this mode only. A test key never sees live sessions.
 
-@@ 357-358
+@@ 371-372
 With a cursor, only sessions **older** than it. `parse_session_id` turns `vs_…` back into a UUID, and refuses a malformed one with `404`.
 
-@@ 359
+@@ 373-376
+Keep only the sessions with the chosen outcome, and with the chosen reference — exactly equal.
+
+@@ 377
 Newest first, and **one more** than the page size (never more than `MAX_PAGE` + 1). The extra row is a cheap way to find out whether another page exists, without counting every row.
 
-@@ 360-361
+@@ 378-379
 Run the query in a unit of work confined to the project.
 
-@@ 362-363
+@@ 380-381
 The page is the first `limit` rows; if the extra one came back, there is more.
 
-@@ 364-369
+@@ 382-387
 The answer: a list object with the page's summaries, whether there is more, and the cursor for the next page — the ID of the page's last session — or `None` at the end. A client simply repeats the request with `starting_after` set to `next_cursor` until `has_more` is false.
 
-@@ 372
+@@ 390
 **`mint_token`** — make the signed age token for a completed session. Since Phase 4 the caller passes in the session's pinned policy.
 
-@@ 373-374
+@@ 391-392
 Make a new ID for the token (`jti`), write the project's public ID as the **audience**, and work out when the token expires: after the policy's token lifetime (10 minutes for the presets).
 
-@@ 375
+@@ 393
 Record that this token was issued — its facts, not the token itself.
 
-@@ 376-391
+@@ 394-409
 The **claims** — the facts inside the token. Most names are standard JWT claims (RFC 7519):
 
 | Claim | Meaning |
@@ -400,26 +406,26 @@ Line 274 builds the age claim's *name* from the policy: `f"age_over_{policy.min_
 
 The `policy` claim is the pinned version's label: `uk_osa_18`, or `shop_18@2`, so a website can tell exactly which rules a token followed.
 
-@@ 392
+@@ 410
 Sign the claims with the active key, and return the token.
 
-@@ 395-398
+@@ 413-416
 **`introspect`** — check an age token on a website's behalf (Phase 4). Some websites would rather ask than verify signatures themselves: this is the idea of RFC 7662, "token introspection". The answer is `{"active": true, …claims}` the first time, and `{"active": false}` for everything else, with no reason given, so a forger learns nothing from trying.
 
-@@ 399-400
+@@ 417-418
 Read the clock once; prepare the one refusal.
 
-@@ 401-403
+@@ 419-421
 Verify the signature (`KeyRing.verify`). Then the token must be from this issuer, and addressed to **this** website's project: another website's token is just as inactive as a forged one.
 
-@@ 404-405
+@@ 422-423
 It must not have expired. (`isinstance` guards against a genuine but odd token without a whole-number `exp`.)
 
-@@ 406-409
+@@ 424-427
 Its ID (`jti`) must be a UUID.
 
-@@ 410-414
+@@ 428-432
 In the website's own tenant, find the record made when the token was issued, **locked**, so that two simultaneous introspections can't both be first. A token never issued, or already introspected, is inactive. Otherwise note the time and commit: from now on, this token is spent.
 
-@@ 415
+@@ 433
 The first, genuine introspection: active, with the token's claims.

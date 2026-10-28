@@ -1384,3 +1384,21 @@ async def test_a_switched_off_endpoint_gets_nothing_until_switched_back_on(datab
     assert while_off == []  # switched off: the test event was recorded, but nothing was queued for it
     assert [d["status"] for d in while_on] == ["pending"]
     assert unknown.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_sessions_can_be_listed_by_outcome_and_by_the_websites_reference(databases: tuple[str, str]) -> None:
+    async with harness(databases) as h:
+        passed = (await create(h, external_ref="order-1")).json()
+        flow = await start(h, passed)
+        await attempt(h, passed["id"], flow, [PORTRAIT] * 6)
+        waiting = (await create(h, external_ref="order-2")).json()
+        auth = {"Authorization": f"Bearer {h.key}"}
+        by_outcome = (await h.client.get("/v1/verification-sessions?outcome=pass", headers=auth)).json()["data"]
+        by_ref = (await h.client.get("/v1/verification-sessions?external_ref=order-2", headers=auth)).json()["data"]
+        nothing = (await h.client.get("/v1/verification-sessions?external_ref=order-9", headers=auth)).json()["data"]
+        wrong = await h.client.get("/v1/verification-sessions?outcome=maybe", headers=auth)
+    assert [s["id"] for s in by_outcome] == [passed["id"]]
+    assert [s["id"] for s in by_ref] == [waiting["id"]]
+    assert nothing == []
+    assert wrong.status_code == 422  # only the outcomes that exist

@@ -1,5 +1,5 @@
 ---
-fingerprint: bb4e10a1afe8dbc8
+fingerprint: a1471eb956cd332a
 ---
 The **console's use cases** (Phase 4, §5.4.5) — everything a person at one of Dwarpal's customers does through the web console: signing up and in, switching on one-time codes, managing members, creating API keys, reading the audit log.
 
@@ -339,62 +339,62 @@ Named as the organisation, read the project; it must exist **and belong to this 
 @@ 418
 Return both.
 
-@@ 421-430
-**`project_sessions`** — a project's sessions, a page at a time, for any member.
+@@ 421-431
+**`project_sessions`** — a project's sessions, a page at a time, for any member, optionally filtered.
 
-@@ 431-432
-The same list a website reads with its key (`verification.list_sessions`), confined to this project.
+@@ 432-433
+The same list a website reads with its key (`verification.list_sessions`), with the same filter, confined to this project.
 
-@@ 435-439
+@@ 436-440
 **`session_trace`** — one session with its **decision trace**: what each attempt decided, why, and the numbers it rested on.
 
-@@ 440-441
+@@ 441-442
 Check the project, and read the session's ID from its public form.
 
-@@ 442-445
+@@ 443-446
 Named as the project, read the session; another project's session is simply invisible, and gets 404.
 
-@@ 446-451
+@@ 447-452
 Its attempts, oldest first.
 
-@@ 452-461
+@@ 453-462
 Each attempt's kind, outcome, reasons, scores (the stored numbers: the age probability, the line it was compared with, the liveness evidence) and time.
 
-@@ 462
+@@ 463
 The session's summary — never a token: reading a trace must not mint one — and the attempts.
 
-@@ 465-469
+@@ 466-470
 **`project_analytics`** — the project's daily counts, for roles allowed to read analytics.
 
-@@ 472-474
+@@ 473-475
 **`project_policies`** — the presets and the project's own policy versions, for any member.
 
-@@ 477-480
+@@ 478-481
 **`add_policy_version`** — the next version of a policy, for roles allowed to manage policies.
 
-@@ 481-485
+@@ 482-486
 Check the project and the role, then add the version, with the person (not an API key) named in the audit log.
 
-@@ 488-493
+@@ 489-494
 **`project_webhooks`** (Phase 5, §5.5.3) — a project's endpoints in one mode. Only roles that may manage webhooks may even **see** them: an endpoint's address says where the project's events go, which is the kind of thing an attacker would like to know.
 
-@@ 496-505
+@@ 497-506
 **`add_webhook`** — a new endpoint, from the console.
 
-@@ 506-508
+@@ 507-509
 Check the project and the role, then create it with the website API's own use case — the same allowed events, the same SSRF guard, the same limit of 16, the same secret shown once — with the person named in the audit log.
 
-@@ 511-516
+@@ 512-517
 **`remove_webhook`** — the same check, then delete it, the person named.
 
-@@ 519-530
+@@ 520-531
 **`switch_webhook`** — the same from the console, for roles that may manage webhooks, naming the person.
 
-@@ 533-537
+@@ 534-538
 **`send_test_event`** — queue a test event for one endpoint.
 
-@@ 540-544
+@@ 541-545
 **`webhook_deliveries`** — an endpoint's recent deliveries.
 
-@@ 547-551
+@@ 548-552
 **`replay_delivery`** — send a delivery again from the start of its retry schedule.

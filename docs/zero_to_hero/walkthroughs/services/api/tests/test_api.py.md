@@ -1,5 +1,5 @@
 ---
-fingerprint: 60ddc051f1091068
+fingerprint: fc3852b54142888f
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -1101,3 +1101,21 @@ Back on, the test event waits to be delivered.
 
 @@ 1386
 An unknown endpoint is not found.
+
+@@ 1389-1391
+**Test — listing sessions by outcome and by reference** (Phase 5).
+
+@@ 1392-1394
+A session with the website's reference `order-1`, which a person passes.
+
+@@ 1395
+Another, `order-2`, not yet started.
+
+@@ 1396-1400
+List the passed ones; the one for `order-2`; one for a reference nobody used; and ask for an outcome that doesn't exist.
+
+@@ 1401-1403
+Exactly the passed session; exactly `order-2`'s; and nothing.
+
+@@ 1404
+An unknown outcome is refused, not silently ignored.

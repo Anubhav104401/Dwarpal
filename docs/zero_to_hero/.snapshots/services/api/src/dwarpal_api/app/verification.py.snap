@@ -345,8 +345,22 @@ def summary_view(row: VerificationSession, now: datetime) -> dict[str, Any]:
     }
 
 
+@dataclass(frozen=True)
+class SessionFilter:
+    """Which sessions to list: those with this outcome, and with this reference of the website's own; None means any.
+    (No status: "expired" is worked out when a session is read, so a stored status would mislead a filter.)"""
+
+    outcome: Outcome | None = None
+    external_ref: str | None = None
+
+
 async def list_sessions(
-    svc: Services, project_id: uuid.UUID, livemode: bool, limit: int, starting_after: str | None
+    svc: Services,
+    project_id: uuid.UUID,
+    livemode: bool,
+    limit: int,
+    starting_after: str | None,
+    only: SessionFilter = SessionFilter(),  # noqa: B008 - frozen, so one shared default is safe
 ) -> dict[str, Any]:
     """One page of a project's sessions, newest first. The cursor is the last session of the previous page: UUIDv7s
     sort by creation time, so "older than the cursor" is a plain comparison, which stays right as sessions are added.
@@ -356,6 +370,10 @@ async def list_sessions(
     )
     if starting_after is not None:
         query = query.where(VerificationSession.id < parse_session_id(starting_after))
+    if only.outcome is not None:
+        query = query.where(VerificationSession.outcome == only.outcome)
+    if only.external_ref is not None:
+        query = query.where(VerificationSession.external_ref == only.external_ref)
     query = query.order_by(VerificationSession.id.desc()).limit(min(limit, MAX_PAGE) + 1)
     async with tenant(svc.sessions, project_id) as session:
         rows = list(await session.scalars(query))

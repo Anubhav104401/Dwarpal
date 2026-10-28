@@ -1,5 +1,5 @@
 ---
-fingerprint: 5cabeb1ef893e01b
+fingerprint: f649770e6fa54050
 ---
 The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page, adds a policy version and a webhook endpoint; a wrong password is refused without revealing whether the account exists; and a member turns on one-time codes, after which signing in needs one.
 
@@ -57,47 +57,53 @@ Open the project's page from the organisation page.
 @@ 61-62
 The session is listed, still `created`.
 
-@@ 63-64
+@@ 63-66
+**Searching**: for sessions that passed — none has yet, so nothing matches.
+
+@@ 67-69
+Back to any outcome, and the session is listed again.
+
+@@ 70-71
 Its decision trace opens: no attempts yet.
 
-@@ 66-69
+@@ 73-76
 **A policy version**: an owner adds `shop_18`, and `shop_18@1` is listed at once.
 
-@@ 71-76
+@@ 78-83
 **A webhook endpoint**: add one on the demo shop's address; its secret (`whsec_…`) is shown; send a test event; it is listed as `pending` — no delivery worker runs during the test.
 
-@@ 77-82
+@@ 84-89
 **Switching it off and on**: off, and the endpoint is marked *Off*; on again, and the mark is gone.
 
-@@ 83
+@@ 90
 End of the test.
 
-@@ 85-89
+@@ 92-96
 **Test — a wrong password**, for an address nobody has.
 
-@@ 90-92
+@@ 97-99
 The refusal says only that the address or password is wrong. (Next.js keeps its own empty `role="alert"` region for announcing page changes; the test picks the alert that has words in it.)
 
-@@ 93
+@@ 100
 End of the test.
 
-@@ 95-97
+@@ 102-104
 **Test — one-time codes.** A fresh address, and a password to use twice.
 
-@@ 98-103
+@@ 105-110
 Create an account.
 
-@@ 105-108
+@@ 112-115
 Open *Security* and start setting up: a QR code appears. Read the secret the page shows in text, as a person would type it into their app.
 
-@@ 109-111
+@@ 116-118
 Enter the current code and turn it on: the page says "On."
 
-@@ 113-118
+@@ 120-125
 Sign out, and sign in with the password alone: the console asks for a code. A code works only once, so the test uses the next 30 seconds' code, which the API accepts for clocks that run a little fast.
 
-@@ 119-123
+@@ 126-130
 Enter it and sign in: the organisations appear.
 
-@@ 124
+@@ 131
 End of the test.

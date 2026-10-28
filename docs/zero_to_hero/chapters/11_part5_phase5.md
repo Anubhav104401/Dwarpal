@@ -77,7 +77,9 @@ The rest changed existing files, each re-explained in its walkthrough: the conso
 - in a real browser, a website's server creates a session with the console's new key; the session appears on the project's page; its trace says it has no attempts; and an owner's new policy version is listed at once.
 
 !!! honest "Honest limitation"
-    The counts are totals, not a chart: the chart waits for the design system. Sessions can't yet be searched or filtered by outcome, and the trace shows numbers, not explanations of them; the reasons' meanings are in §5.3.
+    The counts are totals, not a chart: the chart waits for the design system. The trace shows numbers, not explanations of them; the reasons' meanings are in §5.3.
+
+**Searching sessions** (added 29 Oct). The list can be narrowed to one **outcome**, one **reference** of the website's own (such as an order number), or both — in the console's search form, and in the website API (`?outcome=pass`, `?external_ref=order-1`). There is no status filter, on purpose: "expired" is worked out when a session is read, not stored, so filtering the stored status would show expired sessions as still waiting.
 
 ### 5.5.3 Webhooks in the console
 

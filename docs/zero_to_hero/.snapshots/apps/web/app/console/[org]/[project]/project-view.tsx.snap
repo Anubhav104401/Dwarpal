@@ -20,12 +20,14 @@ import {
   type PolicyVersion,
   type Role,
   type SessionPage,
+  type SessionSearch,
   type SessionTrace,
 } from "@/lib/console-api";
 
 import { WebhooksPanel } from "./webhooks-panel";
 
 const client = new ConsoleClient();
+const OUTCOMES = ["pass", "fail", "step_up", "retry", "reject"];
 
 type Loaded = {
   role: Role;
@@ -64,6 +66,7 @@ function ScoreList({ scores }: { scores: Record<string, unknown> }) {
 
 export function ProjectView({ org, project }: { org: string; project: string }) {
   const [livemode, setLivemode] = useState(false);
+  const [search, setSearch] = useState<SessionSearch>({});
   const [state, setState] = useState<Loaded | "unavailable" | null>(null);
   const [trace, setTrace] = useState<SessionTrace | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,12 +78,12 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
     const [projects, analytics, page, policies] = await Promise.all([
       client.projects(org),
       client.analytics(org, project, livemode),
-      client.sessions(org, project, livemode),
+      client.sessions(org, project, livemode, undefined, search),
       client.policies(org, project),
     ]);
     const projectName = projects.find((p) => p.id === project)?.name ?? project;
     setState({ role: membership.role, projectName, analytics, page, policies });
-  }, [org, project, livemode]);
+  }, [org, project, livemode, search]);
 
   useEffect(() => {
     setTrace(null);
@@ -89,11 +92,19 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
 
   async function more() {
     if (state === null || state === "unavailable" || state.page.nextCursor === null) return;
-    const next = await client.sessions(org, project, livemode, state.page.nextCursor);
+    const next = await client.sessions(org, project, livemode, state.page.nextCursor, search);
     setState({
       ...state,
       page: { sessions: [...state.page.sessions, ...next.sessions], nextCursor: next.nextCursor },
     });
+  }
+
+  /** A new search: the list starts again from the newest matching session. */
+  function searchSessions(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const text = (name: string) => String(data.get(name) ?? "").trim() || undefined;
+    setSearch({ outcome: text("outcome"), externalRef: text("reference") });
   }
 
   async function addPolicy(event: FormEvent<HTMLFormElement>) {
@@ -199,8 +210,31 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
           <h2 id="sessions" className="text-lg font-semibold">
             Sessions
           </h2>
+          <form
+            className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+            onSubmit={searchSessions}
+          >
+            <Field label="Outcome" id="search-outcome">
+              <select id="search-outcome" className={input} name="outcome" defaultValue="">
+                <option value="">Any</option>
+                {OUTCOMES.map((outcome) => (
+                  <option key={outcome} value={outcome}>
+                    {outcome.replace("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Website's reference" id="search-reference">
+              <input id="search-reference" className={input} name="reference" maxLength={200} />
+            </Field>
+            <button type="submit" className={quietButton}>
+              Search
+            </button>
+          </form>
           {page.sessions.length === 0 ? (
-            <p className="mt-2 text-sm text-ink-500">No sessions yet.</p>
+            <p className="mt-2 text-sm text-ink-500">
+              {search.outcome || search.externalRef ? "No sessions match." : "No sessions yet."}
+            </p>
           ) : (
             <table className="mt-3 w-full text-left text-sm">
               <thead className="text-xs uppercase text-ink-500">

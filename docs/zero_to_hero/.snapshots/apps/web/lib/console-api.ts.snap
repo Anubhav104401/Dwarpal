@@ -68,6 +68,12 @@ export interface SessionSummary {
   createdAt: string;
 }
 
+/** Which sessions to list: by outcome, and by the website's own reference; an empty field means any. */
+export interface SessionSearch {
+  outcome?: string | undefined;
+  externalRef?: string | undefined;
+}
+
 export interface SessionPage {
   sessions: SessionSummary[];
   nextCursor: string | null;
@@ -324,9 +330,17 @@ export class ConsoleClient {
   }
 
   /** One page of a project's sessions, newest first; pass the last page's cursor for the next. */
-  async sessions(org: string, project: string, livemode: boolean, after?: string): Promise<SessionPage> {
+  async sessions(
+    org: string,
+    project: string,
+    livemode: boolean,
+    after?: string,
+    only: SessionSearch = {},
+  ): Promise<SessionPage> {
     const query = new URLSearchParams({ livemode: String(livemode), limit: "20" });
     if (after) query.set("starting_after", after);
+    if (only.outcome) query.set("outcome", only.outcome);
+    if (only.externalRef) query.set("external_ref", only.externalRef);
     const data = await this.#call("GET", `${this.#project(org, project)}/sessions?${query}`);
     return { sessions: asList(data.data).map(asSession), nextCursor: orNull(data.next_cursor) };
   }

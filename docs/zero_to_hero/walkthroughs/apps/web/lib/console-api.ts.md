@@ -1,5 +1,5 @@
 ---
-fingerprint: a8c32853ef3f7597
+fingerprint: 46fc2c7761e78b51
 ---
 The console's **client** (Phase 5, §5.5.1): the one place in the web app that talks to the console API, in the same way as `flow-api.ts` talks to the flow API for the verify page. Every page calls these methods and never `fetch` directly.
 
@@ -35,170 +35,172 @@ The file's comment: where requests go, and the CSRF rule.
 @@ 55-59
 **`AuditLog`** — the entries, and whether the chain is intact (and where it broke).
 
-@@ 61-69
+@@ 61-75
 **`SessionSummary`** (Phase 5, project pages) — one session as the list shows it: its ID, status, outcome, policy, number of attempts, the website's own reference and when it was made.
 
-@@ 71-74
+**`SessionSearch`** — what to search for: an outcome, the website's reference, or both; a field left out (or empty) means any. `| undefined` lets a field be present but empty, which the project's strict settings would otherwise forbid.
+
+@@ 77-80
 **`SessionPage`** — one page of sessions, and the cursor for the next page (`null` at the end).
 
-@@ 76-83
+@@ 82-89
 **`TracedAttempt`** — one attempt as the decision saw it: kind, outcome, reasons, and its scores — the stored numbers, whatever their shape (`Record<string, unknown>`).
 
-@@ 85-87
+@@ 91-93
 **`SessionTrace`** — a session's summary plus its traced attempts. `extends` means it has every field of `SessionSummary`, and one more.
 
-@@ 89-92
+@@ 95-98
 **`Analytics`** — the first day counted, and the totals by outcome.
 
-@@ 94-100
+@@ 100-106
 **`PolicyVersion`** — one policy as the page shows it: its label, whether it is a preset, and its rules.
 
-@@ 102-103
+@@ 108-109
 **`EVENT_TYPES`** (§5.5.3) — the events an endpoint can ask for, as the API lists them. `as const` keeps them as these exact texts, not just "some strings".
 
-@@ 105-111
+@@ 111-117
 **`WebhookEndpoint`** — one endpoint: its ID, address, events, whether it is switched on, and when it was made.
 
-@@ 113-116
+@@ 119-122
 **`NewWebhook`** — the same, plus its signing secret: only ever in the answer that created it.
 
-@@ 118-126
+@@ 124-132
 **`Delivery`** — one delivery of an event to an endpoint: its ID, the event's ID, its status (`pending`, `delivered` or `dead`), how many tries so far, and the receiver's last answer — a status code, or an error such as a timeout — and when it was made.
 
-@@ 128-135
+@@ 134-141
 **`CAN`** — what each role may do, as far as the pages need to know. The API decides (`domain/roles.py`); the pages only use this to **hide** buttons that would fail. Someone who changes the page in their browser still meets the API's refusal. Since the project pages it also says who may manage policies and webhooks.
 
-@@ 137-147
+@@ 143-153
 **`ConsoleError`** — a refusal from the API, with its status and stable code, so pages can show the right words.
 
-@@ 149
+@@ 155
 `Json` — a short name for "an object with any keys".
 
-@@ 151-156
+@@ 157-162
 Small, defensive readers for the API's answers. Each takes a value of unknown shape and returns what's expected, or a harmless default: an object, a text, a list of objects, a number, a list of texts, or a text that may be absent (`null`). A surprise in an answer becomes an empty field, not a crash.
 
-@@ 158-168
+@@ 164-174
 **`asSession`** — read one session summary, turning the API's names (`external_ref`, `created_at`) into the page's.
 
-@@ 170-178
+@@ 176-184
 **`asEndpoint`** — read one webhook endpoint the same way.
 
-@@ 180-181
+@@ 186-187
 **`asRole`** — a role, or `analyst` — the least powerful — for anything unexpected: failing closed, in the page too.
 
-@@ 183-185
+@@ 189-191
 **`ConsoleClient`**. Its two private fields (`#` makes them truly private in JavaScript): the base address, and the CSRF token — empty until someone signs in.
 
-@@ 187-189
+@@ 193-195
 The constructor: `/console-api` unless told otherwise (tests may pass another), without a trailing `/`.
 
-@@ 191-194
+@@ 197-200
 **`#call`** — every request goes through here. It always asks for JSON; it says it is sending JSON when it is; and for anything but a read (`GET`) it adds the CSRF token.
 
-@@ 195-201
+@@ 201-207
 Send the request: the method, headers and body (`null` when there is none). `credentials: "same-origin"` sends the session cookie, which is right because the request stays on this site; `cache: "no-store"` makes sure the browser never answers from a stored copy.
 
-@@ 202
+@@ 208
 Read the answer as JSON, unless it is `204 No Content`; if it isn't JSON at all, use an empty object.
 
-@@ 203-209
+@@ 209-215
 A refusal becomes a `ConsoleError` with the problem's code and sentence (`http/problems.py`).
 
-@@ 210
+@@ 216
 Otherwise, the answer.
 
-@@ 211
+@@ 217
 End of `#call`.
 
-@@ 213-214
+@@ 219-220
 **`#remember`** — read who is signed in from an answer, and keep the CSRF token it carries.
 
-@@ 215-224
+@@ 221-230
 Turn the API's names (`totp_enabled`, …) into the page's (`totpEnabled`, …), reading each field defensively.
 
-@@ 225
+@@ 231
 End of `#remember`.
 
-@@ 227-235
+@@ 233-241
 **`me`** — who is signed in. `401` means nobody is, which isn't an error here: the answer is `null`. Anything else wrong is passed on.
 
-@@ 237-241
+@@ 243-247
 **`signIn`** — an address, a password and, if asked for, a one-time code.
 
-@@ 243-245
+@@ 249-251
 **`signUp`** — a new account and organisation.
 
-@@ 247-250
+@@ 253-256
 **`signOut`** — end the session, and forget the CSRF token.
 
-@@ 252-259
+@@ 258-265
 **`members`** — an organisation's members. `encodeURIComponent` makes an ID safe to put in an address.
 
-@@ 261-263
+@@ 267-269
 **`addMember`** — give an existing account a role.
 
-@@ 265-269
+@@ 271-275
 **`changeRole`** — a member's new role, by their ID, with `PATCH`.
 
-@@ 271-273
+@@ 277-279
 **`removeMember`** — take a member out, with `DELETE`.
 
-@@ 275-279
+@@ 281-285
 **`totpEnrol`** — ask for a new secret; nothing changes until a code from it is confirmed.
 
-@@ 281-283
+@@ 287-289
 **`totpConfirm`** — send a code from the app; if it's right, one-time codes are on.
 
-@@ 285-293
+@@ 291-299
 **`projects`** — an organisation's projects.
 
-@@ 295-304
+@@ 301-310
 **`createKey`** — a new API key for a project, with the chosen scopes and mode.
 
-@@ 306-320
+@@ 312-326
 **`audit`** — the newest hundred audit entries, and the chain's verdict.
 
-@@ 322-324
+@@ 328-330
 **`#project`** — the start of every project address, with both IDs made safe for an address.
 
-@@ 326-332
-**`sessions`** — one page of a project's sessions, test or live. `URLSearchParams` builds the `?livemode=…&limit=20` part of the address safely; the cursor is added only when there is one.
+@@ 332-346
+**`sessions`** — one page of a project's sessions, test or live. `URLSearchParams` builds the `?livemode=…&limit=20` part of the address safely; the cursor, the outcome and the reference are added only when they are set — an empty one means "any", so it is left out.
 
-@@ 334-347
+@@ 348-361
 **`trace`** — one session's decision trace: its summary, plus each attempt's kind, outcome, reasons and scores.
 
-@@ 349-355
+@@ 363-369
 **`analytics`** — the project's counts for the last 30 days (or another number), test or live; each total is read as a number.
 
-@@ 357-366
+@@ 371-380
 **`policies`** — the presets and the project's own policy versions.
 
-@@ 368-378
+@@ 382-392
 **`addPolicy`** — the next version of a policy: its name, minimum age and number of face attempts. Returns the new version's label, such as `shop_18@1`.
 
-@@ 380-383
+@@ 394-397
 **`#hooks`** — the address of a project's webhooks, or of one endpoint among them.
 
-@@ 385-388
+@@ 399-402
 **`webhooks`** — the endpoints, test or live.
 
-@@ 390-399
+@@ 404-413
 **`addWebhook`** — a new endpoint, with its mode in the body. Returns it with its secret.
 
-@@ 401-403
+@@ 415-417
 **`removeWebhook`** — delete one; the mode in the address.
 
-@@ 405-415
+@@ 419-429
 **`switchWebhook`** — switch an endpoint off or on with `PATCH`, the mode in the address, and read the endpoint back.
 
-@@ 417-421
+@@ 431-435
 **`testWebhook`** — queue a test event; returns its ID.
 
-@@ 423-437
+@@ 437-451
 **`deliveries`** — an endpoint's recent deliveries. The receiver's last answer is a number only if it is one, and its error a text only if there was one.
 
-@@ 439-443
+@@ 453-457
 **`replay`** — send a delivery again.
 
-@@ 444
+@@ 458
 End of the class.

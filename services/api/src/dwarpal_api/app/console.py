@@ -426,10 +426,11 @@ async def project_sessions(
     livemode: bool,
     limit: int,
     starting_after: str | None,
+    only: verification.SessionFilter,
 ) -> dict[str, Any]:
     """A project's sessions, newest first, a page at a time — the same list a website reads with its key."""
     _, project_id = await project_in(svc, current, org_text, project_text, Action.READ_SESSIONS)
-    return await verification.list_sessions(svc, project_id, livemode, limit, starting_after)
+    return await verification.list_sessions(svc, project_id, livemode, limit, starting_after, only)
 
 
 async def session_trace(
