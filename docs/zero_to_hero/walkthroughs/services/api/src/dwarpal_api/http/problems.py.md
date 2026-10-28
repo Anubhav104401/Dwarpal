@@ -1,5 +1,5 @@
 ---
-fingerprint: 885ae365431a65ba
+fingerprint: 2ad40407f2c944a1
 ---
 Two jobs that every request shares:
 
@@ -103,39 +103,51 @@ How long to suggest waiting: five seconds.
 @@ 92-94
 **Text the database can't store** (Phase 5). PostgreSQL refuses the NUL character (U+0000) in text, and JSON (`\u0000`) and addresses (`%00`) can both carry it. The contract tests' random inputs found a request that reached the database with one and got `500 internal_error`. The fault was the request's, so the answer should be a refusal. The two SQLSTATE codes are PostgreSQL's names for "this character can't be stored".
 
-@@ 97-100
-**`on_database_error`** — if the database's own error code says the text was unstorable, `422 invalid_text`; any other database error is unexpected, as before. One handler covers every route, including any added later.
+@@ 95-97
+**A lost database connection** (Phase 7, §5.7.6). PostgreSQL's error codes start with a two-character **class**: `08` means the connection broke, `57` that the server is being shut down. Stopping the database during a load test produced exactly that — mid-query — and the API answered `500`: SQLAlchemy reports it as a plain `DBAPIError`, not one of the connection errors the `503` handler knew.
 
-@@ 103-106
+@@ 100-101
+**`on_database_error`** — read the database's own error code, if the error carries one.
+
+@@ 102-103
+Text the database can't store: the request's fault, `422 invalid_text`.
+
+@@ 104-105
+The connection was lost (SQLAlchemy marks it `connection_invalidated`) or its code is in class 08 or 57: like any unreachable dependency, `503` with `Retry-After` — nothing was decided, so the caller simply tries again.
+
+@@ 106
+Anything else really is unexpected.
+
+@@ 109-112
 **`on_api_error`** — our own refusals become problems, carrying their status, code and sentence. The `isinstance` check guards against being called with the wrong kind of error: if that ever happened, the error is handled as unexpected rather than crashing the error handler itself.
 
 An `ApiError`'s own headers travel with it into the response.
 
-@@ 109-111
+@@ 115-117
 **`on_invalid_request`** — when FastAPI's Pydantic checks reject a request's data, for example a JSON body with a missing field.
 
-@@ 112
+@@ 118
 List which fields were wrong. Each Pydantic error has a `loc` ("location") such as `("body", "policy")`. Skipping the first part (`[1:]`) and joining the rest with dots gives `policy`; an error about the body as a whole has nothing left, and `or "body"` names it instead. A set removes duplicates, and `sorted` fixes the order.
 
-@@ 113
+@@ 119
 Answer `422` with one sentence naming the fields — but never echoing the *values* that were sent, which might be secrets typed in the wrong place.
 
-@@ 116-118
+@@ 122-124
 **`on_http_error`** — Starlette's own HTTP errors, such as `404` for an address that doesn't exist at all, or `405` for a wrong method. They get the generic code `http_error`.
 
-@@ 119
+@@ 125
 Keep any headers the error carries.
 
-@@ 120-123
+@@ 126-129
 For `405 Method Not Allowed`, HTTP requires an `Allow` header listing every method the address accepts. The contract tests (step 6) found two problems here: the headers were being thrown away, and Starlette lists only one route's methods even when `GET` and `POST` on the same path are two routes. So the list is gathered from all of them.
 
-@@ 124
+@@ 130
 Answer as problem details, with the headers.
 
-@@ 127-133
+@@ 133-139
 **`allowed_methods`** — every method of every route whose path pattern matches this address. `getattr(route, "path_regex", None)` reads an attribute if the route has it, and gives `None` otherwise: not every route (the automatic documentation pages, for instance) is an ordinary endpoint. `|=` adds one set to another; `sorted` gives a stable order.
 
-@@ 136
+@@ 142
 **`RequestIds`** — a **middleware**: code that wraps the whole app, seeing every request on its way in and every response on its way out (§4.8).
 
 It is written in raw **ASGI**, the interface between a Python web server and a web app. In ASGI, an app is simply something you can call with three values:
@@ -146,62 +158,62 @@ It is written in raw **ASGI**, the interface between a Python web server and a w
 
 Writing middleware at this level is a little longer than FastAPI's shortcut decorator, but it sees *everything* — including requests that crash — and adds no overhead.
 
-@@ 137-138
+@@ 143-144
 The middleware keeps the app it wraps.
 
-@@ 140
+@@ 146
 `__call__` makes an object **callable** like a function: the server calls the middleware exactly as it would call the app.
 
-@@ 141-143
+@@ 147-149
 Only HTTP requests get IDs. Other kinds of call — such as the **lifespan** messages a server sends at start-up and shutdown — pass straight through.
 
-@@ 144-145
+@@ 150-151
 Read the caller's offered ID. Keep it if it is safe; otherwise make our own: `req_` plus 8 random bytes in hexadecimal.
 
-@@ 146
+@@ 152
 Store the ID in the request's **state** — the place FastAPI exposes as `request.state` — so every later piece of code, such as `problem`, can find it. `setdefault` creates the state dict first if the server didn't.
 
-@@ 147
+@@ 153
 Start the stopwatch, and assume the status is `500` until a response says otherwise: if the app crashes before answering, the log line will say `500`.
 
-@@ 149
+@@ 155
 **`send_tagged`** — a wrapper around `send` that the app will use instead. A function defined inside another function can see the outer function's variables.
 
-@@ 150
+@@ 156
 `nonlocal status` — "when I set `status`, I mean the outer function's variable", not a new local one.
 
-@@ 151-153
+@@ 157-159
 The first message of every response, `http.response.start`, carries its status and headers. Note the status, and add our `X-Request-Id` header to it.
 
-@@ 154
+@@ 160
 Pass the message on to the real `send`.
 
-@@ 156-157
+@@ 162-163
 Run the app, with the wrapped `send`.
 
-@@ 158-161
+@@ 164-167
 `finally` runs whether the app succeeded or crashed. Work out how long the request took, in milliseconds to one decimal place, and write **one log line** with the request's ID, method, path and status. The path has no query string, and nothing from the body is logged.
 
-@@ 164-165
+@@ 170-171
 **`describe_problems`** — FastAPI builds the API document from the endpoints, but it only knows the `Problem` shape by its reference. This adds the shape itself.
 
-@@ 166
+@@ 172
 Keep FastAPI's own document builder.
 
-@@ 168-173
+@@ 174-179
 A replacement builder: build the document as before (FastAPI builds it once and keeps it), then make sure the components contain `Problem`, as Pydantic describes it (`model_json_schema`). `setdefault` adds a key only if it is missing, so running it twice changes nothing.
 
-@@ 175
+@@ 181
 Put the replacement in place of FastAPI's. (Replacing a method on an object is unusual, hence the note to mypy; it is FastAPI's documented way to customise the document.)
 
-@@ 178
+@@ 184
 **`install`** — attach everything to an app; `main.py` calls it.
 
-@@ 179
+@@ 185
 Describe the problems, first of all.
 
-@@ 180
+@@ 186
 Add the request-ID middleware. Middleware added *last* ends up *outermost*, so `main.py` calls `install` after adding the others: the ID then exists before any other code runs.
 
-@@ 181-187
+@@ 187-193
 Register the error handlers. For each error, FastAPI uses the handler registered for its own class, or for the closest class above it in the family tree — so an `ApiError` never ends up at the `Exception` handler. Database errors in general go to `on_database_error`; the connection failures among them (`OperationalError`, `InterfaceError`) are closer relatives of their own handler, so each dependency failure still gets `503`.

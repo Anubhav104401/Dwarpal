@@ -42,11 +42,12 @@
 | Throttling (28 Oct) | laptop on battery, Balanced plan: the same 8-frame script 1.40 s in the foreground, 3.21 s as a background task — all server timings were throttled; comparisons below are like-for-like |
 | Load, 3 frames (28 Oct, throttled) | 1 person: analysis 0.93 s (8 frames: 3.33 s); 50 at stress pace: 531 analysed, 83 % busy, analysis p95 1.58 s; 50 at 15–25 s pace: 20 % busy → with a 1 s queue **6 % busy, analysis p95 1.21 s**, whole attempt p95 1.9 s |
 | Semgrep 1.182.0 (28 Oct) | 67 findings → 0: actions pinned to commits; pnpm `blockExoticSubdeps`, `trustPolicy: no-downgrade` (two old `semver` versions exempted); `SET ROLE` and `torch.load` reviewed as safe; migrations, memory-pinning advice and a mis-firing cooldown rule excluded with reasons |
+| Failures under load (29 Oct) | 50 users at 15–25 s pace for 5 min; Valkey down 31 s, PostgreSQL 21 s, inference 40 s: 2,456 requests, 111 + 3 answered 503, **1 × 500** (PostgreSQL stopped mid-query → plain `DBAPIError`) → **fixed**: classes 08/57 and invalidated connections answer 503 (`test_problems.py`). Attempts during outages: 0 passes (104 analysis unavailable, 84 refused for liveness); after: 270 analysed, 1 unavailable |
 
 ## Open items
 
 1. **Scanners** — run and triaged (27–28 Oct); Semgrep clean. Left: Python fixes (D15); `tmp` 0.2.7 (D14b). (The nonce-based CSP is done, 29 Oct.)
-2. **Performance** — P1 (a) done: 3 frames, a 1 s queue; server processing p95 1.21 s for 50 people at a realistic pace (throttled laptop). **P2 decided (29 Oct)**: NFR-05 means 50 people in a check (an attempt every ~20 s each) — met on the laptop. Open: measuring on the real 4-core server (Phase 8); static INT8; certifying the lines on webcam-degraded images; failures mid-flow under load.
+2. **Performance** — P1 (a) done: 3 frames, a 1 s queue; server processing p95 1.21 s for 50 people at a realistic pace (throttled laptop). **P2 decided (29 Oct)**: NFR-05 means 50 people in a check (an attempt every ~20 s each) — met on the laptop. Open: measuring on the real 4-core server (Phase 8); static INT8; certifying the lines on webcam-degraded images; a repeatable chaos test in CI.
 3. **Observability** — traces done; dashboards, metrics (Prometheus, approved, not yet needed) and burn-rate alerts to come.
 6. **Process slip**: a local test API key was printed in tool output while preparing the load test; revoked at once.
 4. ~~Privacy documents~~ — **drafted 26 Oct**; need legal review (O5) and the operator's contact details (O6). The final model card waits for a calibrated model.

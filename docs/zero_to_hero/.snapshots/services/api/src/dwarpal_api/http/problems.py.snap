@@ -92,11 +92,17 @@ async def on_dependency_down(request: Request, error: Exception) -> Response:
 # PostgreSQL can't store some characters in text — above all NUL (U+0000), which JSON and addresses can carry. When
 # it refuses one, the request was at fault, not the server: one answer for every route, instead of a 500.
 UNSTORABLE_TEXT = {"22021", "22P05"}  # character_not_in_repertoire, untranslatable_character
+# The database went away in the middle of a request: a broken connection (class 08) or a server shutting down
+# (class 57). Like any unreachable dependency, that means "try again shortly" — found by stopping PostgreSQL under load.
+CONNECTION_LOST = ("08", "57")
 
 
 async def on_database_error(request: Request, error: Exception) -> Response:
-    if isinstance(error, DBAPIError) and getattr(error.orig, "sqlstate", None) in UNSTORABLE_TEXT:
+    sqlstate = str(getattr(getattr(error, "orig", None), "sqlstate", "") or "")
+    if isinstance(error, DBAPIError) and sqlstate in UNSTORABLE_TEXT:
         return problem(request, 422, "invalid_text", "text may not contain the NUL character (or other control bytes)")
+    if isinstance(error, DBAPIError) and (error.connection_invalidated or sqlstate.startswith(CONNECTION_LOST)):
+        return await on_dependency_down(request, error)
     return await on_unexpected(request, error)
 
 

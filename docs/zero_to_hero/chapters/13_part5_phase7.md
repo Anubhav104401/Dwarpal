@@ -4,7 +4,7 @@ Phases 1–6 make Dwarpal work. Phase 7 makes it hold up: under attack, under lo
 
 | Area | What | Status |
 | :-- | :-- | :-- |
-| Resilience | **Fail closed**: kill a dependency mid-flow, and nothing may pass | ✅ §5.7.1 |
+| Resilience | **Fail closed**: kill a dependency mid-flow, and nothing may pass | ✅ §5.7.1; under load (§5.7.6) |
 | Security | Headers and content policy verified; scanners (Semgrep, pip-audit, Trivy, ZAP); threat-model review | 🟡 headers ✅ (§5.7.1); every scanner run and triaged (§5.7.3–5.7.4); script policy with nonces (§5.7.5); Python fixes wait for D15 |
 | Observability | OpenTelemetry end to end, dashboards, alerts | 🟡 traces from the API to Tempo and Grafana, with nothing about the person (§5.7.3); dashboards and alerts to come |
 | Performance | Load tests against the service levels (Locust) | 🟡 analysis p95 1.2 s at a realistic load (§5.7.4); 50 *simultaneous* attempts on 4 cores still out of reach |
@@ -180,3 +180,30 @@ The rest changed existing files, each re-explained in its walkthrough: `next.con
 
 !!! honest "Honest limitation"
     Styles still allow inline ones (`style-src 'unsafe-inline'`). A few elements set a colour or a width in a `style` attribute, and a nonce can't be put on an attribute. Injected styles can change how a page looks — which could mislead someone — but can't run code. Removing them would mean moving those values into classes or CSS variables set from script.
+
+### 5.7.6 Pulling the plug under load
+
+§5.7.1 proved that a missing dependency can never produce a pass — one request at a time. The roadmap asks for the same *under load*, with dependencies dying mid-flow. So, with 50 simulated people taking checks at a realistic pace (§5.7.4), each dependency was stopped in turn, by hand, and started again:
+
+| Time (UTC) | What happened |
+| :-- | :-- |
+| 19:58:44 – 19:59:15 | Valkey stopped |
+| 19:59:46 – 20:00:07 | PostgreSQL stopped |
+| 20:00:15 – 20:00:55 | the inference service stopped |
+
+**What the people got.** 2,456 requests in five minutes:
+
+- **Expected:** 111 sessions and 3 attempts were answered `503 — try again shortly` during the outages.
+- **One crash:** a single session got `500`.
+
+Of the face attempts made while a dependency was down, **none passed**: 104 ended as *analysis unavailable*, and the rest were analysed and refused for liveness — always a safe *try again*. A minute after the last outage, everything was being analysed again (270 attempts, only one unavailable).
+
+!!! real "Real world — the one 500"
+    PostgreSQL was stopped *in the middle of* a query. SQLAlchemy reports that as a plain `DBAPIError`, not one of the "can't connect" errors the 503 handler knew, so the API called it unexpected. Every PostgreSQL error carries a code whose first two characters name its class: `08` is a broken connection, `57` a server shutting down. The handler now answers those with `503` and `Retry-After`, like any other missing dependency. `test_problems.py` checks each kind of error, so the case can't come back unnoticed.
+
+!walk services/api/tests/test_problems.py
+
+The error answers (`problems.py`) were re-explained in their walkthrough.
+
+!!! honest "Honest limitation"
+    The outages were made by hand from a script, once, on the owner's laptop. They weren't a repeatable test that runs with the others: a chaos test needs containers it may stop freely, which CI can provide. The photos used never pass liveness, so "none passed" here shows the outage paths are safe. The proof that a dependency's absence can't turn a would-be pass into one is §5.7.1's tests.
