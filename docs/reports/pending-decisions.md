@@ -66,6 +66,25 @@ Work that needs your answer — a download, a design choice, an account, or some
 | O6 | The operator's name and contact details for data-protection requests (practice statement §8) | publishing the practice statement |
 | O7 | Register Dwarpal with UIDAI as an **Offline Verification Seeking Entity** ([OVSE registration](https://uidai.gov.in/en/ovse)), if the Aadhaar route goes ahead; check what the 2021 regulations require of it | Phase 6 Aadhaar in production (testing with your own QR is unaffected) |
 
+## Morning summary — night of 28–29 Oct
+
+**Waiting for you** (each row above has the details):
+- **D15** — Python security fixes (`pillow` 13.0.0 and three small ones): approve the downloads?
+- **D14b** — `tmp` 0.2.7 (40 KB) in place of the approved 0.2.6, which a newer advisory also covers. `body-parser` 1.20.9 (already approved) can go in from 11:38 UTC today.
+- **D7b** — SFace's training data failed your condition; not downloaded. Accept anyway, look for a consented model, or drop selfie ↔ document matching?
+- **D6b** — Tesseract via Docker (recommended) or the Windows installer?
+- **D8 / O7** — Aadhaar is blocked on UIDAI material, and probably on OVSE registration.
+- **O1** — the GitHub repository's URL, so CI (and Firefox) can run.
+
+**Done tonight** (all committed; every check, 21 browser tests and the book at 100 %):
+- `22d2b2f` P2 recorded: NFR-05 means 50 people in a check, on 4 cores; the design documents now say so.
+- `dd14d78` Webhook endpoints can be switched off and on (API, console, tests).
+- `e081571` Sessions can be searched by outcome and by the website's reference.
+- `8587058` A browser test of the member controls.
+- `7a61996` Recovery codes (10, single-use, stored as HMACs) and switching one-time codes off (password + code).
+- `c25ac7f` The web app's script policy uses a per-page nonce — ZAP's remaining warning fixed.
+- `8cad67a` Valkey, PostgreSQL and inference stopped during a load test: nothing passed, all recovered; one 500 found and fixed.
+
 ## Done overnight (no decision needed)
 
 Kept up to date as work lands; see the commit log for details.
