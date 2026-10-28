@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const CONSOLE = "http://localhost:3000/console";
 const API = "http://localhost:8000";
@@ -128,4 +128,40 @@ test("a member turns on one-time codes, and signing in then asks for one", async
     .fill(oneTimeCode(secret, Date.now() + 30_000));
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: "Your organisations" })).toBeVisible();
+});
+
+/** Create an account in this browser, with its own organisation. */
+async function signUp(page: Page, email: string, organisation: string): Promise<void> {
+  await page.goto(CONSOLE);
+  await page.getByRole("button", { name: "Create an account" }).click();
+  await page.getByLabel("E-mail address").fill(email);
+  await page.getByLabel("Password").fill("a long and unguessable test passphrase");
+  await page.getByLabel("Organisation name").fill(organisation);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByRole("heading", { name: "Your organisations" })).toBeVisible();
+}
+
+test("an owner adds a member, changes their role, and removes them", async ({ page, browser }) => {
+  const owner = `team-owner-${Date.now()}@shop.example`;
+  const colleague = `colleague-${Date.now()}@shop.example`;
+  const theirs = await browser.newContext(); // the colleague's own browser, with their own session
+  await signUp(await theirs.newPage(), colleague, "Their Ltd");
+  await theirs.close();
+  await signUp(page, owner, "Team Ltd");
+  await page.getByRole("link", { name: /Team Ltd/ }).click();
+  const members = page.getByRole("region", { name: "Members" });
+
+  await page.getByLabel("Add by e-mail").fill(colleague);
+  await page.getByLabel("Role", { exact: true }).selectOption("analyst");
+  await members.getByRole("button", { name: "Add", exact: true }).click();
+  const role = page.getByLabel(`Role of ${colleague}`);
+  await expect(role).toHaveValue("analyst");
+
+  await role.selectOption("developer");
+  await expect(role).toHaveValue("developer");
+  await page.reload(); // the change was saved, not just shown
+  await expect(page.getByLabel(`Role of ${colleague}`)).toHaveValue("developer");
+
+  await page.getByRole("button", { name: `Remove ${colleague}` }).click();
+  await expect(members).not.toContainText(colleague);
 });

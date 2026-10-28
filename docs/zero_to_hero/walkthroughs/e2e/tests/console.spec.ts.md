@@ -1,10 +1,10 @@
 ---
-fingerprint: f649770e6fa54050
+fingerprint: 3bcb12307fbd56bb
 ---
 The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page, adds a policy version and a webhook endpoint; a wrong password is refused without revealing whether the account exists; and a member turns on one-time codes, after which signing in needs one.
 
 @@ 1-3
-Node's `createHmac`, to compute one-time codes as an authenticator app would; and Playwright's `expect` and `test`.
+Node's `createHmac`, to compute one-time codes as an authenticator app would; and Playwright's `expect`, `Page` type and `test`.
 
 @@ 5-6
 The console's address, and the API's.
@@ -106,4 +106,28 @@ Sign out, and sign in with the password alone: the console asks for a code. A co
 Enter it and sign in: the organisations appear.
 
 @@ 131
+End of the test.
+
+@@ 133-142
+**`signUp`** — create an account in a given browser page, with its own organisation, and wait for the organisations page: the steps of the first test, made reusable.
+
+@@ 144-146
+**Test — managing a member** (Phase 5). Two fresh addresses: the owner's and a colleague's.
+
+@@ 147-149
+The colleague signs up in a browser of their own — a second **context**, with its own cookies, so their session never mixes with the owner's — which is then closed.
+
+@@ 150-152
+The owner signs up and opens the organisation; the members' panel is where everything happens.
+
+@@ 154-158
+Add the colleague as an analyst: their row appears, with a role menu showing *analyst*.
+
+@@ 160-163
+Change it to developer; then reload the page, to prove the change was saved, not just shown.
+
+@@ 165-166
+Remove them: their address is gone from the members.
+
+@@ 167
 End of the test.

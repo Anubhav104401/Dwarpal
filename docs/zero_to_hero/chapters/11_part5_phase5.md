@@ -128,7 +128,7 @@ The rest changed existing files, each re-explained in its walkthrough: the conso
 **A bug the contract tests found.** Running the new routes through Schemathesis (§5.4.6), one random request carried the NUL character inside an e-mail address. PostgreSQL can't store NUL in text, the error went unhandled, and the API answered `500`. The request was at fault, so `http/problems.py` now turns that one database refusal into `422 invalid_text`, for every route at once, and a test sends such an address on purpose. (The failure appeared on one run and not the next: random testing finds rare inputs only sometimes, which is why it runs on every check.)
 
 !!! honest "Honest limitation"
-    (The QR code came next, in §5.5.5.) One-time codes can't yet be switched off or reset from the console (a lost phone needs an operator), and there are no recovery codes. The member controls were checked by the API test and a type check, but not yet in a browser test.
+    (The QR code came next, in §5.5.5.) One-time codes can't yet be switched off or reset from the console (a lost phone needs an operator), and there are no recovery codes. (A browser test of the member controls came later: an owner adds a colleague, changes their role, reloads to see it kept, and removes them.)
 
 ### 5.5.5 The exit tests: three engines, accessibility, Lighthouse — and a QR code
 
