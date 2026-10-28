@@ -101,7 +101,7 @@ The rest changed existing files, each re-explained in its walkthrough:
 One slip, recorded honestly: while preparing the load test, a local *test* API key was printed in a tool's output. It was revoked at once (`cli revoke-key`), and the load test used a fresh key that was never shown.
 
 !!! honest "Honest limitation"
-    The load test ran on a 32-thread computer, not the 4-core machine the target names. The inference service limits itself to 4 analyses at a time, so the comparison is fair for one person but not exact. There are no dashboards or alerts yet. Semgrep hasn't run. And the scans' Python findings stay open until D15 is decided.
+    The load test ran on a 32-thread computer, not the 4-core machine the target names. The inference service limits itself to 4 analyses at a time, so the comparison is fair for one person but not exact. There were no dashboards or alerts yet (§5.7.7 adds them). Semgrep hasn't run. And the scans' Python findings stay open until D15 is decided.
 
 ### 5.7.4 Making an attempt fast enough — and learning to measure it
 
@@ -207,3 +207,37 @@ The error answers (`problems.py`) were re-explained in their walkthrough.
 
 !!! honest "Honest limitation"
     The outages were made by hand from a script, once, on the owner's laptop. They weren't a repeatable test that runs with the others: a chaos test needs containers it may stop freely, which CI can provide. The photos used never pass liveness, so "none passed" here shows the outage paths are safe. The proof that a dependency's absence can't turn a would-be pass into one is §5.7.1's tests.
+
+### 5.7.7 Numbers over time: metrics, a dashboard and alerts
+
+A trace tells the story of *one* request. To see whether the service as a whole is keeping its promises, you need **metrics**: running totals, such as "requests answered so far, by route and status code" and "how many took up to 5 ms, up to 10 ms, …". Totals are tiny, so they can be kept for every request, and graphs and alerts can be drawn from them.
+
+The API already used OpenTelemetry for traces (§5.7.3); its FastAPI instrumentation counts requests too, once it is given a **meter provider**. `meters_for` makes one that sends the totals to the same collector every 15 seconds. From there:
+
+1. the **collector** offers them in Prometheus's text format on port 8889;
+2. **Prometheus** — the time-series database approved under D11 — *pulls* them every 15 seconds, keeps them, and checks the alert rules;
+3. **Grafana** draws them, on a dashboard that is a file in the repository rather than something clicked together.
+
+!!! key "Key idea — label with the pattern, never the address"
+    Each total is labelled with the route it belongs to. The instrumentation uses the route's *pattern*, `/v1/flow/sessions/{session_text}/start`, not the real address, which contains a session's text. That matters twice over: a real address would leak an identifier into a system that keeps data for weeks, and it would make one new series per session, which would eventually overwhelm Prometheus. A test sends a request with a session's text, a secret in the query string and a browser name, and proves none of them reaches a label.
+
+!walk infra/observability/prometheus.yaml
+
+**Alerts from an error budget.** The API promises to answer 99.9 % of requests without a server error. That leaves 0.1 % — the month's *error budget*. Rather than alerting on "any error", the rules watch how fast the budget is being spent (the *burn rate*), using two windows each: the long one proves a problem isn't a blip, the short one that it is still happening. A fast burn (14.4 times, 2 % of the month's budget in an hour) asks for someone now; a slow one (6 times) for a ticket. A third rule watches the face attempts' 95th percentile against NFR-05's 1.5 seconds.
+
+!walk infra/observability/alerts.yaml
+
+!walk infra/observability/grafana-dashboards.yaml
+
+!walk infra/observability/dashboards/api.json
+
+!!! real "Real world — an empty graph that should have said 0"
+    The first look at the dashboard showed "No data" for the server-error share, although requests were flowing. There had been no server errors, so the series counting them didn't exist — and in PromQL, dividing *nothing* by something gives nothing, not 0. Adding `or vector(0)` to the top of each share makes it 0 until the first error arrives. The alerts were never wrong (no data never fires), but a graph that is blank when all is well looks the same as one that is broken.
+
+It was checked end to end on this laptop: requests to the API showed up in Prometheus labelled by pattern (`/.well-known/jwks.json`, `/v1/verification-sessions/{session_text}`), all seven rules loaded and evaluated as healthy, and Grafana drew the dashboard.
+
+The rest changed existing files, each re-explained in its walkthrough: the telemetry module and its test, the API's start-up and shutdown (`main.py`), the collector's settings, Grafana's data sources and the compose file.
+
+!!! honest "Honest limitation"
+    The alerts fire inside Prometheus but go nowhere yet: sending them to a person needs **Alertmanager** and a destination (email, chat, a pager), which belongs with the real deployment in Phase 8. The thresholds come from the textbook, not from this service's history. And Prometheus here keeps its data only until it restarts.
+

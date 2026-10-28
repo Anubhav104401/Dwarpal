@@ -1,0 +1,55 @@
+# Alerts on the service levels (Phase 7, D11; design §11): the API answers 99.9 % of requests without a server error,
+# and a face attempt's p95 stays within 1.5 s (NFR-05).
+#
+# Availability uses **burn rates**: how fast the month's error allowance (0.1 % of requests) is being spent. A burn rate
+# of 1 spends it in exactly a month; 14.4 spends 2 % of it in an hour. Each alert needs both a long and a short window
+# to agree: the long one proves it isn't a blip, the short one that it is still happening.
+# "or vector(0)" makes the share 0, not missing, while there has been no server error at all.
+groups:
+  - name: dwarpal-slo
+    rules:
+      - record: dwarpal:server_error_ratio:rate5m
+        expr: >
+          (sum(rate(http_server_duration_milliseconds_count{http_status_code=~"5.."}[5m])) or vector(0))
+          / sum(rate(http_server_duration_milliseconds_count[5m]))
+      - record: dwarpal:server_error_ratio:rate1h
+        expr: >
+          (sum(rate(http_server_duration_milliseconds_count{http_status_code=~"5.."}[1h])) or vector(0))
+          / sum(rate(http_server_duration_milliseconds_count[1h]))
+      - record: dwarpal:server_error_ratio:rate30m
+        expr: >
+          (sum(rate(http_server_duration_milliseconds_count{http_status_code=~"5.."}[30m])) or vector(0))
+          / sum(rate(http_server_duration_milliseconds_count[30m]))
+      - record: dwarpal:server_error_ratio:rate6h
+        expr: >
+          (sum(rate(http_server_duration_milliseconds_count{http_status_code=~"5.."}[6h])) or vector(0))
+          / sum(rate(http_server_duration_milliseconds_count[6h]))
+
+      - alert: AvailabilityFastBurn
+        expr: >
+          dwarpal:server_error_ratio:rate1h > 14.4 * 0.001
+          and dwarpal:server_error_ratio:rate5m > 14.4 * 0.001
+        labels:
+          severity: page
+        annotations:
+          summary: "Server errors are spending the month's allowance 14 times too fast (2 % of it per hour)."
+
+      - alert: AvailabilitySlowBurn
+        expr: >
+          dwarpal:server_error_ratio:rate6h > 6 * 0.001
+          and dwarpal:server_error_ratio:rate30m > 6 * 0.001
+        labels:
+          severity: ticket
+        annotations:
+          summary: "Server errors are spending the month's allowance 6 times too fast (5 % of it in 6 hours)."
+
+      - alert: FaceAttemptSlow
+        expr: >
+          histogram_quantile(0.95, sum by (le) (rate(
+            http_server_duration_milliseconds_bucket{http_target="/v1/flow/sessions/{session_text}/face-attempts"}[10m]
+          ))) > 1500
+        for: 10m
+        labels:
+          severity: ticket
+        annotations:
+          summary: "The 95th percentile of face attempts has been over 1.5 seconds for 10 minutes (NFR-05)."

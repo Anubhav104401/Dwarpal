@@ -48,7 +48,7 @@
 
 1. **Scanners** — run and triaged (27–28 Oct); Semgrep clean. Left: Python fixes (D15); `tmp` 0.2.7 (D14b). (The nonce-based CSP is done, 29 Oct.)
 2. **Performance** — P1 (a) done: 3 frames, a 1 s queue; server processing p95 1.21 s for 50 people at a realistic pace (throttled laptop). **P2 decided (29 Oct)**: NFR-05 means 50 people in a check (an attempt every ~20 s each) — met on the laptop. Open: measuring on the real 4-core server (Phase 8); static INT8; certifying the lines on webcam-degraded images; a repeatable chaos test in CI.
-3. **Observability** — traces done; dashboards, metrics (Prometheus, approved, not yet needed) and burn-rate alerts to come.
+3. **Observability** — traces done; **metrics, dashboard and burn-rate alerts done (29 Oct)**: request totals by route pattern → collector → Prometheus v3.13.4; recording rules for the server-error share over 5 m/30 m/1 h/6 h; alerts `AvailabilityFastBurn` (14.4×, page), `AvailabilitySlowBurn` (6×, ticket), `FaceAttemptSlow` (p95 > 1.5 s for 10 min); Grafana dashboard `dwarpal-api` provisioned from a file. Checked on the laptop: labels are patterns only, all 7 rules healthy. Open: delivering alerts (Alertmanager and a destination — Phase 8).
 6. **Process slip**: a local test API key was printed in tool output while preparing the load test; revoked at once.
 4. ~~Privacy documents~~ — **drafted 26 Oct**; need legal review (O5) and the operator's contact details (O6). The final model card waits for a calibrated model.
 5. ~~Threat-model review~~ — **done 26 Oct**; its top residual risks are the Next.js advisory (D12), the owner-login role switch (Phase 8), and untested presentation attacks.

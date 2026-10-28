@@ -1,0 +1,7 @@
+# Grafana (Phase 7, D11): load the dashboards in /var/lib/grafana/dashboards when it starts.
+apiVersion: 1
+providers:
+  - name: dwarpal
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

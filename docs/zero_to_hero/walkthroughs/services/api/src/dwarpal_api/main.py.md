@@ -1,5 +1,5 @@
 ---
-fingerprint: 28a96433225513a1
+fingerprint: 759d712ab5ff3bee
 ---
 The file that **assembles** the API. Every other module is a part; this one connects them in the right order when the program starts, and disconnects them when it stops. It follows the same pattern as the inference service's `main.py` (§5.1.1): an **app factory** called `create_app`.
 
@@ -39,48 +39,54 @@ Use the given settings, or read them from the environment.
 @@ 33
 **Traces**: if a collector's address is set, a tracer provider that sends to it; otherwise none.
 
-@@ 35-36
+@@ 34
+**Metrics**: the same for the running totals — a meter provider sending to the same collector, or none.
+
+@@ 36-37
 The **lifespan** function. `@asynccontextmanager` turns a function with a single `yield` into a "before and after" pair: everything before `yield` runs at start-up, and everything after it at shutdown. Defining it *inside* `create_app` lets it use `settings` and `inference_http` directly.
 
-@@ 37-38
+@@ 38-39
 Create the database engine (the connection pool), working as the restricted role from the settings (`dwarpal_app`, so row-level security applies to every query), and the session factory (`db.py`). The key ring just below loads the signing keys through it: they belong to Dwarpal, not to a tenant, so no tenant is needed.
 
-@@ 39
+@@ 40
 Create the Valkey client from its URL. It connects lazily, on first use.
 
-@@ 40-42
+@@ 41-43
 The HTTP client for the inference service: the one a test passed in, or a new one with the service's base address and timeout from the settings.
 
-@@ 43-44
+@@ 44-45
 Build the master key, then the key ring around it. `get_secret_value()` is the only way out of a `SecretStr`, so this is one of very few lines in the project that ever touches the master key in plain form. A malformed key stops the start-up right here. The master key itself is kept for the toolbox: it also seals webhook secrets.
 
-@@ 45-46
+@@ 46-47
 Load the signing key, creating one if the database has none (`signing.py`, with its lock against two copies starting at once).
 
-@@ 47-56
+@@ 48-57
 Fill the toolbox and store it on the app, where the `services` dependency finds it for every request. The model manifest is read from `models_dir`; a broken or missing manifest stops the start-up. The idempotency secret is derived from the master key once, here (`app/idempotency.py`), and the master key goes in too.
 
-@@ 57-58
+@@ 58-59
 `yield` hands control to the server: the app now serves requests until shutdown begins.
 
-@@ 59-63
+@@ 60-64
 `finally` runs at shutdown — even after a crash. Close the inference client only if *we* created it (a test closes its own; whoever creates a resource closes it), then the Valkey client, then the database pool.
 
-@@ 64-65
+@@ 65-66
 At shutdown, if tracing is on, send the traces still waiting in their batch, so the last requests aren't lost.
 
-@@ 67-76
+@@ 67-68
+Likewise for metrics: shutting the meter provider down sends the totals counted since the last 15-second export.
+
+@@ 70-79
 Create the FastAPI app, with a title and version for its automatic documentation, the lifespan, and (Phase 4) the refusals every operation may answer with, so the published API document lists them for every operation (`http/problems.py`).
 
 Since Phase 7, the **interactive** documentation pages (`/docs`, and `/redoc`, never used) exist only outside production: they load scripts and styles from the internet, which the API's strict content policy would forbid, and production has no need for them. The document itself, `/openapi.json`, is always published.
 
-@@ 77
+@@ 80
 Add the body-size guard (`limits.py`).
 
-@@ 78
+@@ 81
 Add the security headers to every answer (`http/headers.py`), with HSTS only in production.
 
-@@ 79-85
+@@ 82-88
 Add the **CORS** middleware, which tells browsers which other websites may call this API from their pages (§4.13):
 
 - `allow_origins` — only the origins in the settings: the verify page;
@@ -88,7 +94,7 @@ Add the **CORS** middleware, which tells browsers which other websites may call 
 - `allow_headers` — the only request headers a page may send: the token, the body's type, a request ID, and the verify page's device ID (`X-Dwarpal-Device`, for the per-device budgets);
 - `expose_headers` — lets the page's code read our `X-Request-Id` header, so the verify page can show it in an error message.
 
-@@ 86
+@@ 89
 Install the request IDs, request log and error handlers (`problems.py`). Middleware added later wraps everything added before, so the order of these lines decides the order requests flow through:
 
 ```
@@ -97,11 +103,11 @@ request → RequestIds → CORS → BodyLimit → error handlers → endpoint
 
 Request IDs come first, so every later step — even a refusal by the size guard — can name the request. CORS comes before the size guard, so browsers can read even a "too large" answer.
 
-@@ 87-88
+@@ 90-91
 Add the nine routers — the relying-party API, policies, webhooks, token introspection, analytics, the console, the flow API, the well-known addresses and the health checks.
 
-@@ 89-90
-If tracing is on, record every request — added last, so it wraps everything else.
+@@ 92-93
+If tracing is on, record (and count) every request — added last, so it wraps everything else.
 
-@@ 91
+@@ 94
 Return the finished app.

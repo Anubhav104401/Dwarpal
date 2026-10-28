@@ -1,4 +1,4 @@
-# Grafana (Phase 7, D11): Tempo as its one data source, set up when Grafana starts.
+# Grafana (Phase 7, D11): its data sources, set up when Grafana starts — Tempo for traces, Prometheus for metrics.
 apiVersion: 1
 datasources:
   - name: Tempo
@@ -6,3 +6,8 @@ datasources:
     access: proxy
     url: http://tempo:3200
     isDefault: true
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090

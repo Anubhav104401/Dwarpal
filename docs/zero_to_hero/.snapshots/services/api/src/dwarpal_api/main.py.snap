@@ -31,6 +31,7 @@ from dwarpal_api.settings import Settings
 def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClient | None = None) -> FastAPI:
     settings = settings or Settings()
     tracing = telemetry.provider_for(settings.otel_endpoint) if settings.otel_endpoint else None
+    metering = telemetry.meters_for(settings.otel_endpoint) if settings.otel_endpoint else None
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -63,6 +64,8 @@ def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClie
             await engine.dispose()
             if tracing is not None:
                 tracing.shutdown()  # send the last traces before the process ends
+            if metering is not None:
+                metering.shutdown()  # and the last totals
 
     production = settings.environment == "production"
     app = FastAPI(
@@ -87,5 +90,5 @@ def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClie
     for module in (rp, policies, webhooks, tokens, analytics, console, flow, wellknown, health):
         app.include_router(module.router)
     if tracing is not None:
-        telemetry.install(app, tracing)
+        telemetry.install(app, tracing, metering)
     return app

@@ -1,0 +1,67 @@
+{
+  "uid": "dwarpal-api",
+  "title": "Dwarpal API",
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Requests per second, by route",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (http_target) (rate(http_server_duration_milliseconds_count[5m]))",
+          "legendFormat": "{{http_target}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Share of answers that were server errors (target: under 0.1 %)",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" } },
+      "targets": [{ "expr": "dwarpal:server_error_ratio:rate5m", "legendFormat": "server errors" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "95th percentile of response time, by route",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, http_target) (rate(http_server_duration_milliseconds_bucket[5m])))",
+          "legendFormat": "{{http_target}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Face attempts: 95th percentile (target: 1.5 s)",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1500 }
+            ]
+          },
+          "custom": { "thresholdsStyle": { "mode": "line" } }
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_duration_milliseconds_bucket{http_target=\"/v1/flow/sessions/{session_text}/face-attempts\"}[5m])))",
+          "legendFormat": "p95"
+        }
+      ]
+    }
+  ]
+}

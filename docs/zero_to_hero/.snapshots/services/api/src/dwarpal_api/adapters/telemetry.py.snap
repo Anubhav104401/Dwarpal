@@ -1,16 +1,21 @@
-"""Traces (Phase 7, decision D11): for each request, which route it took, how it ended and how long it took, sent to an
-OpenTelemetry collector when `DWARPAL_OTEL_ENDPOINT` is set, and off otherwise.
+"""Traces and metrics (Phase 7, decision D11): for each request, which route it took, how it ended and how long it
+took — one trace each, and running totals for dashboards and alerts — sent to an OpenTelemetry collector when
+`DWARPAL_OTEL_ENDPOINT` is set, and off otherwise.
 
 A trace must carry nothing about the person: no body, header or query string (so no image, token, key or secret), and
-not the visitor's network address or browser, which the instrumentation records by default and this module blanks."""
+not the visitor's network address or browser, which the instrumentation records by default and this module blanks.
+Metrics are labelled with the route's pattern (`/v1/flow/sessions/{session_text}/start`), never a real address."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from fastapi import FastAPI
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -38,17 +43,26 @@ def provider_for(endpoint: str) -> TracerProvider:
     return provider
 
 
+def meters_for(endpoint: str) -> MeterProvider:
+    """Send the running totals to the collector at `endpoint` every 15 seconds."""
+    exporter = OTLPMetricExporter(endpoint=f"{endpoint.rstrip('/')}/v1/metrics")
+    reader = PeriodicExportingMetricReader(exporter, export_interval_millis=15_000)
+    return MeterProvider(resource=Resource.create({"service.name": SERVICE}), metric_readers=[reader])
+
+
 def _blank_the_caller(span: Span, scope: dict[str, Any]) -> None:
     if span.is_recording():
         span.set_attribute("http.url", scope["path"])
         span.set_attributes(BLANKED)
 
 
-def install(app: FastAPI, provider: TracerProvider) -> None:
-    """Trace every request to `app`, except health checks; only the request as a whole, not each read and write."""
+def install(app: FastAPI, provider: TracerProvider, meters: MeterProvider | None = None) -> None:
+    """Trace (and count) every request to `app`, except health checks; only the request as a whole, not each read and
+    write."""
     FastAPIInstrumentor.instrument_app(
         app,
         tracer_provider=provider,
+        meter_provider=meters,
         excluded_urls=UNTRACED,
         exclude_spans=["receive", "send"],
         server_request_hook=_blank_the_caller,

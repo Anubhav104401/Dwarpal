@@ -1,4 +1,5 @@
-# The OpenTelemetry collector (Phase 7, D11): receives the API's traces over HTTP and passes them to Tempo.
+# The OpenTelemetry collector (Phase 7, D11): receives the API's traces and metrics over HTTP; passes traces to Tempo,
+# and offers the metrics for Prometheus to collect.
 receivers:
   otlp:
     protocols:
@@ -13,6 +14,8 @@ exporters:
     endpoint: tempo:4317
     tls:
       insecure: true # inside Docker's private network, between two local containers
+  prometheus:
+    endpoint: 0.0.0.0:8889 # Prometheus reads the metrics from here (prometheus.yaml)
 
 service:
   pipelines:
@@ -20,3 +23,7 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
