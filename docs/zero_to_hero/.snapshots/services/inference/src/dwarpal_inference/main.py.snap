@@ -40,6 +40,7 @@ def build_pipeline(settings: Settings) -> FacePipeline:
         hands=hands,
         spoof=spoof,
         trust_labels=settings.liveness == "labels",
+        age_frames=settings.age_frames,
     )
 
 
@@ -67,8 +68,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/internal/v1/analyze/face")
     async def analyze_face(request: Request) -> FaceAnalysis:
-        if limiter.available_tokens == 0:
-            raise HTTPException(503, "inference is busy; retry shortly", headers={"Retry-After": "1"})
         form = await request.form(max_files=MAX_FRAMES, max_fields=1)
         try:
             meta = FaceRequestMeta.model_validate_json(str(form.get("meta", "")))
@@ -84,6 +83,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise HTTPException(413, f"frame_{frame.index} is larger than {MAX_FRAME_BYTES} bytes")
             images.append(data)
         pipeline: FacePipeline = request.app.state.pipeline
-        return await anyio.to_thread.run_sync(pipeline.analyze, meta, images, limiter=limiter)
+        # People arrive at random, so a short wait for a free worker absorbs a burst; if none frees up in time, say
+        # "busy" rather than let work pile up (§5.7.4). The API turns "busy" into a safe "try again".
+        try:
+            with anyio.fail_after(settings.queue_s):
+                await limiter.acquire()
+        except TimeoutError:
+            raise HTTPException(503, "inference is busy; retry shortly", headers={"Retry-After": "1"}) from None
+        try:
+            return await anyio.to_thread.run_sync(pipeline.analyze, meta, images)
+        finally:
+            limiter.release()
 
     return app

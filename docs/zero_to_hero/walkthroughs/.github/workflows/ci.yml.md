@@ -1,5 +1,5 @@
 ---
-fingerprint: da800ea5bc670417
+fingerprint: 7f775eb5cd38ac64
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -40,12 +40,12 @@ The **continuous-integration workflow** (§4.6). GitHub reads every file in `.gi
 `steps:` — the job's steps, run in order.
 
 @@ 21
-`uses: actions/checkout@v7.0.1` — a published **action** that downloads this repository's code onto the machine. Every job starts from an empty machine, so this always comes first.
+`uses: actions/checkout@3d3c…90b1 # v7.0.1` — a published **action** that downloads this repository's code onto the machine. Every job starts from an empty machine, so this always comes first.
 
-The exact version tag is pinned: a newer release can only arrive through a deliberate, visible change to this file.
+The action is pinned to an exact **commit** (the long hexadecimal ID), with its version in a comment. A version *tag* such as `v7.0.1` is a label its owner can move to other code — and a stolen account could move it to malicious code. A commit ID names one exact piece of code forever. Semgrep flagged the tags in Phase 7; every action here is now pinned this way.
 
 @@ 22-25
-`astral-sh/setup-uv@v10.3.0` — installs **uv**:
+`astral-sh/setup-uv@1c37…5884 # v10.3.0` — installs **uv** (pinned by commit, as above):
 
 - `version: "0.13.1"` — the same uv version as on the developer's machine;
 - `enable-cache: true` — keep downloaded packages between runs, which makes later runs much faster.
@@ -72,10 +72,10 @@ Its title, the same pinned Ubuntu machine, and the same 15-minute limit. Since P
 Download the code, as in the first job.
 
 @@ 36
-`pnpm/action-setup@v6.1.0` — installs **pnpm**. No version is given here, because the action reads the `packageManager` field of `package.json` (pnpm 12.11.2), so the version lives in one place only.
+`pnpm/action-setup` (pinned by commit) — installs **pnpm**. No version is given here, because the action reads the `packageManager` field of `package.json` (pnpm 12.11.2), so the version lives in one place only.
 
 @@ 37-40
-`actions/setup-node@v7.1.0` — installs **Node.js 24** (the LTS line in `package.json`). `cache: pnpm` keeps pnpm's package store between runs.
+`actions/setup-node` (pinned by commit) — installs **Node.js 24** (the LTS line in `package.json`). `cache: pnpm` keeps pnpm's package store between runs.
 
 @@ 41
 `run: pnpm install --frozen-lockfile` — install exactly what `pnpm-lock.yaml` says, and **fail** if the lockfile is out of date. This is the JavaScript twin of `uv sync --locked`.

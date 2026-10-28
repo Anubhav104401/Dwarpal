@@ -37,11 +37,16 @@
 | Load, first run (50 users, 3 min) | 9,256 requests, 0 HTTP failures — **misleading**: inference answered 2,136 "busy", analysed 84 |
 | Load, one user (60 s) | face attempt **4.3–4.7 s**; analysis 4.27–4.53 s, of which the age model ≈ 4.0 s (profiled); detection, mesh, hands, anti-spoofing < 0.6 s together |
 | Age model threads (one analysis) | 1 thread 4.1–4.5 s · 2 threads 2.3–2.4 s · 4 threads 1.43–1.45 s |
+| Frame-count check (28 Oct, `dwarpal_ml.frames`, UTKFace calib, 11,301 faces × 8 simulated webcam frames) | minors passed — 13+: clean 6, best-1 11, best-3 9, all-8 10 (of 373); 16+: 10/13/15/13 (of 274); 18+: 3/4/4/2 (of 383); 21+: 4/3/3/2 (of 503); adults' step-up unchanged; every upper bound within budget → **3 frames adopted** |
+| INT8 (dynamic, ONNX Runtime) | 28.2 MB vs 112.5 MB, but 3 faces 793 ms vs 391 ms (1 thread) → **not adopted** |
+| Throttling (28 Oct) | laptop on battery, Balanced plan: the same 8-frame script 1.40 s in the foreground, 3.21 s as a background task — all server timings were throttled; comparisons below are like-for-like |
+| Load, 3 frames (28 Oct, throttled) | 1 person: analysis 0.93 s (8 frames: 3.33 s); 50 at stress pace: 531 analysed, 83 % busy, analysis p95 1.58 s; 50 at 15–25 s pace: 20 % busy → with a 1 s queue **6 % busy, analysis p95 1.21 s**, whole attempt p95 1.9 s |
+| Semgrep 1.182.0 (28 Oct) | 67 findings → 0: actions pinned to commits; pnpm `blockExoticSubdeps`, `trustPolicy: no-downgrade` (two old `semver` versions exempted); `SET ROLE` and `torch.load` reviewed as safe; migrations, memory-pinning advice and a mis-firing cooldown rule excluded with reasons |
 
 ## Open items
 
-1. **Scanners** — run and triaged (27 Oct). Left: Semgrep after its cooldown; Python fixes (D15); `tmp` 0.2.7 (D14b); a nonce-based CSP for the web app.
-2. **Performance — NFR-05 not met**: 4.5 s per attempt alone, against 1.5 s p95 at 50 concurrent on 4 cores; at 50 users almost every attempt was turned away as "busy". Options are the owner's decision (**P1**). Failures mid-flow under load still to test.
+1. **Scanners** — run and triaged (27–28 Oct); Semgrep clean. Left: Python fixes (D15); `tmp` 0.2.7 (D14b); a nonce-based CSP for the web app.
+2. **Performance** — P1 (a) done: 3 frames, a 1 s queue; server processing p95 1.21 s for 50 people at a realistic pace (throttled laptop). Open: **P2** — which load NFR-05 means (50 simultaneous attempts would need ~30 cores, or a GPU); measuring on the real 4-core server (Phase 8); static INT8; certifying the lines on webcam-degraded images; failures mid-flow under load.
 3. **Observability** — traces done; dashboards, metrics (Prometheus, approved, not yet needed) and burn-rate alerts to come.
 6. **Process slip**: a local test API key was printed in tool output while preparing the load test; revoked at once.
 4. ~~Privacy documents~~ — **drafted 26 Oct**; need legal review (O5) and the operator's contact details (O6). The final model card waits for a calibrated model.

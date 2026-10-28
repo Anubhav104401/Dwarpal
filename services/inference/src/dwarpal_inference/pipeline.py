@@ -35,6 +35,11 @@ from dwarpal_vision import (
 from dwarpal_vision.hands import near_face
 
 
+def sharpest(weights: list[float], count: int) -> list[int]:
+    """The positions of the `count` best-weighted frames, best first; ties keep their order."""
+    return sorted(range(len(weights)), key=lambda i: -weights[i])[:count]
+
+
 def median_of(values: list[float | None]) -> float | None:
     measured = [value for value in values if value is not None]
     return float(np.median(measured)) if measured else None
@@ -50,6 +55,7 @@ class FacePipeline:
         hands: HandDetector | None = None,
         spoof: SpoofDetector | None = None,
         trust_labels: bool = False,
+        age_frames: int = 3,
     ) -> None:
         self.detector = detector
         self.age = age
@@ -58,6 +64,7 @@ class FacePipeline:
         self.hands = hands
         self.spoof = spoof
         self.trust_labels = trust_labels
+        self.age_frames = age_frames
 
     def analyze(self, meta: FaceRequestMeta, images: list[bytes]) -> FaceAnalysis:
         started = time.perf_counter()
@@ -115,7 +122,10 @@ class FacePipeline:
             if face is not None and not quality.flags:
                 aligned.append(face)
                 weights.append(quality.detector_score * min(1.0, quality.sharpness / 200.0))
-        age = self.estimate(aligned, weights) if aligned else None
+        # The age model is by far the costliest step (§5.7.4): it sees only the sharpest few flawless frames. Every
+        # flawless frame still counts as usable, and liveness still sees them all.
+        best = sharpest(weights, self.age_frames)
+        age = self.estimate([aligned[i] for i in best], [weights[i] for i in best]) if aligned else None
         challenge = meta.challenge
         trusting = self.trust_labels
         liveness = Liveness(

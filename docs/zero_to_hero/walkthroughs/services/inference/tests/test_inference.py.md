@@ -1,5 +1,5 @@
 ---
-fingerprint: c4c971a71c3ea939
+fingerprint: bda226c5922279bc
 ---
 Tests for the inference service, at two levels:
 
@@ -17,32 +17,38 @@ The project-wide type-hint setting.
 @@ 5-6
 `hashlib` and `json` — to write a small model's manifest, with its fingerprint (Phase 2).
 
-@@ 7-8
+@@ 7
+`time`, for a stand-in pipeline that takes a known time.
+
+@@ 8-9
 Tools to write `client_for` (line 30), a helper that starts the app and opens a client to it.
 
-@@ 9
+@@ 10
 `Path`, to find the shared test picture and the model file.
 
-@@ 11-15
+@@ 12
+`anyio`, to send two requests at once.
+
+@@ 13-17
 - `httpx` — the HTTP client;
 - `numpy` — blank images for the age-model tests;
 - `onnx` — to build a tiny ONNX model for the tests (Phase 2; a development tool only, listed in the root `pyproject.toml`);
 - `pytest`;
 - `FastAPI` — only for the type hint of `client_for`.
 
-@@ 16
+@@ 18
 From `onnx`: the data-type names (`TensorProto`), the graph builder (`helper`) and the converter from NumPy arrays (`numpy_helper`).
 
-@@ 18-23
-The code under test: the contracts, both age models with their fingerprint error and age scale, the backend chooser and the app factory, the pipeline, the settings and the detector.
+@@ 20-25
+The code under test: the contracts, both age models with their fingerprint error and age scale, the backend chooser and the app factory, the pipeline and its frame chooser (`sharpest`), the settings and the detector.
 
-@@ 25-27
+@@ 27-29
 The repository root (`parents[3]` climbs `tests → inference → services → root`). The portrait's bytes are read **once** and shared by every test, together with the model file's location.
 
-@@ 30-31
+@@ 32-33
 **`burst(count)`** builds request metadata for `count` frames, 120 milliseconds apart, as the capture page would.
 
-@@ 34-39
+@@ 36-41
 **`client_for(app)`** — run an app *in memory* and talk to it over HTTP, without opening any network port:
 
 - `app.router.lifespan_context(app)` runs the app's start-up code (loading the model) and, at the end, its shutdown code;
@@ -51,17 +57,17 @@ The repository root (`parents[3]` climbs `tests → inference → services → r
 
 Starlette 1.8 now recommends against its older built-in test client, so this plain-httpx approach avoids that deprecated path.
 
-@@ 42-44
+@@ 44-46
 A module-wide fixture: one pipeline with the real detector and a stand-in model fixed at age 30 (spread 2.5 years).
 
-@@ 47-51
+@@ 49-53
 **The stand-in model is a proper distribution centred on its age.**
 
 - It returns 101 probabilities, one per age.
 - They add up to 1, within a millionth of a millionth (rounding).
 - Their weighted average age is 30.
 
-@@ 54-61
+@@ 56-63
 **A burst becomes one analysis.** With three good frames:
 
 - all three are usable;
@@ -69,19 +75,31 @@ A module-wide fixture: one pipeline with the real detector and a stand-in model 
 - P(age ≥ 18) is practically 1, and P(age ≥ 25) above 0.95 — a 30-year-old is very likely over 25, but less certainly than over 18;
 - each frame has its own expected age.
 
-@@ 64-67
+@@ 66-67
+**Test — the age model sees only the sharpest few** (Phase 7). Six good frames of the portrait.
+
+@@ 68
+All six count as usable…
+
+@@ 69
+…but only three were estimated: the analysis lists one age per estimated frame.
+
+@@ 70
+And the chooser on its own: the two 0.9s first, in their original order, then 0.5.
+
+@@ 73-76
 **One bad frame doesn't spoil the others.** The first "frame" is not an image at all. It is reported as `undecodable`, while the second frame is still used.
 
-@@ 70-73
+@@ 79-82
 **No usable frame, no estimate.** Sixteen zero bytes are not an image, so there is no age estimate at all (`None`) — rather than a made-up one.
 
-@@ 76
+@@ 85
 `@pytest.mark.anyio` — this test is **asynchronous** (`async def`). It must be run by an event loop, which anyio's pytest plugin provides.
 
-@@ 77-78
+@@ 86-87
 **A real multipart request.** `files` maps each form field name (`frame_0`, `frame_1`) to a file name, its bytes and its content type, exactly as a browser sends uploads.
 
-@@ 79-83
+@@ 88-92
 Start an app whose stand-in model says 40, then:
 
 - post the metadata (`data`) and the frames (`files`) to the analysis endpoint;
@@ -89,35 +107,56 @@ Start an app whose stand-in model says 40, then:
 
 `await` waits for each response without blocking anything else.
 
-@@ 84-88
+@@ 93-97
 The request succeeded (`200`). The response is read back through the contract (`model_validate`), which would fail if any field were wrong. The model version, the number of usable frames and the readiness answer are all as expected.
 
-@@ 91-96
+@@ 100-105
 **Readiness says when the anti-spoofing networks are missing.** Start the service with file names that don't exist: it still starts, and `/readyz` reports `antispoof: missing`.
 
-@@ 99-107
+@@ 108-116
 **A missing frame is refused, and named.** The metadata promises two frames but only `frame_0` is sent, so the answer must be `422` with the exact message `frame_1 is missing`.
 
-@@ 110-111
+@@ 119-120
 **`tiny_model`** — build a stand-in ONNX age model with the real one's interface — pixels in, 101 probabilities out — without PyTorch or any training. The service must be testable on its own, in seconds.
 
-@@ 112
+@@ 121
 Its only weights: a 3 × 101 grid of numbers spread evenly from −1 to 1.
 
-@@ 113-124
+@@ 122-133
 The model's **graph**, node by node: average each colour over the whole picture (`GlobalAveragePool`, giving 3 numbers per face), lay them flat, multiply by the weights (101 scores), and turn them into probabilities (`Softmax`). Then its input and output, named and shaped exactly like the real model's (`faces` is a size left open), and the weights, scaled so that pixels of 0–255 give moderate scores.
 
-@@ 125
+@@ 134
 Wrap the graph as a model for ONNX's operator set 18, in file-format version 10 — the format the real export uses. (The `onnx` library would otherwise write its newest format, 14, which ONNX Runtime 1.31 can't read yet: the first version of this test found that.)
 
-@@ 126-131
+@@ 135-140
 Save it, fingerprint it, and write a minimal manifest naming its version, file and fingerprint.
 
-@@ 134-141
+@@ 143-150
 **An ONNX model gives one distribution per face**: two faces in (all black, all white), two rows of 101 probabilities out, each adding up to 1, different from each other; and the version is the manifest's.
 
-@@ 144-151
+@@ 153-160
 **The wrong file is refused**: a model file with a few extra bytes no longer matches its fingerprint, and the backend refuses to load it; a missing file is refused too.
 
-@@ 154-158
+@@ 163-167
 **The settings choose the backend**: `onnx` with a model folder gives the ONNX model; the default settings still give the stand-in.
+
+@@ 170-175
+**`Slow`** — a stand-in pipeline that takes a quarter of a second and returns an empty analysis: enough to keep the one worker busy.
+
+@@ 178-180
+**Test — a short wait, then "busy"** (Phase 7), run twice (`parametrize`): with a wait of 0.05 s, one of two simultaneous requests must be told busy; with 1 s, both are served.
+
+@@ 181-183
+One frame, its labels, and an app with a single worker and the chosen wait.
+
+@@ 184-186
+Start it, swap in the slow pipeline, and collect the status codes.
+
+@@ 188-189
+**`send`** — one analysis request; note its status code.
+
+@@ 191-193
+Send two at once (`create_task_group` runs both, and waits for both).
+
+@@ 194
+In order: 200 and 503 for the short wait — the second request gave up while the first was being analysed; 200 and 200 for the long one — it waited its turn.

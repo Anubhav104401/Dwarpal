@@ -24,7 +24,11 @@ class Settings(BaseSettings):
     stub_spread: float = 2.5
     age_model: str = "registry/age/age-convnext-tiny-2026.10.17"
     age_threads: int = 1
+    # How many of an attempt's flawless frames the age model sees: the sharpest ones (decision P1, §5.7.4).
+    age_frames: int = 3
     workers: int = 4
+    # How long a request may wait for a free worker before the answer is "busy" (§5.7.4).
+    queue_s: float = 1.0
     liveness: Literal["images", "labels"] = "images"
 
     @model_validator(mode="after")

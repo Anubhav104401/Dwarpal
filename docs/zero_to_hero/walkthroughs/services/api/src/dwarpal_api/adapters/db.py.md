@@ -1,5 +1,5 @@
 ---
-fingerprint: 08a9874ea477f3ae
+fingerprint: d4f71b5e17c1f25d
 ---
 The API's connection to **PostgreSQL**, the database that remembers everything that must survive a restart: projects, keys, sessions, attempts, signing keys (§0.12, §4.10). The file is short because SQLAlchemy does the heavy lifting; these lines choose *how* it behaves.
 
@@ -69,43 +69,45 @@ If a role was asked for, check its name against `ROLE_NAME` first, and stop with
 @@ 44-45
 `@event.listens_for(engine.sync_engine, "connect")` — run the function below **each time the pool opens a new connection**, before anyone uses it. (`sync_engine` is the engine's inner, non-async core, where SQLAlchemy's events live.) Because it happens once per connection, not once per request, it costs nothing on the busy path.
 
-@@ 46-52
+@@ 46-53
 **`become_role`** — `SET ROLE dwarpal_app` switches the connection from the login that owns the tables to the restricted role. Row-level security doesn't bind a table's owner, but it binds every other role, so from this moment every query this connection runs is filtered by the policies.
 
 The `autocommit` lines matter, and the tests caught it: the database driver quietly opens a transaction around any statement, and the pool's next **rollback** would undo the `SET ROLE` with it. The connection would silently go back to being the owner, and the policies would stop applying. With `autocommit` on, the statement runs outside any transaction, so nothing can roll it back; then the normal behaviour is switched back on.
 
-@@ 54
+PostgreSQL can't take a role's name as a query parameter, so it is written into the SQL text — which Semgrep flags as possible **SQL injection** (Phase 7). Here the name comes from the server's own settings, and `make_engine` has already refused anything but a plain name (`ROLE_NAME`); the `nosemgrep` comment records that this was reviewed.
+
+@@ 55
 Hand back the engine.
 
-@@ 57
+@@ 58
 **`make_sessions`** — create the factory that makes database sessions. Its return type, `async_sessionmaker[AsyncSession]`, reads "a session maker that makes `AsyncSession`s".
 
-@@ 58
+@@ 59
 `expire_on_commit=False` — after a commit, keep the values already loaded in Python objects. By default SQLAlchemy marks them as stale, and re-reads them from the database on next use. In async code, that hidden re-read would need an `await` where none is written, and fail. The use cases read a few values (such as the new status) right after committing, so this setting matters.
 
-@@ 61-66
+@@ 62-67
 **`name_tenant`** — name the tenant inside a unit of work that is already open: one project, or one organisation, and for the console also the signed-in user.
 
-@@ 67-68
+@@ 68-69
 Its docstring.
 
-@@ 69-73
+@@ 70-74
 Turn each ID into text (an absent one becomes the empty text `""`, which the policies read as "none"), and run `NAME_TENANT` with them. The dictionary is built from three name-and-value pairs in one line, a **comprehension**.
 
-@@ 76-82
+@@ 77-83
 **`tenant`** — the helper almost every use case calls. `@asynccontextmanager` turns a function with one `yield` into something usable with `async with`: the code before `yield` runs on entry, the caller's block runs at the `yield`, and the rest runs on exit, even after an error. It takes the session factory and the tenant — a project, an organisation, and for the console a user — and gives the caller a database session.
 
-@@ 83-84
+@@ 84-85
 Its docstring.
 
-@@ 85-87
+@@ 86-88
 Open a database session, name the tenant as its **very first** statement, and hand the session to the caller. When the caller's block ends, the outer `async with` closes the session. A use case can't forget to name its tenant, because it never gets a session that hasn't named one.
 
-@@ 90-93
+@@ 91-94
 **`session_tenant`** — the verify page's version: given a verification session's ID instead of a project.
 
-@@ 94-95
+@@ 95-96
 Its docstring, including the case of an unknown session: the unit of work is confined to nothing.
 
-@@ 96-98
+@@ 97-99
 Open a session, run `NAME_SESSION_TENANT` with the verification session's ID as its first statement, and hand it over.

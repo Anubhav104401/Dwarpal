@@ -26,6 +26,9 @@ FRAMES = 8
 # The policy every check follows: 18+, at the risk budget the current age model is calibrated for (0.075). The presets
 # ask for 0.02, which this model can't yet promise, so the API would refuse them.
 POLICY = {"name": "loadtest_18", "min_age": 18, "risk_budget": 0.075}
+# Seconds each person waits between checks, as "low-high" (DWARPAL_LOAD_PAUSE_S). The default, 1 to 3, is a stress test:
+# far busier than real people, who spend 20 seconds or more on the verify page before sending an attempt.
+PAUSE = tuple(float(part) for part in os.environ.get("DWARPAL_LOAD_PAUSE_S", "1-3").split("-"))
 
 
 @events.test_start.add_listener
@@ -38,9 +41,9 @@ def add_the_policy(environment: Environment, **_: object) -> None:
 
 
 class Person(HttpUser):
-    """One person taking the check, again and again, with a pause of 1 to 3 seconds between checks."""
+    """One person taking the check, again and again, with a pause between checks."""
 
-    wait_time = between(1, 3)
+    wait_time = between(PAUSE[0], PAUSE[1])
 
     @task
     def take_the_check(self) -> None:

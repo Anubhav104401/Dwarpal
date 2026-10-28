@@ -5,9 +5,9 @@ Phases 1–6 make Dwarpal work. Phase 7 makes it hold up: under attack, under lo
 | Area | What | Status |
 | :-- | :-- | :-- |
 | Resilience | **Fail closed**: kill a dependency mid-flow, and nothing may pass | ✅ §5.7.1 |
-| Security | Headers and content policy verified; scanners (Semgrep, pip-audit, Trivy, ZAP); threat-model review | 🟡 headers ✅ (§5.7.1); pip-audit, Trivy and ZAP run, findings triaged (§5.7.3); Semgrep waits for its cooldown |
+| Security | Headers and content policy verified; scanners (Semgrep, pip-audit, Trivy, ZAP); threat-model review | 🟡 headers ✅ (§5.7.1); every scanner run and triaged (§5.7.3–5.7.4); Python fixes wait for D15 |
 | Observability | OpenTelemetry end to end, dashboards, alerts | 🟡 traces from the API to Tempo and Grafana, with nothing about the person (§5.7.3); dashboards and alerts to come |
-| Performance | Load tests against the service levels (Locust) | 🔴 measured (§5.7.3): far from the target — one analysis takes 4.5 s; a decision for the owner |
+| Performance | Load tests against the service levels (Locust) | 🟡 analysis p95 1.2 s at a realistic load (§5.7.4); 50 *simultaneous* attempts on 4 cores still out of reach |
 | Privacy | A filled DPIA template, a practice statement, the final model card | 🟡 drafts (§5.7.2); model card waits for a calibrated model |
 
 ### 5.7.1 Failing closed, and telling browsers what not to do
@@ -102,3 +102,62 @@ One slip, recorded honestly: while preparing the load test, a local *test* API k
 
 !!! honest "Honest limitation"
     The load test ran on a 32-thread computer, not the 4-core machine the target names. The inference service limits itself to 4 analyses at a time, so the comparison is fair for one person but not exact. There are no dashboards or alerts yet. Semgrep hasn't run. And the scans' Python findings stay open until D15 is decided.
+
+### 5.7.4 Making an attempt fast enough — and learning to measure it
+
+The owner chose how to attack the 4.5 seconds (decision P1): first let the age model see fewer frames, check that the safety lines still hold, then try INT8 if needed.
+
+**Fewer frames.** The age model now sees only the **3 sharpest** of an attempt's flawless frames (`age_frames`); liveness still sees every frame, and every flawless frame still counts as usable.
+
+The safety lines were certified on one clean photo per person, so `dwarpal_ml.frames` checked the change on the calibration split's 11,301 exact-age faces. Each face became a burst of 8 webcam-like frames (the training augmentations), and the decisions were compared:
+
+| Age line (risk budget) | clean photo | sharpest 1 | sharpest 3 | all 8 |
+| :-- | :-: | :-: | :-: | :-: |
+| 13+ (0.15) — minors passed, of 373 | 6 | 11 | 9 | 10 |
+| 16+ (0.15) — of 274 | 10 | 13 | 15 | 13 |
+| 18+ (0.075) — of 383 | 3 | 4 | 4 | 2 |
+| 21+ (0.075) — of 503 | 4 | 3 | 3 | 2 |
+
+Three frames and eight differ by one or two people per line — chance, at these numbers. Adults asked to step up were unchanged, and every upper bound stayed within its budget. One thing the table shows that nobody had measured: webcam-like damage itself passes a few more minors at 13+ and 16+ than clean photos. The lines were certified on clean photos; certifying them on degraded ones would be more honest, and is now an open item.
+
+**INT8.** ONNX Runtime's *dynamic* quantisation made the model four times smaller but **twice as slow** (0.79 s against 0.39 s for 3 faces). It stores the weights in 8 bits but converts every input at run time, and it leaves ConvNeXt's depthwise convolutions alone. So it was not adopted. *Static* quantisation might do better, but it needs calibration data and a full pass through the release gates.
+
+!!! real "Real world — the laptop was slowing its own work down"
+    Measured as a plain script, 8 frames took 1.4 seconds — but 3.3 seconds inside the server, and 4.5 the evening before. The same script, started as a *background* task, took 3.2 seconds. The owner's laptop was on battery, with Windows' balanced power plan, and Windows runs background work on its slower, power-saving cores. Every server measurement had been taken that way. The lesson: compare settings only under identical conditions — which the numbers below are — and measure the real target on the real machine (Phase 8's 4-core server).
+
+**A short queue.** Under load, the inference service turned work away the instant its 4 workers were busy. People arrive at random, so even at a gentle pace one in five attempts arrived at a busy moment and was refused. It now waits up to `queue_s` (1 second) for a free worker before saying "busy".
+
+**The results**, all on the same throttled laptop, one face attempt at a time per simulated person:
+
+| Load | analysed | refused as busy | analysis p50 / p95 | whole attempt p95 |
+| :-- | :-: | :-: | :-: | :-: |
+| 1 person, 8 frames | all | — | 3.3 s | 3.7 s |
+| 1 person, 3 frames | all | — | 0.93 s | 1.05 s |
+| 50 people, 1–3 s apart (stress), 3 frames | 531 | **83 %** | 1.31 / 1.58 s | — |
+| 50 people, 15–25 s apart, 3 frames, no queue | 351 | 20 % | 0.97 / 1.23 s | 1.4 s |
+| 50 people, 15–25 s apart, 3 frames, 1 s queue | 407 | **6 %** | 1.01 / **1.21 s** | 1.9 s |
+
+!!! key "Key idea — a target needs its load spelled out"
+    "50 concurrent attempts" can mean 50 people in the middle of a check — each sending one attempt every 20 seconds or so — or 50 attempts arriving in the same instant. The first is now met for the server's processing (p95 1.21 s, under 1.5 s), on a throttled laptop. The second would need about 50 × 1 s of computing within 1.5 s: some 30 cores, not 4. No setting closes that gap; only a GPU, or more machines, could. The design's sentence has to say which it means — a decision for the owner.
+
+**Semgrep** could finally run (its approved version was past the cooldown). Of its 67 findings:
+
+- **Hardened**:
+    - the CI actions are pinned to exact commits, not movable tags;
+    - pnpm refuses packages from outside the registry and versions that drop their provenance.
+- **False alarms, reviewed and marked**:
+    - `SET ROLE` with a checked role name;
+    - a PyTorch load that already refuses pickled code.
+- **Left out of the scan on purpose, with the reason in `tasks.py`**:
+    - the migrations' fixed SQL;
+    - memory-pinning advice;
+    - a cooldown rule that missed ours.
+
+It now reports **0 findings**.
+
+!walk ml/src/dwarpal_ml/frames.py
+
+The rest changed existing files, each re-explained in its walkthrough: the pipeline and its settings, the inference service's queue and its test, the load test's pace, the scan task, the CI workflow, `pnpm-workspace.yaml`, the database adapter and the anti-spoofing loader.
+
+!!! honest "Honest limitation"
+    Every timing here comes from a laptop on battery, throttling background work; they compare settings fairly, but say little about the 4-core server the target names. The frame check used simulated webcam damage on the calibration split, not real webcam bursts, and its counts are small. The whole attempt — including the wait for a worker — reached p95 1.9 s at a realistic pace; only the server's processing is under 1.5 s.

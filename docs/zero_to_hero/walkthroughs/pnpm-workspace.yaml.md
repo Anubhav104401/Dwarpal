@@ -1,5 +1,5 @@
 ---
-fingerprint: 926f2c3a09abb872
+fingerprint: bb971d49950ed7a8
 ---
 This file tells pnpm that this repository is a **workspace**: several JavaScript packages managed together, installed together and able to depend on each other (§4.4).
 
@@ -29,8 +29,17 @@ Why wait? When an attacker takes over a popular package and publishes a poisoned
 !!! key "A cooldown that checks itself"
     pnpm also checks the cooldown when it reads an *existing* lockfile. On its first run it caught `turbo` 2.11.8, pinned in Phase 0 only two days after its release, and refused to go on until it was replaced (see `package.json`).
 
-@@ 8-9
+@@ 7-10
+Two supply-chain settings Semgrep recommended (Phase 7):
+
+- `blockExoticSubdeps: true` — every package, however deep in the tree, must come from the registry; none may be fetched from a Git repository or a web address that some dependency names. Those skip the registry's checks — and the cooldown;
+- `trustPolicy: no-downgrade` — if earlier versions of a package were published with **provenance** (a signed record of where and how it was built), a newer version without it is refused: that is what a hijacked account typically publishes.
+
+@@ 11-15
+**`trustPolicyExclude`** — the policy refused two old versions of `semver`, 5.7.2 and 6.3.1, that Lighthouse CI needs: they were published before npm offered provenance at all, so beside newer versions they look like a downgrade. Only those exact versions are exempted, with the reason written here.
+
+@@ 17-18
 **`overrides`** (Phase 5, decision D14) — versions pnpm must use for a package wherever it appears in the tree, whatever the package that asked for it wanted. Lighthouse CI (§5.5.5) brought older versions of these four with known flaws (`pnpm audit`); these are the fixed ones. They are development tools only — nothing here reaches the apps.
 
-@@ 10-13
+@@ 19-22
 The four: `tmp` (temporary files), `uuid` (random IDs), `basic-ftp` (an FTP client deep in Lighthouse's proxy support) and `zod` (data validation in the browser driver). Three of them jump a major version, which can break a program; the Lighthouse test ran after the change and still passed.

@@ -1,5 +1,5 @@
 ---
-fingerprint: 8ad209dfa0f972fb
+fingerprint: d7637b87bae8cd2b
 ---
 `tasks.py` gives every project check a short name, and runs it the same way on Windows, macOS and Linux. `uv run tasks.py check` is the single command that runs everything CI runs (§4.7).
 
@@ -72,69 +72,69 @@ Run pip-audit on that list: `--disable-pip` and `--no-deps` mean "check exactly 
 @@ 57-65
 **Semgrep**, which reads the source code looking for patterns of known mistakes (an SQL query built from user text, a disabled certificate check, a hard-coded secret). `p/default` is its standard rule set, fetched from Semgrep's registry; `--metrics=off` sends nothing back; `--error` makes any finding fail the step.
 
-@@ 66-76
-Folders Semgrep should skip: installed packages, the datasets, the book's snapshots, and the web app's copied third-party files.
+@@ 66-86
+Folders Semgrep skips: installed packages, the datasets, the book's snapshots, the web app's copied third-party files, and the scans' own output. Then what was **reviewed and left out on purpose** (28 Oct), each with its reason in the comment: the database migrations, which build SQL text from fixed lists of table names and never from anything a person sends; a rule about pinning memory, which is performance advice; and a rule that missed this project's 7-day cooldown, because it is set as `exclude-newer` in `pyproject.toml`. Everything else Semgrep finds still fails the scan.
 
-@@ 77-79
+@@ 87-89
 **Trivy** looks for three things at once: known flaws in the lock files' versions, secrets committed by mistake, and unsafe settings in container files. Scanning the working folder through Docker on Windows took over 15 minutes, because it also holds models, datasets and installed packages. So a script first copies just the files Git tracks into `.scan/committed`.
 
-@@ 80-98
+@@ 90-108
 Then Trivy runs in its own container (`aquasec/trivy:0.76.0`), with that copy mounted read-only, and a named Docker volume to keep its vulnerability database between runs (it downloads about half a gigabyte the first time). Only `HIGH` and `CRITICAL` findings are reported, and any makes the step fail (`--exit-code 1`).
 
-@@ 99
+@@ 109
 End of the scan steps.
 
-@@ 100-103
+@@ 110-113
 **`zap`** — **OWASP ZAP**, a scanner that looks at a running site from outside, as an attacker would see it. It runs in Docker, with `.scan` mounted so its reports land there. The servers must already be running and reachable from Docker: `host.docker.internal` is how a container reaches the computer it runs on.
 
-@@ 104-105
+@@ 114-115
 The **baseline** scan of the web app: ZAP follows every link from the console's sign-in page and checks each answer passively — headers, cookies, leaked details — without attacking. `-J` saves a JSON report; `-I` means warnings alone don't fail the step.
 
-@@ 106-117
+@@ 116-127
 The **API scan**: ZAP reads the published OpenAPI document and sends each operation requests, checking the answers the same way.
 
-@@ 118-137
+@@ 128-147
 **`load`** (Phase 7, decision D10) — **Locust**, which simulates many people at once (`infra/load/locustfile.py`): 50 people (`--users`), added 5 a second, for 3 minutes, against the API on this computer, without its web interface (`--headless`), saving the timings as CSV files.
 
-@@ 140-141
+@@ 150-151
 **`KEEP_GOING`** — the tasks that run every step even after one fails: for a scan, one scanner's findings shouldn't hide another's.
 
-@@ 144
+@@ 154
 **`run(name)`** runs one task and returns its **exit code**: 0 means success.
 
-@@ 145-146
+@@ 155-156
 Make sure the output folder exists, and start a list of failed steps.
 
-@@ 147
+@@ 157
 For each command in the task, in order…
 
-@@ 148
+@@ 158
 …make a readable version for display. `command[1:]` skips the long interpreter path, and `" ".join` glues the words with spaces.
 
-@@ 149
+@@ 159
 Print it as `> -m ruff check .`. `flush=True` pushes the text out immediately. Otherwise Python might hold it in a buffer, and it would appear *after* the tool's own output, which would be confusing.
 
-@@ 150
+@@ 160
 **Run the command and wait.**
 
 - `cwd=ROOT` runs it from the project root.
 - `check=False` means "don't raise an exception if it fails — we'll look at the result ourselves".
 - `.returncode` is the program's exit code.
 
-@@ 151-158
+@@ 161-168
 **When a step fails.** Say which, and which exit code. For most tasks, stop at once and pass the code on — there's no point type-checking code that doesn't even pass the linter. For scans, note it and carry on; at the end, report how many steps found problems and fail with code 1.
 
-@@ 159-160
+@@ 169-170
 Every command succeeded: say so, and return `0`.
 
-@@ 163
+@@ 173
 **`main()`** — what happens when you run the file.
 
-@@ 164-166
+@@ 174-176
 **Wrong usage** — no task name, too many words, or an unknown task. Print the help (the docstring) and return `2`. By long convention, exit code 2 means "you used the command incorrectly", as opposed to 1, "the work failed".
 
-@@ 167
+@@ 177
 Otherwise run the requested task. `sys.argv[1]` is the first word after the script name.
 
-@@ 170-171
+@@ 180-181
 **The entry point**: run `main()` only when the file is executed directly, and pass its result to `sys.exit`, so CI sees the real exit code.

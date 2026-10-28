@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import anyio
 import httpx
 import numpy as np
 import onnx
@@ -18,7 +20,7 @@ from onnx import TensorProto, helper, numpy_helper
 from dwarpal_contracts import FaceAnalysis, FaceRequestMeta, FrameMeta
 from dwarpal_inference.backends import AGES, ModelFileError, OnnxAgeBackend, StubAgeBackend
 from dwarpal_inference.main import build_age_backend, create_app
-from dwarpal_inference.pipeline import FacePipeline
+from dwarpal_inference.pipeline import FacePipeline, sharpest
 from dwarpal_inference.settings import Settings
 from dwarpal_vision import FaceDetector
 
@@ -59,6 +61,13 @@ def test_pipeline_turns_a_burst_of_frames_into_one_analysis(pipeline: FacePipeli
     assert result.age.p_over[18] > 0.999
     assert result.age.p_over[25] > 0.95
     assert len(result.age.frame_means) == 3
+
+
+def test_the_age_model_sees_only_the_sharpest_few_flawless_frames(pipeline: FacePipeline) -> None:
+    result = pipeline.analyze(burst(6), [PORTRAIT] * 6)
+    assert result.usable_frames == 6  # every flawless frame still counts
+    assert result.age is not None and len(result.age.frame_means) == 3  # but only 3 were estimated
+    assert sharpest([0.2, 0.9, 0.5, 0.9, 0.1], 3) == [1, 3, 2]  # best first; a tie keeps its order
 
 
 def test_a_bad_frame_is_reported_without_spoiling_the_others(pipeline: FacePipeline) -> None:
@@ -156,3 +165,30 @@ def test_settings_choose_the_age_backend(tmp_path: Path) -> None:
     chosen = build_age_backend(Settings(age_backend="onnx", models_dir=tmp_path, age_model="registry/tiny"))
     assert chosen.version == "tiny-1"
     assert isinstance(build_age_backend(Settings()), StubAgeBackend)
+
+
+class Slow:
+    """A stand-in pipeline that takes a quarter of a second, to fill the workers."""
+
+    def analyze(self, meta: FaceRequestMeta, images: list[bytes]) -> FaceAnalysis:
+        time.sleep(0.25)
+        return FaceAnalysis(model_version="slow", frames=[], usable_frames=0, age=None, duration_ms=250.0)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("queue_s", "statuses"), [(0.05, [200, 503]), (1.0, [200, 200])])
+async def test_a_request_waits_briefly_for_a_free_worker_then_is_told_busy(queue_s: float, statuses: list[int]) -> None:
+    files = {"frame_0": ("frame_0.jpg", PORTRAIT, "image/jpeg")}
+    data = {"meta": burst(1).model_dump_json()}
+    app = create_app(Settings(workers=1, queue_s=queue_s))
+    async with client_for(app) as client:
+        app.state.pipeline = Slow()
+        answers: list[int] = []
+
+        async def send() -> None:
+            answers.append((await client.post("/internal/v1/analyze/face", data=data, files=files)).status_code)
+
+        async with anyio.create_task_group() as group:
+            group.start_soon(send)
+            group.start_soon(send)
+    assert sorted(answers) == statuses  # with one worker: a short wait gives up, a longer one is served

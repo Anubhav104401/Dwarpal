@@ -47,7 +47,8 @@ def make_engine(url: str, role: str | None = None) -> AsyncEngine:
             # Outside any transaction (autocommit), or the pool's first rollback would undo it.
             connection.autocommit = True
             cursor = connection.cursor()
-            cursor.execute(f"SET ROLE {role}")
+            # A role's name can't be sent as a query parameter, so it is written into the text — and checked first.
+            cursor.execute(f"SET ROLE {role}")  # nosemgrep
             cursor.close()
             connection.autocommit = False
 

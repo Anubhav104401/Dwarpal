@@ -1,5 +1,5 @@
 ---
-fingerprint: 254a9d4dfa465e68
+fingerprint: b084f56f4d52e7f1
 ---
 **Converting the anti-spoofing networks for serving.** The two MiniFASNet networks were published as **PyTorch weight files** (`.pth`). The inference service doesn't use PyTorch — it is 2 GB, and serving needs none of it — so this script turns them into **ONNX** files, the format the service already runs (§2.19), and proves the answers didn't change.
 
@@ -98,44 +98,44 @@ Then a **linear** layer down to an embedding (128 numbers), batch normalisation,
 @@ 123-127
 Run everything in order; flatten the 512 × 1 × 1 result into a row; and turn the three scores into probabilities with **softmax** — the probabilities are built into the model, so the ONNX file returns them directly.
 
-@@ 130-131
-**`load`** — read a weights file **as plain tensors only** (`weights_only=True`), on the processor.
+@@ 130-132
+**`load`** — read a weights file **as plain tensors only** (`weights_only=True`), on the processor. PyTorch's files can contain *pickled* Python objects, which can run code when loaded, so Semgrep warns about `torch.load` (Phase 7); with `weights_only=True` pickled code is refused, so the warning doesn't apply, and the comment says so.
 
-@@ 132-133
+@@ 133-134
 As the comment says, the weights were saved from a multi-GPU wrapper that prefixes every name with `module.`; remove it.
 
-@@ 134-136
+@@ 135-137
 Build the network from the weights' shapes, load every weight **strictly** — the proof that the rebuild is exact — and switch to evaluation mode (`eval`), which fixes batch normalisation to its learned averages.
 
-@@ 139-146
+@@ 140-147
 **`convert`** — export to ONNX, as in Phase 2's export (`export.py`): one example input of the right shape, named input and output, the newer exporter (`dynamo=True`), and everything saved in one file.
 
-@@ 149-150
+@@ 150-151
 **`parity`** — run the ONNX file with ONNX Runtime on some crops, and compare with PyTorch.
 
-@@ 151-156
+@@ 152-157
 For each crop: the same pixels for both, as the networks expect them; the largest difference between the two answers.
 
-@@ 157
+@@ 158
 The largest difference over all crops.
 
-@@ 160-162
+@@ 161-163
 **`main`** — a real crop to compare on: the test portrait's face.
 
-@@ 163-164
+@@ 164-165
 A seeded random generator for extra test crops, and whether everything passed so far.
 
-@@ 165-167
+@@ 166-168
 For each network: load it strictly and convert it.
 
-@@ 168-170
+@@ 169-171
 The comparison crops: the portrait's face at the network's crop size, and eight crops of random noise — the answers must agree on anything, not just faces.
 
-@@ 171-173
+@@ 172-174
 Compare, remember whether it passed, and print the result. On the first conversion the gaps were 5.5 × 10⁻⁷ and 5.6 × 10⁻⁸: the same answers.
 
-@@ 174
+@@ 175
 Exit with `1` if either comparison failed.
 
-@@ 177-178
+@@ 178-179
 Run `main` when the file is run as a program.

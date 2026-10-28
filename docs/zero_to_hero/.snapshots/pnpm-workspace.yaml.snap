@@ -4,6 +4,15 @@ packages:
   - "e2e"
 
 minimumReleaseAge: 10080
+# Every package comes from the registry, never a Git repository or a web address named deep in the tree; and a new
+# version may not drop the provenance protections its earlier versions had (Semgrep's advice, Phase 7).
+blockExoticSubdeps: true
+trustPolicy: no-downgrade
+# Two old releases that Lighthouse CI needs, published before npm had provenance: next to newer ones, they look like a
+# downgrade. Exempted by exact version only (Phase 7).
+trustPolicyExclude:
+  - semver@5.7.2
+  - semver@6.3.1
 
 # Patched versions of Lighthouse CI's dependencies, which `pnpm audit` flagged (decision D14). Development tools only.
 overrides:

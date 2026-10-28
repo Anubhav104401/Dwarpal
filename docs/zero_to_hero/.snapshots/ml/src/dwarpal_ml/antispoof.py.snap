@@ -128,7 +128,8 @@ class MiniFASNet(nn.Module):
 
 
 def load(path: Path) -> MiniFASNet:
-    raw = torch.load(path, map_location="cpu", weights_only=True)
+    # weights_only=True: tensors only, never pickled code (Semgrep's warning about pickles doesn't apply).
+    raw = torch.load(path, map_location="cpu", weights_only=True)  # nosemgrep
     # The weights were saved from a multi-GPU wrapper, which prefixes every name with "module.".
     state = {name.removeprefix("module."): tensor for name, tensor in raw.items()}
     model = MiniFASNet(state)

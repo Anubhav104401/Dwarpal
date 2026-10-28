@@ -73,6 +73,16 @@ TASKS["scan"] = [
         ".snapshots",
         "--exclude",
         "apps/web/public",
+        "--exclude",
+        ".scan",
+        # Reviewed 28 Oct and left out, each for a reason: the migrations write fixed SQL from constant lists of table
+        # names; pinning memory is performance advice; and the cooldown rule misses ours (`exclude-newer`, pyproject).
+        "--exclude",
+        "services/api/src/dwarpal_api/migrations",
+        "--exclude-rule",
+        "trailofbits.python.automatic-memory-pinning.automatic-memory-pinning",
+        "--exclude-rule",
+        "package_managers.uv.uv-missing-dependency-cooldown.uv-missing-dependency-cooldown",
     ],
     # Trivy reads the lock files (known flaws), looks for committed secrets, and checks container files, in a copy of
     # just the files Git tracks: the working folder also holds models, datasets and packages, which took it 15 minutes.

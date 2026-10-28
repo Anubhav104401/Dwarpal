@@ -1,5 +1,5 @@
 ---
-fingerprint: 247e65dd27e8f3ac
+fingerprint: 329354c50374be47
 ---
 The inference service's **HTTP interface**, built with **FastAPI**. It is internal only: in deployment it sits on a private network with no route from the internet and no way out (§3.8, "the clean room").
 
@@ -38,62 +38,61 @@ From the vision library, the new measuring pieces: the face mesh, the hand detec
 @@ 20-23
 **`build_age_backend`** — the age model the settings ask for: the ONNX model from its registry folder, or the stand-in.
 
-@@ 26-43
-**`build_pipeline`** — load every model and return a ready pipeline: the face detector, the face mesh, the hand detector, the anti-spoofing networks and the chosen age model.
+@@ 26-44
+**`build_pipeline`** — load every model and return a ready pipeline: the face detector, the face mesh, the hand detector, the anti-spoofing networks and the chosen age model, which sees `age_frames` frames per attempt.
 
 The anti-spoofing networks are the exception to "every model must be there": they are made from the pinned weights by `python -m dwarpal_ml.antispoof`, which needs PyTorch. As the comment says, without them the pipeline still runs — every result then has an empty `presentation`, and the decision has one signal fewer.
 
 `trust_labels` is on only when the setting `liveness` is `"labels"` — the test mode in which liveness reads each frame's phase label instead of measuring the head (§5.3). The settings refuse that mode unless the stand-in age model is in use, so it can never reach a real deployment.
 
-@@ 46
+@@ 47
 **`create_app`** — an **app factory**: a function that builds a fresh application. It takes optional settings, which tests use. Uvicorn calls it with `--factory`, so importing this module never starts loading models as a side effect.
 
-@@ 47
+@@ 48
 Use the given settings, or read them from the environment.
 
-@@ 48
+@@ 49
 A **capacity limiter**: at most `workers` analyses may run at the same time.
 
-@@ 50-53
+@@ 51-54
 **The lifespan.** At start-up, build the pipeline (loading the model) and keep it on `app.state`, the application's shared storage. `yield` hands control to the running server until shutdown.
 
-@@ 55
+@@ 56
 Create the FastAPI app. The automatic documentation pages (`docs_url`, `redoc_url`, `openapi_url`) are switched off: an internal service should advertise nothing.
 
-@@ 57-59
+@@ 58-60
 **`/livez`** — "is the process alive?" Container platforms poll it, and restart the container if it stops answering.
 
-@@ 61-66
+@@ 62-67
 **`/readyz`** — "is it ready for work?" It answers only once the pipeline is loaded, and reports which age model is active and — as the comment says — whether the anti-spoofing networks are `loaded` or `missing`. Without them the service still analyses faces, but the API won't decide a live session (`domain/decision.py`); this answer lets an operator see why at a glance.
 
-@@ 68-69
+@@ 69-70
 **The main endpoint**: `POST /internal/v1/analyze/face` returns a `FaceAnalysis`. FastAPI turns the returned model into JSON automatically.
 
-@@ 70-71
-**Back-pressure.** If every worker slot is busy, refuse immediately with `503 Service Unavailable` and `Retry-After: 1`, instead of piling up requests until the server collapses.
-
-@@ 72
+@@ 71
 Read the **multipart form**: at most `MAX_FRAMES` (16) files and 1 ordinary field (`meta`). Anything more is refused by the parser before it is stored.
 
-@@ 73-76
+@@ 72-75
 Parse and validate `meta` with the contract. A missing or invalid value becomes a clear `422 Unprocessable` error. `from error` keeps the original cause for debugging.
 
-@@ 77
+@@ 76
 Collect each frame's bytes, in order.
 
-@@ 78-81
+@@ 77-80
 For each frame the metadata promises, the matching upload `frame_<index>` must exist. Otherwise the request is refused with `422`, naming the missing frame.
 
-@@ 82-84
+@@ 81-83
 Read at most one byte more than `MAX_FRAME_BYTES`. If that extra byte arrives, the frame is too big and is refused with `413 Content Too Large`. Asking for just one extra byte means an oversized frame is never copied into memory in full.
 
 To be precise about who checks what: by this point the form parser has already received the whole upload, keeping large files in a temporary file on disk. The size of a *whole request* is capped earlier — by the API, which is the only program allowed to call this service, and in production also by the web server at the front door.
 
-@@ 85
+@@ 84
 Keep the frame's bytes.
 
-@@ 86-87
-**Run the analysis on a worker thread**, within the limiter. Image work is CPU-heavy and *blocking*. Running it directly here would freeze the server's event loop and stall every other request, including health checks.
+@@ 85-96
+**Wait briefly for a worker, then analyse.** `limiter.acquire()` waits for one of the `workers` slots; `anyio.fail_after` gives up after `queue_s` seconds, and then the answer is `503 busy` with `Retry-After: 1` — which the API turns into a safe *try again*, never a pass. With a slot, run the analysis **on a worker thread**: image work is CPU-heavy and *blocking*, and running it here would freeze the server's event loop and stall every other request, including health checks. `finally` hands the slot back however the analysis ends.
 
-@@ 89
+Until Phase 7 the service refused the moment all workers were busy; a bounded wait served most of those people at the cost of a short delay (§5.7.4). The upload is read and checked *before* waiting, so a malformed request never takes a place in the queue.
+
+@@ 98
 Return the finished application.

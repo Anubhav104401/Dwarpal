@@ -1,5 +1,5 @@
 ---
-fingerprint: 045c1f512d13a5a8
+fingerprint: 03473b4e40660931
 ---
 The inference service's **settings**, read from environment variables. The same code can then run on a laptop, in CI and in production — only the environment changes (the "12-factor" principle, Stage 4 §9).
 
@@ -48,17 +48,23 @@ The stand-in model's fixed age and spread, in years. Tests and the end-to-end de
 @@ 25-26
 For the ONNX backend: the model's folder inside `models/` (by default the first trained model, `age-convnext-tiny-2026.10.17`), and how many processor threads each request may use.
 
-@@ 27
+@@ 27-28
+**`age_frames`** (Phase 7, decision P1) — how many of an attempt's flawless frames the age model sees, the sharpest first. 3 was chosen after checking the decisions it makes against the certified safety lines (§5.7.4).
+
+@@ 29
 `workers` — how many analyses may run at the same time. The rest wait or are told to retry (back-pressure, Stage 3 §5.4).
 
-@@ 28
+@@ 30-31
+**`queue_s`** (Phase 7, §5.7.4) — how long a request may wait for a free worker before the answer is "busy": one second. People arrive at random, so now and then a fifth arrives while four analyses are running; waiting a moment serves them, where an instant refusal sent one in five away in the load test.
+
+@@ 32
 `liveness` — where the pose check gets its evidence (Phase 3): `"images"`, measured from the photos — the default, and the only safe choice — or `"labels"`, the test mode that believes the photos' labels (§5.3.5).
 
-@@ 30-31
+@@ 34-35
 **`labels_only_with_the_stand_in`** — a check across two fields. `mode="after"` runs it once every field is set, so it can compare them. It returns the settings themselves if all is well.
 
-@@ 32-33
+@@ 36-37
 **The test mode is allowed only with the stand-in age model.** A service set up with a real age model *and* labels mode would be a real-looking deployment that a photo could pass — so it refuses to start, with a message saying why. This is the first of the three locks on the test mode.
 
-@@ 34
+@@ 38
 All is well: return the settings.
