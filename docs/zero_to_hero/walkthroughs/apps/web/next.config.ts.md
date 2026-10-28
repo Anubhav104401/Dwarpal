@@ -1,5 +1,5 @@
 ---
-fingerprint: 20d421cb696050a2
+fingerprint: 905588c59afb2a65
 ---
 The verify page's **Next.js configuration**, and above all its **security headers**: instructions sent with every page that tell the browser what this page may and may not do. The verify page handles a camera, a one-time secret and a flow token, so it gets the strictest rules the app can work with.
 
@@ -12,59 +12,31 @@ The type of a Next.js configuration, so mistakes in it are caught by the type ch
 @@ 3
 `apiUrl` — the API's address, from `NEXT_PUBLIC_DWARPAL_API_URL`, or the local one. In Next.js, variables starting with `NEXT_PUBLIC_` are built into the page's code, so the browser knows where the API is.
 
-@@ 4
-`development` — true when running the development server.
+@@ 4-10
+The **security headers** that are the same for every answer, as a list of name and value pairs. (The **content security policy** used to be here too; since Phase 7 it changes with every page — it carries a fresh nonce — so `proxy.ts` makes it.)
 
-@@ 6-19
-The **Content Security Policy** (CSP): a list of rules about where the page may load things from and send things to. Each rule is one text, and `.join("; ")` puts them into one header value. `'self'` means "this page's own origin".
-
-| Rule | Means |
-| :-- | :-- |
-| `default-src 'self'` | anything not covered below: only from this origin |
-| `connect-src 'self' <API>` | the page's code may talk only to itself and the API. Even injected code couldn't send a picture anywhere else |
-| `img-src 'self' data: blob:` | images from this origin, or made in memory |
-| `media-src 'self' blob:` | video only from this origin or from memory — the camera's stream is in memory |
-| `font-src 'self'` | fonts only from this origin |
-| `style-src 'self' 'unsafe-inline'` | styles from this origin, plus inline ones, which Next.js uses |
-| `script-src 'self' 'unsafe-inline'` | scripts from this origin, plus the inline ones Next.js writes into each page to start React |
-| `object-src 'none'` | no plug-ins, ever |
-| `base-uri 'none'` | no `<base>` tag may change what relative addresses mean |
-| `form-action 'self'` | forms may only send to this origin |
-| `frame-ancestors 'none'` | no other website may show this page inside a frame. That blocks **clickjacking**: a hostile site hiding this page under its own buttons |
-
-Line 13 adds `'unsafe-eval'` only in development, where React's live reloading needs it. A production build never gets it.
-
-!!! warn "Careful — honest about a gap"
-    `'unsafe-inline'` for scripts weakens the policy: if an attacker ever managed to inject a `<script>` into the page, the browser would run it. The strict fix is a **nonce** — a fresh random value per page, which every allowed script must carry. It needs per-request rendering, and it is scheduled for the security-hardening phase (Phase 7). The other rules, especially `connect-src`, already limit what any injected code could do.
-
-One addition in Phase 3: `'wasm-unsafe-eval'` in `script-src`. MediaPipe's face landmarker runs as **WebAssembly**, a fast, compact program format browsers run beside JavaScript. A strict policy forbids compiling it; this word allows compiling WebAssembly *and nothing else*. Unlike `'unsafe-eval'`, it never lets text be run as JavaScript, so the protection against injected scripts stays intact.
-
-@@ 21-27
-The **security headers**, as a list of name and value pairs:
-
-- the CSP from above;
 - `Permissions-Policy` — which powerful browser features the page may use: the camera, for this page itself only (`camera=(self)`), and never the microphone, location or payments (`()` means "nobody");
 - `Referrer-Policy: no-referrer` — when the person leaves, don't tell the next site which address they came from. The address contains the session's ID;
 - `X-Content-Type-Options: nosniff` — the browser must trust the declared type of each file, and never guess. Guessing has let attackers disguise scripts as images;
 - `Cross-Origin-Opener-Policy: same-origin` — a window opened by another site can't hold a handle on this page.
 
-@@ 29
+@@ 12
 The configuration object, checked against `NextConfig`.
 
-@@ 30
+@@ 13
 `poweredByHeader: false` — don't announce "X-Powered-By: Next.js" in every response. Telling strangers exactly which software runs a site helps no one but attackers.
 
-@@ 31
+@@ 14
 `reactStrictMode: true` — in development, React runs certain parts twice on purpose, to bring hidden bugs to the surface (see `verify-flow.tsx`).
 
-@@ 32-34
+@@ 15-17
 `headers()` — Next.js asks this function which headers to add. The answer: on every path (`/:path*` matches all of them), the security headers above.
 
-@@ 35-39
+@@ 18-22
 **`rewrites`** (Phase 5) — a request to `/console-api/…` on this site is passed on, by the Next.js server, to the API's `/console/v1/…`. The console's pages therefore only ever talk to their own origin. The session cookie belongs to one site, `SameSite` and the `__Host-` prefix work as intended, and the API's `Origin` check sees the console's own address. In production, Caddy does the same job, serving both from one address (§3.8). Requests passed on this way carry the browser's address in `X-Forwarded-For`, which the API's server (uvicorn) trusts from the local machine, so sign-in limits still count each person's own address.
 
-@@ 40
+@@ 23
 The end of the object.
 
-@@ 42
+@@ 25
 Hand the configuration to Next.js.

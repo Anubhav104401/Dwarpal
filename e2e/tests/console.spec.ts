@@ -188,3 +188,16 @@ test("an owner adds a member, changes their role, and removes them", async ({ pa
   await page.getByRole("button", { name: `Remove ${colleague}` }).click();
   await expect(members).not.toContainText(colleague);
 });
+
+test("every page load gets its own script nonce, and inline scripts aren't allowed", async ({ request }) => {
+  const policies = [];
+  for (const _ of [1, 2]) {
+    const answer = await request.get(CONSOLE);
+    policies.push(answer.headers()["content-security-policy"] ?? "");
+  }
+  const scripts = policies.map((p) => p.split("; ").find((part) => part.startsWith("script-src")) ?? "");
+  const nonces = scripts.map((s) => /'nonce-([^']+)'/.exec(s)?.[1]);
+  expect(nonces[0]).toBeTruthy();
+  expect(nonces[0]).not.toBe(nonces[1]); // a fresh nonce each time
+  expect(scripts[0]).not.toContain("'unsafe-inline'");
+});

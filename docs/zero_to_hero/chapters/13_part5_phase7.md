@@ -5,7 +5,7 @@ Phases 1–6 make Dwarpal work. Phase 7 makes it hold up: under attack, under lo
 | Area | What | Status |
 | :-- | :-- | :-- |
 | Resilience | **Fail closed**: kill a dependency mid-flow, and nothing may pass | ✅ §5.7.1 |
-| Security | Headers and content policy verified; scanners (Semgrep, pip-audit, Trivy, ZAP); threat-model review | 🟡 headers ✅ (§5.7.1); every scanner run and triaged (§5.7.3–5.7.4); Python fixes wait for D15 |
+| Security | Headers and content policy verified; scanners (Semgrep, pip-audit, Trivy, ZAP); threat-model review | 🟡 headers ✅ (§5.7.1); every scanner run and triaged (§5.7.3–5.7.4); script policy with nonces (§5.7.5); Python fixes wait for D15 |
 | Observability | OpenTelemetry end to end, dashboards, alerts | 🟡 traces from the API to Tempo and Grafana, with nothing about the person (§5.7.3); dashboards and alerts to come |
 | Performance | Load tests against the service levels (Locust) | 🟡 analysis p95 1.2 s at a realistic load (§5.7.4); 50 *simultaneous* attempts on 4 cores still out of reach |
 | Privacy | A filled DPIA template, a practice statement, the final model card | 🟡 drafts (§5.7.2); model card waits for a calibrated model |
@@ -161,3 +161,22 @@ The rest changed existing files, each re-explained in its walkthrough: the pipel
 
 !!! honest "Honest limitation"
     Every timing here comes from a laptop on battery, throttling background work; they compare settings fairly, but say little about the 4-core server the target names. The frame check used simulated webcam damage on the calibration split, not real webcam bursts, and its counts are small. The whole attempt — including the wait for a worker — reached p95 1.9 s at a realistic pace; only the server's processing is under 1.5 s.
+
+### 5.7.5 A script policy with a nonce
+
+OWASP ZAP's scan (§5.7.3) left one real warning on the web app: its content security policy allowed **every** inline script (`'unsafe-inline'`). The policy was there to stop injected code, and that setting let an injected `<script>` run anyway. Next.js writes small inline scripts into every page to start React, which is why it was allowed.
+
+The fix is a **nonce**: a random value made afresh for every page. The policy says "run only scripts that carry this value". Next.js reads the nonce from the request and puts it on its own scripts as it renders the page. An attacker who manages to inject a script can't know the value, so the browser refuses it.
+
+- `proxy.ts` — Next.js runs it before each page: it makes the nonce and the policy, gives the policy to the page being rendered, and sends it to the browser.
+- `'strict-dynamic'` — a script the nonce'd ones add is trusted too. That is how MediaPipe's WebAssembly loader still runs.
+- The pages are now rendered for each request (the root layout reads the request), because a page built once in advance can't carry a different nonce for each visitor. Lighthouse's speed scores stayed at 0.96–0.98.
+
+!walk apps/web/proxy.ts
+
+!walk apps/web/proxy.test.ts
+
+The rest changed existing files, each re-explained in its walkthrough: `next.config.ts` (the fixed policy is gone from it), `layout.tsx` (it reads the request), and the browser test (`console.spec.ts`), which checks that two page loads get different nonces and that inline scripts aren't allowed.
+
+!!! honest "Honest limitation"
+    Styles still allow inline ones (`style-src 'unsafe-inline'`). A few elements set a colour or a width in a `style` attribute, and a nonce can't be put on an attribute. Injected styles can change how a page looks — which could mislead someone — but can't run code. Removing them would mean moving those values into classes or CSS variables set from script.

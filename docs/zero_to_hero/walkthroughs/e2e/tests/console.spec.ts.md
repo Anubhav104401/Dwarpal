@@ -1,5 +1,5 @@
 ---
-fingerprint: 5a81a006a0c5bfb0
+fingerprint: 63e3e2b532c400d6
 ---
 The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page, adds a policy version and a webhook endpoint; a wrong password is refused without revealing whether the account exists; and a member turns on one-time codes, after which signing in needs one.
 
@@ -142,4 +142,16 @@ Change it to developer; then reload the page, to prove the change was saved, not
 Remove them: their address is gone from the members.
 
 @@ 190
+End of the test.
+
+@@ 192-197
+**Test — a fresh nonce each time** (Phase 7). Ask for the console's page twice, as the website API's client would, and keep each answer's content security policy.
+
+@@ 198-199
+Pick out each policy's script rule, and the nonce in it.
+
+@@ 200-202
+There is a nonce; the two differ; and inline scripts are not allowed.
+
+@@ 203
 End of the test.

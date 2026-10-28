@@ -31,7 +31,7 @@
 | pip-audit (27 Oct) | 47 known flaws in 4 packages: `pillow` 12.3.0 (38, via torchvision), `filelock` 4.1.0 (6), `certifi` 2026.7.22 (2), `setuptools` 84.0.0 (1); `torch`/`torchvision` (CUDA builds) can't be audited — not on PyPI → **D15** |
 | Trivy (27 Oct) | `uv.lock`: 30 (24 high, 6 critical) — the same packages; `pnpm-lock.yaml`: none high/critical; **no secrets**, no misconfigurations |
 | `pnpm audit` | 8 → 4 after D14: `extract-zip` ×2 (no fix), `body-parser` (fix after 29 Oct), `tmp` 0.2.6 (new advisory; 0.2.7 → **D14b**) — all inside Lighthouse CI, development only |
-| ZAP web (27 Oct) | **0 fail**, 64 pass; warnings triaged: CSP `script-src 'unsafe-inline'` (open: needs per-request nonces), COEP missing (not needed: no cross-origin isolation features used), non-storable content and "modern web app" (informational) |
+| ZAP web (27 Oct) | **0 fail**, 64 pass; warnings triaged: CSP `script-src 'unsafe-inline'` (**fixed 29 Oct**: per-page nonce and `'strict-dynamic'` in `apps/web/proxy.ts`; styles still allow inline), COEP missing (not needed: no cross-origin isolation features used), non-storable content and "modern web app" (informational) |
 | ZAP API (27 Oct) | **0 fail**, 119 pass; one warning — CORP missing → **fixed** |
 | Traces through Tempo | 6 traces stored for 6 requests; span attributes hold route, status, timing; no query string, caller address or browser |
 | Load, first run (50 users, 3 min) | 9,256 requests, 0 HTTP failures — **misleading**: inference answered 2,136 "busy", analysed 84 |
@@ -45,7 +45,7 @@
 
 ## Open items
 
-1. **Scanners** — run and triaged (27–28 Oct); Semgrep clean. Left: Python fixes (D15); `tmp` 0.2.7 (D14b); a nonce-based CSP for the web app.
+1. **Scanners** — run and triaged (27–28 Oct); Semgrep clean. Left: Python fixes (D15); `tmp` 0.2.7 (D14b). (The nonce-based CSP is done, 29 Oct.)
 2. **Performance** — P1 (a) done: 3 frames, a 1 s queue; server processing p95 1.21 s for 50 people at a realistic pace (throttled laptop). **P2 decided (29 Oct)**: NFR-05 means 50 people in a check (an attempt every ~20 s each) — met on the laptop. Open: measuring on the real 4-core server (Phase 8); static INT8; certifying the lines on webcam-degraded images; failures mid-flow under load.
 3. **Observability** — traces done; dashboards, metrics (Prometheus, approved, not yet needed) and burn-rate alerts to come.
 6. **Process slip**: a local test API key was printed in tool output while preparing the load test; revoked at once.
