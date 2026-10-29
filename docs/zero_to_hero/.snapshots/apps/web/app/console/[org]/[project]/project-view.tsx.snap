@@ -25,6 +25,7 @@ import {
 } from "@/lib/console-api";
 
 import { everyDay, OUTCOME_ORDER } from "@/lib/daily";
+import { bandText, MEDIAN_TARGET_S, share, withinTarget } from "@/lib/figures";
 
 import { DailyChart } from "./daily-chart";
 import { WebhooksPanel } from "./webhooks-panel";
@@ -62,6 +63,42 @@ function ScoreList({ scores }: { scores: Record<string, unknown> }) {
           </pre>
         </details>
       ))}
+    </div>
+  );
+}
+
+/** The face checks' headline figures: the median time to a decision against its target, and how often a check was
+ * rejected as a likely attack or sent to a stronger check. */
+function FaceFigures({ stage }: { stage: Analytics["faceStage"] }) {
+  const median = stage.median;
+  const figures = [
+    {
+      name: "Median time to a decision",
+      value: median === null ? "—" : bandText(median),
+      note:
+        median === null
+          ? ""
+          : withinTarget(median)
+            ? `Within the ${MEDIAN_TARGET_S} s target`
+            : `Target: ${MEDIAN_TARGET_S} s or less`,
+    },
+    { name: "Rejected as a likely attack", value: share(stage, "reject"), note: "Liveness or tampering" },
+    { name: "Sent to a stronger check", value: share(stage, "step_up"), note: "The age estimate was unsure" },
+  ];
+  return (
+    <div className="mt-5">
+      <h3 className="text-sm font-semibold">
+        Face checks <span className="font-normal text-ink-500">· {stage.decided} decided</span>
+      </h3>
+      <dl className="mt-2 grid gap-3 sm:grid-cols-3">
+        {figures.map((figure) => (
+          <div key={figure.name} className="rounded-xl border border-ink-200 px-4 py-3 dark:border-white/10">
+            <dt className="text-xs text-ink-500">{figure.name}</dt>
+            <dd className="mt-1 text-2xl font-semibold tabular-nums">{figure.value}</dd>
+            {figure.note && <dd className="text-xs text-ink-500">{figure.note}</dd>}
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -211,6 +248,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
             ))}
           </ul>
         )}
+        {analytics.faceStage.decided > 0 && <FaceFigures stage={analytics.faceStage} />}
         {outcomes.length > 0 && <DailyChart days={everyDay(analytics.since, 30, analytics.daily)} />}
       </section>
 

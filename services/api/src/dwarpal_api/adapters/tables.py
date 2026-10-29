@@ -14,6 +14,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     LargeBinary,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -89,6 +90,7 @@ class VerificationSession(Base):
     attempts_count: Mapped[int]
     model_version: Mapped[str | None] = mapped_column(String(80))
     created_at: Mapped[datetime] = mapped_column(Timestamp)
+    started_at: Mapped[datetime | None] = mapped_column(Timestamp)  # when the person first opened the verify page
     expires_at: Mapped[datetime] = mapped_column(Timestamp)
     completed_at: Mapped[datetime | None] = mapped_column(Timestamp)
 
@@ -234,6 +236,20 @@ class SessionStat(Base):
     day: Mapped[date] = mapped_column(primary_key=True)
     policy: Mapped[str] = mapped_column(String(60), primary_key=True)
     outcome: Mapped[str] = mapped_column(String(16), primary_key=True)
+    sessions: Mapped[int]
+
+
+class FaceStageStat(Base):
+    """How many of one project's face checks reached one decision on one day, within one band of time (`from_s`
+    seconds or more, up to the next band). Kept after the purge."""
+
+    __tablename__ = "face_stage_stats"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
+    livemode: Mapped[bool] = mapped_column(primary_key=True)
+    day: Mapped[date] = mapped_column(primary_key=True)
+    outcome: Mapped[str] = mapped_column(String(16), primary_key=True)
+    from_s: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     sessions: Mapped[int]
 
 

@@ -17,7 +17,14 @@ from dwarpal_api.adapters.db import session_tenant, tenant
 from dwarpal_api.adapters.inference import InferenceClient
 from dwarpal_api.adapters.signing import KeyRing, MasterKey
 from dwarpal_api.adapters.store import FlowStore
-from dwarpal_api.adapters.tables import IssuedToken, Project, SessionStat, VerificationAttempt, VerificationSession
+from dwarpal_api.adapters.tables import (
+    FaceStageStat,
+    IssuedToken,
+    Project,
+    SessionStat,
+    VerificationAttempt,
+    VerificationSession,
+)
 from dwarpal_api.app import webhooks
 from dwarpal_api.app.policies import latest, pinned
 from dwarpal_api.domain import ids
@@ -26,6 +33,7 @@ from dwarpal_api.domain.decision import Decision, Outcome, decide
 from dwarpal_api.domain.keys import generate_client_secret, matches
 from dwarpal_api.domain.policy import ModelManifest, Policy, UncalibratedPolicyError
 from dwarpal_api.domain.sessions import STATUS_AFTER, Status, is_expired, move
+from dwarpal_api.domain.timing import band_of
 from dwarpal_api.errors import ApiError
 from dwarpal_api.settings import Settings
 from dwarpal_contracts import FaceAnalysis, FaceRequestMeta
@@ -115,6 +123,23 @@ async def record_final(
     await session.execute(count)
 
 
+async def record_face_stage(session: AsyncSession, row: VerificationSession, outcome: Outcome, now: datetime) -> None:
+    """Count a face check that has reached a decision, in the day's counts for the dashboard: its outcome, and the band
+    of time from opening the verify page to the decision. (A session from before `started_at` was kept counts from its
+    creation.)"""
+    began = row.started_at or row.created_at
+    key = {
+        "project_id": row.project_id,
+        "livemode": row.livemode,
+        "day": now.date(),
+        "outcome": outcome.value,
+        "from_s": band_of((now - began).total_seconds()),
+    }
+    count = insert(FaceStageStat).values(**key, sessions=1)
+    count = count.on_conflict_do_update(index_elements=list(key), set_={"sessions": FaceStageStat.sessions + 1})
+    await session.execute(count)
+
+
 async def create_session(
     svc: Services, project: Project, livemode: bool, policy_id: str, return_url: str | None, external_ref: str | None
 ) -> tuple[VerificationSession, str]:
@@ -145,6 +170,7 @@ async def create_session(
             attempts_count=0,
             model_version=None,
             created_at=now,
+            started_at=None,
             expires_at=now + timedelta(seconds=svc.settings.session_ttl_s),
             completed_at=None,
         )
@@ -162,6 +188,7 @@ async def start_flow(svc: Services, session_text: str, client_secret: str) -> di
         await expire_if_due(svc, session, row, svc.now())
         if row.status == Status.CREATED:
             row.status = move(Status.CREATED, Status.IN_PROGRESS)
+            row.started_at = svc.now()
         project = await session.get(Project, row.project_id)
         policy = await pinned(session, row)
         await session.commit()
@@ -282,6 +309,8 @@ async def submit_face_attempt(
             row.outcome = decision.outcome
         if analysis is not None:
             row.model_version = analysis.model_version
+        if decision.outcome != Outcome.RETRY:
+            await record_face_stage(session, row, decision.outcome, now)
         if row.status == Status.COMPLETED:
             row.completed_at = now
             await announce(svc, session, row, now)

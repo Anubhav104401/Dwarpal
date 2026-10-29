@@ -32,6 +32,7 @@ from dwarpal_api.domain.policy import (
     load_manifest,
 )
 from dwarpal_api.domain.sessions import ALLOWED, IllegalTransitionError, Status, is_expired, move
+from dwarpal_api.domain.timing import BANDS, band_end, band_of, median_band
 from dwarpal_api.logs import JsonFormatter
 from dwarpal_api.settings import Settings
 from dwarpal_contracts import AgeEstimate, FaceAnalysis, FrameReport, LightCheck, Liveness, PoseCheck
@@ -363,3 +364,13 @@ def test_a_live_session_needs_the_anti_spoofing_verdict() -> None:
         decision = decide(POLICY, THRESHOLDS, analysis(0.999, liveness=live), 0, True, livemode=True)
         assert decision.outcome == expected
     assert decide(POLICY, THRESHOLDS, analysis(0.999, liveness=unmeasured), 0, True).outcome == Outcome.PASS
+
+
+def test_times_fall_into_bands_and_the_median_band_is_the_slower_middle_one() -> None:
+    assert [band_of(s) for s in (-1, 0, 4.99, 5, 14.9, 15, 299, 300, 9000)] == [0, 0, 0, 5, 10, 15, 180, 300, 300]
+    assert (band_end(10), band_end(300)) == (15, None)
+    assert all(band_of(start) == start for start in BANDS)
+    assert median_band({}) is None
+    assert median_band({0: 1, 10: 1, 60: 1}) == (10, 15)  # the 2nd of 3
+    assert median_band({5: 2, 20: 2}) == (20, 30)  # the 3rd of 4: a tie goes to the slower side
+    assert median_band({300: 1}) == (300, None)

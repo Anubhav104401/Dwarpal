@@ -124,10 +124,18 @@ export interface ModelInfo {
   lines: ModelLine[];
 }
 
+/** How the face checks that reached a decision ended, and the band of time holding the median (lib/figures.ts). */
+export interface FaceStage {
+  decided: number;
+  outcomes: Record<string, number>;
+  median: { from: number; to: number | null } | null;
+}
+
 export interface Analytics {
   since: string;
   totals: Record<string, number>;
   daily: DailyCount[];
+  faceStage: FaceStage;
 }
 
 export interface PolicyVersion {
@@ -427,7 +435,16 @@ export class ConsoleClient {
       outcome: asText(row.outcome),
       sessions: asCount(row.sessions),
     }));
-    return { since: asText(data.since), totals, daily };
+    const stage = asJson(data.face_stage);
+    const outcomes: Record<string, number> = {};
+    for (const [outcome, count] of Object.entries(asJson(stage.outcomes))) outcomes[outcome] = asCount(count);
+    const median = stage.median_seconds === null ? null : asJson(stage.median_seconds);
+    const faceStage = {
+      decided: asCount(stage.decided),
+      outcomes,
+      median: median === null ? null : { from: asCount(median.from), to: orNumber(median.to) },
+    };
+    return { since: asText(data.since), totals, daily, faceStage };
   }
 
   /** The age model now deciding, or null when signed out. */

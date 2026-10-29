@@ -91,6 +91,11 @@ describe("ConsoleClient, a project's pages", () => {
         since: "2026-09-27",
         data: [{ day: "2026-10-01", policy: "uk_osa_18", outcome: "pass", sessions: 3 }],
         totals: { pass: 3, step_up: 1 },
+        face_stage: {
+          decided: 5,
+          outcomes: { pass: 4, step_up: 1 },
+          median_seconds: { from: 300, to: null },
+        },
       }),
     ];
     vi.stubGlobal("fetch", async (url: string) => {
@@ -109,6 +114,11 @@ describe("ConsoleClient, a project's pages", () => {
     expect(trace.traced[0]?.scores).toEqual({ p_over: 0.99, tau: 0.9 });
     expect(counts.totals).toEqual({ pass: 3, step_up: 1 });
     expect(counts.daily).toEqual([{ day: "2026-10-01", outcome: "pass", sessions: 3 }]);
+    expect(counts.faceStage).toEqual({
+      decided: 5,
+      outcomes: { pass: 4, step_up: 1 },
+      median: { from: 300, to: null },
+    });
   });
 });
 

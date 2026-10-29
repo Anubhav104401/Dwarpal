@@ -94,6 +94,21 @@ The rest changed existing files, each re-explained in its walkthrough: the conso
 
 The client (`console-api.ts`) now keeps the daily rows, and its test checks them; the project page orders the totals as the legend does and shows the chart. Each was re-explained.
 
+**The face checks' figures** (added 29 Oct). The design's dashboard also asks for the median time a check takes, how often checks are rejected as likely attacks, and how often they are sent to a stronger check. The outcome counts can't answer these. They count a session when it *finishes*, and a session sent to a stronger check doesn't finish until that check does — or it expires. They also say nothing about time. So each face check that reaches a decision (anything but a retry) now adds one to a second daily count: its outcome, and the band of time from opening the verify page to the decision. A new column, `started_at`, records that opening.
+
+!!! key "Key idea — time in bands, never per person"
+    Keeping each check's exact time would be one more fact about a real person, with no use beyond the median. So only counts per band are kept: "10 to 15 seconds", "15 to 20", and so on, finer where most checks should finish. The median is then the band holding the middle check. It's less precise than an exact median, and the page says so by showing a band ("10–15 s"). It counts as within the 15-second target only if the whole band is.
+
+!walk services/api/src/dwarpal_api/migrations/versions/v0009_face_stage_stats.py
+
+!walk services/api/src/dwarpal_api/domain/timing.py
+
+!walk apps/web/lib/figures.ts
+
+!walk apps/web/lib/figures.test.ts
+
+The tables (`tables.py`), the session use cases (`verification.py`, which notes the start and counts each decision), the analytics use case (`analytics.py`, which now also answers with `face_stage`), their tests (`test_domain.py`, `test_api.py`), the client and its test, and the project page changed too; each was re-explained. *Step-up conversion* — how many people sent to a stronger check then pass it — waits for the stronger checks themselves (Phase 6).
+
 **The age model's page** (added 29 Oct). The design asks the console for *model information* (FR-10). A new page, *Age model*, linked from the console's front page, shows anyone signed in which model is deciding, whether it may decide live checks, what it learnt from, and its lines for each age with the worst cases measured for them. It is the same for every organisation, so it needs no tenant and no role — only a signed-in person (`GET /console/v1/model`). The API keeps the manifest's whole file at start-up for this page; decisions never read it.
 
 !!! key "Key idea — show the guarantee, and only the guarantee there is"

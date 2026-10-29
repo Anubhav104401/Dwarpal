@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import select
 
 from dwarpal_api.adapters.db import tenant
-from dwarpal_api.adapters.tables import SessionStat
+from dwarpal_api.adapters.tables import FaceStageStat, SessionStat
+from dwarpal_api.domain.timing import median_band
 
 if TYPE_CHECKING:
     from dwarpal_api.app.verification import Services
@@ -25,8 +26,12 @@ async def session_counts(svc: Services, project_id: uuid.UUID, livemode: bool, d
         .where(SessionStat.project_id == project_id, SessionStat.livemode == livemode, SessionStat.day >= since)
         .order_by(SessionStat.day, SessionStat.policy, SessionStat.outcome)
     )
+    face_query = select(FaceStageStat).where(
+        FaceStageStat.project_id == project_id, FaceStageStat.livemode == livemode, FaceStageStat.day >= since
+    )
     async with tenant(svc.sessions, project_id) as session:
         rows = list(await session.scalars(query))
+        face_rows = list(await session.scalars(face_query))
     totals: Counter[str] = Counter()
     for row in rows:
         totals[row.outcome] += row.sessions
@@ -34,4 +39,27 @@ async def session_counts(svc: Services, project_id: uuid.UUID, livemode: bool, d
         {"day": row.day.isoformat(), "policy": row.policy, "outcome": row.outcome, "sessions": row.sessions}
         for row in rows
     ]
-    return {"object": "list", "since": since.isoformat(), "data": data, "totals": dict(sorted(totals.items()))}
+    return {
+        "object": "list",
+        "since": since.isoformat(),
+        "data": data,
+        "totals": dict(sorted(totals.items())),
+        "face_stage": face_stage(face_rows),
+    }
+
+
+def face_stage(rows: list[FaceStageStat]) -> dict[str, Any]:
+    """How the face checks that reached a decision ended, and the band of time holding the median, from opening the
+    verify page to the decision. A session sent to a stronger check is counted here as `step_up` even though its final
+    outcome, in `totals`, comes later."""
+    outcomes: Counter[str] = Counter()
+    bands: Counter[int] = Counter()
+    for row in rows:
+        outcomes[row.outcome] += row.sessions
+        bands[row.from_s] += row.sessions
+    median = median_band(bands)
+    return {
+        "decided": sum(outcomes.values()),
+        "outcomes": dict(sorted(outcomes.items())),
+        "median_seconds": None if median is None else {"from": median[0], "to": median[1]},
+    }

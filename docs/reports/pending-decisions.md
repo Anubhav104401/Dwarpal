@@ -88,7 +88,8 @@ Work that needs your answer — a download, a design choice, an account, or some
 - `c64dbe0` The console's 30-day counts as a daily stacked chart (colours checked for colour-blind readers, numbers on hover or keyboard focus, and as a table).
 - `d0bb90d` The age model's page in the console: which model decides, whether it may decide live checks, what it learnt from, and its lines with their measured worst cases — and nothing of its build.
 - `946565f` The console's sidebar and ⌘K/Ctrl+K command palette, as the design asks. Lighthouse and axe still pass.
-- Not done, because each needs something from you or doesn't exist yet: the dashboard's latency, liveness-reject and step-up figures, the policy editor's projected step-up rate, and fairness charts on the model page (no fairness results are published yet).
+- Added later (29 Oct, after you said to leave deployment for now): the dashboard's face-check figures — median time to a decision, share rejected as a likely attack, share sent to a stronger check — from new daily counts by band of time (migration 0009; no exact times kept).
+- Not done, because each needs something from you or doesn't exist yet: step-up conversion (needs the Phase 6 verifiers), the policy editor's projected step-up rate, and fairness charts on the model page (no fairness results are published yet).
 
 ## Done overnight (no decision needed)
 

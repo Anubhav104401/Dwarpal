@@ -247,11 +247,14 @@ async def test_poor_frames_get_a_retry_and_then_a_step_up(databases: tuple[str, 
         outcomes = [(await attempt(h, created["id"], flow, [blank_frame()] * 6)).json() for _ in range(3)]
         auth = {"Authorization": f"Bearer {h.key}"}
         session = (await h.client.get(f"/v1/verification-sessions/{created['id']}", headers=auth)).json()
+        counts = (await h.client.get("/v1/analytics/sessions", headers=auth)).json()
     assert [o["outcome"] for o in outcomes] == ["retry", "retry", "step_up"]
     assert outcomes[0]["reasons"] == ["no_face"]
     assert outcomes[0]["attempts_remaining"] == 2
     assert session["status"] == "awaiting_step_up"
     assert session["age_token"] is None
+    # Not finished, so not in the totals; but its face check has decided, once, after its retries.
+    assert (counts["totals"], counts["face_stage"]["outcomes"]) == ({}, {"step_up": 1})
 
 
 @pytest.mark.anyio
@@ -905,6 +908,7 @@ async def test_finished_sessions_are_counted_by_day_and_outcome(databases: tuple
         too_long = await h.client.get("/v1/analytics/sessions?days=366", headers=bearer_of(h.key))
     assert counts["totals"] == {"pass": 2}
     assert [(d["policy"], d["outcome"], d["sessions"]) for d in counts["data"]] == [("uk_osa_18", "pass", 2)]
+    assert counts["face_stage"] == {"decided": 2, "outcomes": {"pass": 2}, "median_seconds": {"from": 0, "to": 5}}
     assert too_long.status_code == 422
 
 
