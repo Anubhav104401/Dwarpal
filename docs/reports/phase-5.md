@@ -16,6 +16,7 @@
 | Book | §5.5, §5.5.1–§5.5.4; thirteen new walkthroughs; seventeen re-explained |
 
 | Design system | OKLCH tokens in `globals.css` (ink, saffron, teal; display size; Geist Sans and Mono; motion presets); `components/ui.tsx` (button tones and sizes, panel, card, input, field, alert, notice, badge); specimen at `/design`, axe-checked in light and dark; every page moved from zinc to ink |
+| SDKs (30 Oct, D16) | `@dwarpal/js` (modal with an iframe, or redirect; `postMessage` protocol with origin checks; link check) and `@dwarpal/react` (`VerifyAgeButton`, `useDwarpal`); the verify page may be framed only by its session's return origin (`GET /v1/flow/sessions/{id}/frame-ancestor`, read by `proxy.ts`), and offers *open in a full page* when the frame can't go on; the demo shop opens the check in the modal |
 | Exit tests | Playwright projects for Chromium, Firefox, WebKit (`E2E_ENGINES` picks); axe on shop, verify page and every console page (WCAG 2.2 A/AA); Lighthouse CI on the shop, console sign-in and verify page (≥ 0.9 in each category; private pages must stay `noindex`); QR code on the Security page |
 
 ## What was measured

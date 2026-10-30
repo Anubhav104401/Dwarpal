@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 import { dwarpal, POLICY, shopConfig } from "@/lib/config";
 import { PASS_COOKIE, PASS_LIFETIME_S, PENDING_COOKIE } from "@/lib/pass";
 
-/** Ask Dwarpal for a verification session, then send the visitor to its verify page. */
-export async function startAgeCheck(): Promise<void> {
+/** Ask Dwarpal for a verification session, remember it in this browser, and hand its verify link to the page,
+ * which opens it with Dwarpal's browser SDK. */
+export async function createAgeCheck(): Promise<string> {
   const config = shopConfig();
   const session = await dwarpal(config).createSession({
     policy: POLICY,
@@ -20,7 +21,7 @@ export async function startAgeCheck(): Promise<void> {
     path: "/age-check",
     maxAge: PASS_LIFETIME_S,
   });
-  redirect(session.url);
+  return session.url;
 }
 
 /** Forget this browser's pass and go back to the front door: the next visit to the cellar needs a new age check. */

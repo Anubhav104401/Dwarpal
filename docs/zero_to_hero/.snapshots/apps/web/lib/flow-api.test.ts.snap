@@ -29,6 +29,7 @@ describe("FlowClient", () => {
           project_name: "Amber Cellars",
           min_age: 18,
           attempts_remaining: 3,
+          return_origin: "http://localhost:3100",
         },
       }),
       answer(200, {
@@ -59,7 +60,12 @@ describe("FlowClient", () => {
       signals: { automation: false, virtualCamera: true, hiddenMs: 0, lightShown: true },
     });
 
-    expect(session).toMatchObject({ projectName: "Amber Cellars", minAge: 18, attemptsRemaining: 3 });
+    expect(session).toMatchObject({
+      projectName: "Amber Cellars",
+      minAge: 18,
+      attemptsRemaining: 3,
+      returnOrigin: "http://localhost:3100",
+    });
     expect(seen.map((request) => new URL(request.url).pathname)).toEqual([
       `/v1/flow/sessions/${SESSION}/start`,
       `/v1/flow/sessions/${SESSION}/challenge`,

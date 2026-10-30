@@ -1,5 +1,5 @@
 ---
-fingerprint: 15c10d6680c1b433
+fingerprint: 523aadd78847e26a
 ---
 The **capture-flow API** — the endpoints the hosted verify page calls from the person's browser while the check is happening:
 
@@ -42,43 +42,46 @@ The router: every path starts with `/v1/flow/sessions/{session_text}`, so each e
 @@ 32-34
 **`/start`** — needs no flow token (it is how you *get* one); the client secret in the body proves the right. It calls the use case, which checks the secret before anything else.
 
-@@ 37-46
+@@ 37-41
+**`/frame-ancestor`** (decision D16) — asked by the verify page's web server before it serves the page: which website may show it in a frame (`proxy.ts`). It needs no secret: the server has none, and the answer only names the website the session will send the person back to anyway. The answer is `{"origin": …}`, with `null` for none.
+
+@@ 44-53
 **`/challenge`** — the `flow_session` dependency has already checked the flow token and returns the session's ID, called `flow` here. The browser's device ID arrives in the `X-Dwarpal-Device` header (FastAPI reads the header from the parameter's name: `x_dwarpal_device`) and is kept only if well-formed; the network address comes from the connection. The use case spends the per-device budgets and issues the challenge.
 
-@@ 49-52
+@@ 56-59
 **`/face-attempts`** — the upload. It receives the raw `Request`, because the body is a **multipart form** — files plus text fields — which FastAPI doesn't turn into a Pydantic model the way it does with JSON.
 
-@@ 53-54
+@@ 60-61
 Parse the form, accepting at most 16 files and 2 text fields; anything more is refused by the parser itself. (The total size was already checked from the headers, `limits.py`.)
 
 It is parsed with **`async with`**: when the block ends — normally, or because a check below refuses the request — every uploaded file is **closed**, and the memory holding the frame is let go at once. Without it, the uploads stayed open until Python's garbage collector happened to find them: a chaos test (Phase 7) showed the warnings. The frames live on only as the bytes copied into `frames`, which the use case needs.
 
-@@ 55-57
+@@ 62-64
 Read the challenge ID (or empty text if it's missing) and check its shape. Wrong? `422`.
 
-@@ 58-61
+@@ 65-68
 Read the `meta` field — the JSON description of the frames — and check it against the `FaceRequestMeta` contract: 1 to 16 frames, each with a valid index and time. `from None` drops Pydantic's long internal error from the response; the client gets one clear sentence.
 
-@@ 62
+@@ 69
 An empty list, for the frames' bytes.
 
-@@ 63-66
+@@ 70-73
 For each frame described in `meta`, the form must contain a file called `frame_<index>`. Missing, or not a file? `422`, naming the frame.
 
-@@ 67-69
+@@ 74-76
 Read at most one byte more than the per-frame limit. If that extra byte arrived, the frame is too big: `413`, naming the frame and the limit.
 
-@@ 70
+@@ 77
 Keep the frame's bytes. This is the end of the `async with` block: the uploads close here.
 
-@@ 71
+@@ 78
 Hand everything to the use case, which uses up the challenge, asks the AI, decides and records. It returns the decision and the attempts left.
 
-@@ 72
+@@ 79
 **Never explain a rejection.** A `reject` means "this looked like an attack" (from Phase 3). If the answer said *why* — "the screen glare gave you away" — an attacker would learn how to improve. So every rejection is reported with the same vague reason, `verification_failed`. Every other outcome shares its reasons, which help honest people succeed: "too dark", "no face".
 
-@@ 73
+@@ 80
 Answer with the outcome, the reasons, and the attempts left — never below zero.
 
-@@ 76-80
+@@ 83-87
 **`/finish`** — the use case returns where the page should send the person (or `None`), wrapped in a small JSON object.

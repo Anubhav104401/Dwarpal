@@ -1,0 +1,26 @@
+{
+  "name": "@dwarpal/js",
+  "version": "0.1.0",
+  "description": "Browser SDK for Dwarpal: open the age check in a modal over your page, or by redirect.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@dwarpal/config": "workspace:*",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}

@@ -197,6 +197,33 @@ async def attempt(
 
 
 @pytest.mark.anyio
+async def test_only_the_website_a_session_returns_to_may_frame_its_verify_page(databases: tuple[str, str]) -> None:
+    """Decision D16: the verify page may sit in a frame on one website only — its session's return address's."""
+    async with harness(databases) as h:
+        framed, without, over = [(await create(h, **body)).json() for body in ({}, {"return_url": None}, {})]
+        await start(h, framed)
+        engine = make_engine(databases[0])
+        async with make_sessions(engine)() as session:
+            past = datetime.now(UTC) - timedelta(minutes=1)
+            await session.execute(
+                update(VerificationSession)
+                .where(VerificationSession.id == ids.decode("vs", over["id"]))
+                .values(expires_at=past)
+            )
+            await session.commit()
+        await engine.dispose()
+
+        async def ancestor(text: str) -> httpx.Response:
+            return await h.client.get(f"/v1/flow/sessions/{text}/frame-ancestor")
+
+        answers = [await ancestor(text) for text in (framed["id"], without["id"], over["id"], "vs_" + "0" * 26, "x")]
+        started = (await h.client.post(f"/v1/flow/sessions/{framed['id']}/start", json=secret(framed))).json()
+    assert [answer.status_code for answer in answers] == [200] * 5
+    assert [answer.json()["origin"] for answer in answers] == ["http://localhost:3100", None, None, None, None]
+    assert started["session"]["return_origin"] == "http://localhost:3100"
+
+
+@pytest.mark.anyio
 async def test_an_adult_passes_and_the_website_can_verify_the_signed_token(databases: tuple[str, str]) -> None:
     async with harness(databases) as h:
         created = (await create(h)).json()

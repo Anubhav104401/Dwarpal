@@ -39,6 +39,8 @@ from dwarpal_api.settings import Settings
 from dwarpal_contracts import FaceAnalysis, FaceRequestMeta
 
 FLOW_STATUSES = frozenset({Status.IN_PROGRESS, Status.AWAITING_STEP_UP, Status.COMPLETED})
+# The sessions whose verify page may still be shown — inside a website's frame too (`frame_ancestor`).
+SHOWN_STATUSES = FLOW_STATUSES | {Status.CREATED}
 MAX_PAGE = 100
 CHALLENGES_PER_ATTEMPT = 2
 HOUR_S = 3600
@@ -202,8 +204,26 @@ async def start_flow(svc: Services, session_text: str, client_secret: str) -> di
         "project_name": project.name,
         "min_age": policy.min_age,
         "attempts_remaining": max(policy.max_face_attempts - row.attempts_count, 0),
+        "return_origin": origin_of(row.return_url) if row.return_url else None,
     }
     return {"flow_token": token, "session": view}
+
+
+async def frame_ancestor(svc: Services, session_text: str) -> str | None:
+    """The one website allowed to show this session's verify page inside a frame (decision D16): the origin of its
+    return address, which the website registered with its secret key and which must be one of the project's allowed
+    origins. None — no website at all — for a session without a return address, an unknown one, or one that is over."""
+    try:
+        session_id = parse_session_id(session_text)
+    except ApiError:
+        return None
+    async with session_tenant(svc.sessions, session_id) as session:
+        row = await session.get(VerificationSession, session_id)
+    if row is None or row.return_url is None or row.status not in SHOWN_STATUSES:
+        return None
+    if is_expired(Status(row.status), row.expires_at, svc.now()):
+        return None
+    return origin_of(row.return_url)
 
 
 async def issue_challenge(

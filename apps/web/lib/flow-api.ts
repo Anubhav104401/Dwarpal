@@ -14,6 +14,8 @@ export interface FlowSession {
   projectName: string;
   minAge: number;
   attemptsRemaining: number;
+  /** The website the session returns to — the only one this page talks to when it is inside that website's frame. */
+  returnOrigin: string | null;
 }
 
 export interface AttemptResult {
@@ -70,6 +72,7 @@ export class FlowClient {
       projectName: asText(session.project_name),
       minAge: asCount(session.min_age),
       attemptsRemaining: asCount(session.attempts_remaining),
+      returnOrigin: typeof session.return_origin === "string" ? session.return_origin : null,
     };
   }
 

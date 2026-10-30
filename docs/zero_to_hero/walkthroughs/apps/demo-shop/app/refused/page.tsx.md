@@ -1,5 +1,5 @@
 ---
-fingerprint: 79633c3816d41dfd
+fingerprint: 08fd2b47d7f5dea9
 ---
 The page a visitor sees when the age check didn't let them in, at `/refused?reason=…`. It explains what happened, kindly and without blame, and offers a way forward: try again, or go back. Whatever the reason, it never reveals anything about the person — only what the shop itself knows.
 
@@ -7,10 +7,10 @@ The page a visitor sees when the age check didn't let them in, at `/refused?reas
 Next.js's `Link`.
 
 @@ 3
-The two button styles.
+The quiet button style (the age-check button brings its own).
 
 @@ 5
-The server action that starts a new check.
+The shop's age-check button, which starts a new check in a modal (`age-check-button.tsx`).
 
 @@ 7-10
 **`FALLBACK`** — the message for errors, and for any reason the page doesn't know.
@@ -42,11 +42,11 @@ Read the reason, and pick its message, or the fallback.
 @@ 35-38
 The title and explanation, centred.
 
-@@ 39-44
-"Try the age check again" — the same server-action form as on the entrance.
+@@ 39-40
+A row of buttons. "Try the age check again" — the same age-check button as on the entrance.
 
-@@ 45-47
+@@ 41-43
 Or go back to the entrance.
 
-@@ 48-51
+@@ 44-47
 The closing tags.

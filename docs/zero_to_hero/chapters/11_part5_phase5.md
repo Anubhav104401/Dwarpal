@@ -9,6 +9,7 @@ Phase 5 gives Dwarpal the faces people see: the console for its customers, a pol
 | Marketing site (3D face-mesh hero) | 🗓 waits for an approved 3D library |
 | Verify flow in English and Hindi | 🗓 waits for an approved translation library |
 | Exit tests on three browser engines, accessibility and Lighthouse checks | 🟢 built (§5.5.5): Chromium and WebKit pass here, Firefox can't start on this computer; axe clean on the key pages; Lighthouse ≥ 90 |
+| Demo shop and SDKs — `@dwarpal/js`, `@dwarpal/react`, `@dwarpal/node` | 🟢 the check opens in a modal on the website's own page (§5.5.7); the shop uses the React button |
 
 ### 5.5.1 The console's first pages
 
@@ -252,3 +253,60 @@ The rest changed existing files, each re-explained in its walkthrough:
 
 The frame (`console-shell.tsx`) now draws the sidebar and the palette when a page says `signedIn`; each signed-in page says so, and the front page's *Age model* and *Security* links moved into the sidebar. A browser test opens the palette from the keyboard, searches, and arrives at a project, and the accessibility test checks the open palette too. Each changed file was re-explained.
 
+### 5.5.7 The check in a modal: the browser SDKs
+
+Until now a website sent its visitor *away* to the verify page and waited for them to come back. The design's first choice is gentler: the check opens in a **modal** over the website's own page, the verify page inside a **frame**. Two packages do that for websites: **`@dwarpal/js`**, for any web page, and **`@dwarpal/react`**, a button and a hook for websites built with React. The demo shop now uses the React button.
+
+Our own security headers stood in the way. The verify page told browsers that no website could frame it (`frame-ancestors 'none'`), against **clickjacking**. Loosening that is a security trade-off, so it went to the owner as decision **D16**, who chose: allow framing **per session**, only by the website the session returns to.
+
+How it fits together:
+
+```
+website's server ──(secret key)──► API: new session (return address: shop.example)
+website's page: VerifyAgeButton ──► modal + frame ──► verify page
+   verify page's web server asks the API: "who may frame vs_…?"  →  https://shop.example
+   header: frame-ancestors https://shop.example
+verify page ──postMessage("finished", only to shop.example)──► website's page ──► return address ──► server checks the result
+```
+
+!!! key "Key idea — two pages, two origins, one narrow channel"
+    A page in a frame and the page around it can't touch each other when they come from different websites; the only way through is `postMessage`. Each side keeps one rule. The **sender** names the one origin allowed to receive the message, so it can't leak elsewhere. The **receiver** accepts a message only from the frame it opened and from the verify page's origin, which the browser sets and nobody can fake. And the message carries no result: only "finished, go to your return address", where the website's *server* asks for the result with its key. A message, a callback, anything in the browser can be forged; the token can't.
+
+The rules, one by one:
+
+- **Which website may frame a verify page** — the origin of the session's return address. The website gave it with its secret key, and it had to be one of the project's allowed origins. The verify page's web server asks the API on every page (`/frame-ancestor`), checks the answer is an origin and nothing else, and puts it in the header. Any doubt — no session, an expired one, an API that is slow or down — means no website at all. The page still works full-page.
+- **What the website's page accepts** — only our two messages (`finished`, `full_page`), from the frame it opened, at the verify page's origin, about its own session, and a `finished` only with an address on the website's *own* origin. Anything else is ignored.
+- **The camera in a frame** — a frame may use the camera only if the page around it allows it (`allow="camera"`). If a browser still refuses, the verify page offers to **open the check in a full page**, and the SDK sends the whole tab there, with the same link.
+
+!walk packages/sdk-js/package.json
+
+!walk packages/sdk-js/tsconfig.json
+
+!walk packages/sdk-js/tsconfig.build.json
+
+!walk packages/sdk-js/src/protocol.ts
+
+!walk packages/sdk-js/src/link.ts
+
+!walk packages/sdk-js/src/open.ts
+
+!walk packages/sdk-js/src/index.ts
+
+!walk packages/sdk-js/test/protocol.test.ts
+
+!walk packages/sdk-react/package.json
+
+!walk packages/sdk-react/tsconfig.json
+
+!walk packages/sdk-react/tsconfig.build.json
+
+!walk packages/sdk-react/src/index.tsx
+
+!walk packages/sdk-react/test/button.test.tsx
+
+!walk apps/demo-shop/app/age-check-button.tsx
+
+!!! real "Real world — what the browser test caught"
+    The first run of the new story passed: the check ran inside the frame, camera and all, and the shop let the person in. The *closing* test failed. Pressing the button made it `disabled` while the session was being created, and a disabled button loses the keyboard focus, so when the modal closed there was nothing to give the focus back to. A keyboard user would have been dropped at the top of the page. The button now says it is busy with `aria-disabled` and ignores presses instead, keeping its focus.
+
+The API (the use cases' `frame_ancestor` and the flow's `return_origin`, the new route, and a test), the verify page's proxy and its tests, the flow client and its test, the verify flow, both apps' `package.json`, the shop's action and its two pages, and the browser tests (the shop's story and its accessibility check, now with the modal open) changed too; each was re-explained.

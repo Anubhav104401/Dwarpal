@@ -34,6 +34,13 @@ async def start(session_text: str, body: StartFlow, svc: Annotated[Services, Dep
     return await verification.start_flow(svc, session_text, body.client_secret)
 
 
+@router.get("/frame-ancestor")
+async def frame_ancestor(session_text: str, svc: Annotated[Services, Depends(services)]) -> dict[str, str | None]:
+    """Asked by the verify page's web server before it serves the page: which website may frame it. Needs no
+    secret — it names only a website the session will send the person back to anyway."""
+    return {"origin": await verification.frame_ancestor(svc, session_text)}
+
+
 @router.post("/challenge")
 async def challenge(
     request: Request,

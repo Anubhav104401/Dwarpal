@@ -1,5 +1,5 @@
 ---
-fingerprint: 2e30e33b6732a20d
+fingerprint: 2ac8f4fdc2b20052
 ---
 The package description of **`@dwarpal/web`** — the **hosted verify page**: the website a person is sent to by a shop, where they take the age check with their camera. It is built with **Next.js** (§4.17), the React framework chosen in ADR-0012.
 
@@ -35,7 +35,7 @@ The scripts:
 @@ 13
 The end of the scripts.
 
-@@ 14-21
+@@ 14-22
 What the page needs to run, each pinned exactly:
 
 - `geist` — the **Geist** typeface, as font files inside the package (its licence, the SIL Open Font License, allows exactly this). The page serves the fonts itself, so a visitor's browser never contacts a font service;
@@ -47,8 +47,10 @@ Each version was at least seven days old when chosen — the workspace's cooldow
 
 Added in Phase 3: `@mediapipe/tasks-vision` 1.1.0 — Google's **MediaPipe** vision tasks for the browser (Apache-2.0), which includes the face landmarker used for live guidance (`lib/landmarker.ts`). Version 1.1.1 existed, but was less than a week old.
 
-@@ 22-32
+Added with decision D16: `@dwarpal/js`, this repository's own browser SDK (`workspace:*`). The verify page imports its **message protocol** (`protocol.ts`), so the messages it sends to a website that framed it are exactly the ones the SDK reads.
+
+@@ 23-33
 What's needed only to develop and build it: the shared TypeScript settings; **Tailwind CSS** and its PostCSS plugin (§4.18); type descriptions of Node.js, `qrcode`, React and React DOM; the TypeScript compiler; and Vitest.
 
-@@ 33
+@@ 34
 The closing brace.

@@ -5,7 +5,7 @@ import { button } from "@/components/ui";
 import { MIN_AGE, shopConfig } from "@/lib/config";
 import { PASS_COOKIE, readPass } from "@/lib/pass";
 
-import { startAgeCheck } from "./actions";
+import { AgeCheckButton } from "./age-check-button";
 
 export default async function Entrance() {
   const pass = readPass((await cookies()).get(PASS_COOKIE)?.value, shopConfig().secret);
@@ -19,11 +19,7 @@ export default async function Entrance() {
       </p>
       <div className="mt-10">
         {pass === null ? (
-          <form action={startAgeCheck}>
-            <button type="submit" className={button}>
-              Verify my age to enter
-            </button>
-          </form>
+          <AgeCheckButton>Verify my age to enter</AgeCheckButton>
         ) : (
           <Link href="/cellar" className={button}>
             Enter the cellar

@@ -41,6 +41,8 @@ The browser and everything on the internet is untrusted. The inference service i
 | Disclosure: telling an attacker which check fired | outward reasons are vague (`liveness_uncertain`) | `domain/decision.py` |
 | **D**enial of service / trial and error | per-session, per-device and per-address challenge budgets; body-size limits | `test_one_device_gets_only_so_many_challenges_*`; `test_oversized_and_unmeasured_bodies_*` |
 | **E**levation: reaching another session | flow token bound to one session; RLS by the session's project | `flow_session`; `session_tenant` |
+| Clickjacking: framing the verify page (D16, 30 Oct) | `frame-ancestors` names only the origin of the session's return address (an allowed origin the website registered with its key); `'none'` for every other page and on any doubt; the origin is pattern-checked before it enters the header | `test_only_the_website_a_session_returns_to_may_frame_its_verify_page`; `proxy.test.ts`; e2e *no other website may frame a verify page* |
+| Spoofed or leaked `postMessage` between the verify page and the website | the page sends only to the return origin; the SDK accepts only from its own frame at the verify origin, for its session, and moves only to its own origin; messages carry no result — the website's server fetches it with its key | `protocol.test.ts`; `open.ts` |
 
 ### 3.2 Website API (API keys)
 

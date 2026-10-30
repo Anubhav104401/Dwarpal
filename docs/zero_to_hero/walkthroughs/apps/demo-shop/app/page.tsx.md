@@ -1,5 +1,5 @@
 ---
-fingerprint: 7fae39ff7ffc8efb
+fingerprint: 9f15794a24a06cb8
 ---
 The shop's **entrance**, at `/`: who the shop is, why it checks ages, and the button that starts the check. A visitor who already holds a valid pass sees "Enter the cellar" instead.
 
@@ -12,7 +12,7 @@ Next.js's `cookies` and `Link`.
 The button style, the age and settings, and the pass functions.
 
 @@ 8
-The server action behind the button.
+The shop's age-check button (`age-check-button.tsx`), which opens Dwarpal's check in a modal.
 
 @@ 10
 **`Entrance`**, the page.
@@ -35,17 +35,17 @@ Why the shop checks: it sells alcohol, so everyone confirms they are 18 or over.
 @@ 20-21
 The action area. No valid pass?
 
-@@ 22-26
-Then show a **form** whose `action` is the server action. Pressing the button submits the form, which runs `startAgeCheck` on the server. Using a real form means it works even before the page's JavaScript has loaded — and even with JavaScript switched off.
+@@ 22
+Then show the age-check button. Pressing it asks the shop's server for a session, and opens the check over this page. (Until decision D16 this was a form that sent the whole page to the verify page; a modal keeps the visitor on the shop, but needs the page's JavaScript.)
 
-@@ 27-31
+@@ 23-27
 With a valid pass, simply link to the cellar.
 
-@@ 32
+@@ 28
 The end of the action area.
 
-@@ 33-36
+@@ 29-32
 Small print in plain words: who checks ages, that photos are never stored, and what the shop learns — "only whether you are old enough".
 
-@@ 37-39
+@@ 33-35
 The closing tags.

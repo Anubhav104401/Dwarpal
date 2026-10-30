@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import { button, quietButton } from "@/components/ui";
+import { quietButton } from "@/components/ui";
 
-import { startAgeCheck } from "../actions";
+import { AgeCheckButton } from "../age-check-button";
 
 const FALLBACK = {
   title: "Something went wrong",
@@ -37,11 +37,7 @@ export default async function Refused({ searchParams }: { searchParams: Promise<
       <h1 className="font-serif text-4xl">{message.title}</h1>
       <p className="mt-5 text-lg leading-relaxed text-stone-300">{message.body}</p>
       <div className="mt-10 flex flex-wrap justify-center gap-4">
-        <form action={startAgeCheck}>
-          <button type="submit" className={button}>
-            Try the age check again
-          </button>
-        </form>
+        <AgeCheckButton>Try the age check again</AgeCheckButton>
         <Link href="/" className={quietButton}>
           Back to the entrance
         </Link>

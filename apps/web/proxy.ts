@@ -8,9 +8,36 @@ import { type NextRequest, NextResponse } from "next/server";
  */
 
 const apiUrl = process.env.NEXT_PUBLIC_DWARPAL_API_URL ?? "http://localhost:8000";
+// How this server reaches the API, if not by the public address (inside a private network, say).
+const internalApiUrl = process.env.DWARPAL_API_INTERNAL_URL ?? apiUrl;
 const development = process.env.NODE_ENV === "development";
 
-export function policy(nonce: string): string {
+const VERIFY_PAGE = /^\/v\/(vs_[0-9A-Za-z]{26})$/;
+// An origin and nothing else — scheme, host, optional port — before it goes into a header.
+const ORIGIN = /^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?$/;
+
+/**
+ * Which website may show this verify page inside a frame (decision D16): the one its session will send the person
+ * back to, as the API says. Any doubt — another page, an API that is slow or down, a strange answer — means none.
+ */
+export async function frameAncestorFor(path: string, ask: typeof fetch): Promise<string | null> {
+  const session = VERIFY_PAGE.exec(path)?.[1];
+  if (session === undefined) {
+    return null;
+  }
+  try {
+    const answer = await ask(`${internalApiUrl}/v1/flow/sessions/${session}/frame-ancestor`, {
+      signal: AbortSignal.timeout(1500),
+      cache: "no-store",
+    });
+    const origin: unknown = answer.ok ? ((await answer.json()) as { origin?: unknown }).origin : null;
+    return typeof origin === "string" && ORIGIN.test(origin) ? origin : null;
+  } catch {
+    return null;
+  }
+}
+
+export function policy(nonce: string, frameAncestor: string | null = null): string {
   return [
     "default-src 'self'",
     `connect-src 'self' ${apiUrl}`,
@@ -25,13 +52,18 @@ export function policy(nonce: string): string {
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
+    `frame-ancestors ${frameAncestor ?? "'none'"}`,
   ].join("; ");
 }
 
-export function proxy(request: NextRequest): NextResponse {
+export function proxy(request: NextRequest): Promise<NextResponse> {
+  return secure(request, fetch);
+}
+
+/** The page's answer with its policy; `ask` is how the API is asked (a stand-in, in tests). */
+export async function secure(request: NextRequest, ask: typeof fetch): Promise<NextResponse> {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-  const header = policy(nonce);
+  const header = policy(nonce, await frameAncestorFor(request.nextUrl.pathname, ask));
   // Next.js reads the policy from the request to find the nonce; the browser reads it from the response.
   const headers = new Headers(request.headers);
   headers.set("Content-Security-Policy", header);

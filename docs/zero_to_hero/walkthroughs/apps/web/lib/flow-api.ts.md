@@ -1,5 +1,5 @@
 ---
-fingerprint: 6b953096ae85823d
+fingerprint: 4386cabd4b2057b4
 ---
 The verify page's **client for the flow API** (§5.1.3): four methods, one per step of the check, that run in the person's browser.
 
@@ -29,13 +29,13 @@ From `challenge.ts` (Phase 3): the `Challenge` type, `readChallenge` (which turn
 @@ 8
 `AttemptOutcome` — the five answers to a face attempt (§5.1.2, `decision.py`).
 
-@@ 10-17
-`FlowSession` — what the page knows about its session: the ID, status, outcome (if finished), the website's name, the minimum age, and the attempts left.
+@@ 10-19
+`FlowSession` — what the page knows about its session: the ID, status, outcome (if finished), the website's name, the minimum age, the attempts left, and the website's **return origin** (decision D16) — the only page this one will talk to when it is inside that website's frame.
 
-@@ 19-23
+@@ 21-25
 `AttemptResult` — the answer to one attempt: the outcome, the reason codes, the attempts left.
 
-@@ 25-31
+@@ 27-33
 **`CapturedAttempt`** (Phase 3) — everything the camera produced for one attempt, as the docstring says:
 
 - `challengeId` — the challenge it answers;
@@ -43,93 +43,93 @@ From `challenge.ts` (Phase 3): the `Challenge` type, `readChallenge` (which turn
 - `lightStartedMs` — when the screen colours started, on the frames' clock, or `null` if they weren't shown;
 - `signals` — what the browser noticed about itself.
 
-@@ 33-45
+@@ 35-47
 **`FlowError`** — the error for any refusal, built exactly like the SDK's `DwarpalApiError` (see `packages/sdk-node/src/errors.ts`): a status, a stable code, a message and the request ID.
 
-@@ 47
+@@ 49
 `Json` — "an object with unknown values", as in the SDK.
 
-@@ 49
+@@ 51
 **`asJson`** — any value as an object: the value itself if it *is* a (non-null) object, otherwise an empty one.
 
-@@ 50
+@@ 52
 **`asText`** — any value as text: the value if it is a string, otherwise empty text.
 
-@@ 51
+@@ 53
 **`asCount`** — any value as a whole number: the value if it is one, otherwise 0.
 
-@@ 53
+@@ 55
 **`FlowClient`** — one client per session.
 
-@@ 54-55
+@@ 56-57
 Two private fields: the base address for this session's flow endpoints, and the flow token — `null` until `start` has run.
 
-@@ 57-59
+@@ 59-61
 The constructor builds the base address: the API's address without a trailing slash, then `/v1/flow/sessions/` and the session's ID. `encodeURIComponent` makes the ID safe inside an address, even if it contained odd characters — the page has already checked its shape, but checking again costs nothing.
 
-@@ 61-62
+@@ 63-64
 **`start`** — exchange the link's one-time secret for a flow token.
 
-@@ 63
+@@ 65
 Send the secret as JSON to `/start`.
 
-@@ 64
+@@ 66
 Keep the flow token, in a private field. It lives only in this page's memory: not in the address, not in browser storage, and gone the moment the tab closes.
 
-@@ 65-74
-Turn the API's `session` object into a `FlowSession`, translating snake_case into camelCase. `as SessionStatus` tells TypeScript to trust that the status is one of the three; the screens treat anything unexpected as finished, so a surprise can't unlock anything.
+@@ 67-77
+Turn the API's `session` object into a `FlowSession`, translating snake_case into camelCase; a return origin that isn't text becomes `null`. `as SessionStatus` tells TypeScript to trust that the status is one of the three; the screens treat anything unexpected as finished, so a surprise can't unlock anything.
 
-@@ 76-77
+@@ 79-80
 **`challenge`** — ask the API for a fresh, one-time challenge. As the comment says, it carries this browser's device ID, if it has one. It is `async`, so it returns a `Promise` that will hold the `Challenge`.
 
-@@ 78-82
+@@ 81-85
 The device ID is a parameter whose default is `deviceId()` — evaluated each time the method is called without one. Tests pass their own. Post to `/challenge` with no body (`null`), adding the `X-Dwarpal-Device` header when there is an ID (`{}` adds nothing), then check and convert the answer with `readChallenge`.
 
-@@ 84-86
+@@ 87-89
 **`attempt`** — upload one attempt. `const { frames, signals } = captured;` is **destructuring**: it takes those two fields out of `captured` into variables of the same names, to keep the lines below short.
 
-@@ 87
+@@ 90
 Build a **multipart form** (§4.13). `FormData` is the browser's own builder for one.
 
-@@ 88
+@@ 91
 The challenge's ID, as a text field.
 
-@@ 89-101
+@@ 92-104
 The `meta` field: a JSON description of the attempt, in the API's spelling (`t_ms`, not `tMs`):
 
 - `frames` — for each one, its position (`index`), when it was taken (`t_ms`, rounded to whole milliseconds) and its `phase`. `map` turns each frame into a new value; its second argument is the position in the list;
 - `light_started_ms` — when the colours began, rounded, or `null`. `a === null ? x : y` means "if `a` is null, `x`, otherwise `y`";
 - `signals` — the browser's signals, renamed field by field into the API's names.
 
-@@ 102-104
+@@ 105-107
 Each frame's bytes as a file field named `frame_0`, `frame_1`, …, with a file name. `forEach` runs a function for every item of a list.
 
-@@ 105
+@@ 108
 Upload it all to `/face-attempts`.
 
-@@ 106-111
+@@ 109-114
 The answer: the outcome, the reasons (keeping only text — `Array.isArray` checks that it really is a list), and the attempts left.
 
-@@ 113-117
+@@ 116-120
 **`finish`** — ask where to send the person: the address, or `null`.
 
-@@ 119-123
+@@ 122-126
 **`#post`** — the one private method that sends every request. Its body may be JSON text, a form, or nothing; `extra` holds any additional headers, none by default.
 
-@@ 124-127
+@@ 127-130
 Headers: ask for JSON back, add the extra headers (`...extra` copies them in), and — once there is a flow token — send it as a bearer token.
 
-@@ 128-130
+@@ 131-133
 Only JSON text gets an explicit `Content-Type`. For a `FormData` body, the browser writes the header itself, including the random **boundary** that separates the parts. Setting it by hand would leave the boundary out, and the server couldn't read the form.
 
-@@ 131-136
+@@ 134-139
 Send the request. `fetch` only throws when no answer came back at all — the network is down, or the server unreachable. That becomes a `FlowError` with the special status 0 and the code `network_error`, so the screens can say "you seem to be offline".
 
-@@ 137
+@@ 140
 Read the answer as JSON, falling back to an empty object if it isn't JSON.
 
-@@ 138-142
+@@ 141-145
 Not a success? Throw a `FlowError` with the API's code and message, falling back to generic ones. `||` picks the right-hand value when the left is empty text.
 
-@@ 143-145
+@@ 146-148
 Success: return the answer. The closing braces end the method and the class.

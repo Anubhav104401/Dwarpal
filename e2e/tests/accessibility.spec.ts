@@ -29,8 +29,10 @@ test("the shop, and the verify page before the camera, break no accessibility ru
   await expect(page.getByRole("button", { name: "Verify my age to enter" })).toBeVisible();
   expect(await violations(page)).toEqual([]);
 
+  // The check opens in a modal over the shop (decision D16); axe looks inside its frame too.
   await page.getByRole("button", { name: "Verify my age to enter" }).click();
-  await expect(page.getByRole("heading", { name: "Confirm you are 18 or over" })).toBeVisible();
+  const check = page.frameLocator('iframe[title="Age check"]');
+  await expect(check.getByRole("heading", { name: "Confirm you are 18 or over" })).toBeVisible();
   expect(await violations(page)).toEqual([]);
 });
 

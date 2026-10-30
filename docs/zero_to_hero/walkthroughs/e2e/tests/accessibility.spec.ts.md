@@ -1,5 +1,5 @@
 ---
-fingerprint: a46984c8d266d293
+fingerprint: 79d22b956dc07e3d
 ---
 The accessibility checks (Phase 5's exit criterion "axe clean"): **axe** inspects each key page against the rules of WCAG 2.2 at levels A and AA, on every browser engine, and the test fails if any rule is broken — naming the rule and the elements.
 
@@ -30,44 +30,44 @@ End of `violations`.
 @@ 27-30
 **Test — the shop.** Its front page: no broken rule.
 
-@@ 32-34
-Then the verify page, as a visitor first sees it (before the camera): none either.
+@@ 32-36
+Then, as the comment says, open the check: since decision D16 it opens in a modal over the shop, the verify page inside a frame. Wait for the verify page's intro inside the frame, and check the whole page again. axe looks inside frames too, so this one check covers the shop under the modal, the modal and its Close button, and the verify page as a visitor first sees it (before the camera): no failures either.
 
-@@ 35
+@@ 37
 End of the test.
 
-@@ 37-40
+@@ 39-42
 **Test — the console.** The sign-in page.
 
-@@ 42-48
+@@ 44-50
 Create an account; the organisations page.
 
-@@ 50-52
+@@ 52-54
 The organisation's page, with its audit log.
 
-@@ 54-56
+@@ 56-58
 The project's page, down to the webhooks.
 
-@@ 58-61
+@@ 60-63
 The *Security* page, with a QR code on show.
 
-@@ 63-65
+@@ 65-67
 The *Age model* page.
 
-@@ 67-69
+@@ 69-71
 The command palette, opened from the sidebar's button, with its search box focused.
 
-@@ 70
+@@ 72
 End of the test.
 
-@@ 72-74
+@@ 74-76
 **Test — the design system's specimen** (§5.5.6), in both themes.
 
-@@ 75-76
+@@ 77-78
 For the light theme, then the dark: tell the browser to report that colour scheme (`emulateMedia`), as a visitor's system setting would.
 
-@@ 77-79
+@@ 79-81
 Open the specimen; once its heading is there, no rule may be broken — the failure message names the theme.
 
-@@ 80-81
+@@ 82-83
 End of the loop and the test.

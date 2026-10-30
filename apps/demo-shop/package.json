@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@dwarpal/node": "workspace:*",
+    "@dwarpal/react": "workspace:*",
     "geist": "1.7.2",
     "next": "16.4.2",
     "react": "19.3.0",

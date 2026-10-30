@@ -1,5 +1,6 @@
 "use client";
 
+import { MESSAGE_SOURCE, type VerifyMessage } from "@dwarpal/js";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { accentButton, card, primaryButton, Shell } from "@/components/shell";
@@ -26,6 +27,12 @@ function takeSecretFromLink(): string | null {
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
   }
   return secret;
+}
+
+/** The website whose frame this page is in, if it is in one and that website is the session's own (decision D16):
+ * the only one this page will talk to. The browser enforces the rest — no other website may frame this page. */
+function framingWebsite(session: FlowSession): string | null {
+  return window.parent !== window ? session.returnOrigin : null;
 }
 
 function problemStage(error: unknown): Stage {
@@ -106,6 +113,7 @@ const PROMISES = [
 export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: string }) {
   const [stage, setStage] = useState<Stage>({ kind: "loading" });
   const [leaving, setLeaving] = useState(false);
+  const [framedBy, setFramedBy] = useState<string | null>(null);
   const secret = useRef<string | null>(null);
   const flow = useRef<FlowClient | null>(null);
 
@@ -123,6 +131,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
           return;
         }
         flow.current = client;
+        setFramedBy(framingWebsite(session));
         setStage(
           session.status === "in_progress"
             ? { kind: "intro", session }
@@ -166,6 +175,13 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     }
   }, []);
 
+  /** Tell the framing website something, at its origin only: nothing reaches any other page. */
+  function tellWebsite(message: VerifyMessage) {
+    if (framedBy !== null) {
+      window.parent.postMessage(message, framedBy);
+    }
+  }
+
   async function leave() {
     const client = flow.current;
     if (client === null) {
@@ -174,6 +190,11 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     setLeaving(true);
     try {
       const destination = await client.finish();
+      if (destination !== null && framedBy !== null) {
+        // In a frame, the website moves its whole page to the return address (the SDK checks it is its own).
+        tellWebsite({ source: MESSAGE_SOURCE, type: "finished", sessionId, redirectUrl: destination });
+        return;
+      }
       if (destination !== null) {
         window.location.assign(destination);
         return;
@@ -203,6 +224,15 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
           </Icon>
           <h1 className="mt-5 text-2xl font-semibold tracking-tight">{stage.problem.title}</h1>
           <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">{stage.problem.detail}</p>
+          {framedBy === null ? null : (
+            <button
+              type="button"
+              className={`${primaryButton} mt-8`}
+              onClick={() => tellWebsite({ source: MESSAGE_SOURCE, type: "full_page", sessionId })}
+            >
+              Open the check in a full page
+            </button>
+          )}
           {stage.requestId === null ? null : (
             <p className="mt-6 font-mono text-xs text-ink-500">Reference: {stage.requestId}</p>
           )}
