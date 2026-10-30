@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import hashlib
 import hmac
 import json
@@ -12,12 +13,13 @@ import re
 import threading
 import time
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 import cv2
 import docker
@@ -36,7 +38,7 @@ from redis.asyncio import Redis
 from schemathesis import Case
 from schemathesis.specs.openapi.checks import positive_data_acceptance
 from sqlalchemy import delete, func, select, text, update
-from sqlalchemy.engine import Connection
+from sqlalchemy.engine import Connection, make_url
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import create_async_engine
 from testcontainers.community.postgres import PostgresContainer
@@ -127,11 +129,14 @@ async def harness(
     livemode: bool = False,
     liveness: Literal["images", "labels"] = "labels",
     scopes: list[str] | None = None,
+    inference_via: Callable[[httpx.AsyncBaseTransport], httpx.AsyncBaseTransport] | None = None,
     **overrides: Any,
 ) -> AsyncIterator[Harness]:
     database_url, valkey_url = databases
     inference = create_inference(InferenceSettings(stub_age=stub_age, liveness=liveness))
-    inference_transport = httpx.ASGITransport(app=inference)
+    inference_transport: httpx.AsyncBaseTransport = httpx.ASGITransport(app=inference)
+    if inference_via is not None:
+        inference_transport = inference_via(inference_transport)
     async with (
         inference.router.lifespan_context(inference),
         httpx.AsyncClient(transport=inference_transport, base_url="http://inference") as inference_http,
@@ -175,10 +180,13 @@ async def attempt(
     poses: list[str] | None = None,
     signals: ClientSignals | None = None,
     claimed: Challenge | None = None,
+    challenge: dict[str, Any] | None = None,
 ) -> httpx.Response:
     """One face attempt. By default the frames' labels follow the challenge the server issued; an attack may label
-    them in another order (`poses`), report other browser signals, or claim a challenge of its own."""
-    challenge = (await h.client.post(f"/v1/flow/sessions/{session}/challenge", headers=flow)).json()
+    them in another order (`poses`), report other browser signals, or claim a challenge of its own. A challenge
+    fetched earlier can be given (`challenge`); otherwise one is fetched now."""
+    if challenge is None:
+        challenge = (await h.client.post(f"/v1/flow/sessions/{session}/challenge", headers=flow)).json()
     shown = poses if poses is not None else challenge["poses"]
     frames = frames + frames[-1:] * max(0, 3 + len(shown) - len(frames))  # at least 3 frontal frames, then the poses
     labels = following(shown, len(frames))
@@ -1196,6 +1204,175 @@ async def test_when_inference_fails_an_attempt_is_retried_never_passed(
             results = [(await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json() for _ in range(2)]
     assert all(result["outcome"] != "pass" for result in results)
     assert results[0]["outcome"] == "retry"
+
+
+# --- Chaos: services that die in the middle of a check (Phase 7, "kill inference/Valkey mid-flow") ---
+
+
+class Cutter:
+    """A TCP passage in front of a real service (PostgreSQL, Valkey) that a test can cut, as if the service had died:
+    every open connection is dropped at once, and new ones are hung up on. Restoring it lets connections through
+    again — the service is back, with its data, as after a restart."""
+
+    def __init__(self, host: str, port: int) -> None:
+        self.target = (host, port)
+        self.down = False
+        self.open: set[asyncio.StreamWriter] = set()
+        self.server: asyncio.Server | None = None
+
+    async def __aenter__(self) -> Cutter:
+        self.server = await asyncio.start_server(self.relay, "127.0.0.1", 0)
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        self.cut()
+        if self.server is not None:
+            self.server.close()
+
+    @property
+    def port(self) -> int:
+        assert self.server is not None
+        return int(self.server.sockets[0].getsockname()[1])
+
+    async def relay(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        if self.down:
+            writer.transport.abort()
+            return
+        upstream_reader, upstream_writer = await asyncio.open_connection(*self.target)
+        pair = {writer, upstream_writer}
+        self.open |= pair
+        await asyncio.gather(pipe(reader, upstream_writer), pipe(upstream_reader, writer))
+        self.open -= pair
+
+    def cut(self) -> None:
+        self.down = True
+        for writer in list(self.open):
+            writer.transport.abort()
+
+    def restore(self) -> None:
+        self.down = False
+
+
+async def pipe(source: asyncio.StreamReader, sink: asyncio.StreamWriter) -> None:
+    """Copy one direction of a connection until it ends; then drop the other side too, so neither is left hanging."""
+    with contextlib.suppress(ConnectionError, OSError):
+        while data := await source.read(65536):
+            sink.write(data)
+            await sink.drain()
+    sink.transport.abort()
+
+
+@asynccontextmanager
+async def chaos(databases: tuple[str, str]) -> AsyncIterator[tuple[tuple[str, str], Cutter, Cutter]]:
+    """The test databases reached through cutters: their new addresses, and the cutters for PostgreSQL and Valkey."""
+    postgres_url, valkey_url = make_url(databases[0]), urlsplit(databases[1])
+    assert postgres_url.host is not None and postgres_url.port is not None
+    assert valkey_url.hostname is not None and valkey_url.port is not None
+    async with (
+        Cutter(postgres_url.host, postgres_url.port) as postgres,
+        Cutter(valkey_url.hostname, valkey_url.port) as valkey,
+    ):
+        routed = postgres_url.set(host="127.0.0.1", port=postgres.port).render_as_string(hide_password=False)
+        yield (routed, f"redis://127.0.0.1:{valkey.port}/0"), postgres, valkey
+
+
+class Switch(httpx.AsyncBaseTransport):
+    """In front of the inference service: while `down`, every call fails as if it had died; `on_call` runs first."""
+
+    def __init__(self) -> None:
+        self.inner: httpx.AsyncBaseTransport | None = None
+        self.down = False
+        self.on_call: Callable[[], None] = lambda: None
+
+    def around(self, inner: httpx.AsyncBaseTransport) -> httpx.AsyncBaseTransport:
+        self.inner = inner
+        return self
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        self.on_call()
+        if self.down or self.inner is None:
+            raise httpx.ConnectError("the inference service is down", request=request)
+        return await self.inner.handle_async_request(request)
+
+
+def unavailable(response: httpx.Response) -> tuple[int, str, str]:
+    return response.status_code, response.json()["code"], response.headers.get("retry-after", "")
+
+
+async def outcome_of(h: Harness, session: str) -> tuple[str, str | None]:
+    found = (await h.client.get(f"/v1/verification-sessions/{session}", headers=bearer_of(h.key))).json()
+    return found["status"], found["outcome"]
+
+
+@pytest.mark.anyio
+async def test_chaos_valkey_dies_mid_check_nothing_passes_and_the_check_recovers(databases: tuple[str, str]) -> None:
+    async with chaos(databases) as (routed, _, valkey), harness(routed) as h:
+        created = (await create(h)).json()
+        flow = await start(h, created)
+        challenge = (await h.client.post(f"/v1/flow/sessions/{created['id']}/challenge", headers=flow)).json()
+        valkey.cut()
+        down = await attempt(h, created["id"], flow, [PORTRAIT] * 6, challenge=challenge)
+        ready = await h.client.get("/readyz")
+        valkey.restore()
+        result = (await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json()
+        final = await outcome_of(h, created["id"])
+    assert unavailable(down) == (503, "service_unavailable", "5")
+    assert ready.json() == {"database": "ok", "valkey": "unavailable"}
+    assert (result["outcome"], final) == ("pass", ("completed", "pass"))
+
+
+@pytest.mark.anyio
+async def test_chaos_the_database_dies_between_steps_nothing_passes_and_the_check_recovers(
+    databases: tuple[str, str],
+) -> None:
+    async with chaos(databases) as (routed, postgres, _), harness(routed) as h:
+        created = (await create(h)).json()
+        flow = await start(h, created)
+        challenge = (await h.client.post(f"/v1/flow/sessions/{created['id']}/challenge", headers=flow)).json()
+        postgres.cut()
+        down = await attempt(h, created["id"], flow, [PORTRAIT] * 6, challenge=challenge)
+        ready = await h.client.get("/readyz")
+        postgres.restore()
+        result = (await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json()
+        final = await outcome_of(h, created["id"])
+    assert unavailable(down) == (503, "service_unavailable", "5")
+    assert ready.json() == {"database": "unavailable", "valkey": "ok"}
+    assert (result["outcome"], final) == ("pass", ("completed", "pass"))
+
+
+@pytest.mark.anyio
+async def test_chaos_the_database_dies_while_a_face_is_analysed_nothing_is_recorded_or_passed(
+    databases: tuple[str, str],
+) -> None:
+    switch = Switch()
+    async with chaos(databases) as (routed, postgres, _), harness(routed, inference_via=switch.around) as h:
+        created = (await create(h)).json()
+        flow = await start(h, created)
+        switch.on_call = postgres.cut  # the database dies after the attempt is accepted, before it is decided
+        down = await attempt(h, created["id"], flow, [PORTRAIT] * 6)
+        switch.on_call = lambda: None
+        postgres.restore()
+        between = await outcome_of(h, created["id"])
+        result = (await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json()
+        final = await outcome_of(h, created["id"])
+    assert unavailable(down) == (503, "service_unavailable", "5")
+    assert between == ("in_progress", None)
+    assert (result["outcome"], final) == ("pass", ("completed", "pass"))
+
+
+@pytest.mark.anyio
+async def test_chaos_inference_dies_and_comes_back_a_retry_then_a_pass(databases: tuple[str, str]) -> None:
+    switch = Switch()
+    async with harness(databases, inference_via=switch.around) as h:
+        created = (await create(h)).json()
+        flow = await start(h, created)
+        switch.down = True
+        during = (await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json()
+        switch.down = False
+        after = (await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json()
+        final = await outcome_of(h, created["id"])
+    assert (during["outcome"], during["attempts_remaining"]) == ("retry", 2)
+    assert (after["outcome"], final) == ("pass", ("completed", "pass"))
 
 
 @pytest.mark.anyio

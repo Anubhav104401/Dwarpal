@@ -39,6 +39,8 @@
 - **Lighthouse CI's dependencies carry 8 known flaws** (dev-only, never shipped): decision D14.
 - **Contract tests found a 500**: a NUL character in a text field (an e-mail address) reached PostgreSQL, which can't store it. Fixed for every route in `http/problems.py` (`422 invalid_text`), with a regression test. It appeared on one random run only.
 
+- **A timing flake under load (30 Oct)**: in a 22-minute run of every browser test in two engines, the age-check story timed out once in Chromium at the first pose ("turn your head to your left"): the face tracker in the browser never confirmed the pose from the fake camera in time, so nothing was uploaded. Run alone it passed. To watch: if it recurs, the pose step's wait (or the test's 90 s limit) needs room on a busy machine.
+
 ## Open items
 
 1. Design system: a display serif and token colours for the verify flow's icons; marketing site (D1) and Hindi (D2) not approved; Firefox proof on CI (O1); Lighthouse CI dependency fixes (D14).

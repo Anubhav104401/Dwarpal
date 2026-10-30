@@ -1,5 +1,5 @@
 ---
-fingerprint: 430dfe500899c1b9
+fingerprint: 15c10d6680c1b433
 ---
 The **capture-flow API** — the endpoints the hosted verify page calls from the person's browser while the check is happening:
 
@@ -48,35 +48,37 @@ The router: every path starts with `/v1/flow/sessions/{session_text}`, so each e
 @@ 49-52
 **`/face-attempts`** — the upload. It receives the raw `Request`, because the body is a **multipart form** — files plus text fields — which FastAPI doesn't turn into a Pydantic model the way it does with JSON.
 
-@@ 53
+@@ 53-54
 Parse the form, accepting at most 16 files and 2 text fields; anything more is refused by the parser itself. (The total size was already checked from the headers, `limits.py`.)
 
-@@ 54-56
+It is parsed with **`async with`**: when the block ends — normally, or because a check below refuses the request — every uploaded file is **closed**, and the memory holding the frame is let go at once. Without it, the uploads stayed open until Python's garbage collector happened to find them: a chaos test (Phase 7) showed the warnings. The frames live on only as the bytes copied into `frames`, which the use case needs.
+
+@@ 55-57
 Read the challenge ID (or empty text if it's missing) and check its shape. Wrong? `422`.
 
-@@ 57-60
+@@ 58-61
 Read the `meta` field — the JSON description of the frames — and check it against the `FaceRequestMeta` contract: 1 to 16 frames, each with a valid index and time. `from None` drops Pydantic's long internal error from the response; the client gets one clear sentence.
 
-@@ 61
+@@ 62
 An empty list, for the frames' bytes.
 
-@@ 62-65
+@@ 63-66
 For each frame described in `meta`, the form must contain a file called `frame_<index>`. Missing, or not a file? `422`, naming the frame.
 
-@@ 66-68
+@@ 67-69
 Read at most one byte more than the per-frame limit. If that extra byte arrived, the frame is too big: `413`, naming the frame and the limit.
 
-@@ 69
-Keep the frame's bytes.
-
 @@ 70
-Hand everything to the use case, which uses up the challenge, asks the AI, decides and records. It returns the decision and the attempts left.
+Keep the frame's bytes. This is the end of the `async with` block: the uploads close here.
 
 @@ 71
-**Never explain a rejection.** A `reject` means "this looked like an attack" (from Phase 3). If the answer said *why* — "the screen glare gave you away" — an attacker would learn how to improve. So every rejection is reported with the same vague reason, `verification_failed`. Every other outcome shares its reasons, which help honest people succeed: "too dark", "no face".
+Hand everything to the use case, which uses up the challenge, asks the AI, decides and records. It returns the decision and the attempts left.
 
 @@ 72
+**Never explain a rejection.** A `reject` means "this looked like an attack" (from Phase 3). If the answer said *why* — "the screen glare gave you away" — an attacker would learn how to improve. So every rejection is reported with the same vague reason, `verification_failed`. Every other outcome shares its reasons, which help honest people succeed: "too dark", "no face".
+
+@@ 73
 Answer with the outcome, the reasons, and the attempts left — never below zero.
 
-@@ 75-79
+@@ 76-80
 **`/finish`** — the use case returns where the page should send the person (or `None`), wrapped in a small JSON object.

@@ -1,5 +1,5 @@
 ---
-fingerprint: bb971d49950ed7a8
+fingerprint: e27dd005e1d27df9
 ---
 This file tells pnpm that this repository is a **workspace**: several JavaScript packages managed together, installed together and able to depend on each other (§4.4).
 
@@ -43,3 +43,6 @@ Two supply-chain settings Semgrep recommended (Phase 7):
 
 @@ 19-22
 The four: `tmp` (temporary files), `uuid` (random IDs), `basic-ftp` (an FTP client deep in Lighthouse's proxy support) and `zod` (data validation in the browser driver). Three of them jump a major version, which can break a program; the Lighthouse test ran after the change and still passed.
+
+@@ 23
+And `body-parser` (reading request bodies in Lighthouse CI's local server), added on 30 Oct: its fixed version, 1.20.9, came out on 22 Oct, so the seven-day wait (`minimumReleaseAge`) held it back until 29 Oct.

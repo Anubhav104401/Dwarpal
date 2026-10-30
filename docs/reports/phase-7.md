@@ -9,6 +9,7 @@
 | Area | Delivered |
 | :-- | :-- |
 | Fail closed | database or Valkey unreachable → `503 service_unavailable` with `Retry-After: 5` (was a generic `500`); inference down or returning nonsense → `retry`, never `pass` |
+| Chaos tests (30 Oct) | four tests in `test_api.py`, run with the others (and so in CI): PostgreSQL and Valkey reached through a TCP relay the test cuts mid-check, inference through a switch. Valkey down; database down between steps; database down *while a face is analysed*; inference down then back. Each: nothing passes while down (`503` + `Retry-After`, or `retry`), the session is untouched, and the same person passes once it is back |
 | API headers (`http/headers.py`) | `nosniff`, `no-referrer`, `X-Frame-Options: DENY`, `default-src 'none'; frame-ancestors 'none'`, `no-store` unless a route sets its own caching; HSTS (2 years) in production only |
 | Documentation pages | `/docs` only outside production (it needs scripts the content policy forbids); `/openapi.json` always published |
 | Threat model | `docs/security/threat-model.md`: assets, trust boundaries, STRIDE per component with the test proving each mitigation, age-assurance-specific attacks, eight ranked residual risks |
@@ -30,6 +31,8 @@
 | Production | HSTS sent; `/docs` → 404; `/openapi.json` → 200 |
 | pip-audit (27 Oct) | 47 known flaws in 4 packages: `pillow` 12.3.0 (38, via torchvision), `filelock` 4.1.0 (6), `certifi` 2026.7.22 (2), `setuptools` 84.0.0 (1); `torch`/`torchvision` (CUDA builds) can't be audited — not on PyPI → **D15** |
 | Trivy (27 Oct) | `uv.lock`: 30 (24 high, 6 critical) — the same packages; `pnpm-lock.yaml`: none high/critical; **no secrets**, no misconfigurations |
+| `pnpm audit` (30 Oct) | **3** — `body-parser` 1.20.9 added once past its cooldown; left: `tmp` (D14b) and `extract-zip` ×2 (no fix) |
+| Unclosed uploads (30 Oct) | found by the chaos tests, run with all warnings shown: both services parsed the frames with `await request.form()` and never closed the uploads, so frames waited in memory for the garbage collector — on every attempt, not only failed ones. Never on disk (each frame is far below the 1 MB spool threshold), but against §5.3's "released at the end of the request". **Fixed**: `async with request.form() as form:` in the API and the inference service; no warnings after |
 | `pnpm audit` | 8 → 4 after D14: `extract-zip` ×2 (no fix), `body-parser` (fix after 29 Oct), `tmp` 0.2.6 (new advisory; 0.2.7 → **D14b**) — all inside Lighthouse CI, development only |
 | ZAP web (27 Oct) | **0 fail**, 64 pass; warnings triaged: CSP `script-src 'unsafe-inline'` (**fixed 29 Oct**: per-page nonce and `'strict-dynamic'` in `apps/web/proxy.ts`; styles still allow inline), COEP missing (not needed: no cross-origin isolation features used), non-storable content and "modern web app" (informational) |
 | ZAP API (27 Oct) | **0 fail**, 119 pass; one warning — CORP missing → **fixed** |
@@ -47,7 +50,7 @@
 ## Open items
 
 1. **Scanners** — run and triaged (27–28 Oct); Semgrep clean. Left: Python fixes (D15); `tmp` 0.2.7 (D14b). (The nonce-based CSP is done, 29 Oct.)
-2. **Performance** — P1 (a) done: 3 frames, a 1 s queue; server processing p95 1.21 s for 50 people at a realistic pace (throttled laptop). **P2 decided (29 Oct)**: NFR-05 means 50 people in a check (an attempt every ~20 s each) — met on the laptop. Open: measuring on the real 4-core server (Phase 8); static INT8; certifying the lines on webcam-degraded images; a repeatable chaos test in CI.
+2. **Performance** — P1 (a) done: 3 frames, a 1 s queue; server processing p95 1.21 s for 50 people at a realistic pace (throttled laptop). **P2 decided (29 Oct)**: NFR-05 means 50 people in a check (an attempt every ~20 s each) — met on the laptop. Open: measuring on the real 4-core server (Phase 8); static INT8; certifying the lines on webcam-degraded images. (The repeatable chaos test is **done**, 30 Oct.)
 3. **Observability** — traces done; **metrics, dashboard and burn-rate alerts done (29 Oct)**: request totals by route pattern → collector → Prometheus v3.13.4; recording rules for the server-error share over 5 m/30 m/1 h/6 h; alerts `AvailabilityFastBurn` (14.4×, page), `AvailabilitySlowBurn` (6×, ticket), `FaceAttemptSlow` (p95 > 1.5 s for 10 min); Grafana dashboard `dwarpal-api` provisioned from a file. Checked on the laptop: labels are patterns only, all 7 rules healthy. Open: delivering alerts (Alertmanager and a destination — Phase 8).
 6. **Process slip**: a local test API key was printed in tool output while preparing the load test; revoked at once.
 4. ~~Privacy documents~~ — **drafted 26 Oct**; need legal review (O5) and the operator's contact details (O6). The final model card waits for a calibrated model.

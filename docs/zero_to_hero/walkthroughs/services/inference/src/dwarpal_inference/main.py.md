@@ -1,5 +1,5 @@
 ---
-fingerprint: 329354c50374be47
+fingerprint: a46eda336d8094a5
 ---
 The inference service's **HTTP interface**, built with **FastAPI**. It is internal only: in deployment it sits on a private network with no route from the internet and no way out (§3.8, "the clean room").
 
@@ -69,30 +69,32 @@ Create the FastAPI app. The automatic documentation pages (`docs_url`, `redoc_ur
 @@ 69-70
 **The main endpoint**: `POST /internal/v1/analyze/face` returns a `FaceAnalysis`. FastAPI turns the returned model into JSON automatically.
 
-@@ 71
+@@ 71-72
 Read the **multipart form**: at most `MAX_FRAMES` (16) files and 1 ordinary field (`meta`). Anything more is refused by the parser before it is stored.
 
-@@ 72-75
+As in the API, the form is opened with `async with`, so the uploads are closed as soon as the block ends — however it ends — rather than whenever the garbage collector gets to them.
+
+@@ 73-76
 Parse and validate `meta` with the contract. A missing or invalid value becomes a clear `422 Unprocessable` error. `from error` keeps the original cause for debugging.
 
-@@ 76
+@@ 77
 Collect each frame's bytes, in order.
 
-@@ 77-80
+@@ 78-81
 For each frame the metadata promises, the matching upload `frame_<index>` must exist. Otherwise the request is refused with `422`, naming the missing frame.
 
-@@ 81-83
+@@ 82-84
 Read at most one byte more than `MAX_FRAME_BYTES`. If that extra byte arrives, the frame is too big and is refused with `413 Content Too Large`. Asking for just one extra byte means an oversized frame is never copied into memory in full.
 
 To be precise about who checks what: by this point the form parser has already received the whole upload, keeping large files in a temporary file on disk. The size of a *whole request* is capped earlier — by the API, which is the only program allowed to call this service, and in production also by the web server at the front door.
 
-@@ 84
-Keep the frame's bytes.
+@@ 85
+Keep the frame's bytes — the end of the `async with` block, where the uploads close.
 
-@@ 85-96
+@@ 86-97
 **Wait briefly for a worker, then analyse.** `limiter.acquire()` waits for one of the `workers` slots; `anyio.fail_after` gives up after `queue_s` seconds, and then the answer is `503 busy` with `Retry-After: 1` — which the API turns into a safe *try again*, never a pass. With a slot, run the analysis **on a worker thread**: image work is CPU-heavy and *blocking*, and running it here would freeze the server's event loop and stall every other request, including health checks. `finally` hands the slot back however the analysis ends.
 
 Until Phase 7 the service refused the moment all workers were busy; a bounded wait served most of those people at the cost of a short delay (§5.7.4). The upload is read and checked *before* waiting, so a malformed request never takes a place in the queue.
 
-@@ 98
+@@ 99
 Return the finished application.

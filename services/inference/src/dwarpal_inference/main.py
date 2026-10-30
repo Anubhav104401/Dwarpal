@@ -68,20 +68,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/internal/v1/analyze/face")
     async def analyze_face(request: Request) -> FaceAnalysis:
-        form = await request.form(max_files=MAX_FRAMES, max_fields=1)
-        try:
-            meta = FaceRequestMeta.model_validate_json(str(form.get("meta", "")))
-        except ValidationError as error:
-            raise HTTPException(422, "meta is missing or invalid") from error
-        images: list[bytes] = []
-        for frame in meta.frames:
-            upload = form.get(f"frame_{frame.index}")
-            if not isinstance(upload, UploadFile):
-                raise HTTPException(422, f"frame_{frame.index} is missing")
-            data = await upload.read(MAX_FRAME_BYTES + 1)
-            if len(data) > MAX_FRAME_BYTES:
-                raise HTTPException(413, f"frame_{frame.index} is larger than {MAX_FRAME_BYTES} bytes")
-            images.append(data)
+        # The uploads are closed as the block ends, however it ends: the frames live on only as the bytes read here.
+        async with request.form(max_files=MAX_FRAMES, max_fields=1) as form:
+            try:
+                meta = FaceRequestMeta.model_validate_json(str(form.get("meta", "")))
+            except ValidationError as error:
+                raise HTTPException(422, "meta is missing or invalid") from error
+            images: list[bytes] = []
+            for frame in meta.frames:
+                upload = form.get(f"frame_{frame.index}")
+                if not isinstance(upload, UploadFile):
+                    raise HTTPException(422, f"frame_{frame.index} is missing")
+                data = await upload.read(MAX_FRAME_BYTES + 1)
+                if len(data) > MAX_FRAME_BYTES:
+                    raise HTTPException(413, f"frame_{frame.index} is larger than {MAX_FRAME_BYTES} bytes")
+                images.append(data)
         pipeline: FacePipeline = request.app.state.pipeline
         # People arrive at random, so a short wait for a free worker absorbs a burst; if none frees up in time, say
         # "busy" rather than let work pile up (§5.7.4). The API turns "busy" into a safe "try again".

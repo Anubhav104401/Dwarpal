@@ -4,7 +4,7 @@ Phases 1–6 make Dwarpal work. Phase 7 makes it hold up: under attack, under lo
 
 | Area | What | Status |
 | :-- | :-- | :-- |
-| Resilience | **Fail closed**: kill a dependency mid-flow, and nothing may pass | ✅ §5.7.1; under load (§5.7.6) |
+| Resilience | **Fail closed**: kill a dependency mid-flow, and nothing may pass | ✅ §5.7.1; under load, and as repeatable chaos tests (§5.7.6) |
 | Security | Headers and content policy verified; scanners (Semgrep, pip-audit, Trivy, ZAP); threat-model review | 🟡 headers ✅ (§5.7.1); every scanner run and triaged (§5.7.3–5.7.4); script policy with nonces (§5.7.5); Python fixes wait for D15 |
 | Observability | OpenTelemetry end to end, dashboards, alerts | 🟡 traces from the API to Tempo and Grafana, with nothing about the person (§5.7.3); dashboards and alerts to come |
 | Performance | Load tests against the service levels (Locust) | 🟡 analysis p95 1.2 s at a realistic load (§5.7.4); 50 *simultaneous* attempts on 4 cores still out of reach |
@@ -207,6 +207,18 @@ The error answers (`problems.py`) were re-explained in their walkthrough.
 
 !!! honest "Honest limitation"
     The outages were made by hand from a script, once, on the owner's laptop. They weren't a repeatable test that runs with the others: a chaos test needs containers it may stop freely, which CI can provide. The photos used never pass liveness, so "none passed" here shows the outage paths are safe. The proof that a dependency's absence can't turn a would-be pass into one is §5.7.1's tests.
+
+**Repeatable now** (added 30 Oct). Four chaos tests in `test_api.py` replay the outages on every run — with a face that *would* pass. They don't stop the shared test containers. Instead the API reaches PostgreSQL and Valkey through a small **TCP relay** (a *cutter*) that the test can cut: every open connection drops, and new ones are hung up on — to the API, a dead service. Inference gets the same through a *switch* in front of its HTTP connection. The tests:
+
+- **Valkey dies** before the frames arrive: `503` with `Retry-After`; once it is back, the same person passes.
+- **The database dies** between two steps: the same, and the connection pool recovers by itself.
+- **The database dies while a face is being analysed** — the hardest moment, after the attempt was accepted and before it is decided: `503`, the session untouched, and the next attempt passes.
+- **Inference dies and comes back**: a `retry` (one try used), then a pass.
+
+!!! real "Real world — what the chaos tests found"
+    Run with every warning shown, the tests reported *unclosed files* after each attempt — even after a normal pass. Both services read the frames with `await request.form()`, and nothing ever closed the uploads: the frames sat in memory until Python's garbage collector found them. They never reached the disk (each is far below the 1 MB at which an upload would *spool* to a file), but the design promises frames are let go at the end of the request (§5.3 of the implementation design). Reading the form with `async with request.form() as form:` closes every upload as the block ends, however it ends; the warnings are gone.
+
+The upload endpoints (`http/flow.py` in the API, `main.py` in the inference service), the API tests and `pnpm-workspace.yaml` (one more fixed version, `body-parser` 1.20.9, once its seven-day wait was over) were re-explained.
 
 ### 5.7.7 Numbers over time: metrics, a dashboard and alerts
 
