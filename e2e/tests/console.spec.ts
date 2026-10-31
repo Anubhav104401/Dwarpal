@@ -70,7 +70,12 @@ test("a new customer signs up, creates an API key, and sees it in an intact audi
   await sessions.getByRole("button", { name: "Trace" }).click();
   await expect(page.getByRole("region", { name: "Decision trace" })).toContainText("No attempts.");
 
-  // An owner adds a policy version; it is listed at once.
+  // An owner adds a policy version on one of the model's lines; it is listed at once. The stand-in model the tests
+  // use was never measured, so the editor offers no projection.
+  await expect(page.getByLabel("Age line")).toHaveValue("18@0.02");
+  await expect(page.getByRole("region", { name: "What the 18+ line means for adults" })).toContainText(
+    "Not measured",
+  );
   await page.getByLabel("New version of policy").fill("shop_18");
   await page.getByRole("button", { name: "Add version" }).click();
   await expect(page.getByRole("region", { name: "Policies" })).toContainText("shop_18@1");

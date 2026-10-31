@@ -559,6 +559,11 @@ def model_information(svc: Services) -> dict[str, Any]:
                 "tau_fail": row["tau_fail"],
                 "minor_bound": row.get("minor_bound"),  # worst plausible share of those under the age who pass
                 "adult_bound": row.get("adult_bound"),  # and of those comfortably over it who fail
+                # How adults in each band above the age fared on the test split: the policy editor's projection.
+                "adults": [
+                    {key: band[key] for key in ("ages", "faces", "pass", "step_up", "fail")}
+                    for band in row.get("adults", [])
+                ],
             }
             for row in details.get("thresholds", [])
         ],

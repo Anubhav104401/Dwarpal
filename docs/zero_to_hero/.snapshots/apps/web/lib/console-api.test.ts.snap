@@ -279,6 +279,7 @@ describe("ConsoleClient, the model page", () => {
             tau_fail: 0.38,
             minor_bound: 0.07,
             adult_bound: null,
+            adults: [{ ages: "18-20", faces: 330, pass: 0.1333, step_up: 0.7727, fail: 0.0939 }],
           },
         ],
       }),
@@ -303,6 +304,7 @@ describe("ConsoleClient, the model page", () => {
       tauFail: 0.38,
       minorBound: 0.07,
       adultBound: null,
+      adults: [{ ages: "18-20", faces: 330, pass: 0.1333, stepUp: 0.7727, fail: 0.0939 }],
     });
     expect(await client.model()).toBeNull();
   });

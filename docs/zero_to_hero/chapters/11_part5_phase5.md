@@ -10,6 +10,7 @@ Phase 5 gives Dwarpal the faces people see: the console for its customers, a pol
 | Verify flow in English and Hindi | 🗓 waits for an approved translation library |
 | Exit tests on three browser engines, accessibility and Lighthouse checks | 🟢 built (§5.5.5): Chromium and WebKit pass here, Firefox can't start on this computer; axe clean on the key pages; Lighthouse ≥ 90 |
 | Demo shop and SDKs — `@dwarpal/js`, `@dwarpal/react`, `@dwarpal/node` | 🟢 the check opens in a modal on the website's own page (§5.5.7); the shop uses the React button |
+| Policy editor with projected adult step-up rate | 🟢 the model's own lines, with how adults fared at each (§5.5.8) |
 
 ### 5.5.1 The console's first pages
 
@@ -312,3 +313,27 @@ The rules, one by one:
     The first run of the new story passed: the check ran inside the frame, camera and all, and the shop let the person in. The *closing* test failed. Pressing the button made it `disabled` while the session was being created, and a disabled button loses the keyboard focus, so when the modal closed there was nothing to give the focus back to. A keyboard user would have been dropped at the top of the page. The button now says it is busy with `aria-disabled` and ignores presses instead, keeping its focus.
 
 The API (the use cases' `frame_ancestor` and the flow's `return_origin`, the new route, and a test), the verify page's proxy and its tests, the flow client and its test, the verify flow, both apps' `package.json`, the shop's action and its two pages, and the browser tests (the shop's story and its accessibility check, now with the modal open) changed too; each was re-explained.
+
+### 5.5.8 The policy editor's projection
+
+The design's policy editor shows a **projected adult step-up rate**: before a website adopts a policy, how many genuine adults it would send to a stronger check. The numbers already existed. When `calibrate` set the age model's lines (§5.2.6), it opened the exact-age **test split** once and measured, for each line, how adults in four bands above the age fared. They sat in a run folder; now the export copies them into the model's manifest (`adults`, on each line), and the console's policy editor shows them for the line chosen.
+
+Building it turned up a real flaw. The editor offered four ages at a fixed 2 % risk budget, but the trained model has lines only at 15 % (13+ and 16+) and 7.5 % (18+ and 21+): a policy must match one of the model's lines exactly, so with the trained model every new version would have been refused. The editor now offers exactly the lines the model in use has, labelled by age and budget.
+
+!!! key "Key idea — the price of keeping minors out"
+    A line that lets very few minors through has to be very sure before it says *pass*. The people it is least sure about are those just over the age. At the trained model's 18+ line, 77 % of 18–20-year-olds are sent to a stronger check and 13 % pass, while of adults 30 and over, 94 % pass. The projection puts that trade-off in front of the person choosing a policy, in their visitors' terms, rather than leaving it to be discovered in production.
+
+!!! honest "Honest limitation"
+    These are the shares on a dataset's photos, whose ages were estimated rather than documented — about 9,500 faces of adults per line. Real visitors, their cameras and their light will differ, and the editor says so under the table. And it is a table of the lines that exist, not a slider: the model has one budget per age, because the data could certify no stricter one (§5.2.6).
+
+The model's manifest gained only the `adults` lists: `--manifest-only` rewrote it from the same run's files without exporting the model again, so its fingerprint, checks and lines are unchanged.
+
+!walk apps/web/lib/projection.ts
+
+!walk apps/web/lib/projection.test.ts
+
+!walk apps/web/app/console/[org]/[project]/policy-editor.tsx
+
+!walk ml/tests/test_export.py
+
+The export (`export.py`) and the trained model's manifest, the console's model answer and its test, the client and its test, the project page (whose form moved into the editor) and the browser test changed too; each was re-explained.

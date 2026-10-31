@@ -1,5 +1,5 @@
 ---
-fingerprint: 4fe9c265d473b192
+fingerprint: 15dc5586bb0d75ca
 ---
 The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page, adds a policy version and a webhook endpoint; a wrong password is refused without revealing whether the account exists; and a member turns on one-time codes, after which signing in needs one.
 
@@ -66,128 +66,128 @@ Back to any outcome, and the session is listed again.
 @@ 70-71
 Its decision trace opens: no attempts yet.
 
-@@ 73-76
-**A policy version**: an owner adds `shop_18`, and `shop_18@1` is listed at once.
+@@ 73-81
+**A policy version** (§5.5.8): the editor offers the model's own lines, with the 18+ line chosen first (`18@0.02`: the stand-in model's line at a 2 % risk budget). The stand-in was never measured, so the projection says *Not measured*. An owner adds `shop_18` on that line, and `shop_18@1` is listed at once.
 
-@@ 78-83
+@@ 83-88
 **A webhook endpoint**: add one on the demo shop's address; its secret (`whsec_…`) is shown; send a test event; it is listed as `pending` — no delivery worker runs during the test.
 
-@@ 84-89
+@@ 89-94
 **Switching it off and on**: off, and the endpoint is marked *Off*; on again, and the mark is gone.
 
-@@ 90
+@@ 95
 End of the test.
 
-@@ 92-96
+@@ 97-101
 **Test — a wrong password**, for an address nobody has.
 
-@@ 97-99
+@@ 102-104
 The refusal says only that the address or password is wrong. (Next.js keeps its own empty `role="alert"` region for announcing page changes; the test picks the alert that has words in it.)
 
-@@ 100
+@@ 105
 End of the test.
 
-@@ 102-104
+@@ 107-109
 **Test — one-time codes.** A fresh address, and a password to use twice.
 
-@@ 105-110
+@@ 110-115
 Create an account.
 
-@@ 112-115
+@@ 117-120
 Open *Security* and start setting up: a QR code appears. Read the secret the page shows in text, as a person would type it into their app.
 
-@@ 116-118
+@@ 121-123
 Enter the current code and turn it on: the page says "On."
 
-@@ 119-122
+@@ 124-127
 Keep the first recovery code the page showed, and check its shape.
 
-@@ 124-129
+@@ 129-134
 Sign out, and sign in with the password alone: the console asks for a code. A code works only once, so the test uses the next 30 seconds' code, which the API accepts for clocks that run a little fast.
 
-@@ 130-134
+@@ 135-139
 Enter it and sign in: the organisations appear.
 
-@@ 136-145
+@@ 141-150
 **A lost phone**: sign out and in again with the recovery code instead of a code — it works, and the Security page now says nine are left.
 
-@@ 147-149
+@@ 152-154
 **Switching codes off** needs a code nobody has used. The next one was just used to sign in, so wait for the clock's next 30-second step, as a person would wait for a new code…
 
-@@ 150-153
+@@ 155-158
 …then give the password and the code after it, and turn codes off: the page offers to set them up again.
 
-@@ 154
+@@ 159
 End of the test.
 
-@@ 156-165
+@@ 161-170
 **`signUp`** — create an account in a given browser page, with its own organisation, and wait for the organisations page: the steps of the first test, made reusable.
 
-@@ 167-169
+@@ 172-174
 **Test — the model page** (§5.5.2).
 
-@@ 170
+@@ 175
 Ask the API itself which model it is deciding with: its public configuration names it.
 
-@@ 171-172
+@@ 176-177
 Sign up, and follow the *Age model* link.
 
-@@ 174-175
+@@ 179-180
 The page has its heading and shows exactly the version the API named — the page and the API can't disagree.
 
-@@ 176-178
+@@ 181-183
 And in the table of lines, a row for each of the four ages.
 
-@@ 179
+@@ 184
 End of the test.
 
-@@ 181-182
+@@ 186-187
 **Test — the command palette** (§5.5.6): find a project by typing, and go there without the mouse.
 
-@@ 183-188
+@@ 188-193
 Press ⌘K or Ctrl+K (`ControlOrMeta` picks the right one for the system) until the search box has the focus. "Until": the shortcut works only once the page's script has started, which in a busy test run can trail the page's first appearance by a moment — so press again, within a second each time, as a person would.
 
-@@ 190-191
+@@ 195-196
 Type two words — the organisation's name and part of the project's — and only the project is left in the results.
 
-@@ 192-193
+@@ 197-198
 The down arrow moves from the box into the list, onto the project's link.
 
-@@ 194-196
+@@ 199-201
 Enter follows it: the project's page opens, and the palette has closed.
 
-@@ 197
+@@ 202
 End of the test.
 
-@@ 199-201
+@@ 204-206
 **Test — managing a member** (Phase 5). Two fresh addresses: the owner's and a colleague's.
 
-@@ 202-204
+@@ 207-209
 The colleague signs up in a browser of their own — a second **context**, with its own cookies, so their session never mixes with the owner's — which is then closed.
 
-@@ 205-207
+@@ 210-212
 The owner signs up and opens the organisation; the members' panel is where everything happens.
 
-@@ 209-213
+@@ 214-218
 Add the colleague as an analyst: their row appears, with a role menu showing *analyst*.
 
-@@ 215-218
+@@ 220-223
 Change it to developer; then reload the page, to prove the change was saved, not just shown.
 
-@@ 220-221
+@@ 225-226
 Remove them: their address is gone from the members.
 
-@@ 222
+@@ 227
 End of the test.
 
-@@ 224-229
+@@ 229-234
 **Test — a fresh nonce each time** (Phase 7). Ask for the console's page twice, as the website API's client would, and keep each answer's content security policy.
 
-@@ 230-231
+@@ 235-236
 Pick out each policy's script rule, and the nonce in it.
 
-@@ 232-234
+@@ 237-239
 There is a nonce; the two differ; and inline scripts are not allowed.
 
-@@ 235
+@@ 240
 End of the test.

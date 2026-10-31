@@ -1,5 +1,5 @@
 ---
-fingerprint: dcacc902c3dd1ea3
+fingerprint: ab994457e376be8f
 ---
 Unit tests of the console's client (Phase 5), with the network replaced by a stand-in `fetch` that records each request and hands back prepared answers.
 
@@ -186,22 +186,22 @@ End of the test and the group.
 @@ 261-262
 **The model page's client.**
 
-@@ 263-286
-Two prepared answers: a model's details, with a training dataset that records no number of faces and one line whose adult bound is missing; then a 401.
+@@ 263-287
+Two prepared answers: a model's details, with a training dataset that records no number of faces and one line whose adult bound is missing but whose adults were measured (one band); then a 401.
 
-@@ 287-288
+@@ 288-289
 Every request gets the next answer; a fresh client.
 
-@@ 290
+@@ 291
 Ask for the model.
 
-@@ 292-306
-The training faces are read with their number of faces unknown (`null`), the calibration's number is kept, and the line arrives with every field renamed and the missing bound as `null`.
+@@ 293-308
+The training faces are read with their number of faces unknown (`null`), the calibration's number is kept, and the line arrives with every field renamed, the missing bound as `null`, and its adult band read whole (`step_up` as `stepUp`).
 
-@@ 307
+@@ 309
 Signed out, the client answers `null` rather than failing.
 
-@@ 308-309
+@@ 310-311
 End of the test and the group.
 
 @@ 117-121

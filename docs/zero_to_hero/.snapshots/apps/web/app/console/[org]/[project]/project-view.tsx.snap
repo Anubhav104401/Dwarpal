@@ -3,20 +3,11 @@
 import Link from "next/link";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 
-import {
-  Alert,
-  ConsoleShell,
-  Field,
-  input,
-  panel,
-  quietButton,
-  smallButton,
-} from "@/components/console-shell";
+import { Alert, ConsoleShell, Field, input, panel, quietButton } from "@/components/console-shell";
 import {
   type Analytics,
   CAN,
   ConsoleClient,
-  ConsoleError,
   type PolicyVersion,
   type Role,
   type SessionPage,
@@ -28,6 +19,7 @@ import { everyDay, OUTCOME_ORDER } from "@/lib/daily";
 import { bandText, MEDIAN_TARGET_S, share, withinTarget } from "@/lib/figures";
 
 import { DailyChart } from "./daily-chart";
+import { PolicyEditor } from "./policy-editor";
 import { WebhooksPanel } from "./webhooks-panel";
 
 const client = new ConsoleClient();
@@ -144,26 +136,6 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
     const data = new FormData(event.currentTarget);
     const text = (name: string) => String(data.get(name) ?? "").trim() || undefined;
     setSearch({ outcome: text("outcome"), externalRef: text("reference") });
-  }
-
-  async function addPolicy(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    setError(null);
-    try {
-      await client.addPolicy(
-        org,
-        project,
-        String(data.get("name")),
-        Number(data.get("age")),
-        Number(data.get("tries")),
-      );
-      form.reset();
-      await load();
-    } catch (failure) {
-      setError(failure instanceof ConsoleError ? failure.message : "That didn't work. Please try again.");
-    }
   }
 
   if (state === null) {
@@ -379,32 +351,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
           </tbody>
         </table>
         {CAN.managePolicies(role) ? (
-          <form className="mt-4 grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end" onSubmit={addPolicy}>
-            <Field label="New version of policy" id="policy-name">
-              <input id="policy-name" className={input} name="name" pattern="[a-z][a-z0-9_]{2,39}" required />
-            </Field>
-            <Field label="Minimum age" id="policy-age">
-              <select id="policy-age" className={input} name="age" defaultValue="18">
-                {[13, 16, 18, 21].map((age) => (
-                  <option key={age} value={age}>
-                    {age}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Face attempts" id="policy-tries">
-              <select id="policy-tries" className={input} name="tries" defaultValue="3">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <button type="submit" className={smallButton}>
-              Add version
-            </button>
-          </form>
+          <PolicyEditor client={client} org={org} project={project} onAdded={load} />
         ) : null}
       </section>
 

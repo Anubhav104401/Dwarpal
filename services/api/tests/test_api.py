@@ -1577,6 +1577,8 @@ async def test_the_console_describes_the_age_model_to_anyone_signed_in_and_nothi
     assert model["training"]["dataset"]["name"] == "fairface" and model["calibration"]["faces"] == 11301
     eighteen = next(row for row in model["thresholds"] if row["min_age"] == 18)
     assert eighteen["risk_budget"] == 0.075 and eighteen["minor_bound"] < eighteen["risk_budget"]
+    youngest = eighteen["adults"][0]  # the adults just over the line: most of them are sent to a stronger check
+    assert (youngest["ages"], youngest["faces"]) == ("18-20", 330) and youngest["step_up"] > 0.5
     for internal in ("sha256", "git", "model.onnx", "uncommitted"):
         assert internal not in json.dumps(model)
 

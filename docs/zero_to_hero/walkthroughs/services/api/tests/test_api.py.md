@@ -1,5 +1,5 @@
 ---
-fingerprint: f61ed5da6bf8deac
+fingerprint: 5e7e865289f06f47
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -1225,102 +1225,105 @@ Signed in: the version, that it isn't calibrated for live use, its permitted use
 The line for 18: its 7.5 % risk budget, and a measured worst case for minors within it.
 
 @@ 1580-1581
+And the line's adult outcomes: the youngest band, 18 to 20, measured on 330 faces — most of whom, as the comment says, a line this careful sends to a stronger check.
+
+@@ 1582-1583
 And none of the internal details of the file — the checksum, the build's commit, the file's name or the note that it was built from uncommitted code — is in the answer.
 
-@@ 1584-1588
+@@ 1586-1590
 **Test — the production session cookie (Phase 5).** The browser tests now run with a plain cookie (WebKit drops `Secure` ones on plain HTTP), so this test checks the real one: with the production setting, sign up and read the `Set-Cookie` header.
 
-@@ 1589-1590
+@@ 1591-1592
 Sign up.
 
-@@ 1591-1592
+@@ 1593-1594
 The cookie's name starts with `__Host-`, so browsers insist it is `Secure`, for path `/`, with no `Domain`: no other site can set or read it.
 
-@@ 1593-1594
+@@ 1595-1596
 Its attributes include `HttpOnly` (no script can read it), `Secure` (HTTPS only), `Path=/` and `SameSite=Lax`.
 
-@@ 1595
+@@ 1597
 And no `Domain`, which would share it with other hosts.
 
-@@ 1598-1604
+@@ 1600-1606
 **Test — switching an endpoint off and on** (Phase 5). A website registers an endpoint.
 
-@@ 1605-1607
+@@ 1607-1609
 Switch it off, send a test event, and read its deliveries.
 
-@@ 1608-1610
+@@ 1610-1612
 Switch it back on, and do the same.
 
-@@ 1611
+@@ 1613
 And try to switch an endpoint that doesn't exist.
 
-@@ 1612
+@@ 1614
 The answers said off, then on.
 
-@@ 1613
+@@ 1615
 While off, nothing was queued for it.
 
-@@ 1614
+@@ 1616
 Back on, the test event waits to be delivered.
 
-@@ 1615
+@@ 1617
 An unknown endpoint is not found.
 
-@@ 1618-1620
+@@ 1620-1622
 **Test — listing sessions by outcome and by reference** (Phase 5).
 
-@@ 1621-1623
+@@ 1623-1625
 A session with the website's reference `order-1`, which a person passes.
 
-@@ 1624
+@@ 1626
 Another, `order-2`, not yet started.
 
-@@ 1625-1629
+@@ 1627-1631
 List the passed ones; the one for `order-2`; one for a reference nobody used; and ask for an outcome that doesn't exist.
 
-@@ 1630-1632
+@@ 1632-1634
 Exactly the passed session; exactly `order-2`'s; and nothing.
 
-@@ 1633
+@@ 1635
 An unknown outcome is refused, not silently ignored.
 
-@@ 1636-1641
+@@ 1638-1643
 **Test — recovery codes, and switching codes off** (Phase 5).
 
-@@ 1642-1646
+@@ 1644-1648
 Sign up, ask for a secret, and confirm the current code: the answer holds the recovery codes.
 
-@@ 1647-1650
+@@ 1649-1652
 Sign in with the first recovery code, typed as someone might copy it from paper — capitals, a space instead of the dash. Keep the new session's CSRF token.
 
-@@ 1651
+@@ 1653
 Try the same recovery code again.
 
-@@ 1652-1653
+@@ 1654-1655
 Ask for a fresh set, then try one of the old set.
 
-@@ 1654-1660
+@@ 1656-1662
 Try to switch codes off with a wrong password, then with the right password and the next code.
 
-@@ 1661
+@@ 1663
 Sign in with the password alone.
 
-@@ 1662
+@@ 1664
 Ten different codes, each of the shape `abcde-fghij`.
 
-@@ 1663
+@@ 1665
 The recovery code signed in, and nine are left.
 
-@@ 1664
+@@ 1666
 Each works once.
 
-@@ 1665
+@@ 1667
 The fresh set shares nothing with the old, and the old no longer works.
 
-@@ 1666
+@@ 1668
 A wrong password is refused.
 
-@@ 1667-1668
+@@ 1669-1670
 With the right password and code, codes are off — and the password alone signs in again.
 
 @@ 291-292

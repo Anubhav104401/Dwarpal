@@ -1,6 +1,7 @@
 """Export a trained, calibrated age model to ONNX for serving, prove it gives the same answers, and write its manifest.
 
 uv run --package dwarpal-ml python -m dwarpal_ml.export .runs/<run> utkface --version age-convnext-tiny-2026.10.17
+uv run --package dwarpal-ml python -m dwarpal_ml.export .runs/<run> utkface --version … --manifest-only
 """
 
 from __future__ import annotations
@@ -155,12 +156,34 @@ def sha256_of(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def adult_outcomes(run: Path, calibration_name: str) -> dict[int, list[dict[str, Any]]]:
+    """For each age line, how adults in each band above it fared — passed, sent to a stronger check, or failed — on the
+    exact-age test split, which `calibrate` opened once with these same lines. The console's policy editor shows them
+    as its projection. Nothing, if the test split hasn't been measured."""
+    path = run / f"evaluation-{calibration_name}-test.json"
+    if not path.exists():
+        return {}
+    evaluation = json.loads(path.read_text(encoding="utf-8"))
+    return {
+        int(limit): [
+            {
+                "ages": band,
+                "faces": outcomes["pass"]["of"],
+                **{name: round(outcomes[name]["rate"], 4) for name in ("pass", "step_up", "fail")},
+            }
+            for band, outcomes in view.get("adults", {}).items()
+        ]
+        for limit, view in evaluation["limits"].items()
+    }
+
+
 def manifest(
     run: Path, calibration_name: str, version: str, model_file: Path, checks: dict[str, Any]
 ) -> dict[str, Any]:
     record = json.loads((run / "run.json").read_text(encoding="utf-8"))
     calibration = json.loads((run / f"calibration-{calibration_name}.json").read_text(encoding="utf-8"))
     trained_on, measured_on = dataset(record["config"]["dataset"]), dataset(calibration_name)
+    adults = adult_outcomes(run, calibration_name)
     thresholds = [
         {
             "min_age": int(limit),
@@ -169,6 +192,7 @@ def manifest(
                 for key in ("risk_budget", "tau_pass", "tau_fail", "minor_bound", "adult_bound")
             },
             "cells": certified["cells"],
+            "adults": adults.get(int(limit), []),
         }
         for limit, certified in calibration["limits"].items()
         if certified["thresholds"] is not None
@@ -216,12 +240,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("run", type=Path, help="a run folder in .runs/, already calibrated")
     parser.add_argument("calibration", help="the exact-age dataset it was calibrated on")
     parser.add_argument("--version", required=True, help="the model's version name in the registry")
+    parser.add_argument("--manifest-only", action="store_true", help="only rewrite an exported model's manifest")
     args = parser.parse_args(argv)
+    target = REGISTRY / args.version / "model.onnx"
+    target_manifest = REGISTRY / args.version / "manifest.json"
+    if args.manifest_only:
+        # The model and its checks stay as they were; only what is read from the run's files is read again.
+        checks = json.loads(target_manifest.read_text(encoding="utf-8"))["checks"]
+        built = manifest(args.run, args.calibration, args.version, target, checks)
+        target_manifest.write_text(json.dumps(built, indent=2) + "\n", encoding="utf-8", newline="\n")
+        return 0
     record = json.loads((args.run / "run.json").read_text(encoding="utf-8"))
     val_logits, val_rows = predict(args.run, "val", 6)
     temperature = fit_temperature(val_logits, *bands(val_rows))
     served = load_served(args.run, temperature)
-    target = REGISTRY / args.version / "model.onnx"
     export(served, target)
     onnx_model = session(target)
     name = record["config"]["dataset"]
@@ -235,7 +267,6 @@ def main(argv: list[str] | None = None) -> int:
     }
     built = manifest(args.run, args.calibration, args.version, target, checks)
     # "\n" line endings on every system, as the repository and its JSON formatter expect.
-    target_manifest = REGISTRY / args.version / "manifest.json"
     target_manifest.write_text(json.dumps(built, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(json.dumps(checks, indent=2))
     return 0 if checks["parity"]["passed"] else 1

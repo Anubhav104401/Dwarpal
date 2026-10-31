@@ -1,5 +1,5 @@
 ---
-fingerprint: 13275b04d6b792fd
+fingerprint: f1ab726f494b1173
 ---
 The **manifest of the first trained age model** — its passport in the registry, written by `ml/src/dwarpal_ml/export.py`. The API reads its first fields and its thresholds (§5.1.2); everything else is there so that anyone can see, years later, exactly what this model is, where it came from, what it promises and under which terms it may be used.
 
@@ -62,32 +62,36 @@ How it was calibrated: on UTKFace's calibration half (11,301 faces), with its li
 @@ 41
 The thresholds, one entry per age limit — the part the API acts on.
 
-@@ 42-50
+@@ 42-80
 **Age 13**: certified at a 15 % budget, per age. A face passes at P(13 or over) ≥ 0.809 and fails at ≤ 0.708. `minor_bound` is the worst plausible pass rate among 8–12-year-olds that the calibration data showed (13.5 %), and `adult_bound` the worst plausible rate of adults 16 and over failed (just under 1 %).
 
-@@ 51-59
-**Age 16**: 15 % per age; pass at ≥ 0.761, fail at ≤ 0.529.
+Then **`adults`** (added in Phase 5, §5.5.8): how people in four age bands above the line fared on the exact-age test split — how many faces each band held, and the shares that passed, were sent to a stronger check, and failed. Each line has the same four kinds of band: 0–2, 3–6 and 7–11 years over the age, and 12 or more. The console's policy editor shows them as its projection.
 
-@@ 60-68
+@@ 81-119
+**Age 16**: 15 % per age; pass at ≥ 0.761, fail at ≤ 0.529; and its adults' outcomes.
+
+@@ 120-158
 **Age 18**: 7.5 % per age; pass only at P(18 or over) ≥ 0.964, fail at ≤ 0.384. The pass line is high because this model is uncertain about teenagers: it has to be very sure before it lets anyone through.
 
-@@ 69-77
-**Age 21**: 7.5 % per age; pass at ≥ 0.927, fail at ≤ 0.244.
+Its adults' outcomes show the price: of 18–20-year-olds, 77 % are sent to a stronger check and 13 % pass; of those 30 and over, 94 % pass and 6 % are sent on. A line that keeps minors out this firmly asks most young adults for a second check.
 
-@@ 78
+@@ 159-197
+**Age 21**: 7.5 % per age; pass at ≥ 0.927, fail at ≤ 0.244; and its adults' outcomes.
+
+@@ 198
 End of the thresholds.
 
-@@ 79
+@@ 199
 The checks made when the model was exported.
 
-@@ 80-85
+@@ 200-205
 **Parity**: on 512 faces, the ONNX file and PyTorch differed by at most 0.0000008 in any probability, well within the 0.0001 allowed.
 
-@@ 86-91
+@@ 206-211
 **The serving path**: aligning faces the service's way instead of the training way changed the estimated age by 0.16 years on average (0.45 years for 95 % of faces) and the probability of being 18 or over by 0.003.
 
-@@ 92-96
+@@ 212-216
 **Speed**: one burst of 5 faces on a single processor thread: 668 ms typical, 697 ms in the slow case (p95).
 
-@@ 97-98
+@@ 217-218
 The closing braces.

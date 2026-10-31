@@ -95,6 +95,16 @@ export interface SessionTrace extends SessionSummary {
   traced: TracedAttempt[];
 }
 
+/** How adults in one age band above a line fared on the test split: shares that passed, were sent to a stronger
+ * check, or failed, out of `faces`. */
+export interface AdultOutcome {
+  ages: string;
+  faces: number;
+  pass: number;
+  stepUp: number;
+  fail: number;
+}
+
 /** One age's lines: pass at or above `tauPass`, fail at or below `tauFail`, a second check in between. */
 export interface ModelLine {
   minAge: number;
@@ -103,6 +113,8 @@ export interface ModelLine {
   tauFail: number;
   minorBound: number | null;
   adultBound: number | null;
+  /** The policy editor's projection; empty when the model in use hasn't been measured. */
+  adults: AdultOutcome[];
 }
 
 /** Where a set of faces and their ages came from. */
@@ -472,6 +484,13 @@ export class ConsoleClient {
         tauFail: asCount(t.tau_fail),
         minorBound: orNumber(t.minor_bound),
         adultBound: orNumber(t.adult_bound),
+        adults: asList(t.adults).map((band) => ({
+          ages: asText(band.ages),
+          faces: asCount(band.faces),
+          pass: asCount(band.pass),
+          stepUp: asCount(band.step_up),
+          fail: asCount(band.fail),
+        })),
       })),
     };
   }
@@ -493,8 +512,9 @@ export class ConsoleClient {
     name: string,
     minAge: number,
     attempts: number,
+    riskBudget: number,
   ): Promise<string> {
-    const body = { name, min_age: minAge, max_face_attempts: attempts };
+    const body = { name, min_age: minAge, max_face_attempts: attempts, risk_budget: riskBudget };
     const data = await this.#call("POST", `${this.#project(org, project)}/policies`, body);
     return asText(data.id);
   }
