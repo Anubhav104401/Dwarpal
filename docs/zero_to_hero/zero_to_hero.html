@@ -142,7 +142,7 @@ footer { margin-top: 4em; color: var(--text-3); font: 12px var(--mono); }
 <div class="topbar"><button id="top" type="button">Top</button><button id="theme" type="button">Theme</button></div>
 <div class="shell">
   <aside class="side">
-    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">394,164 words · 250 files · 19,640/19,640 lines explained (100.0%)</div></div>
+    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">394,292 words · 250 files · 19,640/19,640 lines explained (100.0%)</div></div>
     <input id="q" type="search" placeholder="Filter sections (Ctrl+K)" autocomplete="off" aria-label="Filter sections">
     <nav class="toc"><a class="h1" href="#dwarpal-zero-to-hero">Dwarpal — Zero to Hero</a>
 <a class="h2" href="#what-this-book-is">What this book is</a>
@@ -733,6 +733,10 @@ footer { margin-top: 4em; color: var(--text-3); font: 12px var(--mono); }
 <tr>
 <td style="text-align: left;">30 Oct 2026</td>
 <td style="text-align: left;"><strong>The check in a modal</strong> (§5.5.7, decision D16): the browser SDKs <code>@dwarpal/js</code> and <code>@dwarpal/react</code>; a verify page may be framed only by the website its session returns to, and talks to it only with <code>postMessage</code>; the shop opens the check over its own page. Fourteen new walkthroughs, fifteen re-explained. Coverage: 250 files, 19,640/19,640 lines</td>
+</tr>
+<tr>
+<td style="text-align: left;">31 Oct 2026</td>
+<td style="text-align: left;"><strong>Developer guides</strong> (§5.5.7): a quick start, the browser and Node.js SDKs, and an integration checklist, in <code>docs/developers/</code>; a README for each <abbr title="Software Development Kit — a ready-made package that makes a service easy to use from code">SDK</abbr>. Coverage unchanged: 250 files, 19,640/19,640 lines</td>
 </tr>
 </tbody>
 </table></div>
@@ -21383,6 +21387,7 @@ verify page ──postMessage("finished", only to shop.example)──► website
 <span class="ln">23</span><span class="w">    </span><span class="p">&lt;/</span><span class="nt">VerifyAgeButton</span><span class="p">&gt;</span>
 <span class="ln">24</span><span class="w">  </span><span class="p">);</span>
 <span class="ln">25</span><span class="p">}</span></code></pre><div class="wnote"><p><strong><code>AgeCheckButton</code></strong> — the <abbr title="Software Development Kit — a ready-made package that makes a service easy to use from code">SDK</abbr>'s button, given the server action as <code>createSession</code>, the shop's style, and the words chosen by each page that uses it. If creating the session fails, the visitor is sent to the <em>refused</em> page, which explains. At the end of the check, the <abbr title="Software Development Kit — a ready-made package that makes a service easy to use from code">SDK</abbr>'s default moves the page to the shop's return address (<code>/age-check/complete</code>), whose route checks the result and opens the cellar.</p></div></div></section>
+<p><strong>The guides</strong> (added 31 Oct). The roadmap asks for the SDKs <em>documented</em>. Websites' developers get guides in <code>docs/developers/</code>: how an age check works and a quick start, the browser SDKs, the Node.js <abbr title="Software Development Kit — a ready-made package that makes a service easy to use from code">SDK</abbr>, and a checklist to go through before using a live key. Each package has a short <code>README.md</code> pointing to them. They are written in Markdown, for developers rather than for this book, so they have no walkthroughs; every code sample in them was type-checked against the real SDKs before it was written down.</p>
 <div class="admonition real">
 <p class="admonition-title">Real world — what the browser test caught</p>
 <p>The first run of the new story passed: the check ran inside the frame, camera and all, and the shop let the person in. The <em>closing</em> test failed. Pressing the button made it <code>disabled</code> while the session was being created, and a disabled button loses the keyboard focus, so when the modal closed there was nothing to give the focus back to. A keyboard user would have been dropped at the top of the page. The button now says it is busy with <code>aria-disabled</code> and ignores presses instead, keeping its focus.</p>
@@ -23957,7 +23962,7 @@ These three lines ...
 <dt>Webhook</dt>
 <dd>A request a service sends to an address on your server when something happens, so you needn't keep asking. (§5.4.3)</dd>
 </dl>
-    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-10-30 07:16 UTC</footer>
+    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-10-31 05:15 UTC</footer>
   </main>
 </div>
 <script>

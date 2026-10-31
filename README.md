@@ -9,13 +9,15 @@ Dwarpal lets any website ask **"is this live person over N?"** and get back a **
 - When it is unsure, it asks for a stronger check (an ID document, or India's Aadhaar Secure QR).
 - **It never stores a face**, and the website never learns the user's identity or estimated age.
 
-> **Status:** Phase 1 (walking skeleton) of the [roadmap](docs/design/05_roadmap.md) is complete: a demo shop, the hosted verify page, the API and the inference service work end to end with a stand-in age model ([report](docs/reports/phase-1.md)). Nothing is deployed yet.
+> **Status:** in development, not yet deployed. Phases 0–2 and 4 of the [roadmap](docs/design/05_roadmap.md) are built and tested locally; Phase 3 (liveness) is built but waits for more people to test it; Phases 5–7 (front end, step-up checks, hardening) are under way — see the [phase reports](docs/reports). The age model is trained but not yet allowed to decide live checks.
 
 ## Why it exists
 
 Laws now require real age checks for age-restricted content: the UK Online Safety Act, the EU DSA, US state laws, Australia's under-16 social-media law, and India's DPDP Rules. "Are you 18? Yes/No" doesn't work, and freely available age models let far too many minors through. Dwarpal is engineered around the number that matters — **how many minors near the threshold get through** — with a statistically calculated safety margin, layered liveness checks and a no-storage privacy architecture.
 
 Read the reasoning: [problem analysis](docs/design/01_problem_analysis.md) · [solution options](docs/design/02_solution_options.md) · [implementation design](docs/design/03_implementation_design.md) · [architecture](docs/design/04_architecture.md) · [roadmap](docs/design/05_roadmap.md) · [decision records](docs/adr/README.md).
+
+**Integrate it into a website:** [Integrating Dwarpal](docs/developers/README.md) — a quick start, the browser and Node.js SDKs, and a checklist for going live.
 
 **Learn everything from zero:** open [`docs/zero_to_hero/zero_to_hero.html`](docs/zero_to_hero/zero_to_hero.html) in a browser. It is a single book that explains every line of code in this repository, for someone who has never programmed.
 

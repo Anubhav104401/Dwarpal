@@ -306,6 +306,8 @@ The rules, one by one:
 
 !walk apps/demo-shop/app/age-check-button.tsx
 
+**The guides** (added 31 Oct). The roadmap asks for the SDKs *documented*. Websites' developers get guides in `docs/developers/`: how an age check works and a quick start, the browser SDKs, the Node.js SDK, and a checklist to go through before using a live key. Each package has a short `README.md` pointing to them. They are written in Markdown, for developers rather than for this book, so they have no walkthroughs; every code sample in them was type-checked against the real SDKs before it was written down.
+
 !!! real "Real world — what the browser test caught"
     The first run of the new story passed: the check ran inside the frame, camera and all, and the shop let the person in. The *closing* test failed. Pressing the button made it `disabled` while the session was being created, and a disabled button loses the keyboard focus, so when the modal closed there was nothing to give the focus back to. A keyboard user would have been dropped at the top of the page. The button now says it is busy with `aria-disabled` and ignores presses instead, keeping its focus.
 
