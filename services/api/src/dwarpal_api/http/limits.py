@@ -6,11 +6,12 @@ from starlette.requests import Request
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from dwarpal_api.http.problems import problem
-from dwarpal_contracts import MAX_FRAME_BYTES, MAX_FRAMES
+from dwarpal_contracts import MAX_DOCUMENT_BYTES, MAX_FRAME_BYTES, MAX_FRAMES
 
 JSON_LIMIT = 64 * 1024
 UPLOAD_LIMIT = MAX_FRAMES * MAX_FRAME_BYTES + 64 * 1024
-UPLOAD_PATH_SUFFIX = "/face-attempts"
+# The uploads, by the end of their path: a face attempt's frames, and a document check's frames and photo (Phase 6).
+UPLOAD_LIMITS = {"/face-attempts": UPLOAD_LIMIT, "/stepup/mrz": UPLOAD_LIMIT + MAX_DOCUMENT_BYTES}
 
 
 class BodyLimit:
@@ -20,7 +21,8 @@ class BodyLimit:
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":
             headers = dict(scope["headers"])
-            limit = UPLOAD_LIMIT if scope["path"].endswith(UPLOAD_PATH_SUFFIX) else JSON_LIMIT
+            path: str = scope["path"]
+            limit = next((size for end, size in UPLOAD_LIMITS.items() if path.endswith(end)), JSON_LIMIT)
             declared = headers.get(b"content-length", b"0")
             refusal = None
             if b"transfer-encoding" in headers:

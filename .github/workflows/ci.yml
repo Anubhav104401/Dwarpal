@@ -16,7 +16,7 @@ jobs:
   python:
     name: Python - lint, types, tests, book
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
@@ -25,6 +25,7 @@ jobs:
           enable-cache: true
       - run: uv sync --locked
       - run: uv run infra/scripts/fetch_models.py
+      - run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends tesseract-ocr
       - run: uv run tasks.py check
 
   javascript:
@@ -61,6 +62,7 @@ jobs:
           cache: pnpm
       - run: uv sync --locked
       - run: uv run infra/scripts/fetch_models.py
+      - run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends tesseract-ocr
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @dwarpal/e2e exec playwright install --with-deps chromium firefox webkit
       - run: pnpm e2e

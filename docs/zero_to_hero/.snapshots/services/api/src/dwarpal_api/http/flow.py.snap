@@ -8,14 +8,14 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
-from starlette.datastructures import UploadFile
+from starlette.datastructures import FormData, UploadFile
 
 from dwarpal_api.app import verification
 from dwarpal_api.app.verification import Services
 from dwarpal_api.domain.decision import Outcome
 from dwarpal_api.errors import ApiError
 from dwarpal_api.http.deps import flow_session, services
-from dwarpal_contracts import MAX_FRAME_BYTES, MAX_FRAMES, FaceRequestMeta
+from dwarpal_contracts import MAX_DOCUMENT_BYTES, MAX_FRAME_BYTES, MAX_FRAMES, FaceRequestMeta
 
 router = APIRouter(prefix="/v1/flow/sessions/{session_text}", tags=["capture flow"])
 CHALLENGE_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
@@ -59,25 +59,50 @@ async def face_attempt(
 ) -> dict[str, Any]:
     # The uploads are closed as the block ends, however it ends: the frames live on only as the bytes read here.
     async with request.form(max_files=MAX_FRAMES, max_fields=2) as form:
-        challenge_id = str(form.get("challenge_id", ""))
-        if not CHALLENGE_ID.match(challenge_id):
-            raise ApiError(422, "invalid_request", "challenge_id is missing or malformed")
-        try:
-            meta = FaceRequestMeta.model_validate_json(str(form.get("meta", "")))
-        except ValidationError:
-            raise ApiError(422, "invalid_request", "meta is missing or invalid") from None
-        frames: list[bytes] = []
-        for frame in meta.frames:
-            upload = form.get(f"frame_{frame.index}")
-            if not isinstance(upload, UploadFile):
-                raise ApiError(422, "invalid_request", f"frame_{frame.index} is missing")
-            data = await upload.read(MAX_FRAME_BYTES + 1)
-            if len(data) > MAX_FRAME_BYTES:
-                raise ApiError(413, "frame_too_large", f"frame_{frame.index} is larger than {MAX_FRAME_BYTES} bytes")
-            frames.append(data)
+        challenge_id, meta, frames = await read_attempt(form)
     decision, remaining = await verification.submit_face_attempt(svc, flow, challenge_id, meta, frames)
     reasons = ["verification_failed"] if decision.outcome == Outcome.REJECT else list(decision.reasons)
     return {"outcome": decision.outcome, "reasons": reasons, "attempts_remaining": max(remaining, 0)}
+
+
+@router.post("/stepup/mrz")
+async def document_attempt(
+    request: Request, flow: Annotated[uuid.UUID, Depends(flow_session)], svc: Annotated[Services, Depends(services)]
+) -> dict[str, Any]:
+    """The step-up with an ID document (Phase 6): a photo of the document's data page, with the selfie frames of a
+    new face challenge. Nothing of the photo is kept; of the document, only what an age check needs (§9.1)."""
+    async with request.form(max_files=MAX_FRAMES + 1, max_fields=2) as form:
+        challenge_id, meta, frames = await read_attempt(form)
+        upload = form.get("document")
+        if not isinstance(upload, UploadFile):
+            raise ApiError(422, "invalid_request", "document is missing")
+        document = await upload.read(MAX_DOCUMENT_BYTES + 1)
+        if len(document) > MAX_DOCUMENT_BYTES:
+            raise ApiError(413, "frame_too_large", f"document is larger than {MAX_DOCUMENT_BYTES} bytes")
+    decision, remaining = await verification.submit_document_attempt(svc, flow, challenge_id, meta, frames, document)
+    reasons = ["verification_failed"] if decision.outcome == Outcome.REJECT else list(decision.reasons)
+    return {"outcome": decision.outcome, "reasons": reasons, "attempts_remaining": max(remaining, 0)}
+
+
+async def read_attempt(form: FormData) -> tuple[str, FaceRequestMeta, list[bytes]]:
+    """An attempt's challenge, its meta and its frames, each frame read only up to its size limit."""
+    challenge_id = str(form.get("challenge_id", ""))
+    if not CHALLENGE_ID.match(challenge_id):
+        raise ApiError(422, "invalid_request", "challenge_id is missing or malformed")
+    try:
+        meta = FaceRequestMeta.model_validate_json(str(form.get("meta", "")))
+    except ValidationError:
+        raise ApiError(422, "invalid_request", "meta is missing or invalid") from None
+    frames: list[bytes] = []
+    for frame in meta.frames:
+        upload = form.get(f"frame_{frame.index}")
+        if not isinstance(upload, UploadFile):
+            raise ApiError(422, "invalid_request", f"frame_{frame.index} is missing")
+        data = await upload.read(MAX_FRAME_BYTES + 1)
+        if len(data) > MAX_FRAME_BYTES:
+            raise ApiError(413, "frame_too_large", f"frame_{frame.index} is larger than {MAX_FRAME_BYTES} bytes")
+        frames.append(data)
+    return challenge_id, meta, frames
 
 
 @router.post("/finish")

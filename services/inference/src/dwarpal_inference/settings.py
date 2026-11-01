@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     mesh_file: str = "third_party/face_landmarker.task"
     hands_file: str = "third_party/hand_landmarker.task"
     antispoof_files: tuple[str, str] = ("third_party/minifasnet_v2_2.7.onnx", "third_party/minifasnet_v1se_4.0.onnx")
+    matcher_file: str = "third_party/face_recognition_sface_2021dec_int8.onnx"
+    # How to start Tesseract, as a JSON list: installed (the default, as in production), or in the project's OCR
+    # container: DWARPAL_INFERENCE_TESSERACT_COMMAND='["docker", "exec", "-i", "dwarpal-ocr-1", "tesseract"]'.
+    tesseract_command: list[str] = ["tesseract"]
+    tesseract_timeout_s: float = 10.0
     age_backend: Literal["stub", "onnx"] = "stub"
     stub_age: float = 30.0
     stub_spread: float = 2.5

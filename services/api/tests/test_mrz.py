@@ -8,7 +8,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from dwarpal_api.domain.mrz import MrzError, age_on, age_outcome, check_digit, parse
+from dwarpal_api.domain.mrz import MrzError, age_on, age_outcome, check_digit, parse, read_ocr
 
 TODAY = date(2026, 10, 26)
 
@@ -108,3 +108,71 @@ def test_any_single_digit_change_in_the_birth_date_is_caught(birth: date, positi
     zone = compose_td3("L898902C3", good, "300101", "")
     with pytest.raises(MrzError):
         parse(zone.replace(f"UTO{good}", f"UTO{bad}"), TODAY)
+
+
+# --- Reading what OCR read from a photo (Phase 6) ---
+
+FUTURE = compose_td3("L898902C3", "900101", "360101", "ZE184226B").split("\n")
+
+
+def test_ocr_lines_that_are_right_read_exactly_as_the_zone_does() -> None:
+    document = read_ocr(FUTURE, TODAY)
+    assert document == parse("\n".join(FUTURE), TODAY)
+    assert document.repaired == ()
+
+
+def test_the_names_line_is_ignored_whatever_ocr_made_of_it() -> None:
+    """Only its document type and issuer are read: an age check needs no name, and no check digit covers it."""
+    garbled = ["P<UTO" + "6K<<E4" * 6 + "<<<<<<<<", FUTURE[1]]
+    document = read_ocr(garbled, TODAY)
+    assert (document.document_type, document.issuer, document.birth) == ("P", "UTO", date(1990, 1, 1))
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        FUTURE[1][:20] + "0" + FUTURE[1][20:],  # a character too many
+        FUTURE[1][:38] + "<<" + FUTURE[1][38:],  # two too many, in a run of fillers
+        FUTURE[1][:40] + FUTURE[1][41:],  # one missing
+    ],
+)
+def test_a_line_one_or_two_characters_off_is_repaired_when_only_one_reading_passes(line: str) -> None:
+    document = read_ocr([FUTURE[0], line], TODAY)
+    assert (document.birth, document.expiry) == (date(1990, 1, 1), date(2036, 1, 1))
+    assert "line_length" in document.repaired
+
+
+def test_an_empty_optional_field_is_tried_when_ocr_misread_its_fillers() -> None:
+    """A TD2 card's optional field is usually empty: long runs of fillers, which OCR misreads most. Its check digits
+    decide whether "empty" is right; the dates keep their own check digits either way."""
+    zone = parse(TD2, TODAY)
+    misread = TD2.split("\n")[1][:28] + "<6<K<<4" + TD2.split("\n")[1][35:]
+    document = read_ocr([TD2.split("\n")[0], misread], TODAY)
+    assert (document.birth, document.expiry) == (zone.birth, zone.expiry)
+    assert "optional_fields_read_as_empty" in document.repaired
+
+
+@pytest.mark.parametrize(
+    ("lines", "code"),
+    [
+        (["P<UTO"], "mrz_unreadable"),  # one line is no zone
+        ([FUTURE[0], FUTURE[1][:30]], "mrz_check_failed"),  # far too short to repair
+        ([FUTURE[0], FUTURE[1].replace("900101", "900102")], "mrz_check_failed"),  # a date its check digit refutes
+    ],
+)
+def test_a_zone_too_damaged_to_trust_is_refused(lines: list[str], code: str) -> None:
+    with pytest.raises(MrzError) as caught:
+        read_ocr(lines, TODAY)
+    assert caught.value.code == code
+
+
+@given(birth=dates, expiry=expiries, cut=st.integers(min_value=0, max_value=43))
+def test_a_dropped_character_never_yields_a_different_date(birth: date, expiry: date, cut: int) -> None:
+    """Whatever character OCR drops, the repaired reading has the true dates, or there is no reading at all."""
+    zone = compose_td3("X1234567", birth.strftime("%y%m%d"), expiry.strftime("%y%m%d"), "").split("\n")
+    true = parse("\n".join(zone), TODAY)
+    try:
+        document = read_ocr([zone[0], zone[1][:cut] + zone[1][cut + 1 :]], TODAY)
+    except MrzError:
+        return
+    assert (document.birth, document.expiry) == (true.birth, true.expiry)

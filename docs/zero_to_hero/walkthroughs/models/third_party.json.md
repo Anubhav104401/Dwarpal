@@ -1,5 +1,5 @@
 ---
-fingerprint: f1c5e762e2ac9327
+fingerprint: 6d8fa6c21ea6ed69
 ---
 The **register of third-party model files**: AI models made by others that Dwarpal uses. Model files are never stored in Git (they are large, and their licences vary — ADR-0014, ADR-0018). This file records *exactly* which file to fetch, from where, under which licence, and the fingerprint it must have. `infra/scripts/fetch_models.py` reads it.
 
@@ -92,5 +92,10 @@ The end of the fifth entry.
 @@ 54-62
 The sixth entry, the second network, in the same shape: its own file, address, fingerprint and size.
 
-@@ 63-65
+@@ 73-75
 The closing brackets of the entry, the list and the object.
+
+@@ 63-72
+**SFace** (Phase 6, decision D7b) — OpenCV Zoo's face recogniser, in its 8-bit version (9.9 MB): it turns a face into 128 numbers so two faces can be compared, here a selfie and a document's photo. Pinned to one revision of Hugging Face's copy (the same host as YuNet), with its SHA-256 checked after download.
+
+The licence note records the decision honestly: the files are Apache-2.0, but SFace was trained on face datasets collected from the web without consent — one of them, MS-Celeb-1M, was withdrawn for that. The owner accepted it knowing this. Faces are compared in memory and never kept.

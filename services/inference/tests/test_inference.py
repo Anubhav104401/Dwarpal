@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import anyio
+import cv2
 import httpx
 import numpy as np
 import onnx
@@ -17,12 +18,14 @@ import pytest
 from fastapi import FastAPI
 from onnx import TensorProto, helper, numpy_helper
 
-from dwarpal_contracts import FaceAnalysis, FaceRequestMeta, FrameMeta
+from dwarpal_contracts import DocumentAnalysis, FaceAnalysis, FaceRequestMeta, FrameMeta
 from dwarpal_inference.backends import AGES, ModelFileError, OnnxAgeBackend, StubAgeBackend
 from dwarpal_inference.main import build_age_backend, create_app
 from dwarpal_inference.pipeline import FacePipeline, sharpest
 from dwarpal_inference.settings import Settings
 from dwarpal_vision import FaceDetector
+from dwarpal_vision.document import Tesseract
+from dwarpal_vision.specimen import specimen_jpeg
 
 REPO = Path(__file__).resolve().parents[3]
 PORTRAIT = (REPO / "libs" / "vision" / "tests" / "fixtures" / "astronaut.jpg").read_bytes()
@@ -192,3 +195,50 @@ async def test_a_request_waits_briefly_for_a_free_worker_then_is_told_busy(queue
             group.start_soon(send)
             group.start_soon(send)
     assert sorted(answers) == statuses  # with one worker: a short wait gives up, a longer one is served
+
+
+# Tesseract where it is installed, else in the project's OCR container (Phase 6); None if neither answers.
+TESSERACT = next(
+    (
+        command
+        for command in (["tesseract"], ["docker", "exec", "-i", "dwarpal-ocr-1", "tesseract"])
+        if Tesseract(command).available()
+    ),
+    None,
+)
+
+
+@pytest.mark.anyio
+async def test_a_document_check_reads_the_zone_and_matches_the_selfie_to_the_printed_face() -> None:
+    if TESSERACT is None:
+        pytest.skip("Tesseract isn't installed, and the OCR container isn't running")
+    portrait = np.asarray(cv2.imdecode(np.frombuffer(PORTRAIT, np.uint8), cv2.IMREAD_COLOR), dtype=np.uint8)
+    files = {f"frame_{i}": (f"frame_{i}.jpg", PORTRAIT, "image/jpeg") for i in range(3)}
+    files["document"] = ("document.jpg", specimen_jpeg(portrait, "900101", "360101"), "image/jpeg")
+    async with client_for(create_app(Settings(tesseract_command=TESSERACT))) as client:
+        response = await client.post(
+            "/internal/v1/analyze/document", data={"meta": burst(3).model_dump_json()}, files=files
+        )
+        ready = await client.get("/readyz")
+    assert response.status_code == 200
+    analysis = DocumentAnalysis.model_validate(response.json())
+    assert len(analysis.zone) == 2 and analysis.zone[0].startswith("P<UTO")
+    assert "ERIKSSON" not in analysis.zone[0]  # the names never leave the service
+    assert analysis.document_faces == 1
+    assert analysis.similarity is not None and analysis.similarity > 0.5
+    assert analysis.face.usable_frames == 3
+    assert ready.json()["ocr"] == "ready"
+
+
+@pytest.mark.anyio
+async def test_without_tesseract_a_document_check_says_so_and_reads_nothing() -> None:
+    files = {"frame_0": ("frame_0.jpg", PORTRAIT, "image/jpeg"), "document": ("d.jpg", PORTRAIT, "image/jpeg")}
+    async with client_for(create_app(Settings(tesseract_command=["no-such-program-dwarpal"]))) as client:
+        response = await client.post(
+            "/internal/v1/analyze/document", data={"meta": burst(1).model_dump_json()}, files=files
+        )
+        ready = await client.get("/readyz")
+    analysis = DocumentAnalysis.model_validate(response.json())
+    # The portrait has no MRZ, so the band isn't found before Tesseract is even needed; readiness says it's missing.
+    assert (analysis.zone, analysis.zone_problem) == ([], "mrz_not_found")
+    assert ready.json()["ocr"] == "missing"

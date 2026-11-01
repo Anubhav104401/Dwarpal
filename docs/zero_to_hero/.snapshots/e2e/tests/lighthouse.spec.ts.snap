@@ -39,7 +39,16 @@ test("key pages score at least 90 in Lighthouse, and the private ones stay out o
     ...PAGES.map((url) => `--collect.url=${url}`),
   ];
   // Throws, failing the test, if a page misses an assertion in lighthouserc.json; the reports land in test-results.
-  execFileSync(process.execPath, args, { stdio: "inherit" });
+  // The output is caught and, on failure, put in the error itself: CI shows a failing test's message to anyone, but
+  // its full log only to people signed in to GitHub.
+  try {
+    execFileSync(process.execPath, args, { encoding: "utf8", stdio: "pipe" });
+  } catch (error) {
+    const { stdout = "", stderr = "" } = error as { stdout?: string; stderr?: string };
+    const lines = `${stdout}\n${stderr}`.split("\n");
+    const misses = lines.filter((line) => /expected|found|failure|✘|×/i.test(line));
+    throw new Error(`Lighthouse assertions failed:\n${misses.slice(0, 40).join("\n")}`);
+  }
 
   // The console and the verify page are private: their search score can't reach 90, because they ask search engines
   // not to index them (layout.tsx). So the test checks the opposite — that they still ask. The home page asks to be

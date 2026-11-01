@@ -33,10 +33,11 @@ from dwarpal_api.domain.decision import Decision, Outcome, decide
 from dwarpal_api.domain.keys import generate_client_secret, matches
 from dwarpal_api.domain.policy import ModelManifest, Policy, UncalibratedPolicyError
 from dwarpal_api.domain.sessions import STATUS_AFTER, Status, is_expired, move
+from dwarpal_api.domain.stepup import MAX_DOCUMENT_ATTEMPTS, DocumentDecision, decide_document
 from dwarpal_api.domain.timing import band_of
 from dwarpal_api.errors import ApiError
 from dwarpal_api.settings import Settings
-from dwarpal_contracts import FaceAnalysis, FaceRequestMeta
+from dwarpal_contracts import DocumentAnalysis, FaceAnalysis, FaceRequestMeta
 
 FLOW_STATUSES = frozenset({Status.IN_PROGRESS, Status.AWAITING_STEP_UP, Status.COMPLETED})
 # The sessions whose verify page may still be shown — inside a website's frame too (`frame_ancestor`).
@@ -44,6 +45,8 @@ SHOWN_STATUSES = FLOW_STATUSES | {Status.CREATED}
 MAX_PAGE = 100
 CHALLENGES_PER_ATTEMPT = 2
 HOUR_S = 3600
+# Where a challenge may be issued: a face attempt's, or the selfie of a step-up's document check.
+CHALLENGE_STATUSES = frozenset({Status.IN_PROGRESS, Status.AWAITING_STEP_UP})
 
 
 @dataclass
@@ -232,10 +235,10 @@ async def issue_challenge(
     async with session_tenant(svc.sessions, session_id) as session:
         row = await load_session(session, session_id)
         policy = await pinned(session, row)
-    if row.status != Status.IN_PROGRESS:
+    if row.status not in CHALLENGE_STATUSES:
         raise ApiError(409, "session_not_in_progress", f"this session is {row.status}")
     await spend_device_budgets(svc, row.project_id, device, address)
-    budget = policy.max_face_attempts * CHALLENGES_PER_ATTEMPT
+    budget = (policy.max_face_attempts + MAX_DOCUMENT_ATTEMPTS) * CHALLENGES_PER_ATTEMPT
     settings = svc.settings
     challenge = await svc.store.issue_challenge(
         row.id, new_challenge(), settings.challenge_ttl_s, budget, settings.session_ttl_s
@@ -258,7 +261,7 @@ async def spend_device_budgets(svc: Services, project_id: uuid.UUID, device: str
             raise ApiError(429, "too_many_attempts", "too many age checks from this device; try again later")
 
 
-def attempt_scores(analysis: FaceAnalysis | None, decision: Decision) -> dict[str, Any]:
+def attempt_scores(analysis: FaceAnalysis | None, decision: Decision | None = None) -> dict[str, Any]:
     if analysis is None:
         return {"analysis": "unavailable"}
     problems = sorted({flag for frame in analysis.frames for flag in frame.flags})
@@ -267,8 +270,8 @@ def attempt_scores(analysis: FaceAnalysis | None, decision: Decision) -> dict[st
         "frames": len(analysis.frames),
         "usable_frames": analysis.usable_frames,
         "problems": problems,
-        "p_over": decision.p_over,
-        "tau": decision.tau_effective,
+        "p_over": decision.p_over if decision else None,
+        "tau": decision.tau_effective if decision else None,
         "analysis_ms": round(analysis.duration_ms, 1),
         # Which liveness check fired is kept here, for the people who run Dwarpal, and never shown to the user.
         "liveness": analysis.liveness.model_dump() if analysis.liveness else None,
@@ -339,6 +342,102 @@ async def submit_face_attempt(
     return decision, remaining
 
 
+def document_scores(analysis: DocumentAnalysis | None, decision: DocumentDecision) -> dict[str, Any]:
+    """What is kept of a document check: its results, and of the document only its kind, issuer, the year and month of
+    birth and the expiry — never a name, a document number or a picture (§9.1)."""
+    if analysis is None:
+        return {"analysis": "unavailable"}
+    document = decision.document
+    return {
+        "zone_problem": analysis.zone_problem,
+        "document": None
+        if document is None
+        else {
+            "format": document.format,
+            "type": document.document_type,
+            "issuer": document.issuer,
+            "birth_year_month": f"{document.birth.year:04d}-{document.birth.month:02d}",
+            "expiry": document.expiry.isoformat(),
+            "repaired": list(document.repaired),
+        },
+        "document_faces": analysis.document_faces,
+        "similarity": None if analysis.similarity is None else round(analysis.similarity, 3),
+        "selfie": attempt_scores(analysis.face),
+        "analysis_ms": round(analysis.duration_ms, 1),
+    }
+
+
+async def submit_document_attempt(
+    svc: Services,
+    session_id: uuid.UUID,
+    challenge_id: str,
+    meta: FaceRequestMeta,
+    frames: list[bytes],
+    document: bytes,
+) -> tuple[DocumentDecision, int]:
+    """The step-up with an ID document (Phase 6): open only to a session the face check sent there."""
+    async with session_tenant(svc.sessions, session_id) as session:
+        if (await load_session(session, session_id)).status != Status.AWAITING_STEP_UP:
+            raise ApiError(409, "session_not_awaiting_step_up", "this session is not waiting for a step-up")
+    challenge = await svc.store.take_challenge(challenge_id, session_id)
+    if challenge is None:
+        raise ApiError(409, "challenge_invalid", "the challenge is unknown, expired or already used")
+    meta = meta.model_copy(update={"challenge": challenge})
+    analysis = await svc.inference.analyze_document(meta, frames, document)
+    async with session_tenant(svc.sessions, session_id) as session:
+        row = await load_session(session, session_id, lock=True)
+        now = svc.now()
+        await expire_if_due(svc, session, row, now)
+        if row.status != Status.AWAITING_STEP_UP:
+            await session.commit()
+            raise ApiError(409, "session_not_awaiting_step_up", f"this session is {row.status}")
+        policy = await pinned(session, row)
+        earlier = list(
+            await session.scalars(
+                select(VerificationAttempt.reasons).where(
+                    VerificationAttempt.session_id == row.id, VerificationAttempt.kind == "document"
+                )
+            )
+        )
+        failures = sum(1 for reasons in earlier if "liveness_check_failed" in reasons)
+        decision = decide_document(policy, analysis, len(earlier), now.date(), failures, row.livemode)
+        session.add(
+            VerificationAttempt(
+                id=svc.new_id(),
+                session_id=row.id,
+                kind="document",
+                outcome=decision.outcome,
+                reasons=list(decision.reasons),
+                scores=document_scores(analysis, decision),
+                created_at=now,
+            )
+        )
+        if decision.outcome != Outcome.RETRY:
+            row.status = move(Status.AWAITING_STEP_UP, Status.COMPLETED)
+            row.outcome = decision.outcome
+            row.completed_at = now
+            await announce(svc, session, row, now)
+        remaining = MAX_DOCUMENT_ATTEMPTS - len(earlier) - 1
+        await session.commit()
+    return decision, remaining
+
+
+async def methods_of(session: AsyncSession, row: VerificationSession) -> list[str]:
+    """How a completed session was decided, for its token: by the face alone, or by a document check after it."""
+    decided_by_document = await session.scalar(
+        select(func.count())
+        .select_from(VerificationAttempt)
+        .where(
+            VerificationAttempt.session_id == row.id,
+            VerificationAttempt.kind == "document",
+            VerificationAttempt.outcome != Outcome.RETRY,
+        )
+    )
+    if decided_by_document:
+        return ["face_estimation", "document_mrz", "face_match"]
+    return ["face_estimation"]
+
+
 async def finish(svc: Services, session_id: uuid.UUID) -> str | None:
     async with session_tenant(svc.sessions, session_id) as session:
         row = await load_session(session, session_id)
@@ -371,7 +470,9 @@ async def result_view(svc: Services, session_text: str, project_id: uuid.UUID, l
         now = svc.now()
         await expire_if_due(svc, session, row, now)
         policy = await pinned(session, row)
-        token = mint_token(svc, session, row, policy, now) if row.status == Status.COMPLETED else None
+        token = None
+        if row.status == Status.COMPLETED:
+            token = mint_token(svc, session, row, policy, now, await methods_of(session, row))
         await session.commit()
     return {**summary_view(row, now), "min_age": policy.min_age, "age_token": token}
 
@@ -436,7 +537,14 @@ async def list_sessions(
     }
 
 
-def mint_token(svc: Services, session: AsyncSession, row: VerificationSession, policy: Policy, now: datetime) -> str:
+def mint_token(
+    svc: Services,
+    session: AsyncSession,
+    row: VerificationSession,
+    policy: Policy,
+    now: datetime,
+    methods: list[str] | None = None,
+) -> str:
     jti, audience = svc.new_id(), ids.encode("prj", row.project_id)
     expires = now + timedelta(seconds=policy.token_ttl_s)
     session.add(IssuedToken(jti=jti, session_id=row.id, audience=audience, issued_at=now, expires_at=expires))
@@ -451,7 +559,7 @@ def mint_token(svc: Services, session: AsyncSession, row: VerificationSession, p
         "outcome": row.outcome,
         f"age_over_{policy.min_age}": row.outcome == Outcome.PASS,
         "assurance": "basic",
-        "methods": ["face_estimation"],
+        "methods": methods or ["face_estimation"],
         "policy": policy_label(row),
         "model": row.model_version,
         "livemode": row.livemode,

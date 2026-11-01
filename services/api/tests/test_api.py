@@ -74,10 +74,21 @@ from dwarpal_api.settings import Settings
 from dwarpal_contracts import Challenge, ClientSignals, FaceRequestMeta, FrameMeta
 from dwarpal_inference.main import create_app as create_inference
 from dwarpal_inference.settings import Settings as InferenceSettings
+from dwarpal_vision.document import Tesseract
+from dwarpal_vision.specimen import specimen_jpeg
 
 REPO = Path(__file__).resolve().parents[3]
 PORTRAIT = (REPO / "libs" / "vision" / "tests" / "fixtures" / "astronaut.jpg").read_bytes()
 RETURN_URL = "http://localhost:3100/age-check/complete"
+# Tesseract where it is installed, else in the project's OCR container (Phase 6's document checks); None if neither.
+TESSERACT = next(
+    (
+        command
+        for command in (["tesseract"], ["docker", "exec", "-i", "dwarpal-ocr-1", "tesseract"])
+        if Tesseract(command).available()
+    ),
+    None,
+)
 
 
 def blank_frame() -> bytes:
@@ -133,7 +144,8 @@ async def harness(
     **overrides: Any,
 ) -> AsyncIterator[Harness]:
     database_url, valkey_url = databases
-    inference = create_inference(InferenceSettings(stub_age=stub_age, liveness=liveness))
+    ocr = TESSERACT or ["tesseract"]
+    inference = create_inference(InferenceSettings(stub_age=stub_age, liveness=liveness, tesseract_command=ocr))
     inference_transport: httpx.AsyncBaseTransport = httpx.ASGITransport(app=inference)
     if inference_via is not None:
         inference_transport = inference_via(inference_transport)
@@ -274,6 +286,76 @@ async def test_a_teenager_near_the_limit_must_use_a_stronger_check(databases: tu
     assert result["reasons"] == ["age_uncertain"]
 
 
+def specimen(birth: str) -> bytes:
+    """A photographed specimen passport (ICAO's Utopia) with the test portrait's face and this date of birth."""
+    portrait = np.asarray(cv2.imdecode(np.frombuffer(PORTRAIT, np.uint8), cv2.IMREAD_COLOR), dtype=np.uint8)
+    return specimen_jpeg(portrait, birth, "360101")
+
+
+async def document_attempt(h: Harness, session: str, flow: dict[str, str], document: bytes) -> httpx.Response:
+    """The step-up's document check: a new challenge, the selfie frames following it, and the document's photo."""
+    challenge = (await h.client.post(f"/v1/flow/sessions/{session}/challenge", headers=flow)).json()
+    frames = [PORTRAIT] * (3 + len(challenge["poses"]))
+    meta = FaceRequestMeta(frames=following(challenge["poses"], len(frames)))
+    files = {f"frame_{i}": (f"frame_{i}.jpg", data, "image/jpeg") for i, data in enumerate(frames)}
+    files["document"] = ("document.jpg", document, "image/jpeg")
+    data = {"meta": meta.model_dump_json(), "challenge_id": challenge["challenge_id"]}
+    return await h.client.post(f"/v1/flow/sessions/{session}/stepup/mrz", data=data, files=files, headers=flow)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("birth", "outcome", "age_over_18", "month"),
+    [("900101", "pass", True, "1990-01"), ("140302", "fail", False, "2014-03")],
+)
+async def test_after_a_step_up_a_document_decides_and_only_its_birth_month_is_kept(
+    databases: tuple[str, str], birth: str, outcome: str, age_over_18: bool, month: str
+) -> None:
+    """Phase 6: a face check that can't decide sends the person to the document check; their passport's MRZ, read
+    from a photo, and their face matching its photo decide. The token says how it was decided; of the document, only
+    its kind, issuer, the year and month of birth and the expiry are kept — no name, number or picture."""
+    if TESSERACT is None:
+        pytest.skip("Tesseract isn't installed, and the OCR container isn't running")
+    async with harness(databases, stub_age=16.0) as h:
+        created = (await create(h)).json()
+        flow = await start(h, created)
+        face = (await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json()
+        result = (await document_attempt(h, created["id"], flow, specimen(birth))).json()
+        again = await h.client.post(f"/v1/flow/sessions/{created['id']}/challenge", headers=flow)
+        auth = {"Authorization": f"Bearer {h.key}"}
+        session = (await h.client.get(f"/v1/verification-sessions/{created['id']}", headers=auth)).json()
+        jwks = (await h.client.get("/.well-known/jwks.json")).json()
+        engine = make_engine(databases[0])
+        async with tenant(make_sessions(engine), ids.decode("prj", h.project)) as db:
+            kept = await db.scalar(
+                select(VerificationAttempt.scores).where(
+                    VerificationAttempt.session_id == ids.decode("vs", created["id"]),
+                    VerificationAttempt.kind == "document",
+                )
+            )
+        await engine.dispose()
+    assert face["outcome"] == "step_up"
+    assert result["outcome"] == outcome, result
+    assert again.status_code == 409  # decided: no further challenge, so no second document check
+    assert (session["status"], session["outcome"]) == ("completed", outcome)
+    token = jwt.decode(session["age_token"], KeySet.import_key_set(jwks), algorithms=["Ed25519"])
+    assert token.claims["age_over_18"] is age_over_18
+    assert token.claims["methods"] == ["face_estimation", "document_mrz", "face_match"]
+    assert token.claims["assurance"] == "basic"
+    assert kept is not None and kept["document"]["birth_year_month"] == month
+    assert "ERIKSSON" not in json.dumps(kept) and "L898902C3" not in json.dumps(kept)
+
+
+@pytest.mark.anyio
+async def test_the_document_check_is_open_only_to_a_session_sent_there(databases: tuple[str, str]) -> None:
+    async with harness(databases) as h:
+        created = (await create(h)).json()
+        flow = await start(h, created)
+        early = await document_attempt(h, created["id"], flow, specimen("900101"))
+    assert early.status_code == 409
+    assert early.json()["code"] == "session_not_awaiting_step_up"
+
+
 @pytest.mark.anyio
 async def test_poor_frames_get_a_retry_and_then_a_step_up(databases: tuple[str, str]) -> None:
     async with harness(databases) as h:
@@ -348,8 +430,9 @@ async def test_a_session_gets_a_limited_number_of_challenges(databases: tuple[st
         created = (await create(h)).json()
         flow = await start(h, created)
         path = f"/v1/flow/sessions/{created['id']}/challenge"
-        responses = [await h.client.post(path, headers=flow) for _ in range(7)]
-    assert [r.status_code for r in responses] == [200] * 6 + [429]
+        # Two per attempt: three face attempts and three document attempts (Phase 6).
+        responses = [await h.client.post(path, headers=flow) for _ in range(13)]
+    assert [r.status_code for r in responses] == [200] * 12 + [429]
     assert responses[-1].json()["code"] == "too_many_challenges"
 
 

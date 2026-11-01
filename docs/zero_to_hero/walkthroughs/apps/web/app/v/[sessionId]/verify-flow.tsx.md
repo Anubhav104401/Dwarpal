@@ -1,5 +1,5 @@
 ---
-fingerprint: d2e36919a2d2594e
+fingerprint: 8aec605465eae34b
 ---
 **The verify flow** — every screen a person sees during an age check, and the logic that moves between them. It is a **state machine** like the API's session (§5.1.2), but for the screen: at any moment the page is in exactly one **stage**, and each stage draws one screen.
 
@@ -196,44 +196,44 @@ If there was nowhere to go, or it failed, re-enable the button.
 @@ 208-216
 **Loading**: a card with a short message. `aria-busy="true"` tells screen readers that this part of the page is still loading.
 
-@@ 218-242
+@@ 218-244
 **A problem**: a neutral grey warning icon (a triangle with an exclamation mark), the title, the explanation; in a website's frame, a button that asks the website to **open the check in a full page** — for when a browser won't let a frame use the camera, say (the check then carries on there, with the same link); and — if the API gave one — the request ID as a **reference** in small monospace letters (`font-mono`). If the person contacts the website for help, that reference leads straight to the right line in the logs (§4.13).
 
-@@ 244-245
+@@ 246-247
 From here on, every stage has a session: take it out, and make the label for the top-right corner, such as "Amber Cellars · 18+".
 
-@@ 247-254
+@@ 249-256
 **The intro**: the heading names the age; the paragraph names the website.
 
-@@ 255-264
+@@ 257-266
 The three promises as a **numbered list** (`<ol>`). `PROMISES.map(…)` turns each text into a list item; React needs a stable **`key`** for every item of a list, to tell them apart between redraws — the text itself serves. Each number sits in a small saffron circle, in the darker `brand-700` so it is readable (§5.5.5).
 
-@@ 265-271
+@@ 267-273
 "Start the camera" moves to the camera stage, with no tip yet. The camera is only switched on *after* the person has read what will happen, and clicked.
 
-@@ 272-275
+@@ 274-277
 The closing tags.
 
-@@ 277-286
+@@ 279-288
 **The camera stage**: the camera screen, given the tip, the way to fetch a challenge, a callback that adds the session to the captured attempt, and the error callback.
 
-@@ 287-293
+@@ 289-295
 Below it, the attempts left — "Last try" when one remains.
 
-@@ 295-309
+@@ 297-311
 **Checking**: a spinning ring (`animate-spin` on a circle whose top border alone is saffron; it holds still for reduced-motion visitors) and two lines of text. `role="status"` makes screen readers announce "Checking your photos…".
 
-@@ 311
+@@ 313
 **An ending** — the only stage left. Look its screen up in `ENDINGS`.
 
-@@ 312-317
+@@ 314-319
 The icon, in the ending's colours, drawing the ending's symbol with rounded line ends.
 
-@@ 318-319
+@@ 320-321
 The title, and the body text built for this session.
 
-@@ 320-322
+@@ 322-324
 "Continue to Amber Cellars", or "Returning…" while it works.
 
-@@ 323-326
+@@ 325-328
 The closing tags.

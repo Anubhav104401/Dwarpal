@@ -1,5 +1,5 @@
 ---
-fingerprint: d5de2c13acc569c8
+fingerprint: cae9da731aa15282
 ---
 The Lighthouse check (Phase 5's exit criterion "Lighthouse ≥ 90"), as one Playwright test, so it reuses the test servers Playwright already starts: run Lighthouse CI on three key pages, then confirm the private ones still ask search engines to stay away.
 
@@ -33,14 +33,16 @@ The pages: the shop's front page, the home page (§5.5.9, named `HOME` for later
 @@ 34-40
 Lighthouse CI's arguments: run everything (`autorun`: collect, assert, save) with `lighthouserc.json`, in the headless shell, on each page.
 
-@@ 41-42
-Run it with this same Node and wait, showing its output. If any page misses a rule, it exits with an error, `execFileSync` throws, and the test fails.
+@@ 41-51
+Run it with this same Node and wait. If any page misses a rule, it exits with an error, `execFileSync` throws, and the test fails.
 
-@@ 44-49
+Since the first runs on GitHub (§5.6.2) the output is *caught* rather than shown as it comes: GitHub shows anyone a failing test's message, but its full log only to people signed in. So on failure the lines that say what was expected and what was found are picked out (`filter`) and put into the error itself — the first 40 of them.
+
+@@ 53-58
 Then read the list of saved reports (`manifest.json`): each page's address and its report file. The home page is the exception among port 3000's pages: it asks to be found, and `lighthouserc.json` holds its search score to 90.
 
-@@ 50-55
+@@ 59-64
 For each private page (port 3000, except the home page), its `is-crawlable` audit must score 0 — "blocked from indexing" — so a change that let search engines list the console would fail here.
 
-@@ 56
+@@ 65
 End of the test.

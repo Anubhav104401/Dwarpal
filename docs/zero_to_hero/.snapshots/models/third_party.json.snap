@@ -60,6 +60,16 @@
       "bytes": 1856130,
       "licence": "Apache-2.0 (minivision-ai/Silent-Face-Anti-Spoofing, commit b6d5f04); approved by the owner on 2026-10-19 for spotting faces shown on screens and photos. PyTorch weights, read as plain tensors only and converted to ONNX by dwarpal_ml.antispoof",
       "source": "https://github.com/minivision-ai/Silent-Face-Anti-Spoofing"
+    },
+    {
+      "name": "sface-face-recognizer-int8",
+      "use": "serving",
+      "file": "third_party/face_recognition_sface_2021dec_int8.onnx",
+      "url": "https://huggingface.co/opencv/face_recognition_sface/resolve/3d7082438a6e4551e840c9b2bb60b71e8da4b524/face_recognition_sface_2021dec_int8.onnx",
+      "sha256": "2b0e941e6f16cc048c20aee0c8e31f569118f65d702914540f7bfdc14048d78a",
+      "bytes": 9896933,
+      "licence": "Apache-2.0 (OpenCV Zoo, verified from the LICENSE at the pinned revision); approved by the owner on 2026-11-01 (D7b) for matching a selfie to a document's photo, knowing that SFace was trained on web-scraped face datasets collected without consent (CASIA-WebFace, VGGFace2, MS-Celeb-1M); compares two faces in memory and keeps neither",
+      "source": "https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface"
     }
   ]
 }

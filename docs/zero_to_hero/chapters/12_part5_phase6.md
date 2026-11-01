@@ -4,7 +4,7 @@ A face estimate is quick and private, but sometimes it can't be sure: a 19-year-
 
 | Order | Method | Status |
 | :-: | :-- | :-- |
-| 1 | **ID document (MRZ)** — read the machine-readable zone of a passport or ID card, check it, and match its photo to a selfie | 🟡 the MRZ parser and age rule (§5.6.1); reading from a photo and the face match wait for approved downloads |
+| 1 | **ID document (MRZ)** — read the machine-readable zone of a passport or ID card, check it, and match its photo to a selfie | 🟢 the parser and age rule (§5.6.1); reading from a photo, the face match and the API's document check (§5.6.2); 🟡 the verify page's screens (§5.6.3) |
 | 2 | **Aadhaar Secure QR** (India) — verify UIDAI's digital signature on the QR code, then match its photo | 🗓 waits for UIDAI's official specification and certificate |
 
 ### 5.6.1 Reading the machine-readable zone
@@ -29,5 +29,58 @@ This step builds the part that can be proved without a camera: given the zone's 
 - the age rule fails an expired document, and counts a birthday from its day (with leap days falling on 1 March).
 
 !!! honest "Honest limitation"
-    - **A valid MRZ isn't a genuine document.** Check digits catch mistakes, not forgeries: anyone can compute them. A browser can't read a passport's chip, and Dwarpal does no forensic checks of the printing. So a document check counts as **basic** assurance, and must be paired with a match between the document's photo and a live selfie, which waits for an approved face-match model.
-    - **Reading the zone from a photo isn't built yet**: it needs an OCR engine and a model trained on the MRZ typeface, both downloads awaiting approval.
+    - **A valid MRZ isn't a genuine document.** Check digits catch mistakes, not forgeries: anyone can compute them. A browser can't read a passport's chip, and Dwarpal does no forensic checks of the printing. So a document check counts as **basic** assurance, and must be paired with a match between the document's photo and a live selfie, which §5.6.2 adds.
+    - Reading the zone from a photo came next, in §5.6.2.
+
+### 5.6.2 Reading a document from a photo, and matching its face
+
+The parser (§5.6.1) needed text. This step gets it from a photo, and adds the other half of a document check — is the person holding the document the person on it? — then puts both behind the API. Two downloads made it possible, approved on 1 November (decisions D6b and D7b): **Tesseract**, a free OCR engine, run in a small locked-down container; and **SFace**, OpenCV's face recogniser.
+
+The check, from the person's side: the face check couldn't decide, so they photograph their passport's data page and take a selfie, turning their head as asked. Then:
+
+1. **The inference service** finds the MRZ band in the photo, straightens it and has Tesseract read it — blanking the names line before the text leaves the service; finds the face printed on the page; and compares it with each selfie frame. The selfie also goes through the ordinary face pipeline, liveness and all.
+2. **The API** decides, in a fixed order: a live selfie; a zone that passes every check digit; one face on the document, matching the selfie's; and only then the age rule. Doubt means *try again* — three tries — then *fail*; never *pass*.
+3. **The token** says how the answer was reached: `methods: ["face_estimation", "document_mrz", "face_match"]`, still at `basic` assurance.
+
+!!! key "Key idea — reading is imperfect, so checking is strict"
+    Tesseract's English model was not trained on the MRZ typeface, and reads the long runs of `<` badly. Rather than trust it, the parser looks for the **simplest** reading that passes every check digit: first the text as read, then with one character dropped or added, then two — trying an empty optional field too, since that is what OCR misreads most. It accepts a reading only if it is the **only** one at that level. Every repair is reported in the decision's reasons.
+
+    Measured on 40 photographed specimen passports with random dates: **31 read right, none wrong**, 9 refused ("take the photo again"); 11 of the 31 needed a repair. A property test drops a character anywhere in thousands of zones, and the reading is always the true dates — or no reading at all.
+
+!!! kid "Explain like I'm six — a careful reader"
+    Imagine a friend reading you a long number over a bad phone line. Sometimes they say a digit twice or skip one. You know a secret rule the real number follows, so you try fixing it one small way at a time. If exactly one fix makes the rule work, you take it. If two different fixes both work, you ask them to read it again — you never just pick one.
+
+Testing a document check needs photos of documents, and real ones belong to real people. So the tests draw their own: the passport of ICAO's fictional holder from the state of Utopia, with whatever dates a test needs, tilted, blurred and noised as a phone would take it (`specimen.py`).
+
+!walk infra/ocr/Dockerfile
+
+!walk libs/vision/src/dwarpal_vision/document.py
+
+!walk libs/vision/src/dwarpal_vision/match.py
+
+!walk libs/vision/src/dwarpal_vision/specimen.py
+
+!walk libs/contracts/src/dwarpal_contracts/document.py
+
+!walk services/inference/src/dwarpal_inference/document.py
+
+!walk services/api/src/dwarpal_api/domain/stepup.py
+
+!walk services/api/tests/test_stepup.py
+
+!walk libs/vision/tests/test_document.py
+
+The parser (`read_ocr`), the inference service's settings and endpoints, the API's flow endpoints, use cases, size limits and inference client, the contracts' list, the compose file (the OCR container), the model list (SFace), CI (Tesseract on GitHub's machines) and the tests of the parser, the API and the inference service changed too; each was re-explained.
+
+**What the tests prove**:
+- end to end through the API, with real OCR: a face check that can't decide sends the person to the document check; an adult's specimen passport passes and a 12-year-old's fails; the token names the methods; and of the document only its kind, issuer, year and month of birth and expiry are kept — no name, no number;
+- the document check is open only to a session the face check sent there, and only once it has decided;
+- every kind of doubtful evidence — no zone, a refuted check digit, no face or two, faces that don't match, no liveness — is retried, then fails, and never passes;
+- the reader finds the band on a tilted photo and not on a face; the matcher matches a face to its printed copy and not to a scrambled one.
+
+!!! honest "Honest limitation"
+    - **ID cards read poorly.** Passports (TD3) read well on the specimens; TD2 cards 9 times in 10; but TD1 cards — the three-line kind — rarely, because Tesseract loses the end of their lines. A model trained on the MRZ typeface (OCR-B) would help; the usual one has no licence, so it would have to be trained (decision D6c).
+    - **The specimens are not real photos.** They are drawn in an ordinary font, not OCR-B, and photographed by a program. How the reader does on real passports under real light is unmeasured.
+    - **The face-match threshold is OpenCV's**, measured on celebrity photos of similar quality, not on a printed passport photo against a webcam.
+    - **SFace was trained on faces collected without consent** (D7b). The owner accepted it knowing this; it is recorded with the model.
+    - **The verify page doesn't offer the document check yet**: the API and inference service are ready; its screens come in §5.6.3.

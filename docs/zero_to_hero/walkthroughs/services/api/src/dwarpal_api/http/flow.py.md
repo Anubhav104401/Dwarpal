@@ -1,5 +1,5 @@
 ---
-fingerprint: 523aadd78847e26a
+fingerprint: 7f9a6a9fb34c0ff8
 ---
 The **capture-flow API** — the endpoints the hosted verify page calls from the person's browser while the check is happening:
 
@@ -22,10 +22,10 @@ The project-wide type-hint setting.
 `re` (regular expressions), `uuid`, `Annotated` and `Any`.
 
 @@ 9-11
-From FastAPI: the router, `Depends`, `Header` (to read a request header) and `Request`. From Pydantic: the model tools and `ValidationError`. From Starlette: `UploadFile`, the type of an uploaded file. (It is Starlette's, because FastAPI is built on Starlette.)
+From FastAPI: the router, `Depends`, `Header` (to read a request header) and `Request`. From Pydantic: the model tools and `ValidationError`. From Starlette: `FormData`, the type of a parsed form, and `UploadFile`, the type of an uploaded file. (They are Starlette's, because FastAPI is built on Starlette.)
 
 @@ 13-18
-The use cases, the toolbox type, the `Outcome` names, our error class, the two dependencies used here, and the limits and frame description from the shared contracts.
+The use cases, the toolbox type, the `Outcome` names, our error class, the two dependencies used here, and the limits and frame description from the shared contracts — now including the document photo's limit (§5.6.2).
 
 @@ 20
 The router: every path starts with `/v1/flow/sessions/{session_text}`, so each endpoint automatically receives the session's ID from its address.
@@ -56,32 +56,56 @@ Parse the form, accepting at most 16 files and 2 text fields; anything more is r
 
 It is parsed with **`async with`**: when the block ends — normally, or because a check below refuses the request — every uploaded file is **closed**, and the memory holding the frame is let go at once. Without it, the uploads stayed open until Python's garbage collector happened to find them: a chaos test (Phase 7) showed the warnings. The frames live on only as the bytes copied into `frames`, which the use case needs.
 
-@@ 62-64
-Read the challenge ID (or empty text if it's missing) and check its shape. Wrong? `422`.
-
-@@ 65-68
-Read the `meta` field — the JSON description of the frames — and check it against the `FaceRequestMeta` contract: 1 to 16 frames, each with a valid index and time. `from None` drops Pydantic's long internal error from the response; the client gets one clear sentence.
-
-@@ 69
-An empty list, for the frames' bytes.
-
-@@ 70-73
-For each frame described in `meta`, the form must contain a file called `frame_<index>`. Missing, or not a file? `422`, naming the frame.
-
-@@ 74-76
-Read at most one byte more than the per-frame limit. If that extra byte arrived, the frame is too big: `413`, naming the frame and the limit.
-
-@@ 77
-Keep the frame's bytes. This is the end of the `async with` block: the uploads close here.
-
-@@ 78
+@@ 63
 Hand everything to the use case, which uses up the challenge, asks the AI, decides and records. It returns the decision and the attempts left.
 
-@@ 79
+@@ 64
 **Never explain a rejection.** A `reject` means "this looked like an attack" (from Phase 3). If the answer said *why* — "the screen glare gave you away" — an attacker would learn how to improve. So every rejection is reported with the same vague reason, `verification_failed`. Every other outcome shares its reasons, which help honest people succeed: "too dark", "no face".
 
-@@ 80
+@@ 65
 Answer with the outcome, the reasons, and the attempts left — never below zero.
 
-@@ 83-87
+@@ 108-112
 **`/finish`** — the use case returns where the page should send the person (or `None`), wrapped in a small JSON object.
+
+@@ 62
+Read the challenge, the frames' description and the frames themselves, with every check, through `read_attempt` below — shared with the document check. This is the end of the `async with` block: the uploads close here.
+
+@@ 68-71
+**`/stepup/mrz`** (§5.6.2) — the step-up with an ID document, under the address the design gave it. Like the face upload, it receives the raw `Request` and the session's flow token.
+
+@@ 72-73
+Its docstring: a photo of the document's data page, with the selfie frames of a new face challenge; nothing of the photo is kept.
+
+@@ 74-75
+Parse the form — one more file than a face attempt allows, for the document — and read the challenge, meta and frames exactly as a face attempt's.
+
+@@ 76-78
+The form must hold a file called `document`. Missing, or not a file? `422`.
+
+@@ 79-81
+Read at most one byte more than the document limit (1 MB): if that byte arrived, the photo is too big, `413`. As with frames, nothing larger is ever held in memory.
+
+@@ 82
+Hand everything to the use case, which uses up the challenge, asks the inference service, decides and records.
+
+@@ 83-84
+Answer as a face attempt does: the outcome, the reasons (a rejection's never explained) and the attempts left.
+
+@@ 87-88
+**`read_attempt`** — what both uploads share, moved here from the face upload in Phase 6: an attempt's challenge, its frames' description and its frames.
+
+@@ 89-91
+Read the challenge ID (or empty text if it's missing) and check its shape. Wrong? `422`.
+
+@@ 92-95
+Read the `meta` field — the JSON description of the frames — and check it against the `FaceRequestMeta` contract: 1 to 16 frames, each with a valid index and time. `from None` drops Pydantic's long internal error from the response; the client gets one clear sentence.
+
+@@ 96-100
+For each frame described in `meta`, the form must contain a file called `frame_<index>`. Missing, or not a file? `422`, naming the frame.
+
+@@ 101-104
+Read at most one byte more than the per-frame limit. If that extra byte arrived, the frame is too big: `413`, naming the frame and the limit. Otherwise keep the frame's bytes.
+
+@@ 105
+Return the three.

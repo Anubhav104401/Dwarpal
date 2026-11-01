@@ -1,5 +1,5 @@
 ---
-fingerprint: 91db951d6e5d9b4a
+fingerprint: 53eed33ad2748e20
 ---
 The **page frame** shared by every screen of the verify app: the soft saffron glow at the top, the Dwarpal mark and name, an optional label (such as "Amber Cellars · 18+"), the content, and a reassuring footer. It also passes on the verify page's card and buttons, which since §5.5.6 come from the design system, so every screen looks like part of one product.
 
@@ -60,7 +60,7 @@ The end of the header.
 `<main>` — the screen's content. `flex-1` lets it grow to fill the space, pushing the footer to the bottom of short pages.
 
 @@ 49-53
-The footer: two short promises in small grey text, with `<br />` starting the second line. They appear on every screen, so the person sees them at the exact moment they decide whether to turn on the camera.
+The footer: two short promises in small grey text (a darker grey, and a lighter one in the dark theme, since Firefox's accessibility check on GitHub found the old one too faint — §5.6.2), with `<br />` starting the second line. They appear on every screen, so the person sees them at the exact moment they decide whether to turn on the camera.
 
 @@ 54-56
 The closing tags.

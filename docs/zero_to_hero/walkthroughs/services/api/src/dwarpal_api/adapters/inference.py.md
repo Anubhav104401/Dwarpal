@@ -1,5 +1,5 @@
 ---
-fingerprint: 075cec24a39733cd
+fingerprint: 4461a52f5d8737bf
 ---
 The API's **client for the inference service**: it sends the frames over the internal network and brings back a `FaceAnalysis` (§5.1.1).
 
@@ -15,7 +15,7 @@ The project-wide type-hint setting.
 `httpx` (the HTTP client) and Pydantic's `ValidationError`.
 
 @@ 8
-The shared contracts: what the API sends (`FaceRequestMeta`) and what it expects back (`FaceAnalysis`). Both services import the same classes, so they can't disagree about the shapes.
+The shared contracts: what the API sends (`FaceRequestMeta`) and what it expects back (`FaceAnalysis`, and for a document check `DocumentAnalysis`). Both services import the same classes, so they can't disagree about the shapes.
 
 @@ 11-13
 **`InferenceClient`** keeps an `httpx.AsyncClient` that it is given — already configured with the service's address and a timeout (see `main.py`). Tests give it a client that talks to an inference app inside the same process instead (`test_api.py`).
@@ -39,3 +39,12 @@ Any answer other than `200 OK` — such as `503` "busy, retry shortly" — also 
 
 @@ 28-31
 Parse and check the answer against the `FaceAnalysis` contract. A malformed answer raises `ValidationError` and also becomes `None`. Only a well-formed analysis ever reaches the decision engine.
+
+@@ 33-36
+**`analyze_document`** (§5.6.2) — the step-up's document check: the selfie frames and the photo of the document's page.
+
+@@ 37-41
+The upload, as for a face attempt: each frame under its own name, and the document as one more file named `document`.
+
+@@ 42-53
+Post it to the inference service's document address, and fail closed exactly as `analyze_face` does: a network error, an answer other than 200, or an answer that doesn't fit the contract all become "no analysis" — which the step-up's rules turn into a retry, never a pass.

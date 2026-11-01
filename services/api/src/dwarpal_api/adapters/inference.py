@@ -5,7 +5,7 @@ from __future__ import annotations
 import httpx
 from pydantic import ValidationError
 
-from dwarpal_contracts import FaceAnalysis, FaceRequestMeta
+from dwarpal_contracts import DocumentAnalysis, FaceAnalysis, FaceRequestMeta
 
 
 class InferenceClient:
@@ -27,5 +27,27 @@ class InferenceClient:
             return None
         try:
             return FaceAnalysis.model_validate_json(response.content)
+        except ValidationError:
+            return None
+
+    async def analyze_document(
+        self, meta: FaceRequestMeta, frames: list[bytes], document: bytes
+    ) -> DocumentAnalysis | None:
+        """The step-up's document check: the document's photo with the selfie frames (Phase 6)."""
+        files = {
+            f"frame_{frame.index}": (f"frame_{frame.index}.jpg", data, "image/jpeg")
+            for frame, data in zip(meta.frames, frames, strict=True)
+        }
+        files["document"] = ("document.jpg", document, "image/jpeg")
+        try:
+            response = await self._client.post(
+                "/internal/v1/analyze/document", data={"meta": meta.model_dump_json()}, files=files
+            )
+        except httpx.HTTPError:
+            return None
+        if response.status_code != 200:
+            return None
+        try:
+            return DocumentAnalysis.model_validate_json(response.content)
         except ValidationError:
             return None

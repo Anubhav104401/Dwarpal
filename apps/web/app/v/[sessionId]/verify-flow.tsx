@@ -209,7 +209,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     return (
       <Shell>
         <div className={`${card} grid h-64 place-items-center`} aria-busy="true">
-          <p className="text-sm text-ink-500">Opening your age check…</p>
+          <p className="text-sm text-ink-600 dark:text-ink-400">Opening your age check…</p>
         </div>
       </Shell>
     );
@@ -234,7 +234,9 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
             </button>
           )}
           {stage.requestId === null ? null : (
-            <p className="mt-6 font-mono text-xs text-ink-500">Reference: {stage.requestId}</p>
+            <p className="mt-6 font-mono text-xs text-ink-600 dark:text-ink-400">
+              Reference: {stage.requestId}
+            </p>
           )}
         </section>
       </Shell>
@@ -284,7 +286,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
             onCaptured={(captured) => onCaptured(session, captured)}
             onCameraError={onCameraError}
           />
-          <p className="mt-4 text-center text-xs text-ink-500">
+          <p className="mt-4 text-center text-xs text-ink-600 dark:text-ink-400">
             {session.attemptsRemaining === 1 ? "Last try" : `${session.attemptsRemaining} tries left`}
           </p>
         </section>
@@ -301,7 +303,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
             <p className="mt-5 font-medium" role="status">
               Checking your photos…
             </p>
-            <p className="mt-1 text-sm text-ink-500">This takes a second.</p>
+            <p className="mt-1 text-sm text-ink-600 dark:text-ink-400">This takes a second.</p>
           </div>
         </section>
       </Shell>

@@ -1,6 +1,7 @@
 # Dwarpal: local development infrastructure (the databases the services need).
 #   start:  docker compose -f infra/compose/compose.yaml up -d --wait
 #   stop:   docker compose -f infra/compose/compose.yaml down      (add -v to delete the data too)
+#   (the `ocr` container, for reading documents in the step-up check, starts with the databases)
 #   traces: docker compose -f infra/compose/compose.yaml --profile observability up -d
 #           then run the API with DWARPAL_OTEL_ENDPOINT=http://127.0.0.1:4318, and open Grafana at http://localhost:3300
 #           (its "Dwarpal API" dashboard), or Prometheus's alerts at http://localhost:9090/alerts
@@ -37,6 +38,17 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
+
+  # Tesseract OCR for reading documents' MRZ (Phase 6): an idle container the inference service runs `tesseract` in,
+  # through `docker exec -i dwarpal-ocr-1 tesseract`. No network, no writable disk, no privileges.
+  ocr:
+    build: ../ocr
+    image: dwarpal-ocr:local
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     restart: unless-stopped
 
   # Seeing traces and metrics (Phase 7, D11), only when asked for (`--profile observability`): the collector passes

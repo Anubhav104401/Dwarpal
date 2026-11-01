@@ -1,5 +1,5 @@
 ---
-fingerprint: eb55241bfeeaa225
+fingerprint: ac319db6b113b031
 ---
 A guard at the door that **measures every request before letting it in**. An attacker who sends a 10-gigabyte "upload" would otherwise make the API read and store it all before any check ran. This middleware refuses oversized bodies from the headers alone, before a single byte of the body has been read.
 
@@ -23,7 +23,7 @@ The project-wide type-hint setting.
 Starlette's `Request` (needed by `problem`) and the ASGI types (see `RequestIds` in `problems.py`).
 
 @@ 8-9
-`problem` — the one error shape — and the frame limits from the shared contracts.
+`problem` — the one error shape — and the size limits from the shared contracts: frames, and the document photo of a step-up (§5.6.2).
 
 @@ 11
 `JSON_LIMIT` — 64 KiB for every ordinary request. The biggest legitimate JSON body, creating a session, is a few hundred bytes.
@@ -31,35 +31,35 @@ Starlette's `Request` (needed by `problem`) and the ASGI types (see `RequestIds`
 @@ 12
 `UPLOAD_LIMIT` — for face uploads: the most frames allowed (16) times the most bytes per frame (512 KiB), plus 64 KiB for the multipart packaging and the `meta` text. Computing it from the contracts' values keeps it right if those ever change.
 
-@@ 13
-Which requests are uploads: those whose path ends in `/face-attempts`.
+@@ 13-14
+Which requests are uploads, by how their path ends, and the largest body each may send: a face attempt's frames, or a document check's frames **plus** its document photo (§5.6.2).
 
-@@ 16-18
+@@ 17-19
 **`BodyLimit`** — an ASGI middleware, built like `RequestIds`.
 
-@@ 20-21
+@@ 21-22
 For every HTTP request…
 
-@@ 22
+@@ 23
 …turn the header list into a dict, for easy lookups. In ASGI, header names arrive in lowercase, as **bytes** — hence the `b"…"` keys below.
 
-@@ 23
-Pick the limit that applies to this path.
+@@ 24-25
+Pick the limit that applies to this path: an upload's, if the path ends like one; otherwise the small JSON limit. `next(…, JSON_LIMIT)` takes the first match, or the default when there is none.
 
-@@ 24
+@@ 26
 The declared size, or `0` if no size was declared (a request without a body, such as a `GET`).
 
-@@ 25
+@@ 27
 No refusal so far.
 
-@@ 26-27
+@@ 28-29
 A chunked body: refuse with `411`, saying how to fix it.
 
-@@ 28-29
+@@ 30-31
 A size that isn't a plain number, or is over the limit: refuse with `413`, stating the limit.
 
-@@ 30-32
+@@ 32-34
 If there is a refusal, send it — a response is itself an ASGI app, so it is *called* with the same three values — and stop. The real app never sees the request.
 
-@@ 33
+@@ 35
 Otherwise pass the request on, unchanged.

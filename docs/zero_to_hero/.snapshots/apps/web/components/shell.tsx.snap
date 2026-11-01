@@ -46,7 +46,7 @@ export function Shell({ children, label }: { children: ReactNode; label?: string
         )}
       </header>
       <main className="relative mt-6 w-full max-w-md flex-1">{children}</main>
-      <footer className="relative mt-10 max-w-md text-center text-xs leading-relaxed text-ink-500">
+      <footer className="relative mt-10 max-w-md text-center text-xs leading-relaxed text-ink-600 dark:text-ink-400">
         Your photos are checked once and never stored.
         <br />
         Dwarpal never learns who you are — only whether you are old enough.

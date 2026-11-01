@@ -7,7 +7,9 @@ check the check digits, and are then dropped.
 
 from __future__ import annotations
 
+import dataclasses
 import itertools
+import math
 from dataclasses import dataclass
 from datetime import date
 from typing import Literal
@@ -15,9 +17,23 @@ from typing import Literal
 FILLER = "<"
 WEIGHTS = (7, 3, 1)
 # Characters an OCR engine confuses with digits, and the digit each stands for.
-LOOKS_LIKE_A_DIGIT = {"O": "0", "D": "0", "Q": "0", "I": "1", "L": "1", "Z": "2", "S": "5", "G": "6", "B": "8"}
-LOOKS_LIKE_A_LETTER = {"0": "O", "1": "I", "2": "Z", "5": "S", "6": "G", "8": "B"}
+LOOKS_LIKE_A_DIGIT = {
+    "O": "0",
+    "D": "0",
+    "Q": "0",
+    "I": "1",
+    "L": "1",
+    "Z": "2",
+    "S": "5",
+    "G": "6",
+    "T": "7",
+    "B": "8",
+}
+LOOKS_LIKE_A_LETTER = {"0": "O", "1": "I", "2": "Z", "5": "S", "6": "G", "7": "T", "8": "B"}
 MAX_REPAIRS = 4  # a field with more doubtful characters than this is too damaged to guess at
+ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
+MAX_LENGTH_EDITS = 2  # characters OCR may have added to a line; at most one may be missing
+MAX_READINGS = 5000  # repaired readings of a whole zone worth trying; more means the photo is too poor
 
 Format = Literal["TD1", "TD2", "TD3"]
 LAYOUTS: dict[Format, tuple[int, int]] = {"TD1": (3, 30), "TD2": (2, 36), "TD3": (2, 44)}
@@ -163,6 +179,98 @@ def parse(text: str, today: date) -> MrzDocument:
         expiry=expiry_date(expiry, today),
         repaired=tuple(repaired),
     )
+
+
+def _format_of(lines: list[str]) -> Format:
+    """Which layout OCR'd lines are meant to be, though a character may be missing or extra: three lines are a TD1
+    card; two are a passport (44) or a TD2 card (36), whichever the data line is closer to."""
+    if len(lines) == 3:
+        return "TD1"
+    if len(lines) == 2:
+        return "TD3" if abs(len(lines[1]) - 44) < abs(len(lines[1]) - 36) else "TD2"
+    raise MrzError("mrz_unreadable", "the zone isn't 2 or 3 lines")
+
+
+def _resized(text: str, width: int, edits: int) -> list[str]:
+    """Every way of making `text` exactly `width` characters long with exactly `edits` drops or additions, the usual
+    slips of OCR in long runs of the same character: none, if the lengths are further apart than that."""
+    gap = len(text) - width
+    if abs(gap) != edits:
+        return []
+    if gap >= 0:
+        return [
+            "".join(c for i, c in enumerate(text) if i not in drop)
+            for drop in itertools.combinations(range(len(text)), gap)
+        ]
+    if gap == -1:
+        return [text[:i] + char + text[i:] for i in range(len(text) + 1) for char in ALPHABET]
+    return []  # adding two characters anywhere is too much guessing
+
+
+def _line_readings(line: str, width: int, skeleton: tuple[int, int], edits: int) -> list[tuple[str, bool]]:
+    """The ways a data line could have read, with exactly `edits` characters dropped or added: as a whole, or as its
+    fixed fields (the first `skeleton[0]` characters) and its last `skeleton[1]` (check digits) around an empty optional
+    field — what an optional field usually is, and what OCR misreads most. The flag says which."""
+    fields, tail = skeleton
+    found = [(text, False) for text in _resized(line, width, edits)]
+    middle = width - fields - tail
+    ending = line[len(line) - tail :] if tail else ""
+    for size in range(fields - MAX_LENGTH_EDITS, fields + MAX_LENGTH_EDITS + 1):
+        found += [(text + FILLER * middle + ending, True) for text in _resized(line[:size], fields, edits)]
+    return found
+
+
+# Per layout, for each data line: how many characters of fixed fields it starts with, and how many check digits it
+# ends with; everything between is an optional field.
+SKELETONS: dict[Format, dict[int, tuple[int, int]]] = {
+    "TD1": {0: (15, 0), 1: (18, 1)},
+    "TD2": {1: (28, 1)},
+    "TD3": {1: (28, 2)},
+}
+
+
+def read_ocr(lines: list[str], today: date) -> MrzDocument:
+    """Parse an MRZ as OCR read it from a photo. The names line is ignored (an age check needs no name, and no check
+    digit covers it): only its document type and issuer are kept. The data lines are read the simplest way that passes
+    every check digit — with the fewest characters dropped or added, trying an empty optional field too — and only if
+    that way gives **exactly one** document. Each repair is reported, so a reviewer can see what a decision rested on.
+    """
+    kind = _format_of(lines)
+    _, width = LAYOUTS[kind]
+    names = 2 if kind == "TD1" else 0
+    fixed = ("" if kind == "TD1" else lines[names][:5]).ljust(width, FILLER)[:width]
+    data = sorted(SKELETONS[kind].items())
+    for total in range(MAX_LENGTH_EDITS + 1):
+        readings: dict[tuple[str, str, str, date, date], MrzDocument] = {}
+        for split in itertools.product(range(total + 1), repeat=len(data)):
+            if sum(split) != total:
+                continue
+            options = [
+                _line_readings(lines[index], width, skeleton, edits)
+                for (index, skeleton), edits in zip(data, split, strict=True)
+            ]
+            if math.prod(len(choice) for choice in options) > MAX_READINGS:
+                continue
+            for chosen in itertools.product(*options):
+                zone = [fixed] * len(lines)
+                for (index, _), (text, _) in zip(data, chosen, strict=True):
+                    zone[index] = text
+                try:
+                    document = parse("\n".join(zone), today)
+                except MrzError:
+                    continue
+                notes: tuple[str, ...] = ("line_length",) if total else ()
+                notes += ("optional_fields_read_as_empty",) if any(empty for _, empty in chosen) else ()
+                document = dataclasses.replace(document, repaired=(*document.repaired, *notes))
+                key = (document.format, document.document_type, document.issuer, document.birth, document.expiry)
+                # The plainest reading of a document is kept: a whole line read as is beats an assumed-empty field.
+                if key not in readings or len(document.repaired) < len(readings[key].repaired):
+                    readings[key] = document
+        if len(readings) == 1:
+            return next(iter(readings.values()))
+        if readings:
+            raise MrzError("mrz_check_failed", "more than one reading of the zone passes its check digits")
+    raise MrzError("mrz_check_failed", "no reading of the zone passes its check digits")
 
 
 def age_on(birth: date, today: date) -> int:

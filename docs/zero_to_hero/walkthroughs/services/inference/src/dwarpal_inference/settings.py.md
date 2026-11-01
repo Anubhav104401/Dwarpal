@@ -1,5 +1,5 @@
 ---
-fingerprint: 03473b4e40660931
+fingerprint: 55caa9f36daa50ac
 ---
 The inference service's **settings**, read from environment variables. The same code can then run on a laptop, in CI and in production — only the environment changes (the "12-factor" principle, Stage 4 §9).
 
@@ -39,32 +39,41 @@ The repository root, found from this file's own location (`parents[4]` climbs `d
 @@ 21
 `antispoof_files` — the two anti-spoofing networks, as ONNX files made from the pinned weights by `python -m dwarpal_ml.antispoof`. If they are missing, the service runs without them and every result says so (`presentation` is empty).
 
-@@ 22
+@@ 27
 `age_backend` — which age model to use: `"stub"` (the stand-in, still the default) or `"onnx"` (a trained model, added in Phase 2). `Literal` means only these words are accepted, so a typo like `"onx"` is rejected at start-up.
 
-@@ 23-24
+@@ 28-29
 The stand-in model's fixed age and spread, in years. Tests and the end-to-end demo choose them, for example 30 for an adult or 15 for a minor.
 
-@@ 25-26
+@@ 30-31
 For the ONNX backend: the model's folder inside `models/` (by default the first trained model, `age-convnext-tiny-2026.10.17`), and how many processor threads each request may use.
 
-@@ 27-28
+@@ 32-33
 **`age_frames`** (Phase 7, decision P1) — how many of an attempt's flawless frames the age model sees, the sharpest first. 3 was chosen after checking the decisions it makes against the certified safety lines (§5.7.4).
 
-@@ 29
+@@ 34
 `workers` — how many analyses may run at the same time. The rest wait or are told to retry (back-pressure, Stage 3 §5.4).
 
-@@ 30-31
+@@ 35-36
 **`queue_s`** (Phase 7, §5.7.4) — how long a request may wait for a free worker before the answer is "busy": one second. People arrive at random, so now and then a fifth arrives while four analyses are running; waiting a moment serves them, where an instant refusal sent one in five away in the load test.
 
-@@ 32
+@@ 37
 `liveness` — where the pose check gets its evidence (Phase 3): `"images"`, measured from the photos — the default, and the only safe choice — or `"labels"`, the test mode that believes the photos' labels (§5.3.5).
 
-@@ 34-35
+@@ 39-40
 **`labels_only_with_the_stand_in`** — a check across two fields. `mode="after"` runs it once every field is set, so it can compare them. It returns the settings themselves if all is well.
 
-@@ 36-37
+@@ 41-42
 **The test mode is allowed only with the stand-in age model.** A service set up with a real age model *and* labels mode would be a real-looking deployment that a photo could pass — so it refuses to start, with a message saying why. This is the first of the three locks on the test mode.
 
-@@ 38
+@@ 43
 All is well: return the settings.
+
+@@ 22
+`matcher_file` (§5.6.2) — SFace, the face recogniser that compares a selfie with a document's photo.
+
+@@ 23-25
+`tesseract_command` — how to start Tesseract, the OCR engine, as a list of words. The default, `tesseract`, is for where it is installed (as it will be in the production image). On this project's Windows computers it runs in a container instead (§5.6.2), so the setting becomes `docker exec -i dwarpal-ocr-1 tesseract`, given as a JSON list in an environment variable.
+
+@@ 26
+`tesseract_timeout_s` — how long one reading may take before it counts as failed: 10 seconds, far more than the half-second it needs.
