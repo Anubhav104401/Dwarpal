@@ -49,7 +49,7 @@
 
 ## Open items
 
-1. **Scanners** — run and triaged (27–28 Oct); Semgrep clean. Left: Python fixes (D15); `tmp` 0.2.7 (D14b). (The nonce-based CSP is done, 29 Oct.)
+1. **Scanners** — run and triaged (27–28 Oct); Semgrep clean. Python fixes (D15) and `tmp` 0.2.7 (D14b) **done 1 Nov** (4e6cada). `pnpm audit` now lists only development tools under Lighthouse CI, with no usable fix: `extract-zip` (no patched version) and a new `minimatch` advisory (GHSA-g3hv-75wg-m249, moderate), fixed only in 11.x, which `glob` 7 (via `chrome-launcher` → `rimraf`) can't use. (The nonce-based CSP is done, 29 Oct.)
 2. **Performance** — P1 (a) done: 3 frames, a 1 s queue; server processing p95 1.21 s for 50 people at a realistic pace (throttled laptop). **P2 decided (29 Oct)**: NFR-05 means 50 people in a check (an attempt every ~20 s each) — met on the laptop. Open: measuring on the real 4-core server (Phase 8); static INT8; certifying the lines on webcam-degraded images. (The repeatable chaos test is **done**, 30 Oct.)
 3. **Observability** — traces done; **metrics, dashboard and burn-rate alerts done (29 Oct)**: request totals by route pattern → collector → Prometheus v3.13.4; recording rules for the server-error share over 5 m/30 m/1 h/6 h; alerts `AvailabilityFastBurn` (14.4×, page), `AvailabilitySlowBurn` (6×, ticket), `FaceAttemptSlow` (p95 > 1.5 s for 10 min); Grafana dashboard `dwarpal-api` provisioned from a file. Checked on the laptop: labels are patterns only, all 7 rules healthy. Open: delivering alerts (Alertmanager and a destination — Phase 8).
 6. **Process slip**: a local test API key was printed in tool output while preparing the load test; revoked at once.
