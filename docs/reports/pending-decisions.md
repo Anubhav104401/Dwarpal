@@ -22,6 +22,7 @@ The owner answered every waiting decision at once, and asked for the decided wor
 | O6 | Placeholder stays; publishing the practice statement stays blocked |
 | O5 | The DPIA, practice statement and compliance map are labelled **draft, not legally reviewed** |
 | O2 | **Oracle free tier** for Phase 8 when it starts (the owner creates the account and domain) |
+| D1b | *Optional, not blocking*: `@types/three` (TypeScript types for three.js, npm, 0.186.x) would replace the hand-written `apps/web/types/three.d.ts`. Not downloaded; ask when convenient |
 
 ## Decided on 27 Oct 2026
 

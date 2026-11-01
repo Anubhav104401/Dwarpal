@@ -20,9 +20,10 @@ const POINTS = facePoints();
 /**
  * The home page's artwork, the brand's motif: a face made of points of light, standing in a temple doorway — the
  * place a dwarpal guards. A line of light passes over it, as a check would; that motion is decoration, so it runs
- * only for people who haven't asked their system for less (the design's 3D hero waits on decision D1).
+ * only for people who haven't asked their system for less. Where the browser can, the 3D face (`FaceHero`, decision D1)
+ * takes the points' place, and the doorway is drawn without them (`face={false}`).
  */
-export function Arch() {
+export function Arch({ face = true }: { face?: boolean }) {
   return (
     <svg viewBox="0 0 240 280" className="w-full max-w-72" aria-hidden="true">
       <path
@@ -38,24 +39,27 @@ export function Arch() {
         strokeLinecap="round"
         className="stroke-ink-900 dark:stroke-ink-100"
       />
-      {POINTS.map((point) => (
-        <circle
-          key={`${point.x},${point.y}`}
-          cx={point.x}
-          cy={point.y}
-          r={point.ring === 6 ? 2.2 : 1.6}
-          className={point.ring === 6 ? "fill-brand-500" : "fill-ink-400 dark:fill-ink-500"}
-        />
-      ))}
-      <g className="motion-safe:animate-scan">
-        <path
-          d="M60 156h120"
-          strokeWidth="2"
-          strokeLinecap="round"
-          className="stroke-brand-400"
-          opacity="0.8"
-        />
-      </g>
+      {face &&
+        POINTS.map((point) => (
+          <circle
+            key={`${point.x},${point.y}`}
+            cx={point.x}
+            cy={point.y}
+            r={point.ring === 6 ? 2.2 : 1.6}
+            className={point.ring === 6 ? "fill-brand-500" : "fill-ink-400 dark:fill-ink-500"}
+          />
+        ))}
+      {face && (
+        <g className="motion-safe:animate-scan">
+          <path
+            d="M60 156h120"
+            strokeWidth="2"
+            strokeLinecap="round"
+            className="stroke-brand-400"
+            opacity="0.8"
+          />
+        </g>
+      )}
     </svg>
   );
 }

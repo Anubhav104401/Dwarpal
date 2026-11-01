@@ -1,5 +1,5 @@
 ---
-fingerprint: ca415e209fec4a85
+fingerprint: 8065374703dc68a6
 ---
 The **home page**, at `/` (§5.5.9): what Dwarpal is, for the people who take a check and for the websites that use one. It is the design's marketing site, apart from its 3D hero, which waits on decision D1. In Next.js's App Router, a file named `page.tsx` is the page for its folder's address: `app/page.tsx` is `/`.
 
@@ -10,7 +10,7 @@ Next.js's page-description type and its `Link` (moves between the app's own page
 Dwarpal's mark, from the verify page's frame; the button classes, the badge and the raised panel, from the design system (§5.5.6); and the function that asks the API for the model's figures.
 
 @@ 9-10
-The page's own two pieces, in the private folder `_home`: a folder whose name starts with `_` never becomes an address.
+The page's own two pieces, in the private folder `_home`: a folder whose name starts with `_` never becomes an address. The accuracy table, and the hero (§5.5.10).
 
 @@ 12-18
 The page's title and description, for browser tabs and search results. The layout asks search engines not to index any page (the console and the verify page are private); this page overrides that with `index: true`, since it is the one that should be found. The Lighthouse test holds its search score to 90.
@@ -58,7 +58,7 @@ The hero: a badge that says plainly this is in development and decides test chec
 Two ways on: the demo shop, if the page knows where it is, and the developer section.
 
 @@ 206-210
-The artwork (`_home/arch.tsx`), beside the words on a wide screen and below them on a phone.
+The hero (`_home/face-hero.tsx`), beside the words on a wide screen and below them on a phone: the doorway artwork, with its face in 3D where the browser can draw it.
 
 @@ 212-226
 **How it works**: an ordered list, since the steps happen in order, each in a panel.

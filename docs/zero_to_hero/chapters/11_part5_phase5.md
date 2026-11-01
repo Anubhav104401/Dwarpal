@@ -6,7 +6,7 @@ Phase 5 gives Dwarpal the faces people see: the console for its customers, a pol
 | :-- | :-- |
 | **Console** — sign-in, organisations, members, keys, audit log | 🟡 first pages (§5.5.1); a project's sessions, decision traces, counts and policies (§5.5.2); webhooks (§5.5.3); one-time codes and member roles (§5.5.4); a command palette to come |
 | Design system — tokens, typography, components, motion | 🟢 first version (§5.5.6): OKLCH tokens (midnight-indigo ink, saffron, teal), Geist Sans and Mono, a type scale, motion presets, shared components and a specimen page, checked in light and dark |
-| Marketing site | 🟢 home page with every section and a live accuracy table (§5.5.9); 🗓 the 3D hero waits for an approved 3D library |
+| Marketing site | 🟢 home page with every section and a live accuracy table (§5.5.9), and its 3D hero (§5.5.10) |
 | Verify flow in English and Hindi | 🗓 waits for an approved translation library |
 | Exit tests on three browser engines, accessibility and Lighthouse checks | 🟢 built (§5.5.5): Chromium and WebKit pass here, Firefox can't start on this computer; axe clean on the key pages; Lighthouse ≥ 90 |
 | Demo shop and SDKs — `@dwarpal/js`, `@dwarpal/react`, `@dwarpal/node` | 🟢 the check opens in a modal on the website's own page (§5.5.7); the shop uses the React button |
@@ -367,3 +367,32 @@ The accessibility test earned its keep twice while the page was built: grey labe
 !walk e2e/tests/home.spec.ts
 
 The console's application code (`published_model`), the app's list of routers, the design tokens (the line's animation), the API's tests, the browser tests' servers, the accessibility test and the Lighthouse test changed too; each was re-explained.
+
+### 5.5.10 The 3D hero
+
+The design's hero is a face of 478 points of light that a line of light scans, and that now and then scatters and gathers again: the photos are taken, checked and let go. It needed a 3D library, and the owner approved **three.js** on 1 November (decision D1). Three rules shaped it:
+
+1. **The face is no one's.** The obvious source of 478 face points is a real face run through MediaPipe — but a real person's face shape is biometric data, which Dwarpal never keeps, even of a public-domain portrait. So the face is made from a few smooth rules: points spread evenly over the front of a sphere, pressed into an egg, with a nose, eye hollows and lips (`face-cloud.ts`).
+2. **It costs the page nothing it doesn't have to.** The page first shows the still artwork (§5.5.9). Only once the browser is idle, and only if it can draw WebGL and the person hasn't asked for less motion, is the 3D code fetched — as a separate file — and the face swapped in. Off screen or in a hidden tab, it stops drawing. Lighthouse still scores the page 94 for performance.
+3. **Failure looks like nothing happened.** No WebGL, reduced motion, a failed download: the still artwork stays.
+
+!!! kid "Explain like I'm six — a face made of stars"
+    The computer scatters 478 tiny dots evenly over half a ball, then squeezes the ball into the shape of a face: a bit narrower, a bump for the nose, two little dips for the eyes. It isn't anybody's face — it's what a drawing of "a face" looks like. Then a stripe of light slides up and down over it, like a scanner.
+
+The points are drawn by two small programs that run on the graphics card itself — *shaders* — which place every point, light the ones near the scan line, and make nearer points brighter, so a cloud of dots reads as a face.
+
+!walk apps/web/lib/face-cloud.ts
+
+!walk apps/web/lib/face-cloud.test.ts
+
+!walk apps/web/app/_home/face-scene.ts
+
+!walk apps/web/app/_home/face-hero.tsx
+
+!walk apps/web/types/three.d.ts
+
+The still artwork (it can now be drawn without its face), the home page, the web app's packages and the home page's browser test changed too; each was re-explained.
+
+!!! honest "Honest limitation"
+    - **Hand-written types.** three.js ships no type definitions, and the usual ones (`@types/three`) are a separate download not yet approved (D1b). The few parts the hero uses are typed by hand (`types/three.d.ts`); TypeScript trusts them, and can't check them against three.js itself.
+    - **Lighthouse's own browser draws no WebGL**, so its score is the page without the 3D face; the browser tests check the face itself in Chromium and WebKit.

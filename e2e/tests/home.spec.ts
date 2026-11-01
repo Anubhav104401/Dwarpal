@@ -17,3 +17,22 @@ test("the home page shows the running model's lines, and leads to the demo shop 
   await page.getByRole("link", { name: "Console", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
 });
+
+test("the hero's face turns 3D where the browser can draw it, and stays still for anyone who asks for less motion", async ({
+  page,
+  browser,
+}) => {
+  await page.goto("http://localhost:3000/");
+  const webgl = await page.evaluate(() => document.createElement("canvas").getContext("webgl2") !== null);
+  test.skip(!webgl, "this browser can't draw WebGL here");
+  // Once the page is idle, the 3D face takes the still face's place: the doorway's points are gone.
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('svg[viewBox="0 0 240 280"] circle')).toHaveCount(0);
+
+  const calm = await browser.newPage({ reducedMotion: "reduce" });
+  await calm.goto("http://localhost:3000/");
+  await calm.waitForTimeout(3_000);
+  await expect(calm.locator("canvas")).toBeHidden();
+  await expect(calm.locator('svg[viewBox="0 0 240 280"] circle')).toHaveCount(168);
+  await calm.close();
+});

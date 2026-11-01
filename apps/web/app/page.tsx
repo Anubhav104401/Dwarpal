@@ -7,7 +7,7 @@ import { Badge, button, panel } from "@/components/ui";
 import { publishedModel } from "@/lib/published-model";
 
 import { Accuracy } from "./_home/accuracy";
-import { Arch } from "./_home/arch";
+import { FaceHero } from "./_home/face-hero";
 
 // The one public page that should be found: the layout asks search engines to pass by every other.
 export const metadata: Metadata = {
@@ -205,7 +205,7 @@ export default async function Home() {
             </div>
           </div>
           <div className="flex justify-center">
-            <Arch />
+            <FaceHero />
           </div>
         </div>
 
