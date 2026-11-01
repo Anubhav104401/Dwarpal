@@ -22,6 +22,7 @@ The owner answered every waiting decision at once, and asked for the decided wor
 | O6 | Placeholder stays; publishing the practice statement stays blocked |
 | O5 | The DPIA, practice statement and compliance map are labelled **draft, not legally reviewed** |
 | O2 | **Oracle free tier** for Phase 8 when it starts (the owner creates the account and domain) |
+| O2b | **Needs your choice** (found 1 Nov while setting up Oracle, home region India South (Hyderabad)): Oracle's docs give Always Free tenancies **2 Ampere cores / 12 GB** (1,500 OCPU-h, 9,000 GB-h a month); Pay As You Go tenancies get **4 cores / 24 GB free** (3,000 OCPU-h, 18,000 GB-h) and pay only beyond it. The 16 cores / 96 GB shown now are the 30-day trial's. Always Free servers can be reclaimed when idle (A1: memory under 20 % for 7 days). The load test (P1/P2) assumed 4 cores. Recommendation: upgrade to Pay As You Go with a budget alert, and create only free-eligible resources |
 | D2b | *Optional, not blocking*: a Devanagari typeface for the Hindi pages (e.g. Noto Sans Devanagari, SIL OFL), which Geist lacks; today the visitor's system font is used. Not downloaded; ask when convenient |
 | D2c | *Not a download*: a native Hindi speaker to review `apps/web/messages/hi.json`, machine-drafted on 1 Nov |
 | D1b | *Optional, not blocking*: `@types/three` (TypeScript types for three.js, npm, 0.186.x) would replace the hand-written `apps/web/types/three.d.ts`. Not downloaded; ask when convenient |
