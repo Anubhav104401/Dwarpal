@@ -34,6 +34,7 @@ from alembic.runtime.migration import MigrationContext
 from hypothesis import HealthCheck, settings
 from joserfc import jwt
 from joserfc.jwk import KeySet
+from passkey_device import Device
 from pydantic import SecretStr
 from redis.asyncio import Redis
 from schemathesis import Case
@@ -1182,6 +1183,75 @@ async def test_one_time_codes_once_switched_on_are_required_and_single_use(datab
     assert (without.status_code, without.json()["code"]) == (401, "totp_required")
     assert first.status_code == 200 and first.json()["totp_enabled"] is True
     assert (replayed.status_code, replayed.json()["code"]) == (401, "invalid_totp")
+
+
+async def add_passkey(
+    browser: httpx.AsyncClient, token: dict[str, str], device: Device, **extra: Any
+) -> httpx.Response:
+    options = (await browser.post(f"{CONSOLE}/passkeys/options", headers=token)).json()
+    answer = device.create(options["challenge"])
+    body = {"name": "Test laptop", "password": PASSWORD, **answer} | extra
+    del body["id"]
+    return await browser.post(f"{CONSOLE}/passkeys", json=body, headers=token)
+
+
+async def passkey_sign_in(browser: httpx.AsyncClient, device: Device, **options: Any) -> httpx.Response:
+    challenge = (await browser.post(f"{CONSOLE}/passkey-login/options")).json()["challenge"]
+    return await browser.post(f"{CONSOLE}/passkey-login", json=device.get(challenge, **options))
+
+
+@pytest.mark.anyio
+async def test_a_passkey_is_added_with_the_password_then_signs_in_alone_once_per_challenge(
+    databases: tuple[str, str],
+) -> None:
+    """Phase 9's passkeys: adding one needs the password; signing in with one needs nothing else, works once per
+    challenge, and refuses a passkey from another site, a forged one, and one that was removed."""
+    email, device, stranger = unique("passkey"), Device(), Device()
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as browser, person(h) as other:
+        token = {"X-CSRF-Token": (await sign_up(browser, email))["csrf_token"]}
+        no_password = await add_passkey(browser, token, device, password=PASSWORD + "!")
+        added = await add_passkey(browser, token, device)
+        twice = await add_passkey(browser, token, device)
+        listed = (await browser.get(f"{CONSOLE}/passkeys")).json()["data"]
+        signed_in = await passkey_sign_in(other, device)
+        challenge = (await other.post(f"{CONSOLE}/passkey-login/options")).json()["challenge"]
+        answer = device.get(challenge)
+        first = await other.post(f"{CONSOLE}/passkey-login", json=answer)
+        replayed = await other.post(f"{CONSOLE}/passkey-login", json=answer)
+        unknown = await passkey_sign_in(other, stranger)
+        elsewhere = await passkey_sign_in(other, device, origin="https://evil.example")
+        removed = await browser.delete(f"{CONSOLE}/passkeys/{listed[0]['id']}", headers=token)
+        after = await passkey_sign_in(other, device)
+        gone = await browser.delete(f"{CONSOLE}/passkeys/{listed[0]['id']}", headers=token)
+        audit_log = (await browser.get(f"{CONSOLE}/orgs/{signed_in.json()['organisations'][0]['id']}/audit")).json()
+    assert (no_password.status_code, no_password.json()["code"]) == (403, "reauthentication_failed")
+    assert added.status_code == 201, added.text
+    assert twice.status_code == 409  # the same device's passkey, again
+    assert [(row["name"], row["last_used_at"]) for row in listed] == [("Test laptop", None)]
+    assert signed_in.status_code == 200 and signed_in.json()["email"] == email
+    assert other.cookies.get("dwarpal_session")
+    assert first.status_code == 200
+    assert (replayed.status_code, replayed.json()["code"]) == (401, "passkey_challenge_expired")
+    assert (unknown.status_code, unknown.json()["code"]) == (401, "passkey_refused")
+    assert (elsewhere.status_code, elsewhere.json()["code"]) == (401, "passkey_wrong_origin")
+    assert removed.status_code == 204 and gone.status_code == 404
+    assert (after.status_code, after.json()["code"]) == (401, "passkey_refused")
+    actions = [entry["action"] for entry in audit_log["data"]]
+    assert {"user.passkey_added", "user.passkey_removed", "user.signed_in"} <= set(actions)
+
+
+@pytest.mark.anyio
+async def test_with_one_time_codes_on_adding_a_passkey_needs_a_code_too(databases: tuple[str, str]) -> None:
+    email = unique("passkey-totp")
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as browser:
+        token = {"X-CSRF-Token": (await sign_up(browser, email))["csrf_token"]}
+        secret = (await browser.post(f"{CONSOLE}/totp", headers=token)).json()["secret"]
+        step = int(datetime.now(UTC).timestamp() // totp.STEP_S)
+        await browser.post(f"{CONSOLE}/totp/confirm", json={"code": totp.code_at(secret, step)}, headers=token)
+        without = await add_passkey(browser, token, Device())
+        with_code = await add_passkey(browser, token, Device(), code=totp.code_at(secret, step + 1))
+    assert (without.status_code, without.json()["code"]) == (403, "reauthentication_failed")
+    assert with_code.status_code == 201, with_code.text
 
 
 @pytest.mark.anyio

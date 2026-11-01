@@ -54,7 +54,7 @@ strict = true
 warn_unreachable = true
 explicit_package_bases = true
 exclude = ['[/\\]\.snapshots[/\\]']
-mypy_path = "services/api/src,services/inference/src,libs/contracts/src,libs/vision/src,ml/src,packages/sdk-python/src,docs/zero_to_hero"
+mypy_path = "services/api/src,services/inference/src,libs/contracts/src,libs/vision/src,ml/src,packages/sdk-python/src,docs/zero_to_hero,services/api/tests"
 files = [
   "tasks.py",
   "infra/scripts",
@@ -85,6 +85,6 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 minversion = "9.0"
 testpaths = ["docs/zero_to_hero/tests", "services", "libs", "ml", "packages/sdk-python"]
-pythonpath = ["docs/zero_to_hero"]
+pythonpath = ["docs/zero_to_hero", "services/api/tests"]
 addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
 xfail_strict = true

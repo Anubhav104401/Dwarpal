@@ -1,5 +1,5 @@
 ---
-fingerprint: 2e9ce52459080e44
+fingerprint: 8bd256131433cf4d
 ---
 The verify page's side of the **liveness challenge** (§5.3): the shape of a challenge, the browser's signals, how a head pose is read from the face, and how the server's answer is checked before the page plays it.
 

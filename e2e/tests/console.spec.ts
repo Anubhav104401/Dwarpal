@@ -238,3 +238,36 @@ test("every page load gets its own script nonce, and inline scripts aren't allow
   expect(nonces[0]).not.toBe(nonces[1]); // a fresh nonce each time
   expect(scripts[0]).not.toContain("'unsafe-inline'");
 });
+
+test("a member adds a passkey, then signs in with it alone", async ({ page, browserName }) => {
+  // Chromium's virtual authenticator stands in for a phone or security key: a real key pair, made in the browser.
+  test.skip(browserName !== "chromium", "the virtual authenticator is a Chromium DevTools feature");
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("WebAuthn.enable");
+  await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    options: {
+      protocol: "ctap2",
+      transport: "internal",
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true,
+    },
+  });
+  await signUp(page, `passkey-${Date.now()}@shop.example`, "Passkey Ltd");
+
+  await page.getByRole("link", { name: "Security" }).click();
+  const passkeys = page.getByRole("region", { name: "Passkeys" });
+  await passkeys.getByLabel("A name for it").fill("Test laptop");
+  await passkeys.getByLabel("Password, to confirm it's you").fill("a long and unguessable test passphrase");
+  await passkeys.getByRole("button", { name: "Add a passkey" }).click();
+  await expect(page.getByTestId("passkey-list")).toContainText("Test laptop");
+
+  // Sign out, then in with the passkey: no e-mail address, no password.
+  await page.getByRole("link", { name: "All organisations" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "Use a passkey instead" }).click();
+  await expect(page.getByRole("heading", { name: "Your organisations" })).toBeVisible();
+  await page.getByRole("link", { name: "Security" }).click();
+  await expect(page.getByTestId("passkey-list")).toContainText("last used");
+});

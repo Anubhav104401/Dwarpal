@@ -1,5 +1,5 @@
 ---
-fingerprint: f067a20ecb50c956
+fingerprint: 03fbac38253c1b4a
 ---
 The **root `pyproject.toml`** is the control centre of the Python side of the project. It is not a package itself — Python packaging calls this a *virtual* workspace root. It does three jobs:
 
@@ -118,7 +118,7 @@ The **`docs` group** — what the book builder needs:
 `exclude = [...]` — a **regular expression** for paths mypy must skip. `[/\\]` means "a forward slash or a backslash", so the pattern matches `.snapshots` as a folder on both Linux and Windows. The single quotes make it a *literal* TOML string, so the backslashes reach mypy exactly as typed.
 
 @@ 57
-`mypy_path` — where mypy should look for our packages' source code: each package's `src` folder, plus the book folder (for `build.py`). The comma-separated form works on every operating system. Since Phase 9 also `packages/sdk-python`, the Python SDK (§5.9.1).
+`mypy_path` — where mypy should look for our packages' source code: each package's `src` folder, plus the book folder (for `build.py`). The comma-separated form works on every operating system. Since Phase 9 also `packages/sdk-python`, the Python SDK (§5.9.1), and `services/api/tests`, so the type checker finds the test passkey device (§5.9.2).
 
 @@ 58-73
 `files = [...]` — what mypy checks when you simply run `mypy`:
@@ -149,7 +149,7 @@ When mypy was first pointed at the tests, it found exactly one problem: OpenCV's
 `testpaths` — where pytest looks for tests when run without arguments: the book's tests, then every package under `services`, `libs` and `ml`. Inside those folders pytest collects files whose names start with `test_`. Since Phase 9 also `packages/sdk-python`, the Python SDK (§5.9.1).
 
 @@ 88
-`pythonpath = ["docs/zero_to_hero"]` — add the book folder to Python's search path during tests, so `test_build.py` can simply write `import build`.
+`pythonpath` — folders added to Python's search path during tests: the book folder, so `test_build.py` can simply write `import build`; and, since Phase 9, the API's tests folder, so two test files can share `passkey_device.py` (§5.9.2).
 
 @@ 89
 `addopts` — options added to every pytest run:

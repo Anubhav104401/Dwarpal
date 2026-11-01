@@ -93,6 +93,11 @@ class FlowStore:
     async def drop(self, key: str) -> None:
         await self._client.delete(key)
 
+    async def take(self, key: str) -> bytes | None:
+        """Read a value and delete it in one step: whoever takes it first has it, and nobody can take it twice."""
+        value = await self._client.getdel(key)
+        return value if isinstance(value, bytes) else None
+
     async def fetch(self, key: str, ttl_s: int) -> bytes | None:
         """Read a value and restart its time to live: a sliding expiry, for sessions that last while they are used."""
         value = await self._client.getex(key, ex=ttl_s)

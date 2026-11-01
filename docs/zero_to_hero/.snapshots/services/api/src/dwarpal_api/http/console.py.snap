@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from dwarpal_api.app import console
+from dwarpal_api.app import console, passkeys
 from dwarpal_api.app.console import ConsoleSession
 from dwarpal_api.app.verification import Services, SessionFilter
 from dwarpal_api.domain.decision import Outcome
@@ -105,6 +105,34 @@ class Reauthentication(BaseModel):
     code: Annotated[str, Field(pattern=r"^[0-9]{6}$")]
 
 
+Base64Url = Annotated[str, Field(min_length=1, max_length=4096, pattern=r"^[A-Za-z0-9_-]+$")]
+
+
+class NewPasskey(BaseModel):
+    """A device's answer to `navigator.credentials.create`, with the password (and a current code, if one-time codes
+    are on): adding a way in needs more than a signed-in browser."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Annotated[str, Field(min_length=1, max_length=60)]
+    client_data_json: Base64Url
+    attestation_object: Base64Url
+    password: Annotated[str, Field(max_length=256)]
+    code: Annotated[str | None, Field(pattern=r"^[0-9]{6}$")] = None
+
+
+class PasskeySignIn(BaseModel):
+    """A device's answer to `navigator.credentials.get`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: Base64Url
+    client_data_json: Base64Url
+    authenticator_data: Base64Url
+    signature: Base64Url
+    user_handle: Base64Url | None = None
+
+
 class NewMember(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -138,6 +166,23 @@ async def sign_in(body: SignIn, request: Request, response: Response, svc: Toolb
     check_origin(request, svc)
     address = request.client.host if request.client else "unknown"
     token, current = await console.sign_in(svc, body.email, body.password, body.code, address)
+    give_cookie(response, svc, token)
+    return await console.me(svc, current)
+
+
+@router.post("/passkey-login/options")
+async def passkey_sign_in_options(request: Request, svc: Toolbox) -> dict[str, Any]:
+    check_origin(request, svc)
+    return await passkeys.sign_in_options(svc, request.client.host if request.client else "unknown")
+
+
+@router.post("/passkey-login")
+async def passkey_sign_in(body: PasskeySignIn, request: Request, response: Response, svc: Toolbox) -> dict[str, Any]:
+    check_origin(request, svc)
+    address = request.client.host if request.client else "unknown"
+    token, current = await passkeys.sign_in(
+        svc, body.id, body.client_data_json, body.authenticator_data, body.signature, body.user_handle, address
+    )
     give_cookie(response, svc, token)
     return await console.me(svc, current)
 
@@ -184,6 +229,30 @@ async def replace_recovery_codes(current: Changer, svc: Toolbox) -> dict[str, An
 async def totp_disable(body: Reauthentication, request: Request, current: Changer, svc: Toolbox) -> Response:
     address = request.client.host if request.client else "unknown"
     await console.totp_disable(svc, current, body.password, body.code, address)
+    return Response(status_code=204)
+
+
+@router.get("/passkeys")
+async def list_passkeys(current: Reader, svc: Toolbox) -> dict[str, Any]:
+    return await passkeys.list_passkeys(svc, current)
+
+
+@router.post("/passkeys/options")
+async def passkey_options(current: Changer, svc: Toolbox) -> dict[str, Any]:
+    return await passkeys.registration_options(svc, current)
+
+
+@router.post("/passkeys", status_code=201)
+async def add_passkey(body: NewPasskey, request: Request, current: Changer, svc: Toolbox) -> dict[str, Any]:
+    address = request.client.host if request.client else "unknown"
+    return await passkeys.register(
+        svc, current, body.name, body.client_data_json, body.attestation_object, body.password, body.code, address
+    )
+
+
+@router.delete("/passkeys/{passkey_text}", status_code=204)
+async def remove_passkey(passkey_text: str, current: Changer, svc: Toolbox) -> Response:
+    await passkeys.remove(svc, current, passkey_text)
     return Response(status_code=204)
 
 

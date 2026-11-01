@@ -13,7 +13,8 @@ import {
   quietButton,
   smallButton,
 } from "@/components/console-shell";
-import { ConsoleClient, ConsoleError, type Me, type TotpOffer } from "@/lib/console-api";
+import { ConsoleClient, ConsoleError, type Me, type PasskeyInfo, type TotpOffer } from "@/lib/console-api";
+import { cancelled, creationOptions, passkeysSupported, registrationAnswer } from "@/lib/passkeys";
 
 const client = new ConsoleClient();
 
@@ -28,10 +29,16 @@ export function AccountView() {
   const [offer, setOffer] = useState<Offer | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [keys, setKeys] = useState<PasskeyInfo[]>([]);
+  const [supported, setSupported] = useState(false);
 
   const load = useCallback(async () => {
-    setMe((await client.me()) ?? "signed-out");
+    const who = await client.me();
+    setMe(who ?? "signed-out");
+    if (who !== null) setKeys(await client.passkeys());
   }, []);
+
+  useEffect(() => setSupported(passkeysSupported()), []);
 
   useEffect(() => {
     load().catch(() => setError("The console couldn't load your account. Please try again."));
@@ -78,6 +85,32 @@ export function AccountView() {
       await load();
     });
   }
+
+  async function addPasskey(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const code = String(data.get("code") ?? "").replace(/\s/g, "");
+    setError(null);
+    try {
+      const options = creationOptions(await client.passkeyOptions());
+      const credential = await navigator.credentials.create({ publicKey: options });
+      if (!(credential instanceof PublicKeyCredential)) return;
+      const name = String(data.get("name"));
+      await client.addPasskey(name, registrationAnswer(credential), String(data.get("password")), code);
+      form.reset();
+      await load();
+    } catch (failure) {
+      if (cancelled(failure)) return;
+      setError(failure instanceof ConsoleError ? failure.message : "That didn't work. Please try again.");
+    }
+  }
+
+  const removePasskey = (id: string) =>
+    attempt(async () => {
+      await client.removePasskey(id);
+      await load();
+    });
 
   if (me === null || me === "signed-out") {
     return (
@@ -221,6 +254,83 @@ export function AccountView() {
               </button>
             </form>
           </div>
+        )}
+      </section>
+
+      <section className={`${panel} mt-6 max-w-xl`} aria-labelledby="passkeys">
+        <h2 id="passkeys" className="text-lg font-semibold">
+          Passkeys
+        </h2>
+        <p className="mt-2 text-sm text-ink-600 dark:text-ink-400">
+          A passkey signs you in with your device's fingerprint, face or PIN instead of a password. It works
+          only on this site, so a fake site can't trick you into giving it away.
+        </p>
+        {keys.length === 0 ? null : (
+          <ul className="mt-4 divide-y divide-ink-200 text-sm dark:divide-ink-800" data-testid="passkey-list">
+            {keys.map((key) => (
+              <li key={key.id} className="flex items-center justify-between gap-3 py-2">
+                <span>
+                  <span className="font-medium">{key.name}</span>
+                  <span className="block text-xs text-ink-500">
+                    Added {key.createdAt.slice(0, 10)}
+                    {key.lastUsedAt === null
+                      ? ", not used yet"
+                      : `, last used ${key.lastUsedAt.slice(0, 10)}`}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className={quietButton}
+                  onClick={() => removePasskey(key.id)}
+                  aria-label={`Remove passkey ${key.name}`}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {supported ? (
+          <form className="mt-4 grid gap-3" onSubmit={addPasskey}>
+            <Field label="A name for it" id="passkey-name">
+              <input
+                id="passkey-name"
+                className={input}
+                name="name"
+                maxLength={60}
+                placeholder="Work laptop"
+                required
+              />
+            </Field>
+            <Field label="Password, to confirm it's you" id="passkey-password">
+              <input
+                id="passkey-password"
+                className={input}
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+            </Field>
+            {me.totpEnabled ? (
+              <Field label="One-time code, to confirm it's you" id="passkey-code">
+                <input
+                  id="passkey-code"
+                  className={input}
+                  name="code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="\s*(\d\s*){6}"
+                  required
+                />
+              </Field>
+            ) : null}
+            <button type="submit" className={`${smallButton} justify-self-start`}>
+              Add a passkey
+            </button>
+          </form>
+        ) : (
+          <p className="mt-4 text-sm text-ink-500">This browser can't make passkeys.</p>
         )}
       </section>
     </ConsoleShell>

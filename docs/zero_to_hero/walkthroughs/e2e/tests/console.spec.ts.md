@@ -1,5 +1,5 @@
 ---
-fingerprint: 15dc5586bb0d75ca
+fingerprint: b23f666214640e9b
 ---
 The console, tested in a real browser (Phase 5): a new customer signs up, creates an API key, sees it in an intact audit log, then follows a real session onto the project's page, adds a policy version and a webhook endpoint; a wrong password is refused without revealing whether the account exists; and a member turns on one-time codes, after which signing in needs one.
 
@@ -190,4 +190,22 @@ Pick out each policy's script rule, and the nonce in it.
 There is a nonce; the two differ; and inline scripts are not allowed.
 
 @@ 240
+End of the test.
+
+@@ 242-244
+**Test — a member adds a passkey, then signs in with it alone** (Phase 9, §5.9.2). It runs in Chromium only: Chromium's developer tools can attach a *virtual authenticator*, a software device that makes real key pairs; WebKit has nothing like it, so the test is skipped there.
+
+@@ 245-256
+Through the developer tools protocol (CDP), switch WebAuthn's test mode on and attach a device: CTAP2 (the modern protocol), built into the computer, able to keep passkeys, and able to verify the person — and to say yes at once, as if a finger touched the sensor.
+
+@@ 257-264
+Sign up; on the Security page, name the passkey, give the password, and add it: it appears in the list.
+
+@@ 266-270
+Sign out, then **Use a passkey instead**: no e-mail address, no password, and the organisations appear.
+
+@@ 271-272
+Back on the Security page, the passkey now shows when it was last used.
+
+@@ 273
 End of the test.

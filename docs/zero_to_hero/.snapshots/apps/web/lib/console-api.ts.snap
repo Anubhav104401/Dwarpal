@@ -33,6 +33,14 @@ export interface TotpOffer {
   uri: string;
 }
 
+/** A passkey on the account: the person's label for it, and when it was added and last used. */
+export interface PasskeyInfo {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -363,6 +371,45 @@ export class ConsoleClient {
   /** Switch one-time codes off: only with the password and a current code. */
   async totpDisable(password: string, code: string): Promise<void> {
     await this.#call("POST", "/totp/disable", { password, code });
+  }
+
+  async passkeys(): Promise<PasskeyInfo[]> {
+    return asList((await this.#call("GET", "/passkeys")).data).map((p) => ({
+      id: asText(p.id),
+      name: asText(p.name),
+      createdAt: asText(p.created_at),
+      lastUsedAt: orNull(p.last_used_at),
+    }));
+  }
+
+  /** WebAuthn's options for adding a passkey (lib/passkeys.ts turns them into what the browser takes). */
+  async passkeyOptions(): Promise<Json> {
+    return this.#call("POST", "/passkeys/options");
+  }
+
+  /** Keep a new passkey: the device's answer, with the password (and a current code, if one-time codes are on). */
+  async addPasskey(
+    name: string,
+    answer: { client_data_json: string; attestation_object: string },
+    password: string,
+    code?: string,
+  ): Promise<void> {
+    const body: Json = { name, password, ...answer };
+    if (code) body.code = code;
+    await this.#call("POST", "/passkeys", body);
+  }
+
+  async removePasskey(id: string): Promise<void> {
+    await this.#call("DELETE", `/passkeys/${encodeURIComponent(id)}`);
+  }
+
+  /** WebAuthn's options for signing in with a passkey, naming no account. */
+  async passkeySignInOptions(): Promise<Json> {
+    return this.#call("POST", "/passkey-login/options");
+  }
+
+  async passkeySignIn(answer: Json): Promise<Me> {
+    return this.#remember(await this.#call("POST", "/passkey-login", answer));
   }
 
   async projects(org: string): Promise<Project[]> {

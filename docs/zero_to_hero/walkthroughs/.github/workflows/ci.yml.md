@@ -1,5 +1,5 @@
 ---
-fingerprint: 0997419412bd0a1b
+fingerprint: 3cd2ad7e23236214
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 

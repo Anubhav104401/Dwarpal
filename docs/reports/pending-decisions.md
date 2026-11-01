@@ -15,6 +15,18 @@ Work that needs your answer — a download, a design choice, an account, or some
 | O8 | **Create the backup storage**: in Oracle, an Object Storage bucket `dwarpal-backups` (Always Free: 20 GB) and a *customer secret key*; choose a restic password and keep it offline too (`infra/deploy/README.md`, step 8) | backups, and Phase 8's restore drill |
 | D19 | **Approve Helm** (the Kubernetes package manager, Apache-2.0: `helm` 3.x, ~16 MB binary from get.helm.sh, or the `azure/setup-helm` action pinned by commit) to lint and render the chart in CI | checking the Helm chart (§5.8.3) |
 | O9 | **GitHub settings for deploys**: a separate deploy SSH key, the `production` environment (ideally with your approval required), and the variables listed in `infra/deploy/README.md`, step 5 | automatic deploys |
+| D20 | **Passkey sign-in skips the one-time code** (built that way, the usual rule): the device has already verified the person by fingerprint, face or PIN, so a passkey counts as two factors. The alternative is to ask for the code as well. Adding a passkey needs the password (and a code, if on). Say if you want it stricter | nothing — passkeys work now (§5.9.2); this only confirms the rule |
+| D21 | **Age Pass** (design: `docs/design/06_age_pass.md`) — a reusable, unlinkable "over 18" pass kept in the person's browser, so later websites need no new face check. Questions: build it now or after launch; lifetime (90 days suggested); batch size (20 suggested); off by default for websites (suggested) | building the Age Pass |
+
+**Done overnight** (no decision needed; all checks green):
+
+- **Phase 8** — Dockerfiles, Compose with Caddy, deploy/backup/restore scripts, the manual GHCR deploy workflow, runbooks, and the Helm chart (`6b6a1da`). Waiting only on the server, the domain, and D17–D19, O8, O9.
+- **Phase 9** — the Python SDK (`9ca1bfd`); **passkeys** for console sign-in (§5.9.2), with a software test device and a Chromium end-to-end test; the Age Pass design (D21).
+
+**Blocked, and why** (nothing for you to do yet):
+
+- **CGI-render detector** (liveness level 6) — needs examples of computer-rendered faces to train and measure against, and none are licensed for this project. It waits for a dataset decision, which I will bring with options when the rest is done.
+- **Kubernetes deployment** — the Helm chart exists; trying it needs Helm (D19) and a local cluster tool (kind, a further download), and the Always Free server (O2b) is a single machine, where Compose is the better fit. Left optional, as the roadmap says.
 
 ## Decided on 1 Nov 2026
 

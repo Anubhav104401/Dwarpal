@@ -25,6 +25,8 @@ NAME_SESSION_TENANT = text(
 )
 # A console user signs in by e-mail address, before anyone is named: the same kind of function finds the account.
 FIND_USER = text("SELECT id, password_hash, totp_secret_sealed FROM dwarpal_find_user(:email)")
+# A passkey signs in before anyone is named too: it is found by the ID its device gives.
+FIND_PASSKEY = text("SELECT id, user_id, public_key, sign_count FROM dwarpal_find_passkey(:credential_id)")
 # An API key is checked before its tenant is known, so it is read through a function that the policies don't bind.
 FIND_API_KEY = text(
     "SELECT id, project_id, livemode, secret_digest, revoked_at, scopes, expires_at FROM dwarpal_find_api_key(:lookup)"

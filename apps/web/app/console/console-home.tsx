@@ -13,6 +13,7 @@ import {
   smallButton,
 } from "@/components/console-shell";
 import { ConsoleClient, ConsoleError, type Me } from "@/lib/console-api";
+import { cancelled, passkeysSupported, requestOptions, signInAnswer } from "@/lib/passkeys";
 
 const client = new ConsoleClient();
 
@@ -29,6 +30,8 @@ function explain(error: unknown): string {
     email_taken: "An account with this e-mail address already exists. Sign in instead.",
     weak_password: "Use a password of at least 12 characters.",
     invalid_email: "That doesn't look like an e-mail address.",
+    passkey_refused: "That passkey isn't registered here. Sign in with your password, then add it.",
+    passkey_challenge_expired: "That took too long. Please try again.",
   };
   return words[error.code] ?? error.message;
 }
@@ -59,6 +62,22 @@ export function ConsoleHome() {
     } catch (failure) {
       if (failure instanceof ConsoleError && failure.code === "totp_required") setNeedsCode(true);
       setError(explain(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function withPasskey() {
+    setBusy(true);
+    setError(null);
+    try {
+      const options = requestOptions(await client.passkeySignInOptions());
+      const credential = await navigator.credentials.get({ publicKey: options });
+      if (credential instanceof PublicKeyCredential) {
+        setMe(await client.passkeySignIn(signInAnswer(credential)));
+      }
+    } catch (failure) {
+      if (!cancelled(failure)) setError(explain(failure));
     } finally {
       setBusy(false);
     }
@@ -167,6 +186,16 @@ export function ConsoleHome() {
             {signingUp ? "Create account" : "Sign in"}
           </button>
         </form>
+        {!signingUp && passkeysSupported() ? (
+          <button
+            type="button"
+            className={`${quietButton} mt-4 w-full`}
+            onClick={withPasskey}
+            disabled={busy}
+          >
+            Use a passkey instead
+          </button>
+        ) : null}
         <button
           type="button"
           className={`${quietButton} mt-4 w-full`}

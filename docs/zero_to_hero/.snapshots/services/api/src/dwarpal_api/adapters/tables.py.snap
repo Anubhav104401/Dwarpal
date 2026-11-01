@@ -283,4 +283,19 @@ class Membership(Base):
     created_at: Mapped[datetime] = mapped_column(Timestamp)
 
 
+class Passkey(Base):
+    """A console user's passkey (WebAuthn): only its public key — the private key stays on the person's device."""
+
+    __tablename__ = "passkeys"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    credential_id: Mapped[bytes] = mapped_column(LargeBinary, unique=True)  # the device's name for it
+    public_key: Mapped[bytes] = mapped_column(LargeBinary)  # a COSE key, as the device gave it
+    sign_count: Mapped[int] = mapped_column(BigInteger)  # the device's signature counter, last seen
+    name: Mapped[str] = mapped_column(String(60))  # the person's label, such as "Work laptop"
+    created_at: Mapped[datetime] = mapped_column(Timestamp)
+    last_used_at: Mapped[datetime | None] = mapped_column(Timestamp)
+
+
 METADATA = Base.metadata

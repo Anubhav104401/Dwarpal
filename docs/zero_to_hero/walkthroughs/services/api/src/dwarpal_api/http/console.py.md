@@ -1,5 +1,5 @@
 ---
-fingerprint: 46db95a57950767c
+fingerprint: 487819bcc8517fc9
 ---
 The **console API** (Phase 4, §5.4.5), under `/console/v1`: what Dwarpal's own web console calls for a signed-in person. Unlike the website API, which uses API keys, it uses a **cookie**, because people sign in with a browser.
 
@@ -31,7 +31,7 @@ The project-wide type-hint setting.
 FastAPI's pieces, and Pydantic's model, settings and field limits.
 
 @@ 12-18
-The console use cases and session type, the toolbox type and the session filter, the outcome names, the `Policy` type, our error class, and the toolbox dependency.
+The console's and the passkeys' use cases and the session type, the toolbox type and the session filter, the outcome names, the `Policy` type, our error class, and the toolbox dependency.
 
 @@ 19
 The body of a new policy version, as the website API defines it (`http/policies.py`): one shape, one set of rules.
@@ -84,98 +84,125 @@ Short names for the two kinds of caller, used in every endpoint below.
 @@ 93-105
 **`Code`** — a body holding just a six-digit code. **`Reauthentication`** (Phase 5) — the password and a current six-digit code, for turning one-time codes off. Recovery codes aren't accepted there: they are for signing in when the phone is lost, not for removing the protection.
 
-@@ 108-112
+@@ 136-140
 **`NewMember`** — an address and a role.
 
-@@ 115-118
+@@ 143-146
 **`RoleChange`** — the body of a role change: just the new role.
 
-@@ 121-125
+@@ 149-153
 **`NewKey`** — one to eight scopes, and whether the key is live (test by default).
 
-@@ 128-133
+@@ 156-161
 **`sign_up`** — check the origin, create the account, give the cookie, and answer with who is now signed in.
 
-@@ 136-142
-**`sign_in`** — the same, with the network address the request came from, for the sign-in limit.
-
-@@ 145-150
+@@ 190-195
 **`sign_out`** — a change (so it needs the CSRF token); the `_` parameter runs that check, and its value isn't needed.
 
-@@ 151-154
+@@ 196-199
 End the session, and tell the browser to delete the cookie.
 
-@@ 157-159
+@@ 202-204
 **`me`** — who is signed in.
 
-@@ 162-165
+@@ 207-210
 **`model`** — `GET /console/v1/model`: the age model's details. `current` isn't used inside, but asking for it makes the route refuse anyone not signed in.
 
-@@ 168-170
+@@ 213-215
 **`totp_enrol`** — start switching on one-time codes.
 
-@@ 173-187
-**`totp_confirm`** — finish it with a code; the answer holds the recovery codes. **`replace_recovery_codes`** — `POST /totp/recovery-codes`: a fresh set. **`totp_disable`** — `POST /totp/disable`, with the network address for the sign-in limits: `204` when codes are off.
-
-@@ 190-192
+@@ 259-261
 **`list_members`**.
 
-@@ 195-197
+@@ 264-266
 **`list_projects`** — `GET /orgs/{org}/projects`, for any signed-in member.
 
-@@ 200-202
+@@ 269-271
 **`add_member`** — `201 Created`.
 
-@@ 205-209
+@@ 274-278
 **`change_role`** — `PATCH …/members/{user}`. `PATCH` is the HTTP method for changing part of something: here, one field of a membership.
 
-@@ 212-215
+@@ 281-284
 **`remove_member`** — `DELETE …/members/{user}`: `204`.
 
-@@ 218-220
+@@ 287-289
 **`create_key`** — `201 Created`, with the key shown once.
 
-@@ 223-227
+@@ 292-296
 **`audit_log`** — up to 500 entries (100 if not asked).
 
-@@ 230-231
+@@ 299-300
 The path every project route starts with, written once; and `Live`, the `livemode` query parameter (`?livemode=true`), which chooses test or live data.
 
-@@ 234-247
+@@ 303-316
 **`project_sessions`** — `GET …/sessions`: test sessions unless asked for live, 20 a page (at most 100), after the given cursor — and, like the website API, optionally only one outcome or one reference.
 
-@@ 250-254
+@@ 319-323
 **`session_trace`** — `GET …/sessions/{id}`: one session's decision trace.
 
-@@ 257-266
+@@ 326-335
 **`project_analytics`** — `GET …/analytics`: the last 30 days (1 to 365), test or live.
 
-@@ 269-271
+@@ 338-340
 **`project_policies`** — `GET …/policies`.
 
-@@ 274-279
+@@ 343-348
 **`add_policy_version`** — `POST …/policies`, a change (so it needs the CSRF token): build the draft from the body, and add it.
 
-@@ 282-285
+@@ 351-354
 **`ConsoleEndpoint`** — that body plus `livemode` (test unless asked). A website's key is already test or live; a person in the console chooses.
 
-@@ 288-292
+@@ 357-361
 **`project_webhooks`** — `GET …/webhooks`: the endpoints, test or live.
 
-@@ 295-299
+@@ 364-368
 **`add_webhook`** — `POST …/webhooks`, a change: `201`, with the secret.
 
-@@ 302-307
+@@ 371-376
 **`remove_webhook`** — `DELETE …/webhooks/{id}`: `204`. The mode comes in the address (`?livemode=true`), like every other webhook route here.
 
-@@ 310-320
+@@ 379-389
 **`switch_webhook`** — `PATCH …/webhooks/{id}`, a change: on or off, in the mode the address names.
 
-@@ 323-327
+@@ 392-396
 **`send_test_event`** — `POST …/webhooks/{id}/test`: `202 Accepted` — queued, not yet sent.
 
-@@ 330-334
+@@ 399-403
 **`webhook_deliveries`** — `GET …/webhooks/{id}/deliveries`.
 
-@@ 337-341
+@@ 406-410
 **`replay_delivery`** — `POST …/webhook-deliveries/{id}/replay`: `202`.
+
+@@ 108
+**`Base64Url`** (Phase 9) — a field holding base64url text: only its letters, digits, `-` and `_`, and at most 4 KB, so nothing odd or huge reaches the checks.
+
+@@ 111-121
+**`NewPasskey`** — a device's answer to `navigator.credentials.create`, with a name for the passkey, the password, and a code if one-time codes are on.
+
+@@ 124-133
+**`PasskeySignIn`** — a device's answer to `navigator.credentials.get`: the passkey's ID, the client data, the device's data, the signature, and the account's handle when the device gives one.
+
+@@ 164-170
+**`sign_in`** — the same, with the network address the request came from, for the sign-in limit.
+
+@@ 173-176
+**`passkey_sign_in_options`** — `POST /passkey-login/options`: a challenge for signing in with a passkey. Nobody is signed in yet, so only the origin is checked.
+
+@@ 179-187
+**`passkey_sign_in`** — `POST /passkey-login`: check the device's answer, give the session cookie, and answer with who is now signed in, as a password sign-in does.
+
+@@ 218-232
+**`totp_confirm`** — finish it with a code; the answer holds the recovery codes. **`replace_recovery_codes`** — `POST /totp/recovery-codes`: a fresh set. **`totp_disable`** — `POST /totp/disable`, with the network address for the sign-in limits: `204` when codes are off.
+
+@@ 235-237
+**`list_passkeys`** — `GET /passkeys`: the person's own passkeys.
+
+@@ 240-242
+**`passkey_options`** — `POST /passkeys/options`: the options for adding one. A change, so it needs the CSRF token.
+
+@@ 245-250
+**`add_passkey`** — `POST /passkeys`: check the device's answer and the password, and keep the passkey (`201`).
+
+@@ 253-256
+**`remove_passkey`** — `DELETE /passkeys/{id}`: `204`.

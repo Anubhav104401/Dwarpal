@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     console_origins: list[str] = ["http://localhost:3000"]
     console_session_ttl_s: int = 43_200  # 12 hours
     console_cookie_secure: bool = True
+    # Passkeys belong to a site's name (WebAuthn's relying party ID): the console's host name, such as dwarpal.in.
+    # Left empty, it is the host of the first console origin.
+    passkey_rp_id: str = ""
     # Sign-in attempts: per account and per network address, a few at once, then one every so often.
     login_burst: int = 5
     login_per_minute: float = 1.0

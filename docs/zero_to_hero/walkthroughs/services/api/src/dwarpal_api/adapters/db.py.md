@@ -1,5 +1,5 @@
 ---
-fingerprint: d4f71b5e17c1f25d
+fingerprint: 126ea7347ca33afb
 ---
 The API's connection to **PostgreSQL**, the database that remembers everything that must survive a restart: projects, keys, sessions, attempts, signing keys (§0.12, §4.10). The file is short because SQLAlchemy does the heavy lifting; these lines choose *how* it behaves.
 
@@ -45,69 +45,72 @@ The final `true` is the important part: *only until this transaction ends*. When
 @@ 26-27
 **`FIND_USER`** — signing in to the console happens before anyone is named, just like checking an API key. The account is found by e-mail address through `dwarpal_find_user` (migration `0007`), which returns only what checking a password and a one-time code needs.
 
-@@ 28-31
+@@ 30-33
 **`FIND_API_KEY`** — reading an API key happens *before* the tenant is known: the key is what tells us who the caller is. Under row-level security, a unit of work with no tenant can't see any key. So the key is read through `dwarpal_find_api_key`, a function the migration lets see every key but return only the five columns that checking a key needs.
 
 Since migration `0003`, it also returns the key's scopes and its expiry.
 
-@@ 34-35
+@@ 36-37
 `Base` — our project's own base class for tables. Every table class inherits from it, and SQLAlchemy collects them all into one catalogue, `Base.metadata`. Migrations and tests use that catalogue to compare the code with the real database (§4.10).
 
-@@ 38
+@@ 40
 **`make_engine`** — create the engine for a database URL (see `settings.py`). The new, optional `role` names the restricted database role every connection should become. The API passes `dwarpal_app`; the command-line tools pass nothing, and keep the full rights of the login that owns the tables (they run migrations and reports).
 
-@@ 39
+@@ 41
 `create_async_engine` with three choices:
 
 - `pool_pre_ping=True` — before lending out a connection, check it still works. Databases restart and networks drop idle connections; without the check, the first request after such a hiccup would fail;
 - `pool_size=10` — keep up to 10 connections open;
 - `max_overflow=10` — at busy moments, open up to 10 more, temporary ones. So at most 20 connections exist at once, which protects PostgreSQL from being flooded.
 
-@@ 40-42
+@@ 42-44
 If a role was asked for, check its name against `ROLE_NAME` first, and stop with an error if it doesn't fit.
 
-@@ 44-45
+@@ 46-47
 `@event.listens_for(engine.sync_engine, "connect")` — run the function below **each time the pool opens a new connection**, before anyone uses it. (`sync_engine` is the engine's inner, non-async core, where SQLAlchemy's events live.) Because it happens once per connection, not once per request, it costs nothing on the busy path.
 
-@@ 46-53
+@@ 48-55
 **`become_role`** — `SET ROLE dwarpal_app` switches the connection from the login that owns the tables to the restricted role. Row-level security doesn't bind a table's owner, but it binds every other role, so from this moment every query this connection runs is filtered by the policies.
 
 The `autocommit` lines matter, and the tests caught it: the database driver quietly opens a transaction around any statement, and the pool's next **rollback** would undo the `SET ROLE` with it. The connection would silently go back to being the owner, and the policies would stop applying. With `autocommit` on, the statement runs outside any transaction, so nothing can roll it back; then the normal behaviour is switched back on.
 
 PostgreSQL can't take a role's name as a query parameter, so it is written into the SQL text — which Semgrep flags as possible **SQL injection** (Phase 7). Here the name comes from the server's own settings, and `make_engine` has already refused anything but a plain name (`ROLE_NAME`); the `nosemgrep` comment records that this was reviewed.
 
-@@ 55
+@@ 57
 Hand back the engine.
 
-@@ 58
+@@ 60
 **`make_sessions`** — create the factory that makes database sessions. Its return type, `async_sessionmaker[AsyncSession]`, reads "a session maker that makes `AsyncSession`s".
 
-@@ 59
+@@ 61
 `expire_on_commit=False` — after a commit, keep the values already loaded in Python objects. By default SQLAlchemy marks them as stale, and re-reads them from the database on next use. In async code, that hidden re-read would need an `await` where none is written, and fail. The use cases read a few values (such as the new status) right after committing, so this setting matters.
 
-@@ 62-67
+@@ 64-69
 **`name_tenant`** — name the tenant inside a unit of work that is already open: one project, or one organisation, and for the console also the signed-in user.
 
-@@ 68-69
+@@ 70-71
 Its docstring.
 
-@@ 70-74
+@@ 72-76
 Turn each ID into text (an absent one becomes the empty text `""`, which the policies read as "none"), and run `NAME_TENANT` with them. The dictionary is built from three name-and-value pairs in one line, a **comprehension**.
 
-@@ 77-83
+@@ 79-85
 **`tenant`** — the helper almost every use case calls. `@asynccontextmanager` turns a function with one `yield` into something usable with `async with`: the code before `yield` runs on entry, the caller's block runs at the `yield`, and the rest runs on exit, even after an error. It takes the session factory and the tenant — a project, an organisation, and for the console a user — and gives the caller a database session.
 
-@@ 84-85
+@@ 86-87
 Its docstring.
 
-@@ 86-88
+@@ 88-90
 Open a database session, name the tenant as its **very first** statement, and hand the session to the caller. When the caller's block ends, the outer `async with` closes the session. A use case can't forget to name its tenant, because it never gets a session that hasn't named one.
 
-@@ 91-94
+@@ 93-96
 **`session_tenant`** — the verify page's version: given a verification session's ID instead of a project.
 
-@@ 95-96
+@@ 97-98
 Its docstring, including the case of an unknown session: the unit of work is confined to nothing.
 
-@@ 97-99
+@@ 99-101
 Open a session, run `NAME_SESSION_TENANT` with the verification session's ID as its first statement, and hand it over.
+
+@@ 28-29
+**`FIND_PASSKEY`** (Phase 9) — signing in with a passkey also happens before anyone is named, so the passkey is found by its ID through `dwarpal_find_passkey` (migration `0010`), which returns only what checking a signature needs.

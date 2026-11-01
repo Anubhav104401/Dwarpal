@@ -38,6 +38,12 @@ test("key pages score at least 90 in Lighthouse, and the private ones stay out o
     `--collect.chromePath=${headlessShell()}`,
     ...PAGES.map((url) => `--collect.url=${url}`),
   ];
+  // On Linux (GitHub's runners) Chrome's own sandbox can't start — Ubuntu 24.04 forbids the namespaces it needs — and
+  // Lighthouse then waits for a browser that never comes. Playwright launches its browsers without that sandbox on
+  // Linux for the same reason; Lighthouse's launcher is told to do the same. The pages are our own, on this machine.
+  if (process.platform === "linux") {
+    args.push("--collect.settings.chromeFlags=--headless --no-first-run --no-sandbox");
+  }
   // Throws, failing the test, if a page misses an assertion in lighthouserc.json; the reports land in test-results.
   // The output is caught and, on failure, put in the error itself: CI shows a failing test's message to anyone, but
   // its full log only to people signed in to GitHub.

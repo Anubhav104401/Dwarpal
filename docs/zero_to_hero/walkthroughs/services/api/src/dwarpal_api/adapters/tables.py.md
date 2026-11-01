@@ -1,5 +1,5 @@
 ---
-fingerprint: 3aa7d75b4ae8a8c2
+fingerprint: f660c3f38a998232
 ---
 The **database tables**, described as Python classes. Each class is one table; each `Mapped[...]` line inside it is one **column**. SQLAlchemy's **ORM** (Object-Relational Mapper, §4.10) translates between the two worlds: code works with ordinary Python objects such as `row.status`, and SQLAlchemy writes the SQL.
 
@@ -362,7 +362,7 @@ The key is the pair: the organisation and the user (each deleted with its parent
 @@ 282-283
 The role, and when it was given.
 
-@@ 286
+@@ 301
 `METADATA` — a short public name for the catalogue of all these tables. The migration tool and the tests import it from here, which makes sure every table class above has been loaded first.
 
 @@ 242-244
@@ -373,3 +373,6 @@ The table's name.
 
 @@ 248-253
 Its key — the project, test or live, the day, the decision and the band (a small integer) — and the count.
+
+@@ 286-298
+**`Passkey`** (Phase 9, migration `0010`) — a console user's passkey: its ID, its owner, the device's ID for it (unique), the public key as the device sent it, the device's signature counter, the person's name for it, and when it was added and last used. Never a private key: that stays on the device.
