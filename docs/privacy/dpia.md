@@ -1,6 +1,6 @@
 # Data Protection Impact Assessment (DPIA) — reference deployment
 
-> **Draft for legal review.** Prepared from the system as built (26 Oct 2026) for the reference deployment: Dwarpal operated as a hosted service, with a website (the *relying party*) sending its visitors to Dwarpal's verify page. A website using Dwarpal needs its own DPIA for its own processing; this one covers Dwarpal's part. It follows the structure of the UK ICO's DPIA template and the GDPR's Article 35. Every factual statement points at the code that makes it true.
+> **Draft — not legally reviewed.** The owner has not yet arranged a legal review (O5, 1 Nov 2026); nothing here should be relied on or published as final until one is done. Prepared from the system as built (26 Oct 2026) for the reference deployment: Dwarpal operated as a hosted service, with a website (the *relying party*) sending its visitors to Dwarpal's verify page. A website using Dwarpal needs its own DPIA for its own processing; this one covers Dwarpal's part. It follows the structure of the UK ICO's DPIA template and the GDPR's Article 35. Every factual statement points at the code that makes it true.
 
 ## 1. The processing
 

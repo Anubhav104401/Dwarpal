@@ -1,5 +1,5 @@
 ---
-fingerprint: e27dd005e1d27df9
+fingerprint: 4c763c4585a58742
 ---
 This file tells pnpm that this repository is a **workspace**: several JavaScript packages managed together, installed together and able to depend on each other (§4.4).
 
@@ -42,7 +42,7 @@ Two supply-chain settings Semgrep recommended (Phase 7):
 **`overrides`** (Phase 5, decision D14) — versions pnpm must use for a package wherever it appears in the tree, whatever the package that asked for it wanted. Lighthouse CI (§5.5.5) brought older versions of these four with known flaws (`pnpm audit`); these are the fixed ones. They are development tools only — nothing here reaches the apps.
 
 @@ 19-22
-The four: `tmp` (temporary files), `uuid` (random IDs), `basic-ftp` (an FTP client deep in Lighthouse's proxy support) and `zod` (data validation in the browser driver). Three of them jump a major version, which can break a program; the Lighthouse test ran after the change and still passed.
+The four: `tmp` (temporary files — 0.2.7 since 1 Nov, decision D14b, when a newer advisory turned out to cover 0.2.6 too), `uuid` (random IDs), `basic-ftp` (an FTP client deep in Lighthouse's proxy support) and `zod` (data validation in the browser driver). Three of them jump a major version, which can break a program; the Lighthouse test ran after the change and still passed.
 
 @@ 23
 And `body-parser` (reading request bodies in Lighthouse CI's local server), added on 30 Oct: its fixed version, 1.20.9, came out on 22 Oct, so the seven-day wait (`minimumReleaseAge`) held it back until 29 Oct.

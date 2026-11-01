@@ -1,5 +1,5 @@
 ---
-fingerprint: cf201f92632f3fa6
+fingerprint: ca415e209fec4a85
 ---
 The **home page**, at `/` (§5.5.9): what Dwarpal is, for the people who take a check and for the websites that use one. It is the design's marketing site, apart from its 3D hero, which waits on decision D1. In Next.js's App Router, a file named `page.tsx` is the page for its folder's address: `app/page.tsx` is `/`.
 
@@ -79,7 +79,7 @@ Where the full guides are: in the repository, for now; Dwarpal isn't hosted yet.
 **Where it fits**: one panel per place, with the rule's name under it, then what it asks and how Dwarpal answers — side by side from the `md` width, stacked on a phone. (A table here needed sideways scrolling on a phone.)
 
 @@ 301-305
-The plain disclaimer.
+The plain disclaimer: a draft summary, not yet reviewed by a lawyer (O5), and not legal advice.
 
 @@ 307-324
 **Questions**: each a `details` element, which the browser opens and closes by itself, with no script. `summary` is the part always shown; the `+` turns into an × (`group-open:rotate-45`) when its question is open.

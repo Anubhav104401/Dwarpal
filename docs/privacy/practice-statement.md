@@ -1,6 +1,6 @@
 # Age assurance practice statement
 
-> **Draft for legal review.** In the style of ISO/IEC 27566-1 (Age assurance systems — framework), which asks providers to publish how their system works, how well it performs, and what it does with data. Statements describe the system as built on 26 Oct 2026; figures marked *pending* will be filled from the final model card.
+> **Draft — not legally reviewed.** The owner has not yet arranged a legal review (O5, 1 Nov 2026); nothing here should be relied on or published as final until one is done. In the style of ISO/IEC 27566-1 (Age assurance systems — framework), which asks providers to publish how their system works, how well it performs, and what it does with data. Statements describe the system as built on 26 Oct 2026; figures marked *pending* will be filled from the final model card.
 
 ## 1. The service
 

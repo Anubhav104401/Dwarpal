@@ -299,8 +299,8 @@ export default async function Home() {
             ))}
           </div>
           <p className="mt-4 text-sm text-ink-600 dark:text-ink-400">
-            A summary, not legal advice. Dwarpal is in development and hasn't been assessed under any of these
-            rules.
+            A draft summary, not yet reviewed by a lawyer, and not legal advice. Dwarpal is in development and
+            hasn't been assessed under any of these rules.
           </p>
         </Section>
 
