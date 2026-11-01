@@ -16,7 +16,7 @@ jobs:
   python:
     name: Python - lint, types, tests, book
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
@@ -26,7 +26,30 @@ jobs:
       - run: uv sync --locked
       - run: uv run infra/scripts/fetch_models.py
       - run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends tesseract-ocr
-      - run: uv run tasks.py check
+      - run: uv run tasks.py lint
+      - run: uv run tasks.py typecheck
+      # The tests, one step per run so each has its own time on record; each test's name is logged as it starts.
+      - name: Tests - services, libraries, SDK
+        timeout-minutes: 20
+        shell: bash
+        run: uv run python -m pytest docs/zero_to_hero/tests services libs packages/sdk-python -v --durations=15 2>&1 | tee services-tests.log
+      - name: Tests - ML
+        timeout-minutes: 15
+        shell: bash
+        run: uv run python -m pytest ml -v --durations=15 2>&1 | tee ml-tests.log
+      - run: uv run tasks.py book
+      # CI's logs need a GitHub sign-in; annotations don't. Post the slowest tests, and the last lines reached (the
+      # test that was running if a step ran out of time), as annotations.
+      - name: Test timings, as annotations
+        if: always()
+        shell: bash
+        run: |
+          for log in services-tests.log ml-tests.log; do
+            [ -f "$log" ] || continue
+            slowest=$(sed -n '/slowest .* durations/,/^=/p' "$log" | head -17 | tr '\n' '|')
+            last=$(grep -E '::' "$log" | tail -3 | tr '\n' '|')
+            echo "::notice title=$log::slowest: ${slowest:-none recorded} last reached: ${last:-none}"
+          done
 
   javascript:
     name: JavaScript - lint, types, tests, builds
