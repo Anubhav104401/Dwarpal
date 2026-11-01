@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import multiprocessing
 import os
 import sys
 import zipfile
@@ -130,7 +131,13 @@ def prepare(rows: list[Row], folder: Path, target: Path, workers: int, subject: 
     target.parent.mkdir(parents=True, exist_ok=True)
     partial = target.with_name(target.name + ".part")
     prepared: list[Prepared] = []
-    with ProcessPoolExecutor(workers) as pool, zipfile.ZipFile(partial, "w", zipfile.ZIP_STORED) as out:
+    # Workers start as fresh programs ("spawn"), as Windows always does. Linux would otherwise copy this process as it
+    # is ("fork"), threads' locks included: with OpenCV's or PyTorch's threads running, a copy can wait forever.
+    spawn = multiprocessing.get_context("spawn")
+    with (
+        ProcessPoolExecutor(workers, mp_context=spawn) as pool,
+        zipfile.ZipFile(partial, "w", zipfile.ZIP_STORED) as out,
+    ):
         for done, results in enumerate(pool.map(prepare_chunk, repeat(folder), chunks, repeat(subject)), 1):
             for item, jpeg in results:
                 prepared.append(item)

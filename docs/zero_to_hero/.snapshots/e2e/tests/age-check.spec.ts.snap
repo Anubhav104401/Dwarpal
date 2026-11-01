@@ -142,6 +142,8 @@ test("a person the face check can't decide confirms their age with a passport an
   page,
   request,
 }, info) => {
+  // Reading the document and matching two faces runs on the processor alone on CI's machines: allow it time.
+  test.setTimeout(180_000);
   const { id, secret } = await steppedUp(request);
   await page.goto(`${VERIFY}/v/${id}#cs=${secret}`);
   await expect(page.getByRole("heading", { name: "We need a stronger check" })).toBeVisible();
@@ -158,7 +160,28 @@ test("a person the face check can't decide confirms their age with a passport an
   await expect(page.getByText("Now a short selfie")).toBeVisible();
   await expect(page.getByRole("button", { name: "Start", exact: true })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole("button", { name: "Start", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "You're all set" })).toBeVisible({ timeout: 60_000 });
+  try {
+    await expect(page.getByRole("heading", { name: "You're all set" })).toBeVisible({ timeout: 120_000 });
+  } catch (error) {
+    // CI shows a failing test's message to anyone but its log only to people signed in, so say here what the page
+    // showed instead, and what the API recorded.
+    const shown = (
+      await page
+        .locator("main")
+        .innerText()
+        .catch(() => "(no page)")
+    ).slice(0, 600);
+    const recorded = await request.get(`${API}/v1/verification-sessions/${id}`, {
+      headers: { Authorization: `Bearer ${process.env.E2E_API_KEY}` },
+    });
+    const { status, outcome } = await recorded.json();
+    throw new Error(
+      `the check didn't finish: the page shows "${shown}"; the session is ${status}/${outcome}`,
+      {
+        cause: error,
+      },
+    );
+  }
   await page.screenshot({ path: info.outputPath("2-passed.png"), animations: "disabled" });
 
   // The website's view: passed, and the token says how.

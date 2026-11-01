@@ -1,5 +1,5 @@
 ---
-fingerprint: 71c36a9e44770dee
+fingerprint: 4d9f39adb77d954b
 ---
 **The end-to-end tests**: short stories, acted out by **Playwright** in a real Chromium browser (§4.20). The first one is the whole slice working together — the shop, the SDKs, the verify page in its modal, the camera, the API, the inference service, the decision engine, the signed token and the shop's pass:
 
@@ -120,20 +120,26 @@ Three face attempts, each with a fresh challenge…
 @@ 131-139
 Post each attempt; after the third, the outcome must be `step_up`. Return the session's ID and secret.
 
-@@ 141-146
-**Test — a person the face check can't decide confirms their age with a passport and a selfie.** Open the verify page with the stepped-up session's link: the secret travels in the `#` fragment, as a real link carries it.
+@@ 141-148
+**Test — a person the face check can't decide confirms their age with a passport and a selfie.** It gets three minutes rather than the usual ninety seconds: on CI's machines, with no graphics card, reading the document and matching two faces is slow, and it once ran out of time there. Then open the verify page with the stepped-up session's link: the secret travels in the `#` fragment, as a real link carries it.
 
-@@ 147-148
+@@ 149-150
 The step-up ending, and its new button.
 
-@@ 150-155
+@@ 152-157
 The document stage says what will happen — including that the name and document number are never kept — before anything is chosen; it breaks no accessibility rule; and then the specimen passport is chosen, as a person would choose a photo (`setInputFiles` fills the hidden file input).
 
-@@ 157-162
-The selfie stage: the same camera screen as a face check, playing the fake camera's portrait — the same face as on the specimen. Its result: "You're all set".
-
-@@ 164-168
+@@ 187-191
 The website's view, with the same test key: the session…
 
-@@ 169-172
+@@ 192-195
 …is completed with a pass, and its token's claims (the middle part of the JWT, decoded) say how: a face estimate, the document's MRZ and a face match.
+
+@@ 159-164
+The selfie stage: the same camera screen as a face check, playing the fake camera's portrait — the same face as on the specimen. Its result, within two minutes: "You're all set".
+
+@@ 165-184
+If that heading never comes, the test fails with a message saying **what the page showed instead** and **what the API recorded** for the session (its status and outcome). The test once failed on GitHub, where only signed-in people can read the full log; a failing test's message, though, anyone can read. `cause` keeps the original error attached.
+
+@@ 185
+A screenshot of the result.
