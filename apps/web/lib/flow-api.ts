@@ -86,31 +86,14 @@ export class FlowClient {
 
   /** Upload one attempt's frames, with what they answer and what the browser noticed. */
   async attempt(captured: CapturedAttempt): Promise<AttemptResult> {
-    const { frames, signals } = captured;
-    const form = new FormData();
-    form.set("challenge_id", captured.challengeId);
-    form.set(
-      "meta",
-      JSON.stringify({
-        frames: frames.map((frame, index) => ({ index, t_ms: Math.round(frame.tMs), phase: frame.phase })),
-        light_started_ms: captured.lightStartedMs === null ? null : Math.round(captured.lightStartedMs),
-        signals: {
-          automation: signals.automation,
-          virtual_camera: signals.virtualCamera,
-          hidden_ms: Math.round(signals.hiddenMs),
-          light_shown: signals.lightShown,
-        },
-      }),
-    );
-    frames.forEach((frame, index) => {
-      form.set(`frame_${index}`, frame.image, `frame_${index}.jpg`);
-    });
-    const data = await this.#post("/face-attempts", form);
-    return {
-      outcome: asText(data.outcome) as AttemptOutcome,
-      reasons: Array.isArray(data.reasons) ? data.reasons.map(asText) : [],
-      attemptsRemaining: asCount(data.attempts_remaining),
-    };
+    return readResult(await this.#post("/face-attempts", attemptForm(captured)));
+  }
+
+  /** The step-up with an ID document (Phase 6): the document's photo with a selfie attempt's frames. */
+  async documentAttempt(document: Blob, captured: CapturedAttempt): Promise<AttemptResult> {
+    const form = attemptForm(captured);
+    form.set("document", document, "document.jpg");
+    return readResult(await this.#post("/stepup/mrz", form));
   }
 
   /** Where to send the person now, or `null` if the website gave no address to return to. */
@@ -145,4 +128,36 @@ export class FlowClient {
     }
     return data;
   }
+}
+
+/** An attempt as a multipart form: the challenge it answers, the frames' description, and each frame. */
+function attemptForm(captured: CapturedAttempt): FormData {
+  const { frames, signals } = captured;
+  const form = new FormData();
+  form.set("challenge_id", captured.challengeId);
+  form.set(
+    "meta",
+    JSON.stringify({
+      frames: frames.map((frame, index) => ({ index, t_ms: Math.round(frame.tMs), phase: frame.phase })),
+      light_started_ms: captured.lightStartedMs === null ? null : Math.round(captured.lightStartedMs),
+      signals: {
+        automation: signals.automation,
+        virtual_camera: signals.virtualCamera,
+        hidden_ms: Math.round(signals.hiddenMs),
+        light_shown: signals.lightShown,
+      },
+    }),
+  );
+  frames.forEach((frame, index) => {
+    form.set(`frame_${index}`, frame.image, `frame_${index}.jpg`);
+  });
+  return form;
+}
+
+function readResult(data: Json): AttemptResult {
+  return {
+    outcome: asText(data.outcome) as AttemptOutcome,
+    reasons: Array.isArray(data.reasons) ? data.reasons.map(asText) : [],
+    attemptsRemaining: asCount(data.attempts_remaining),
+  };
 }

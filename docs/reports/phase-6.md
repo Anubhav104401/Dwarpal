@@ -1,6 +1,6 @@
 # Phase 6 report — step-up verifiers
 
-**Dates:** from 26 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Design:** [03_implementation_design.md §9](../design/03_implementation_design.md) · **Status:** 🟡 in progress — the MRZ route works end to end in the API (1 Nov): reading from a photo, face match, rules, token; the verify page's screens are next; Aadhaar is deferred (D8/O7) ([pending decisions](pending-decisions.md)).
+**Dates:** from 26 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Design:** [03_implementation_design.md §9](../design/03_implementation_design.md) · **Status:** 🟡 in progress — the MRZ route works end to end in the API (1 Nov): reading from a photo, face match, rules, token; and on the verify page (§5.6.3), with a browser test from step-up to token; Aadhaar is deferred (D8/O7) ([pending decisions](pending-decisions.md)).
 
 **Exit (from the roadmap):** parsers pass specimen and test vectors; end-to-end step-up flows pass with fake-camera inputs.
 
@@ -33,7 +33,7 @@
 
 ## Open items
 
-1. **The verify page's screens** for the document check (capture, consent, result) and a browser test with a fake camera — next.
+1. ~~The verify page's screens~~ — **done 1 Nov** (§5.6.3): consent before capture, the photo prepared in the browser, the selfie with the face check's challenge; a browser test drives it from step-up to token. Left: a live document camera with framing guidance (desktop users must choose a file today).
 2. **ID cards (TD1)** read poorly with Tesseract's English model; an OCR-B model would have to be trained (no licensed one exists, D6c).
 3. **Real-world accuracy** is unmeasured: the specimens are drawn in an ordinary font and photographed by a program. The face-match threshold (OpenCV's 0.363) isn't measured for printed photos against webcams.
 4. **SFace's training data** was collected without consent (accepted, D7b; recorded in `models/third_party.json`).

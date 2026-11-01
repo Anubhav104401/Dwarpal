@@ -1,7 +1,13 @@
-import { expect, test } from "@playwright/test";
+import { fileURLToPath } from "node:url";
+
+import { type APIRequestContext, expect, test } from "@playwright/test";
+
+import { violations } from "./axe.js";
 
 const SHOP = "http://localhost:3100";
 const VERIFY = "http://localhost:3000";
+const API = "http://127.0.0.1:8000";
+const SPECIMEN = fileURLToPath(new URL("../.cache/specimen-passport.jpg", import.meta.url));
 
 test("an adult passes the age check in a modal over the shop, and is let into the cellar", async ({
   page,
@@ -84,4 +90,75 @@ test("the modal closes, and the shop's page is just as it was", async ({ page })
 test("no other website may frame a verify page", async ({ page }) => {
   const answer = await page.request.get(`${VERIFY}/v/vs_01M51KF05CE4GSBH7F0G43G01V`);
   expect(answer.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
+});
+
+/** A session the face check couldn't decide: three attempts whose frames can't even be read, so it steps up. */
+async function steppedUp(request: APIRequestContext): Promise<{ id: string; secret: string }> {
+  const created = await request.post(`${API}/v1/verification-sessions`, {
+    headers: { Authorization: `Bearer ${process.env.E2E_API_KEY}` },
+    data: { policy: "uk_osa_18" },
+  });
+  const { id, client_secret: secret } = await created.json();
+  const started = await request.post(`${API}/v1/flow/sessions/${id}/start`, {
+    data: { client_secret: secret },
+  });
+  const flow = { Authorization: `Bearer ${(await started.json()).flow_token}` };
+  let outcome = "";
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const challenge = await (
+      await request.post(`${API}/v1/flow/sessions/${id}/challenge`, { headers: flow })
+    ).json();
+    const frames = Array.from({ length: 3 }, (_, index) => ({ index, t_ms: index * 120, phase: "baseline" }));
+    const multipart: Record<string, string | { name: string; mimeType: string; buffer: Buffer }> = {
+      challenge_id: challenge.challenge_id,
+      meta: JSON.stringify({ frames }),
+    };
+    for (const frame of frames) {
+      multipart[`frame_${frame.index}`] = {
+        name: "f.jpg",
+        mimeType: "image/jpeg",
+        buffer: Buffer.from("not a picture"),
+      };
+    }
+    const answer = await request.post(`${API}/v1/flow/sessions/${id}/face-attempts`, {
+      headers: flow,
+      multipart,
+    });
+    outcome = (await answer.json()).outcome;
+  }
+  expect(outcome).toBe("step_up");
+  return { id, secret };
+}
+
+test("a person the face check can't decide confirms their age with a passport and a selfie", async ({
+  page,
+  request,
+}, info) => {
+  const { id, secret } = await steppedUp(request);
+  await page.goto(`${VERIFY}/v/${id}#cs=${secret}`);
+  await expect(page.getByRole("heading", { name: "We need a stronger check" })).toBeVisible();
+  await page.getByRole("button", { name: "Use a passport or ID card" }).click();
+
+  // What happens, said before anything is chosen; then the photo of the passport's page.
+  await expect(page.getByRole("heading", { name: "Confirm your age with an ID document" })).toBeVisible();
+  await expect(page.getByText("Your name and document number are never kept")).toBeVisible();
+  expect(await violations(page)).toEqual([]);
+  await page.screenshot({ path: info.outputPath("1-document.png"), animations: "disabled" });
+  await page.getByLabel("Take or choose a photo of your document").setInputFiles(SPECIMEN);
+
+  // Then a selfie, with the same challenge as a face check: the fake camera plays the passport's face.
+  await expect(page.getByText("Now a short selfie")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start", exact: true })).toBeEnabled({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "You're all set" })).toBeVisible({ timeout: 60_000 });
+  await page.screenshot({ path: info.outputPath("2-passed.png"), animations: "disabled" });
+
+  // The website's view: passed, and the token says how.
+  const result = await request.get(`${API}/v1/verification-sessions/${id}`, {
+    headers: { Authorization: `Bearer ${process.env.E2E_API_KEY}` },
+  });
+  const session = await result.json();
+  expect([session.status, session.outcome]).toEqual(["completed", "pass"]);
+  const claims = JSON.parse(Buffer.from(session.age_token.split(".")[1], "base64url").toString());
+  expect(claims.methods).toEqual(["face_estimation", "document_mrz", "face_match"]);
 });

@@ -1,5 +1,5 @@
 ---
-fingerprint: 4386cabd4b2057b4
+fingerprint: e9c415aadc2b6bf4
 ---
 The verify page's **client for the flow API** (§5.1.3): four methods, one per step of the check, that run in the person's browser.
 
@@ -85,51 +85,51 @@ Turn the API's `session` object into a `FlowSession`, translating snake_case int
 @@ 81-85
 The device ID is a parameter whose default is `deviceId()` — evaluated each time the method is called without one. Tests pass their own. Post to `/challenge` with no body (`null`), adding the `X-Dwarpal-Device` header when there is an ID (`{}` adds nothing), then check and convert the answer with `readChallenge`.
 
-@@ 87-89
-**`attempt`** — upload one attempt. `const { frames, signals } = captured;` is **destructuring**: it takes those two fields out of `captured` into variables of the same names, to keep the lines below short.
+@@ 99-103
+**`finish`** — ask where to send the person: the address, or `null`.
 
-@@ 90
-Build a **multipart form** (§4.13). `FormData` is the browser's own builder for one.
+@@ 105-109
+**`#post`** — the one private method that sends every request. Its body may be JSON text, a form, or nothing; `extra` holds any additional headers, none by default.
 
-@@ 91
-The challenge's ID, as a text field.
+@@ 110-113
+Headers: ask for JSON back, add the extra headers (`...extra` copies them in), and — once there is a flow token — send it as a bearer token.
 
-@@ 92-104
+@@ 114-116
+Only JSON text gets an explicit `Content-Type`. For a `FormData` body, the browser writes the header itself, including the random **boundary** that separates the parts. Setting it by hand would leave the boundary out, and the server couldn't read the form.
+
+@@ 117-122
+Send the request. `fetch` only throws when no answer came back at all — the network is down, or the server unreachable. That becomes a `FlowError` with the special status 0 and the code `network_error`, so the screens can say "you seem to be offline".
+
+@@ 123
+Read the answer as JSON, falling back to an empty object if it isn't JSON.
+
+@@ 124-128
+Not a success? Throw a `FlowError` with the API's code and message, falling back to generic ones. `||` picks the right-hand value when the left is empty text.
+
+@@ 129-131
+Success: return the answer. The closing braces end the method and the class.
+
+@@ 87-90
+**`attempt`** — upload one face attempt: build its form (`attemptForm`, below), post it to `/face-attempts`, and read the answer (`readResult`).
+
+@@ 92-97
+**`documentAttempt`** (§5.6.3) — the step-up with an ID document: the same form as a face attempt — the selfie's frames answering a new challenge — plus the document's photo as one more file, posted to `/stepup/mrz`. The answer has the same shape.
+
+@@ 133-134
+**`attemptForm`** — what both uploads share, moved out of `attempt` in Phase 6: an attempt as a **multipart form** (§4.13). `const { frames, signals } = captured;` is **destructuring**: it takes those two fields out of `captured` into variables of the same names, to keep the lines below short.
+
+@@ 135-137
+`FormData` is the browser's own builder for a multipart form. First field: the challenge's ID, as text.
+
+@@ 138-150
 The `meta` field: a JSON description of the attempt, in the API's spelling (`t_ms`, not `tMs`):
 
 - `frames` — for each one, its position (`index`), when it was taken (`t_ms`, rounded to whole milliseconds) and its `phase`. `map` turns each frame into a new value; its second argument is the position in the list;
 - `light_started_ms` — when the colours began, rounded, or `null`. `a === null ? x : y` means "if `a` is null, `x`, otherwise `y`";
 - `signals` — the browser's signals, renamed field by field into the API's names.
 
-@@ 105-107
-Each frame's bytes as a file field named `frame_0`, `frame_1`, …, with a file name. `forEach` runs a function for every item of a list.
+@@ 151-155
+Each frame's bytes as a file field named `frame_0`, `frame_1`, …, with a file name. `forEach` runs a function for every item of a list. Return the form.
 
-@@ 108
-Upload it all to `/face-attempts`.
-
-@@ 109-114
-The answer: the outcome, the reasons (keeping only text — `Array.isArray` checks that it really is a list), and the attempts left.
-
-@@ 116-120
-**`finish`** — ask where to send the person: the address, or `null`.
-
-@@ 122-126
-**`#post`** — the one private method that sends every request. Its body may be JSON text, a form, or nothing; `extra` holds any additional headers, none by default.
-
-@@ 127-130
-Headers: ask for JSON back, add the extra headers (`...extra` copies them in), and — once there is a flow token — send it as a bearer token.
-
-@@ 131-133
-Only JSON text gets an explicit `Content-Type`. For a `FormData` body, the browser writes the header itself, including the random **boundary** that separates the parts. Setting it by hand would leave the boundary out, and the server couldn't read the form.
-
-@@ 134-139
-Send the request. `fetch` only throws when no answer came back at all — the network is down, or the server unreachable. That becomes a `FlowError` with the special status 0 and the code `network_error`, so the screens can say "you seem to be offline".
-
-@@ 140
-Read the answer as JSON, falling back to an empty object if it isn't JSON.
-
-@@ 141-145
-Not a success? Throw a `FlowError` with the API's code and message, falling back to generic ones. `||` picks the right-hand value when the left is empty text.
-
-@@ 146-148
-Success: return the answer. The closing braces end the method and the class.
+@@ 157-163
+**`readResult`** — an attempt's answer: the outcome, the reasons (keeping only text — `Array.isArray` checks that it really is a list), and the attempts left.

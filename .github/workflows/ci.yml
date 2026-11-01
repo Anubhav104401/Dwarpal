@@ -62,7 +62,6 @@ jobs:
           cache: pnpm
       - run: uv sync --locked
       - run: uv run infra/scripts/fetch_models.py
-      - run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends tesseract-ocr
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @dwarpal/e2e exec playwright install --with-deps chromium firefox webkit
       - run: pnpm e2e

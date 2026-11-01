@@ -16,6 +16,16 @@ const TIPS: Record<string, string> = {
   liveness_check_failed:
     "Follow the prompts on screen: turn your head when asked, and keep your face in view.",
   liveness_unavailable: "We couldn't complete the check. Please try again.",
+  // The document check (Phase 6).
+  mrz_not_found:
+    "We couldn't find the lines of letters and <<< at the bottom of the photo page. Lay it flat and fill the picture.",
+  mrz_unreadable:
+    "We couldn't read the lines at the bottom of the photo page. Avoid glare and hold the camera steady.",
+  mrz_check_failed:
+    "We couldn't read the lines at the bottom of the photo page clearly. Try again in good light, without glare.",
+  document_face_not_found: "We couldn't see the photo on your document. Show the whole photo page.",
+  face_not_found: "We couldn't see your face in the selfie. Look straight into the camera.",
+  face_mismatch: "Your selfie didn't match the photo on the document. Use your own document, in good light.",
 };
 
 export const DEFAULT_TIP = "The photos didn't work out. Please try again in good, even light.";

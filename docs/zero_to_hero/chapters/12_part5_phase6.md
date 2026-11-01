@@ -4,7 +4,7 @@ A face estimate is quick and private, but sometimes it can't be sure: a 19-year-
 
 | Order | Method | Status |
 | :-: | :-- | :-- |
-| 1 | **ID document (MRZ)** — read the machine-readable zone of a passport or ID card, check it, and match its photo to a selfie | 🟢 the parser and age rule (§5.6.1); reading from a photo, the face match and the API's document check (§5.6.2); 🟡 the verify page's screens (§5.6.3) |
+| 1 | **ID document (MRZ)** — read the machine-readable zone of a passport or ID card, check it, and match its photo to a selfie | 🟢 the parser and age rule (§5.6.1); reading from a photo, the face match and the API's document check (§5.6.2); the verify page's screens (§5.6.3) |
 | 2 | **Aadhaar Secure QR** (India) — verify UIDAI's digital signature on the QR code, then match its photo | 🗓 waits for UIDAI's official specification and certificate |
 
 ### 5.6.1 Reading the machine-readable zone
@@ -83,4 +83,31 @@ The parser (`read_ocr`), the inference service's settings and endpoints, the API
     - **The specimens are not real photos.** They are drawn in an ordinary font, not OCR-B, and photographed by a program. How the reader does on real passports under real light is unmeasured.
     - **The face-match threshold is OpenCV's**, measured on celebrity photos of similar quality, not on a printed passport photo against a webcam.
     - **SFace was trained on faces collected without consent** (D7b). The owner accepted it knowing this; it is recorded with the model.
-    - **The verify page doesn't offer the document check yet**: the API and inference service are ready; its screens come in §5.6.3.
+    - The verify page's screens for it came next, in §5.6.3.
+
+### 5.6.3 The document check on the verify page
+
+The last piece of the MRZ route is the person's side of it. Until now, a face check that couldn't decide ended with "We need a stronger check" and a button back to the website. Now that screen offers the stronger check itself:
+
+1. **"Use a passport or ID card"** — or, quietly underneath, "Not now", for someone who would rather not.
+2. **What will happen, before anything is chosen**: a photo of the document's page; a short selfie, and why; exactly what is read, that the name and document number are never kept, and that both photos are deleted straight after. Then one button — on a phone it opens the rear camera, on a computer a file picker.
+3. **The photo is prepared in the browser**: scaled to at most 2000 pixels and re-encoded under 1 MB. Redrawing it also leaves behind whatever else the file carried, such as where it was taken.
+4. **A selfie** with the very same camera screen as a face check — its challenge, poses and colours — so the person behind the camera must be live.
+5. **The answer**: "You're all set", a fail, or a tip and another try ("We couldn't find the lines of letters and <<< at the bottom of the photo page…"), with the tries left.
+
+!!! key "Key idea — consent before capture"
+    The design asks that a document check explain itself before a single picture is taken. The three steps on the screen say what is collected, why, what is kept (only the year and month of birth) and what is deleted. Choosing the photo is the person's own act, after reading them.
+
+The browser test drives it all: it makes a session that the face check sends to the step-up (three attempts whose frames aren't pictures at all), opens the verify page, chooses the specimen passport, lets the fake camera play the selfie — the same face as on the specimen — and checks the website's token: a pass, by `face_estimation`, `document_mrz` and `face_match`. The document screen is checked by axe, too.
+
+!walk apps/web/lib/document-photo.ts
+
+!walk apps/web/lib/document-photo.test.ts
+
+!walk e2e/tests/axe.ts
+
+The verify page, its flow client and tips, the page frame (a quiet button), the browser tests' configuration (the specimen, the test key, Tesseract for the inference service), the age-check test and the accessibility test changed too; each was re-explained.
+
+!!! honest "Honest limitation"
+    - **Desktop users need a photo file.** On a computer, the button opens a file picker: they must already have a photo of their document. A live document camera on the page — with guidance to fill the frame and avoid glare, as the design describes — would serve them better, and would also stop someone choosing a photo of someone else's document taken earlier; the face match still guards against that.
+    - **The Hindi version** of these screens waits for the Hindi work (decision D2).

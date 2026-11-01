@@ -7,6 +7,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const FAKE_CAMERA = fileURLToPath(new URL("./.cache/fake-camera.y4m", import.meta.url));
+const SPECIMEN = fileURLToPath(new URL("./.cache/specimen-passport.jpg", import.meta.url));
 const UV = process.env.UV ?? "uv";
 const CI = process.env.CI !== undefined;
 
@@ -27,6 +28,23 @@ function prepare(): Record<string, string> {
   if (!existsSync(FAKE_CAMERA)) {
     run(UV, ["run", "python", "infra/scripts/make_fake_camera.py", FAKE_CAMERA]);
   }
+  // A specimen passport (ICAO's Utopia, born 1990) carrying the fake camera's face, for the document check (§5.6.3).
+  if (!existsSync(SPECIMEN)) {
+    const portrait = "libs/vision/tests/fixtures/astronaut.jpg";
+    run(UV, [
+      "run",
+      "--package",
+      "dwarpal-vision",
+      "python",
+      "-m",
+      "dwarpal_vision.specimen",
+      portrait,
+      SPECIMEN,
+    ]);
+  }
+  // The tests themselves create sessions through the API (the document check): they inherit this process's
+  // environment, so the key is handed to them here.
+  process.env.E2E_API_KEY = key;
   return {
     DWARPAL_PROJECT_ID: project,
     DWARPAL_API_KEY: key,
@@ -93,7 +111,18 @@ export default defineConfig({
       "http://127.0.0.1:8001/readyz",
       // The fake camera plays a still portrait, which can't turn its head: liveness trusts the frames' labels here,
       // a test mode allowed only with the stand-in age model (§5.3).
-      { DWARPAL_INFERENCE_STUB_AGE: "30", DWARPAL_INFERENCE_LIVENESS: "labels" },
+      // Tesseract runs in the OCR container, which the compose file starts with the databases (§5.6.2).
+      {
+        DWARPAL_INFERENCE_STUB_AGE: "30",
+        DWARPAL_INFERENCE_LIVENESS: "labels",
+        DWARPAL_INFERENCE_TESSERACT_COMMAND: JSON.stringify([
+          "docker",
+          "exec",
+          "-i",
+          "dwarpal-ocr-1",
+          "tesseract",
+        ]),
+      },
     ),
     server(
       `${UV} run --package dwarpal-api uvicorn dwarpal_api.main:create_app --factory --port 8000 --log-config services/api/logging.json`,

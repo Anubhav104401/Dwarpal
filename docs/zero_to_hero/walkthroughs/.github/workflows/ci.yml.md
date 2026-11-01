@@ -110,38 +110,35 @@ Install pnpm and Node.js 24, as in the JavaScript job: the web apps and the test
 @@ 64
 Download the face-detection model, which the inference service needs (§5.1.1).
 
-@@ 66
+@@ 65
 Install the JavaScript side exactly as its lockfile says.
 
-@@ 67
+@@ 66
 Download the three browsers Playwright drives — Chromium, Firefox and WebKit (§4.20, §5.5.5). The first run on GitHub (1 Nov) downloaded only Chromium, and every Firefox and WebKit test failed for want of a browser. `--with-deps` also installs the system libraries a browser needs on a bare Linux machine, such as fonts.
 
-@@ 68
+@@ 67
 `pnpm e2e` — run the end-to-end test. Its configuration starts the databases with Docker Compose, prepares a demo project, and launches all four services itself (`e2e/playwright.config.ts`).
 
-@@ 69-74
+@@ 68-73
 Only **if a step failed** (`if: failure()`), upload the test's results — screenshots and Playwright's step-by-step **trace** — as an **artifact**: a file bundle attached to the CI run, kept for 7 days. A failure on a machine nobody can log into is then still easy to investigate.
 
-@@ 76
+@@ 75
 `infrastructure:` — the third job: proving the development databases start correctly on a completely clean machine.
 
-@@ 77-79
+@@ 76-78
 Its title, machine and a 10-minute limit.
 
-@@ 80
+@@ 79
 `steps:` — this job's steps.
 
-@@ 81
+@@ 80
 Download the code.
 
-@@ 82
+@@ 81
 Start PostgreSQL and Valkey and **wait until both report healthy**. If either image can't be downloaded, or either health check never passes, this step fails. GitHub's Ubuntu machines come with Docker already installed.
 
-@@ 83
+@@ 82
 Stop the containers and delete their data volumes, leaving the machine clean. GitHub discards the machine anyway, but cleaning up after yourself is a good habit.
 
 @@ 28
 Install Tesseract (§5.6.2) from Ubuntu's packages: the document tests read specimen passports with it. (On this project's Windows computers it runs in a container instead.)
-
-@@ 65
-Install Tesseract here too, for the browser test of the document check.

@@ -6,6 +6,7 @@ import { Badge, button } from "./ui";
 export { card } from "./ui";
 export const primaryButton = button("primary", "large");
 export const accentButton = button("accent", "large");
+export const quietButton = button("quiet", "large");
 
 /** Dwarpal's mark: a temple doorway, the place where a dwarpal (doorkeeper) stands. */
 export function Mark({ className = "size-7" }: { className?: string }) {

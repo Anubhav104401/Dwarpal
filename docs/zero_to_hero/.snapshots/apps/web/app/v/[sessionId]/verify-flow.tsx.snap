@@ -3,9 +3,10 @@
 import { MESSAGE_SOURCE, type VerifyMessage } from "@dwarpal/js";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
-import { accentButton, card, primaryButton, Shell } from "@/components/shell";
+import { accentButton, card, primaryButton, quietButton, Shell } from "@/components/shell";
 import { type Problem, problemFor, tipFor } from "@/lib/advice";
 import type { Challenge } from "@/lib/challenge";
+import { DocumentPhotoError, prepareDocument } from "@/lib/document-photo";
 import { type CapturedAttempt, FlowClient, FlowError, type FlowSession } from "@/lib/flow-api";
 
 import { CameraView } from "./camera-view";
@@ -17,6 +18,8 @@ type Stage =
   | { kind: "intro"; session: FlowSession }
   | { kind: "camera"; session: FlowSession; tip: string | null }
   | { kind: "checking"; session: FlowSession }
+  | { kind: "document"; session: FlowSession; tip: string | null }
+  | { kind: "selfie"; session: FlowSession; document: Blob }
   | { kind: "finished"; session: FlowSession; ending: Ending }
   | { kind: "problem"; problem: Problem; requestId: string | null };
 
@@ -91,8 +94,8 @@ const ENDINGS: Record<
   },
   step_up: {
     title: "We need a stronger check",
-    body: (s) =>
-      `Photos alone were too close to call. ${s.projectName} will offer another way to confirm your age.`,
+    body: () =>
+      "Photos alone were too close to call. You can confirm your age with a passport or ID card instead.",
     tone: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
     path: "M12 7v6m0 4h.01",
   },
@@ -110,10 +113,21 @@ const PROMISES = [
   "The photos are checked once, then deleted. Nothing is stored.",
 ];
 
+/** What the document check does, said before the person chooses a photo of their document (Phase 6). */
+const DOCUMENT_STEPS = [
+  "A photo of your passport's photo page, or the side of your ID card with lines of letters and <<< at the bottom.",
+  "A short selfie, turning your head as asked, so we know the document is yours.",
+  "We read your date of birth and compare the faces. Your name and document number are never kept, and both photos are deleted straight after the check.",
+];
+
+/** How many tries the document check allows (the API's MAX_DOCUMENT_ATTEMPTS). */
+const DOCUMENT_TRIES = 3;
+
 export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: string }) {
   const [stage, setStage] = useState<Stage>({ kind: "loading" });
   const [leaving, setLeaving] = useState(false);
   const [framedBy, setFramedBy] = useState<string | null>(null);
+  const [documentTries, setDocumentTries] = useState(DOCUMENT_TRIES);
   const secret = useRef<string | null>(null);
   const flow = useRef<FlowClient | null>(null);
 
@@ -174,6 +188,42 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
       setStage(problemStage(error));
     }
   }, []);
+
+  /** The document check: the chosen photo, prepared for sending (scaled, re-encoded, under the size limit). */
+  const onDocumentChosen = useCallback(async (session: FlowSession, file: File | undefined) => {
+    if (file === undefined) {
+      return;
+    }
+    try {
+      setStage({ kind: "selfie", session, document: await prepareDocument(file) });
+    } catch (error) {
+      const tip =
+        error instanceof DocumentPhotoError ? "That file couldn't be used. Take a photo instead." : null;
+      setStage({ kind: "document", session, tip });
+    }
+  }, []);
+
+  const onSelfieCaptured = useCallback(
+    async (session: FlowSession, document: Blob, captured: CapturedAttempt) => {
+      const client = flow.current;
+      if (client === null) {
+        return;
+      }
+      setStage({ kind: "checking", session });
+      try {
+        const result = await client.documentAttempt(document, captured);
+        setDocumentTries(result.attemptsRemaining);
+        setStage(
+          result.outcome === "retry"
+            ? { kind: "document", session, tip: tipFor(result.reasons) }
+            : { kind: "finished", session, ending: result.outcome === "step_up" ? "fail" : result.outcome },
+        );
+      } catch (error) {
+        setStage(problemStage(error));
+      }
+    },
+    [],
+  );
 
   /** Tell the framing website something, at its origin only: nothing reaches any other page. */
   function tellWebsite(message: VerifyMessage) {
@@ -294,6 +344,70 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     );
   }
 
+  if (stage.kind === "document") {
+    return (
+      <Shell label={label}>
+        <section className={card}>
+          <h1 className="text-2xl font-semibold tracking-tight">Confirm your age with an ID document</h1>
+          {stage.tip === null ? null : (
+            <p
+              className="mt-3 rounded-xl bg-amber-500/15 px-4 py-3 text-sm text-amber-800 dark:text-amber-200"
+              role="alert"
+            >
+              {stage.tip}
+            </p>
+          )}
+          <ol className="mt-6 space-y-3">
+            {DOCUMENT_STEPS.map((step, index) => (
+              <li key={step} className="flex gap-3 text-[15px] leading-relaxed">
+                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-500/20 text-xs font-semibold text-brand-700 dark:text-brand-300">
+                  {index + 1}
+                </span>
+                {step}
+              </li>
+            ))}
+          </ol>
+          {/* The real control is the hidden file input inside; the label wears the button's look, and its focus ring
+              when the input has keyboard focus. */}
+          <label
+            className={`${accentButton} mt-8 cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-brand-500`}
+          >
+            Take or choose a photo of your document
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              className="sr-only"
+              onChange={(event) => onDocumentChosen(session, event.target.files?.[0])}
+            />
+          </label>
+          <p className="mt-4 text-center text-xs text-ink-600 dark:text-ink-400">
+            {documentTries === 1 ? "Last try" : `${documentTries} tries left`}
+          </p>
+        </section>
+      </Shell>
+    );
+  }
+
+  if (stage.kind === "selfie") {
+    const { document } = stage;
+    return (
+      <Shell label={label}>
+        <section className={card}>
+          <p className="mb-4 text-sm text-ink-600 dark:text-ink-400">
+            Your document's photo is ready. Now a short selfie, so we know it's yours.
+          </p>
+          <CameraView
+            tip={null}
+            getChallenge={getChallenge}
+            onCaptured={(captured) => onSelfieCaptured(session, document, captured)}
+            onCameraError={onCameraError}
+          />
+        </section>
+      </Shell>
+    );
+  }
+
   if (stage.kind === "checking") {
     return (
       <Shell label={label}>
@@ -319,9 +433,24 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
         </Icon>
         <h1 className="mt-5 text-2xl font-semibold tracking-tight">{ending.title}</h1>
         <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">{ending.body(session)}</p>
-        <button type="button" className={`${primaryButton} mt-8`} disabled={leaving} onClick={leave}>
-          {leaving ? "Returning…" : `Continue to ${session.projectName}`}
-        </button>
+        {stage.ending === "step_up" ? (
+          <>
+            <button
+              type="button"
+              className={`${accentButton} mt-8`}
+              onClick={() => setStage({ kind: "document", session, tip: null })}
+            >
+              Use a passport or ID card
+            </button>
+            <button type="button" className={`${quietButton} mt-3`} disabled={leaving} onClick={leave}>
+              {leaving ? "Returning…" : `Not now — return to ${session.projectName}`}
+            </button>
+          </>
+        ) : (
+          <button type="button" className={`${primaryButton} mt-8`} disabled={leaving} onClick={leave}>
+            {leaving ? "Returning…" : `Continue to ${session.projectName}`}
+          </button>
+        )}
       </section>
     </Shell>
   );
