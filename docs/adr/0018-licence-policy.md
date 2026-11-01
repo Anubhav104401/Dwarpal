@@ -21,3 +21,7 @@ Popular face components carry restrictive licences: YOLOv8 is AGPL-3.0, InsightF
 
 ## Alternatives considered
 Ignoring licences for a student project — rejected, because the project is meant to be deployable and teachable, and licence literacy is part of what it teaches.
+
+## Update — 1 Nov 2026
+
+The project owner chose the **Apache License 2.0** for the repository's own code ([LICENSE](../../LICENSE)), when the repository was made public. Trained model weights still inherit the terms of their training data, as above.

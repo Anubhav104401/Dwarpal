@@ -4,6 +4,25 @@ Work that needs your answer — a download, a design choice, an account, or some
 
 **Started:** 26 Oct 2026, overnight run. **Phase 4 is complete** (commits `450bfba`, `7d730ee`, `95f3e91`).
 
+## Decided on 1 Nov 2026
+
+The owner answered every waiting decision at once, and asked for the decided work to be done before the project moves on.
+
+| # | Decision |
+| :-: | :-- |
+| D15 | **Approved**: `pillow` 13.0.0, `certifi` 2026.10.19, `filelock` 4.2.1, `setuptools` 84.1.0 (pypi.org, through uv's `override-dependencies`); re-run the ML tests after |
+| D14b | **Approved**: `tmp` 0.2.7 (40 KB, registry.npmjs.org) in place of 0.2.6 |
+| D1 | **Approved**: `three` **0.186.1** (20.4 MB, npm, MIT); 0.187.0 is still inside the cooldown. The home page's 3D hero, with the still artwork as its fallback |
+| D2 | **Approved**: `next-intl` 4.14.9 (0.4 MB, npm, MIT; brings `@swc/core`). English and Hindi; the Hindi is machine-drafted and marked for review by a native speaker |
+| D6b | **Docker**: Tesseract from Debian's `tesseract-ocr` in a `debian:bookworm-slim` image (~75 MB), plus `pytesseract` 0.3.13; `eng` model limited to MRZ characters first (D6c) |
+| D7b | **Accept SFace, int8** (`face_recognition_sface_2021dec_int8.onnx`, 9.9 MB, OpenCV Zoo, Apache-2.0). Its training data (web-scraped, without consent) is stated in the model card; faces are compared in memory only |
+| D8, O7 | **Aadhaar deferred**: finish the MRZ route first; Aadhaar waits for UIDAI's material or OVSE registration |
+| O1 | **Repository**: https://github.com/Anubhav104401/Dwarpal — **public**; push now (history checked for secrets first) |
+| Licence | **Apache-2.0** for the repository |
+| O6 | Placeholder stays; publishing the practice statement stays blocked |
+| O5 | The DPIA, practice statement and compliance map are labelled **draft, not legally reviewed** |
+| O2 | **Oracle free tier** for Phase 8 when it starts (the owner creates the account and domain) |
+
 ## Decided on 27 Oct 2026
 
 | # | Decision |

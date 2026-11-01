@@ -78,4 +78,4 @@ Frames are processed in memory and discarded within the request. There is no tab
 
 ## Licence
 
-Not yet chosen by the project owner. Until a licence file is added, all rights are reserved. Note that any trained model weights inherit the terms of their training datasets, which are largely research-only (see [ADR-0018](docs/adr/0018-licence-policy.md)).
+The code is licensed under the [Apache License 2.0](LICENSE). Note that any trained model weights inherit the terms of their training datasets, which are largely research-only (see [ADR-0018](docs/adr/0018-licence-policy.md)).
