@@ -62,7 +62,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run infra/scripts/fetch_models.py
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @dwarpal/e2e exec playwright install --with-deps chromium
+      - run: pnpm --filter @dwarpal/e2e exec playwright install --with-deps chromium firefox webkit
       - run: pnpm e2e
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

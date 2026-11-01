@@ -1,5 +1,5 @@
 ---
-fingerprint: 7f775eb5cd38ac64
+fingerprint: 99d0a6cd1007f675
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -114,7 +114,7 @@ Download the face-detection model, which the inference service needs (§5.1.1).
 Install the JavaScript side exactly as its lockfile says.
 
 @@ 65
-Download the Chromium browser that Playwright drives (§4.20). `--with-deps` also installs the system libraries a browser needs on a bare Linux machine, such as fonts.
+Download the three browsers Playwright drives — Chromium, Firefox and WebKit (§4.20, §5.5.5). The first run on GitHub (1 Nov) downloaded only Chromium, and every Firefox and WebKit test failed for want of a browser. `--with-deps` also installs the system libraries a browser needs on a bare Linux machine, such as fonts.
 
 @@ 66
 `pnpm e2e` — run the end-to-end test. Its configuration starts the databases with Docker Compose, prepares a demo project, and launches all four services itself (`e2e/playwright.config.ts`).
