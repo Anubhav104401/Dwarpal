@@ -4,6 +4,18 @@ Work that needs your answer — a download, a design choice, an account, or some
 
 **Started:** 26 Oct 2026, overnight run. **Phase 4 is complete** (commits `450bfba`, `7d730ee`, `95f3e91`).
 
+## Morning summary — 2 Nov, 10 am (overnight work on Phases 8 and 9)
+
+**Waiting for you** — none of these blocked the night's work; each says what it unblocks:
+
+| # | Decision | Unblocks |
+| :-: | :-- | :-- |
+| D17 | **Approve pulling the base images** to build and run Dwarpal's containers: `python:3.13.17-slim-bookworm`, `node:24.22.1-bookworm-slim`, `ghcr.io/astral-sh/uv:0.13.1`, `caddy:2.11.6-alpine`, `restic/restic:0.19.1` (Docker Hub / GHCR, official images; each image's build also installs Debian's `tesseract-ocr` and pnpm via Corepack). Building happens on GitHub's machines and on the server, not this computer | the first image build and deploy |
+| D18 | **Approve publishing the images to GHCR** (GitHub's container registry, under your account). Public packages are simplest (the code is public anyway); private ones need the server to log in to GHCR with a token | the deploy workflow |
+| O8 | **Create the backup storage**: in Oracle, an Object Storage bucket `dwarpal-backups` (Always Free: 20 GB) and a *customer secret key*; choose a restic password and keep it offline too (`infra/deploy/README.md`, step 8) | backups, and Phase 8's restore drill |
+| D19 | **Approve Helm** (the Kubernetes package manager, Apache-2.0: `helm` 3.x, ~16 MB binary from get.helm.sh, or the `azure/setup-helm` action pinned by commit) to lint and render the chart in CI | checking the Helm chart (§5.8.3) |
+| O9 | **GitHub settings for deploys**: a separate deploy SSH key, the `production` environment (ideally with your approval required), and the variables listed in `infra/deploy/README.md`, step 5 | automatic deploys |
+
 ## Decided on 1 Nov 2026
 
 The owner answered every waiting decision at once, and asked for the decided work to be done before the project moves on.

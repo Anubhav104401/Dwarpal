@@ -45,3 +45,11 @@ mlruns/
 .claude/
 .DS_Store
 Thumbs.db
+
+# Private keys and certificates never belong in the repository (it is public): SSH keys, PEM files, secrets files.
+id_rsa*
+id_ed25519*
+*.pem
+*.key
+SSH keys/
+infra/deploy/.env

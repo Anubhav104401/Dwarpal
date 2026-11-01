@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
 
@@ -43,7 +43,14 @@ test("key pages score at least 90 in Lighthouse, and the private ones stay out o
   // its full log only to people signed in to GitHub.
   try {
     execFileSync(process.execPath, args, { encoding: "utf8", stdio: "pipe" });
-  } catch {
+  } catch (error) {
+    // No reports at all: Lighthouse failed before scoring (starting Chrome, loading a page). Show the end of its own
+    // output instead.
+    if (!existsSync("test-results/lighthouse/manifest.json")) {
+      const { stdout = "", stderr = "" } = error as { stdout?: string; stderr?: string };
+      const tail = `${stdout}\n${stderr}`.trim().split("\n").slice(-30).join("\n");
+      throw new Error(`Lighthouse failed before scoring any page:\n${tail}`);
+    }
     // Each page's scores, from the saved list of reports: enough to see which page fell short, and where.
     const saved: Array<{ url: string; summary: Record<string, number> }> = JSON.parse(
       readFileSync("test-results/lighthouse/manifest.json", "utf8"),

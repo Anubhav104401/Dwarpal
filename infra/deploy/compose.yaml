@@ -1,0 +1,161 @@
+# Dwarpal in production (Phase 8, ADR-0015): every service on one server, behind Caddy, which alone faces the internet.
+# Run on the server from /opt/dwarpal, with its secrets in .env beside this file (made by infra/deploy/gen-secrets.py):
+#   docker compose up -d --wait
+# Images come from GHCR, tagged with the commit they were built from (DWARPAL_TAG); infra/deploy/deploy.sh sets it.
+
+name: dwarpal
+
+x-api-env: &api-env
+  DWARPAL_ENVIRONMENT: production
+  # The services log in as `dwarpal_api`, a member of the restricted `dwarpal_app` role and nothing more (Phase 4):
+  # row-level security binds it, whatever it runs.
+  DWARPAL_DATABASE_URL: postgresql+asyncpg://dwarpal_api:${DWARPAL_DB_API_PASSWORD}@postgres:5432/dwarpal
+  DWARPAL_VALKEY_URL: redis://:${DWARPAL_VALKEY_PASSWORD}@valkey:6379/0
+  DWARPAL_INFERENCE_URL: http://inference:8001
+  DWARPAL_MASTER_KEY: ${DWARPAL_MASTER_KEY}
+  DWARPAL_ISSUER: https://api.${DWARPAL_DOMAIN}
+  DWARPAL_VERIFY_URL: https://${DWARPAL_DOMAIN}
+  DWARPAL_CORS_ORIGINS: '["https://${DWARPAL_DOMAIN}"]'
+  DWARPAL_CONSOLE_ORIGINS: '["https://${DWARPAL_DOMAIN}"]'
+  DWARPAL_MODELS_DIR: /models
+  DWARPAL_AGE_MANIFEST: ${DWARPAL_AGE_MANIFEST:-registry/age/stub/manifest.json}
+
+services:
+  caddy:
+    image: caddy:2.11.6-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DWARPAL_DOMAIN: ${DWARPAL_DOMAIN}
+      DWARPAL_ACME_EMAIL: ${DWARPAL_ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [web, api, shop]
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/${DWARPAL_GHCR_OWNER}/dwarpal-web:${DWARPAL_TAG}
+    environment:
+      DWARPAL_API_INTERNAL_URL: http://api:8000
+      DWARPAL_DEMO_SHOP_URL: https://shop.${DWARPAL_DOMAIN}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  shop:
+    image: ghcr.io/${DWARPAL_GHCR_OWNER}/dwarpal-demo-shop:${DWARPAL_TAG}
+    environment:
+      DWARPAL_API_URL: http://api:8000
+      # It talks to the API inside the server, but the tokens it checks name the API's public address.
+      DWARPAL_ISSUER: https://api.${DWARPAL_DOMAIN}
+      DWARPAL_PROJECT_ID: ${DWARPAL_SHOP_PROJECT_ID}
+      DWARPAL_API_KEY: ${DWARPAL_SHOP_API_KEY}
+      SHOP_URL: https://shop.${DWARPAL_DOMAIN}
+      SHOP_SECRET: ${DWARPAL_SHOP_SECRET}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  api:
+    image: ghcr.io/${DWARPAL_GHCR_OWNER}/dwarpal-api:${DWARPAL_TAG}
+    environment: *api-env
+    volumes:
+      - ./models:/models:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+      inference: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # Sends webhook deliveries as they fall due (Phase 4), in its own process.
+  webhooks:
+    image: ghcr.io/${DWARPAL_GHCR_OWNER}/dwarpal-api:${DWARPAL_TAG}
+    command: ["python", "-m", "dwarpal_api.cli", "deliver-webhooks"]
+    environment: *api-env
+    volumes:
+      - ./models:/models:ro
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
+  # Expires abandoned sessions and keeps the counts tidy (`cli maintain`), once an hour.
+  maintenance:
+    image: ghcr.io/${DWARPAL_GHCR_OWNER}/dwarpal-api:${DWARPAL_TAG}
+    entrypoint: ["sh", "-c", "while true; do python -m dwarpal_api.cli maintain; sleep 3600; done"]
+    environment: *api-env
+    volumes:
+      - ./models:/models:ro
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
+  inference:
+    image: ghcr.io/${DWARPAL_GHCR_OWNER}/dwarpal-inference:${DWARPAL_TAG}
+    environment:
+      DWARPAL_INFERENCE_AGE_BACKEND: ${DWARPAL_INFERENCE_AGE_BACKEND:-stub}
+      DWARPAL_INFERENCE_WORKERS: "2"
+    volumes:
+      - ./models:/models:ro
+    # Frames exist only in memory: the service can't write anywhere but a small scratch area that is never on disk.
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/readyz')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:18.6-alpine3.24
+    environment:
+      POSTGRES_DB: dwarpal
+      POSTGRES_USER: dwarpal
+      POSTGRES_PASSWORD: ${DWARPAL_DB_OWNER_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dwarpal -d dwarpal"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:9.1.2-alpine3.24
+    command: ["valkey-server", "--appendonly", "yes", "--requirepass", "${DWARPAL_VALKEY_PASSWORD}"]
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -a \"$$VALKEY_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    environment:
+      VALKEY_PASSWORD: ${DWARPAL_VALKEY_PASSWORD}
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+  caddy-config:
+  pgdata:
+  valkeydata:

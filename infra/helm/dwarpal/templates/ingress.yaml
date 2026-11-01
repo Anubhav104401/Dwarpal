@@ -1,0 +1,29 @@
+# The way in from the internet: the cluster's ingress controller sends each address to its service, over HTTPS.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "dwarpal.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts: [{{ .Values.domain | quote }}, {{ printf "api.%s" .Values.domain | quote }}, {{ printf "shop.%s" .Values.domain | quote }}]
+      secretName: {{ .Values.ingress.tlsSecret }}
+  rules:
+    {{- range $host, $component := dict "" "web" "api." "api" "shop." "shop" }}
+    - host: {{ printf "%s%s" $host $.Values.domain | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $.Release.Name }}-{{ $component }}
+                port:
+                  number: {{ (index $.Values.components $component).port }}
+    {{- end }}

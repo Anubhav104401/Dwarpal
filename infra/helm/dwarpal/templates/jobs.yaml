@@ -1,0 +1,66 @@
+# The API image's two background jobs: the webhook worker (always running) and maintenance (once an hour).
+{{- $image := include "dwarpal.image" (list . .Values.components.api.image) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-webhooks
+  labels:
+    {{- include "dwarpal.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhooks
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: webhooks
+  template:
+    metadata:
+      labels:
+        {{- include "dwarpal.labels" . | nindent 8 }}
+        app.kubernetes.io/component: webhooks
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: {{ .Values.components.api.user }}, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: webhooks
+          image: {{ $image }}
+          args: ["python", "-m", "dwarpal_api.cli", "deliver-webhooks"]
+          envFrom: [{ secretRef: { name: {{ .Values.existingSecret }} } }]
+          env:
+            - { name: DWARPAL_ENVIRONMENT, value: production }
+            - { name: DWARPAL_ISSUER, value: "https://api.{{ .Values.domain }}" }
+            - { name: DWARPAL_VERIFY_URL, value: "https://{{ .Values.domain }}" }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 256Mi } }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-maintenance
+  labels:
+    {{- include "dwarpal.labels" . | nindent 4 }}
+spec:
+  schedule: "17 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext: { runAsNonRoot: true, runAsUser: {{ .Values.components.api.user }}, seccompProfile: { type: RuntimeDefault } }
+          containers:
+            - name: maintenance
+              image: {{ $image }}
+              args: ["python", "-m", "dwarpal_api.cli", "maintain"]
+              envFrom: [{ secretRef: { name: {{ .Values.existingSecret }} } }]
+              env:
+                - { name: DWARPAL_ENVIRONMENT, value: production }
+                - { name: DWARPAL_ISSUER, value: "https://api.{{ .Values.domain }}" }
+                - { name: DWARPAL_VERIFY_URL, value: "https://{{ .Values.domain }}" }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }

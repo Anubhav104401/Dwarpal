@@ -1,0 +1,9 @@
+# Dwarpal's Helm chart (Phase 8, ADR-0015): the same services as the one-server Compose file, for a Kubernetes cluster.
+# The single server stays the plan; this is the artefact for whoever outgrows it.
+apiVersion: v2
+name: dwarpal
+description: Private age checks — the API, the inference service, the web app and the demo shop
+type: application
+# The chart's own version, and the version of Dwarpal it installs by default (an image tag).
+version: 0.1.0
+appVersion: "latest"

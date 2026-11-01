@@ -1,0 +1,81 @@
+name: deploy
+
+# Build Dwarpal's images, publish them to GitHub's container registry (GHCR), and deploy them to the server (Phase 8,
+# ADR-0015). Started by hand only ("Run workflow" on GitHub), from a commit whose CI passed: nothing ships by itself.
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Also deploy to the server after building"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  images:
+    name: Images - build and publish (Arm)
+    # GitHub's own Arm machines build the server's Arm images natively: no emulation, no cross-compiling.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        include:
+          - { name: api, file: services/api/Dockerfile, args: "" }
+          - { name: inference, file: services/inference/Dockerfile, args: "" }
+          - { name: web, file: apps/Dockerfile, args: "APP=web" }
+          - { name: demo-shop, file: apps/Dockerfile, args: "APP=demo-shop" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.1"
+      # The web app's build copies the face landmarker for browsers (the only model file an image contains).
+      - if: matrix.name == 'web'
+        run: uv run --no-project infra/scripts/fetch_models.py
+      - name: Log in to GHCR with this run's own short-lived token
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Build and push
+        env:
+          OWNER: ${{ github.repository_owner }}
+          API_URL: ${{ vars.DWARPAL_PUBLIC_API_URL }}
+        run: |
+          image="ghcr.io/${OWNER,,}/dwarpal-${{ matrix.name }}"
+          tag="${GITHUB_SHA::12}"
+          args=()
+          if [ -n "${{ matrix.args }}" ]; then args+=(--build-arg "${{ matrix.args }}"); fi
+          args+=(--build-arg "NEXT_PUBLIC_DWARPAL_API_URL=${API_URL}")
+          docker build -f "${{ matrix.file }}" "${args[@]}" -t "$image:$tag" -t "$image:latest" .
+          docker push "$image:$tag"
+          docker push "$image:latest"
+
+  deploy:
+    name: Deploy - over SSH, health-gated
+    needs: images
+    if: inputs.deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Deploy this commit's images
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ vars.DEPLOY_HOST }}
+          KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # This commit's Compose file, Caddy settings and scripts, so they always match its images (.env stays).
+          cd infra/deploy
+          scp -i ~/.ssh/deploy compose.yaml Caddyfile deploy.sh backup.sh restore_drill.sh "ubuntu@${HOST}:/opt/dwarpal/"
+          ssh -i ~/.ssh/deploy "ubuntu@${HOST}" "/opt/dwarpal/deploy.sh ${GITHUB_SHA::12}"

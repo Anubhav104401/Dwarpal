@@ -1,0 +1,39 @@
+# Caddy, the only service the internet reaches (Phase 8, ADR-0015). It gets and renews HTTPS certificates from
+# Let's Encrypt by itself, and passes each address's requests to its service on the server's private network.
+# The domain comes from DWARPAL_DOMAIN (set in .env), so this file is the same for any domain.
+
+{
+	# Let's Encrypt writes here about certificates that are about to expire.
+	email {$DWARPAL_ACME_EMAIL}
+}
+
+# Shared settings for every site: compressed answers, and HTTPS only for the next two years (HSTS) — browsers that
+# have seen it will refuse plain HTTP to this domain even if asked.
+(common) {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=63072000; includeSubDomains"
+	header -Server
+}
+
+# The home page, the verify page and the console.
+{$DWARPAL_DOMAIN} {
+	import common
+	reverse_proxy web:3000
+}
+
+# www.<domain> is the same site, under its one true address.
+www.{$DWARPAL_DOMAIN} {
+	redir https://{$DWARPAL_DOMAIN}{uri} permanent
+}
+
+# The API, for websites and the verify page.
+api.{$DWARPAL_DOMAIN} {
+	import common
+	reverse_proxy api:8000
+}
+
+# The demo shop (Amber Cellars), which shows a website using Dwarpal.
+shop.{$DWARPAL_DOMAIN} {
+	import common
+	reverse_proxy shop:3000
+}

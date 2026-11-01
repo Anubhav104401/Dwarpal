@@ -1,0 +1,66 @@
+# Settings for Dwarpal's Helm chart. Override any of them at install time:
+#   helm install dwarpal infra/helm/dwarpal --set domain=example.org --set image.owner=your-github-name
+# PostgreSQL and Valkey are not part of the chart: a cluster normally uses managed ones, given by their addresses
+# in the secret named below.
+
+# The public domain: the site at <domain>, the API at api.<domain>, the demo shop at shop.<domain>.
+domain: example.org
+
+image:
+  # Images on GHCR, as the deploy workflow publishes them: ghcr.io/<owner>/dwarpal-<name>:<tag>.
+  registry: ghcr.io
+  owner: your-github-name
+  # Empty means the chart's appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# A Secret the cluster already holds (never in this file), with the keys of infra/deploy/gen_secrets.py's .env plus
+# DWARPAL_DATABASE_URL and DWARPAL_VALKEY_URL for the managed databases.
+existingSecret: dwarpal-secrets
+
+# The models, read-only, from a volume the cluster provides (filled as infra/deploy/README.md describes).
+models:
+  claimName: dwarpal-models
+
+# Each service: its image, the user number it runs as (the images' own unprivileged users), how many copies, how much
+# computer, and its port.
+components:
+  api:
+    image: dwarpal-api
+    user: 10001
+    port: 8000
+    health: /readyz
+    replicas: 2
+    resources: { requests: { cpu: 250m, memory: 256Mi }, limits: { memory: 512Mi } }
+  inference:
+    image: dwarpal-inference
+    user: 10001
+    port: 8001
+    health: /readyz
+    replicas: 2
+    resources: { requests: { cpu: "1", memory: 1Gi }, limits: { memory: 2Gi } }
+  web:
+    image: dwarpal-web
+    user: 1000
+    port: 3000
+    health: /
+    replicas: 2
+    resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 512Mi } }
+  shop:
+    image: dwarpal-demo-shop
+    user: 1000
+    port: 3000
+    health: /
+    replicas: 1
+    resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 256Mi } }
+
+# More copies of the API and the inference service when busy (CPU over 70 %), up to these numbers.
+autoscaling:
+  api: { min: 2, max: 6 }
+  inference: { min: 2, max: 8 }
+
+# The cluster's ingress controller, and its TLS certificates (for example from cert-manager).
+ingress:
+  className: nginx
+  annotations: {}
+  tlsSecret: dwarpal-tls

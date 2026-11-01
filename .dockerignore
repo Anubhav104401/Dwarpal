@@ -1,0 +1,24 @@
+# What never goes into a container image's build: installed dependencies and builds (each image makes its own),
+# local secrets, data, caches, and anything about this computer. Smaller builds, and nothing private leaks in.
+**/node_modules
+**/.next
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.claude
+.datasets
+.runs
+mlruns
+.scan
+**/test-results
+**/playwright-report
+**/.lighthouseci
+e2e/.cache
+# Models are mounted on the server, not built in — except the face landmarker the web app's build copies for browsers.
+models/**
+!models/third_party/face_landmarker.task
+docs/zero_to_hero/zero_to_hero.html

@@ -1,0 +1,90 @@
+# One Deployment and one Service per component in values.yaml (api, inference, web, shop), from one template.
+{{- range $name, $c := .Values.components }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-{{ $name }}
+  labels:
+    {{- include "dwarpal.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  replicas: {{ $c.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/component: {{ $name }}
+  template:
+    metadata:
+      labels:
+        {{- include "dwarpal.labels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $name }}
+    spec:
+      # Never root, no privilege escalation, no extra Linux capabilities, and a read-only filesystem.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: {{ $c.user }}
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: {{ $name }}
+          image: {{ include "dwarpal.image" (list $ $c.image) }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ $c.port }}
+          envFrom:
+            - secretRef:
+                name: {{ $.Values.existingSecret }}
+          env:
+            - { name: DWARPAL_ENVIRONMENT, value: production }
+            - { name: DWARPAL_ISSUER, value: "https://api.{{ $.Values.domain }}" }
+            - { name: DWARPAL_VERIFY_URL, value: "https://{{ $.Values.domain }}" }
+            - { name: DWARPAL_CORS_ORIGINS, value: '["https://{{ $.Values.domain }}"]' }
+            - { name: DWARPAL_CONSOLE_ORIGINS, value: '["https://{{ $.Values.domain }}"]' }
+            - { name: DWARPAL_INFERENCE_URL, value: "http://{{ $.Release.Name }}-inference:8001" }
+            - { name: DWARPAL_API_INTERNAL_URL, value: "http://{{ $.Release.Name }}-api:8000" }
+            - { name: DWARPAL_API_URL, value: "http://{{ $.Release.Name }}-api:8000" }
+            - { name: DWARPAL_DEMO_SHOP_URL, value: "https://shop.{{ $.Values.domain }}" }
+            - { name: SHOP_URL, value: "https://shop.{{ $.Values.domain }}" }
+            - { name: DWARPAL_MODELS_DIR, value: /models }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          # Ready when the service says so; restarted when it stops answering.
+          readinessProbe:
+            httpGet: { path: {{ $c.health }}, port: {{ $c.port }} }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: {{ $c.health }}, port: {{ $c.port }} }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            {{- toYaml $c.resources | nindent 12 }}
+          volumeMounts:
+            - { name: models, mountPath: /models, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+            # Next.js's cache, which the web apps write while running.
+            - { name: cache, mountPath: /app/.next/cache }
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: {{ $.Values.models.claimName }}, readOnly: true }
+        # A small scratch area in memory: nothing is ever written to disk.
+        - name: tmp
+          emptyDir: { medium: Memory, sizeLimit: 64Mi }
+        - name: cache
+          emptyDir: { medium: Memory, sizeLimit: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Release.Name }}-{{ $name }}
+  labels:
+    {{- include "dwarpal.labels" $ | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: {{ $name }}
+  ports:
+    - port: {{ $c.port }}
+      targetPort: {{ $c.port }}
+{{- end }}
