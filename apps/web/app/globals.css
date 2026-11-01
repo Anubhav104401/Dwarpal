@@ -49,10 +49,21 @@
 
   --animate-march: march 0.9s linear infinite;
   --animate-rise: rise var(--duration-slow) var(--ease-settle) both;
+  /* The home page's line of light, passing up and down the face (app/_home/arch.tsx). */
+  --animate-scan: scan 3.2s ease-in-out infinite alternate;
 
   @keyframes march {
     to {
       stroke-dashoffset: -32;
+    }
+  }
+
+  @keyframes scan {
+    from {
+      transform: translateY(-60px);
+    }
+    to {
+      transform: translateY(60px);
     }
   }
 

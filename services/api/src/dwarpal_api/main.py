@@ -22,7 +22,19 @@ from dwarpal_api.adapters.store import FlowStore
 from dwarpal_api.app import idempotency
 from dwarpal_api.app.verification import Services
 from dwarpal_api.domain.policy import load_manifest
-from dwarpal_api.http import analytics, console, flow, health, policies, problems, rp, tokens, webhooks, wellknown
+from dwarpal_api.http import (
+    analytics,
+    console,
+    flow,
+    health,
+    model,
+    policies,
+    problems,
+    rp,
+    tokens,
+    webhooks,
+    wellknown,
+)
 from dwarpal_api.http.headers import SecurityHeaders
 from dwarpal_api.http.limits import BodyLimit
 from dwarpal_api.settings import Settings
@@ -87,7 +99,7 @@ def create_app(settings: Settings | None = None, inference_http: httpx.AsyncClie
         expose_headers=["X-Request-Id"],
     )
     problems.install(app)
-    for module in (rp, policies, webhooks, tokens, analytics, console, flow, wellknown, health):
+    for module in (rp, policies, webhooks, tokens, analytics, console, flow, model, wellknown, health):
         app.include_router(module.router)
     if tracing is not None:
         telemetry.install(app, tracing, metering)

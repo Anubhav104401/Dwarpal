@@ -19,9 +19,12 @@ function headlessShell(): string {
   return join(folder, program);
 }
 
-// Key pages a visitor reaches without signing in: the shop, the console's sign-in, and the verify page's error state.
+// Key pages a visitor reaches without signing in: the shop, the home page, the console's sign-in, and the verify
+// page's error state.
+const HOME = "http://localhost:3000/";
 const PAGES = [
   "http://localhost:3100/",
+  HOME,
   "http://localhost:3000/console",
   "http://localhost:3000/v/vs_01M51KF05CE4GSBH7F0G43G01V",
 ];
@@ -39,11 +42,14 @@ test("key pages score at least 90 in Lighthouse, and the private ones stay out o
   execFileSync(process.execPath, args, { stdio: "inherit" });
 
   // The console and the verify page are private: their search score can't reach 90, because they ask search engines
-  // not to index them (layout.tsx). So the test checks the opposite — that they still ask.
+  // not to index them (layout.tsx). So the test checks the opposite — that they still ask. The home page asks to be
+  // found, and its search score is held to 90 like the shop's (lighthouserc.json).
   const reports: Array<{ url: string; jsonPath: string }> = JSON.parse(
     readFileSync("test-results/lighthouse/manifest.json", "utf8"),
   );
-  for (const { url, jsonPath } of reports.filter((r) => r.url.startsWith("http://localhost:3000/"))) {
+  for (const { url, jsonPath } of reports.filter(
+    (r) => r.url.startsWith("http://localhost:3000/") && r.url !== HOME,
+  )) {
     const report = JSON.parse(readFileSync(jsonPath, "utf8"));
     expect(report.audits["is-crawlable"].score, `${url} must stay out of search engines`).toBe(0);
   }

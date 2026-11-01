@@ -1,6 +1,6 @@
 # Phase 5 report — front-end excellence
 
-**Dates:** from 26 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** 🟡 in progress — the console is built and tested; the exit tests are built and pass on Chromium and WebKit (Firefox can't start on this computer, so it waits for CI); the design system's first version is built (Geist kept); the marketing site and Hindi wait for downloads ([pending decisions](pending-decisions.md)).
+**Dates:** from 26 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** 🟡 in progress — the console is built and tested; the exit tests are built and pass on Chromium and WebKit (Firefox can't start on this computer, so it waits for CI); the design system's first version is built (Geist kept); the marketing site is built except its 3D hero (1 Nov); the 3D hero and Hindi wait for downloads ([pending decisions](pending-decisions.md)).
 
 **Exit (from the roadmap):** Lighthouse ≥ 90 in all categories on key pages; axe clean; Playwright passes on Chromium, Firefox and WebKit.
 
@@ -19,6 +19,7 @@
 | SDKs (30 Oct, D16) | `@dwarpal/js` (modal with an iframe, or redirect; `postMessage` protocol with origin checks; link check) and `@dwarpal/react` (`VerifyAgeButton`, `useDwarpal`); the verify page may be framed only by its session's return origin (`GET /v1/flow/sessions/{id}/frame-ancestor`, read by `proxy.ts`), and offers *open in a full page* when the frame can't go on; the demo shop opens the check in the modal |
 | Developer guides (31 Oct) | `docs/developers/`: integration overview and quick start, browser SDKs, Node.js SDK, integration checklist (FR-15); a README per SDK; every code sample type-checked against the SDKs |
 | Policy editor (31 Oct) | offers the model's own lines (age + risk budget; the old fixed 2 % matched none of the trained model's lines, so every version would have been refused); shows the projected adult step-up rate per band from the test split (`adults` in the manifest, via `export --manifest-only`) |
+| Home page (1 Nov) | the marketing site's sections: how it works, privacy promise, live accuracy table (public `GET /v1/model`: the model's description without its scores), developer quick-start, compliance map, questions, demo; a still artwork in place of the 3D hero (D1); axe clean in both themes; Lighthouse 95 / 100 / 100 / 100 and indexable |
 | Exit tests | Playwright projects for Chromium, Firefox, WebKit (`E2E_ENGINES` picks); axe on shop, verify page and every console page (WCAG 2.2 A/AA); Lighthouse CI on the shop, console sign-in and verify page (≥ 0.9 in each category; private pages must stay `noindex`); QR code on the Security page |
 
 ## What was measured
@@ -46,5 +47,5 @@
 
 ## Open items
 
-1. Design system: a display serif and token colours for the verify flow's icons; marketing site (D1) and Hindi (D2) not approved; Firefox proof on CI (O1); Lighthouse CI dependency fixes (D14).
+1. Design system: a display serif and token colours for the verify flow's icons; the marketing site's 3D hero (D1) and Hindi (D2) not approved; the compliance map needs the legal review (O5) before publishing; Firefox proof on CI (O1); Lighthouse CI dependency fixes (D14).
 2. Console pages: the planned set is done — sessions (with search), traces, counts, policies, webhooks (with an on/off switch), one-time codes (with a QR code, recovery codes, and switching off), member roles (with a browser test). The rest of the design's list was added on 29 Oct: a daily chart of the counts, the age model's page, and the sidebar with a command palette (⌘K). Later on 29 Oct, the dashboard's face-check figures followed: the median time to a decision (a band of seconds, against the 15 s target), and the shares rejected as likely attacks and sent to a stronger check, from new daily counts by band of time (migration 0009). The policy editor's projected step-up rate followed on 31 Oct. Still not built: step-up conversion (needs the Phase 6 verifiers), and the model page's fairness charts (no fairness results are published yet).

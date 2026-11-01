@@ -1,5 +1,5 @@
 ---
-fingerprint: 000179f52334de9c
+fingerprint: 5703c4cc5ec0d03f
 ---
 The **Playwright configuration** — everything the end-to-end test needs before its first click: the databases, the tables, a demo project with a fresh key, a fake camera, a browser that uses that camera, and all four services running. With it, one command — `pnpm e2e` — tests the entire system from scratch, the same way on a laptop and in CI.
 
@@ -141,11 +141,11 @@ The API on port 8000, with its JSON logs, and four settings for testing:
 - the session cookie is plain, not `__Host-` and `Secure`: these servers speak plain HTTP, and WebKit drops a `Secure` cookie there (Chromium and Firefox treat `localhost` as secure). The API's own test checks the production cookie, and production refuses to start without it;
 - the sign-in limit is generous and refills fast: every engine signs in from this one computer, and the limiter remembers earlier runs in Valkey.
 
-@@ 113
-The verify page on port 3000 (its production build).
+@@ 113-116
+The web app on port 3000 (its production build): the home page, the console and the verify page. The home page is told where the demo shop is, so it can link to it (§5.5.9).
 
-@@ 114
+@@ 117
 The shop on port 3100, with the settings `prepare` returned.
 
-@@ 115-116
+@@ 118-119
 The closing brackets.

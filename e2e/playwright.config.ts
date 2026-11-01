@@ -110,7 +110,10 @@ export default defineConfig({
         DWARPAL_LOGIN_PER_MINUTE: "600",
       },
     ),
-    server("pnpm --filter @dwarpal/web start", "http://localhost:3000"),
+    // The home page links to the demo shop when it knows where the shop is.
+    server("pnpm --filter @dwarpal/web start", "http://localhost:3000", {
+      DWARPAL_DEMO_SHOP_URL: "http://localhost:3100",
+    }),
     server("pnpm --filter @dwarpal/demo-shop start", "http://localhost:3100", shopEnv),
   ],
 });

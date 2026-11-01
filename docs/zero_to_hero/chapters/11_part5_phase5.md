@@ -6,7 +6,7 @@ Phase 5 gives Dwarpal the faces people see: the console for its customers, a pol
 | :-- | :-- |
 | **Console** — sign-in, organisations, members, keys, audit log | 🟡 first pages (§5.5.1); a project's sessions, decision traces, counts and policies (§5.5.2); webhooks (§5.5.3); one-time codes and member roles (§5.5.4); a command palette to come |
 | Design system — tokens, typography, components, motion | 🟢 first version (§5.5.6): OKLCH tokens (midnight-indigo ink, saffron, teal), Geist Sans and Mono, a type scale, motion presets, shared components and a specimen page, checked in light and dark |
-| Marketing site (3D face-mesh hero) | 🗓 waits for an approved 3D library |
+| Marketing site | 🟢 home page with every section and a live accuracy table (§5.5.9); 🗓 the 3D hero waits for an approved 3D library |
 | Verify flow in English and Hindi | 🗓 waits for an approved translation library |
 | Exit tests on three browser engines, accessibility and Lighthouse checks | 🟢 built (§5.5.5): Chromium and WebKit pass here, Firefox can't start on this computer; axe clean on the key pages; Lighthouse ≥ 90 |
 | Demo shop and SDKs — `@dwarpal/js`, `@dwarpal/react`, `@dwarpal/node` | 🟢 the check opens in a modal on the website's own page (§5.5.7); the shop uses the React button |
@@ -337,3 +337,33 @@ The model's manifest gained only the `adults` lists: `--manifest-only` rewrote i
 !walk ml/tests/test_export.py
 
 The export (`export.py`) and the trained model's manifest, the console's model answer and its test, the client and its test, the project page (whose form moved into the editor) and the browser test changed too; each was re-explained.
+
+### 5.5.9 The home page: the marketing site, without its 3D hero
+
+The design's marketing site has a 3D hero — a face of 478 points of light that scans and disperses — and seven sections: how it works, the privacy promise, a **live accuracy table**, the developer quick-start, a compliance map, questions, and a demo. The hero needs a 3D library that hasn't been approved (D1); everything else needed nothing new, so the home page now has all of it, with a still artwork in the hero's place: the same motif, a face of points in a temple doorway, with one line of light passing over it.
+
+The accuracy table is *live*: the page asks the API, as it is made, for the figures of the age model running now. Those figures were behind the console's sign-in, so the API gained one public address, `GET /v1/model`: the console's description of the model without each line's two scores. How well a line works — its bounds, how adults fared — is for anyone to know, as ISO/IEC 27566-1 asks of a provider; the exact scores where it passes and fails would only help someone tuning an attack.
+
+!!! key "Key idea — say only what is measured"
+    A marketing page is where systems usually overclaim. This one shows the model's own bounds, measured, with what they rest on (11,301 photos with *estimated* ages) and the plain fact that the model decides test checks only. If the API can't be reached, the table says the figures can't be loaded; it never shows remembered or made-up numbers. The compliance map says what each rule asks and how the design answers it, but no fines or dates (those wait to be checked against primary sources), and calls itself a summary, not legal advice.
+
+!!! honest "Honest limitation"
+    The figures are the stand-in model's in the tests ("not measured") and the trained model's on this computer; nothing is hosted yet. The compliance map needs the legal review that the privacy documents need (O5) before it is published anywhere. And the developer guides it points to are in the repository, not on a website.
+
+The accessibility test earned its keep twice while the page was built: grey labels too faint on the dark background, and code boxes and tables that scrolled sideways on a phone but couldn't be reached by keyboard — now they wrap instead. Lighthouse scores the page 95 / 100 / 100 / 100, and, unlike the console and the verify page, it asks search engines to index it.
+
+!walk apps/web/app/page.tsx
+
+!walk apps/web/app/_home/arch.tsx
+
+!walk apps/web/app/_home/accuracy.tsx
+
+!walk apps/web/lib/published-model.ts
+
+!walk apps/web/lib/published-model.test.ts
+
+!walk services/api/src/dwarpal_api/http/model.py
+
+!walk e2e/tests/home.spec.ts
+
+The console's application code (`published_model`), the app's list of routers, the design tokens (the line's animation), the API's tests, the browser tests' servers, the accessibility test and the Lighthouse test changed too; each was re-explained.

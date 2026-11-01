@@ -321,7 +321,7 @@ Three parts, in the order they are walked through:
 
 !walk apps/web/components/shell.tsx
 
-!walk apps/web/app/page.tsx
+The home page, at `/`, began here as one card saying what the site is. Phase 5 made it the marketing site; its walkthrough is in §5.5.9.
 
 #### The verify page: talking to the API, and to the camera
 

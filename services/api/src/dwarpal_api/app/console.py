@@ -570,6 +570,18 @@ def model_information(svc: Services) -> dict[str, Any]:
     }
 
 
+def published_model(svc: Services) -> dict[str, Any]:
+    """The age model now deciding, for anyone, signed in or not: all that `model_information` says except the scores
+    where each line passes and fails. Its bounds and the adults' outcomes say how well a line works; the exact scores
+    would only help someone tuning an attack against it."""
+    information = model_information(svc)
+    lines = [
+        {key: value for key, value in line.items() if key not in ("tau_pass", "tau_fail")}
+        for line in information["thresholds"]
+    ]
+    return {**information, "thresholds": lines}
+
+
 async def project_policies(svc: Services, current: ConsoleSession, org_text: str, project_text: str) -> dict[str, Any]:
     _, project_id = await project_in(svc, current, org_text, project_text, Action.READ_SESSIONS)
     return await policies.list_all(svc.sessions, project_id)

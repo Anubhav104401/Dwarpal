@@ -1,5 +1,5 @@
 ---
-fingerprint: c4f01e7287da02e1
+fingerprint: 3af946a4f50982c3
 ---
 The **console's use cases** (Phase 4, §5.4.5) — everything a person at one of Dwarpal's customers does through the web console: signing up and in, switching on one-time codes, managing members, creating API keys, reading the audit log.
 
@@ -410,35 +410,41 @@ For each age and risk budget, the two lines and the two **measured bounds** — 
 
 And, as the comment says, **how adults fared** in each age band above the line on the test split — the shares that passed, were sent to a stronger check, or failed, and how many faces each share is of. The console's policy editor shows them as its projection (§5.5.8). Each band is copied field by field, so nothing else in the file can slip into the answer; the stub has none, and gets an empty list.
 
-@@ 573-575
+@@ 573-576
+**`published_model`** (§5.5.9) — the model's description for anyone, signed in or not (`GET /v1/model`): everything `model_information` says but the scores at which each line passes and fails. The bounds and the adults' outcomes say how well a line works; the exact scores would only help someone tuning an attack.
+
+@@ 577-582
+Take the console's description, and copy each line without its two scores (`tau_pass`, `tau_fail`). `{**information, …}` copies the description with its lines replaced.
+
+@@ 585-587
 **`project_policies`** — the presets and the project's own policy versions, for any member.
 
-@@ 578-581
+@@ 590-593
 **`add_policy_version`** — the next version of a policy, for roles allowed to manage policies.
 
-@@ 582-586
+@@ 594-598
 Check the project and the role, then add the version, with the person (not an API key) named in the audit log.
 
-@@ 589-594
+@@ 601-606
 **`project_webhooks`** (Phase 5, §5.5.3) — a project's endpoints in one mode. Only roles that may manage webhooks may even **see** them: an endpoint's address says where the project's events go, which is the kind of thing an attacker would like to know.
 
-@@ 597-606
+@@ 609-618
 **`add_webhook`** — a new endpoint, from the console.
 
-@@ 607-609
+@@ 619-621
 Check the project and the role, then create it with the website API's own use case — the same allowed events, the same SSRF guard, the same limit of 16, the same secret shown once — with the person named in the audit log.
 
-@@ 612-617
+@@ 624-629
 **`remove_webhook`** — the same check, then delete it, the person named.
 
-@@ 620-631
+@@ 632-643
 **`switch_webhook`** — the same from the console, for roles that may manage webhooks, naming the person.
 
-@@ 634-638
+@@ 646-650
 **`send_test_event`** — queue a test event for one endpoint.
 
-@@ 641-645
+@@ 653-657
 **`webhook_deliveries`** — an endpoint's recent deliveries.
 
-@@ 648-652
+@@ 660-664
 **`replay_delivery`** — send a delivery again from the start of its retry schedule.

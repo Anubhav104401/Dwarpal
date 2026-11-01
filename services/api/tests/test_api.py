@@ -1584,6 +1584,19 @@ async def test_the_console_describes_the_age_model_to_anyone_signed_in_and_nothi
 
 
 @pytest.mark.anyio
+async def test_the_model_s_performance_is_published_to_anyone_without_its_scores(databases: tuple[str, str]) -> None:
+    trained = "registry/age/age-convnext-tiny-2026.10.17/manifest.json"
+    async with harness(databases, age_manifest=trained) as h:
+        response = await h.client.get("/v1/model")  # no key, no sign-in
+    published = response.json()
+    assert response.status_code == 200 and response.headers["cache-control"] == "public, max-age=300"
+    assert (published["version"], published["calibrated"]) == ("age-convnext-tiny-2026.10.17", False)
+    eighteen = next(row for row in published["thresholds"] if row["min_age"] == 18)
+    assert eighteen["minor_bound"] < eighteen["risk_budget"] and eighteen["adults"][0]["ages"] == "18-20"
+    assert "tau_pass" not in json.dumps(published) and "tau_fail" not in json.dumps(published)
+
+
+@pytest.mark.anyio
 async def test_the_console_session_cookie_is_host_only_secure_and_hidden_from_scripts(
     databases: tuple[str, str],
 ) -> None:

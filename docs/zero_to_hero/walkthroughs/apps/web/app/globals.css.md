@@ -1,5 +1,5 @@
 ---
-fingerprint: c6940401d6fb43cd
+fingerprint: d8019aa5b057a19e
 ---
 The web app's global stylesheet, which since Phase 5 holds **Dwarpal's design tokens**: the named colours, type sizes and motion settings every page is built from (§5.5.6). Tailwind turns each token into a CSS variable and into classes.
 
@@ -47,14 +47,20 @@ Three durations: quick (120 ms, hovers and focus), base (200 ms), slow (450 ms, 
 @@ 51
 `--animate-rise` — cards fade in while rising 8 pixels, over the *slow* duration with the *settle* curve. `both` keeps the starting state before the animation runs and the end state after.
 
-@@ 53-57
+@@ 52-53
+`--animate-scan` (§5.5.9) — the home page's line of light, passing over the face in its artwork: 3.2 seconds each way, easing in and out, forever, and `alternate` — down, then back up, rather than jumping to the top each time.
+
+@@ 55-59
 `@keyframes march` — the animation's steps. It only says the end state: the outline's dash pattern shifted by 32 units; the browser fills in the rest.
 
-@@ 59-68
+@@ 61-68
+`@keyframes scan` — from 60 units above the face's middle to 60 below.
+
+@@ 70-79
 `@keyframes rise` — from invisible and 8 pixels lower, to fully visible in its place.
 
-@@ 69
+@@ 80
 The end of the theme.
 
-@@ 71-73
+@@ 82-84
 `color-scheme: light dark` — tells the browser that the page supports both light and dark modes, so its own parts (scroll bars, form controls) follow the visitor's choice.

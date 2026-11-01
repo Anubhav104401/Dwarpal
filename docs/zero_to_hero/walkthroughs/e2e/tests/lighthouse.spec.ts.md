@@ -1,5 +1,5 @@
 ---
-fingerprint: 87c89bf0c6477956
+fingerprint: d5de2c13acc569c8
 ---
 The Lighthouse check (Phase 5's exit criterion "Lighthouse ≥ 90"), as one Playwright test, so it reuses the test servers Playwright already starts: run Lighthouse CI on three key pages, then confirm the private ones still ask search engines to stay away.
 
@@ -24,23 +24,23 @@ Inside it, the one folder whose name starts `chrome-headless-shell`, and in that
 @@ 20
 End of `headlessShell`.
 
-@@ 22-27
-The pages: the shop's front page, the console's sign-in, and the verify page's error state — all reachable without signing in.
+@@ 22-30
+The pages: the shop's front page, the home page (§5.5.9, named `HOME` for later), the console's sign-in, and the verify page's error state — all reachable without signing in.
 
-@@ 29-30
+@@ 32-33
 **The test.** Lighthouse takes about 20 seconds a page, so the test may take five minutes.
 
-@@ 31-37
+@@ 34-40
 Lighthouse CI's arguments: run everything (`autorun`: collect, assert, save) with `lighthouserc.json`, in the headless shell, on each page.
 
-@@ 38-39
+@@ 41-42
 Run it with this same Node and wait, showing its output. If any page misses a rule, it exits with an error, `execFileSync` throws, and the test fails.
 
-@@ 41-45
-Then read the list of saved reports (`manifest.json`): each page's address and its report file.
+@@ 44-49
+Then read the list of saved reports (`manifest.json`): each page's address and its report file. The home page is the exception among port 3000's pages: it asks to be found, and `lighthouserc.json` holds its search score to 90.
 
-@@ 46-49
-For each private page (port 3000), its `is-crawlable` audit must score 0 — "blocked from indexing" — so a change that let search engines list the console would fail here.
+@@ 50-55
+For each private page (port 3000, except the home page), its `is-crawlable` audit must score 0 — "blocked from indexing" — so a change that let search engines list the console would fail here.
 
-@@ 50
+@@ 56
 End of the test.

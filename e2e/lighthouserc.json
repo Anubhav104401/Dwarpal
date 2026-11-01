@@ -16,6 +16,12 @@
           }
         },
         {
+          "matchingUrlPattern": "^http://localhost:3000/$",
+          "assertions": {
+            "categories:seo": ["error", { "minScore": 0.9 }]
+          }
+        },
+        {
           "matchingUrlPattern": "^http://localhost:3000/",
           "assertions": {
             "categories:performance": ["error", { "minScore": 0.9 }],
