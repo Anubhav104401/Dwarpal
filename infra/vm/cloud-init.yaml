@@ -1,0 +1,83 @@
+#cloud-config
+# Dwarpal's server, prepared on its first boot (Phase 8, ADR-0015): Oracle Cloud's Always Free Ampere machine
+# (VM.Standard.A1.Flex, 2 cores, 12 GB — decision O2b) running Canonical Ubuntu 24.04 for Arm.
+# Paste this whole file into "Initialization script" (Advanced options → Management) when creating the instance.
+# Your SSH public key goes in the console's own "Add SSH keys" box, not here: it is given to the `ubuntu` user.
+
+# Bring the system up to date before anything else, then install what the server needs, from Ubuntu's own archive:
+# Docker and its Compose plugin (the services run as containers), automatic security updates, and the tools that keep
+# the firewall rules across reboots.
+package_update: true
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - unattended-upgrades
+  - iptables-persistent
+  - ca-certificates
+  - curl
+
+# One clock for logs and certificates.
+timezone: Etc/UTC
+
+write_files:
+  # SSH: keys only. No passwords (they can be guessed), no logging in as root, no keyboard-interactive prompts.
+  - path: /etc/ssh/sshd_config.d/10-dwarpal.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      MaxAuthTries 3
+      X11Forwarding no
+
+  # Security updates install themselves every day; if one needs a restart, the server restarts at 21:30 UTC
+  # (03:00 in India), the quietest hour for an Indian audience.
+  - path: /etc/apt/apt.conf.d/52dwarpal-unattended
+    permissions: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "21:30";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+
+  # Docker's own logs are kept small, so a chatty container can't fill the disk.
+  - path: /etc/docker/daemon.json
+    permissions: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "3" },
+        "live-restore": true
+      }
+
+runcmd:
+  # Oracle's Ubuntu images come with a firewall (iptables) that admits only SSH. Let the web in too — HTTP on 80
+  # (Caddy answers it only to move people to HTTPS), HTTPS on 443 over TCP, and over UDP for HTTP/3 — placed
+  # before the image's final "reject everything else" rule, and saved so they survive a reboot.
+  - iptables -I INPUT 5 -p tcp --dport 80 -m state --state NEW -j ACCEPT
+  - iptables -I INPUT 5 -p tcp --dport 443 -m state --state NEW -j ACCEPT
+  - iptables -I INPUT 5 -p udp --dport 443 -j ACCEPT
+  - netfilter-persistent save
+  # A 4 GB swap file: room to breathe if the services briefly need more than the 12 GB of memory.
+  - fallocate -l 4G /swapfile
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  # Docker starts with the machine, and the `ubuntu` user may run it without sudo.
+  - systemctl enable --now docker
+  - usermod -aG docker ubuntu
+  # Where the deployment will live: owned by `ubuntu`, readable by no one else.
+  - install -d -m 0750 -o ubuntu -g ubuntu /opt/dwarpal
+  # Apply the SSH settings written above.
+  - systemctl restart ssh
+  # A sign, for the person checking, that every step ran.
+  - touch /opt/dwarpal/.first-boot-done
+
+# Restart once at the end, so an updated kernel from the upgrade above is the one running.
+power_state:
+  mode: reboot
+  message: Dwarpal first-boot setup finished; restarting into the updated system.
+  condition: true
