@@ -12,7 +12,7 @@ exclude-newer = "7 days"
 override-dependencies = ["pillow==13.0.0", "certifi==2026.10.19", "filelock==4.2.1", "setuptools==84.1.0"]
 
 [tool.uv.workspace]
-members = ["services/*", "libs/*", "ml"]
+members = ["services/*", "libs/*", "ml", "packages/sdk-python"]
 
 [dependency-groups]
 dev = [
@@ -54,7 +54,7 @@ strict = true
 warn_unreachable = true
 explicit_package_bases = true
 exclude = ['[/\\]\.snapshots[/\\]']
-mypy_path = "services/api/src,services/inference/src,libs/contracts/src,libs/vision/src,ml/src,docs/zero_to_hero"
+mypy_path = "services/api/src,services/inference/src,libs/contracts/src,libs/vision/src,ml/src,packages/sdk-python/src,docs/zero_to_hero"
 files = [
   "tasks.py",
   "infra/scripts",
@@ -68,6 +68,8 @@ files = [
   "libs/vision/tests",
   "ml/src",
   "ml/tests",
+  "packages/sdk-python/src",
+  "packages/sdk-python/tests",
 ]
 
 # timm re-exports its public names without marking them as such.
@@ -82,7 +84,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-testpaths = ["docs/zero_to_hero/tests", "services", "libs", "ml"]
+testpaths = ["docs/zero_to_hero/tests", "services", "libs", "ml", "packages/sdk-python"]
 pythonpath = ["docs/zero_to_hero"]
 addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
 xfail_strict = true

@@ -1,5 +1,5 @@
 ---
-fingerprint: 9b694dcdc79190bb
+fingerprint: b0f8a50ad4e9bae9
 ---
 `book.toml` holds the book's **settings**. Keeping settings in a separate file, rather than inside `build.py`, means you can add a chapter or change the title **without touching any program code**. "Separate the *what* from the *how*" is one of the oldest good habits in software.
 
@@ -30,14 +30,14 @@ Python reads TOML with its built-in `tomllib`.
 @@ 4
 `abbreviations = "abbreviations.md"` is the file of hover definitions, which is attached to every chapter and walkthrough note when it is converted.
 
-@@ 5-24
+@@ 5-25
 `chapters = [ … ]` is the **reading order** of the book. Each line inside the brackets is one chapter file, and the order here is the order in the book. The numbers at the start of the file names only keep the folder tidy.
 
 The list grows as the project does:
 
 - Phase 0 added Part 4 (the tools) and Part 5 (building it, file by file);
 - Phase 1 added `07_part5_phase1.md`, the walking skeleton's chapter. Each phase gets its own chapter file, so no single file grows unmanageably long.
-- Phase 8 added its own chapter (§5.8), for deployment.
+- Phase 8 added its own chapter (§5.8), for deployment; Phase 9 another (§5.9).
 
 !!! try "Try it yourself"
     Move the `99_glossary.md` line to the top and run `uv run tasks.py book`: the glossary becomes the first chapter. Move it back afterwards.
@@ -50,10 +50,10 @@ Phases 6 and 7 began out of order (some of their work needs nothing waiting for 
 
 And `11_part5_phase5.md` (front-end excellence, §5.5), in the place kept for it.
 
-@@ 26
+@@ 27
 `[coverage]` starts the group of settings for the **coverage check** — which project files must have a line-by-line explanation. In Python this group is read as `config["coverage"]`.
 
-@@ 27-32
+@@ 28-33
 `include = [ … ]` lists **glob patterns** for files that count as code. In a glob, `*` means "any characters within one name", and `**` means "any number of folders, including none". The patterns cover:
 
 - Python (`.py`);
@@ -68,7 +68,7 @@ And `11_part5_phase5.md` (front-end excellence, §5.5), in the place kept for it
 
 Markdown (`.md`) is deliberately not included: it is prose, not code.
 
-@@ 33
+@@ 34
 `exclude = [ … ]` lists patterns that are removed even if they matched `include`:
 
 - the generated book itself — explaining the explainer's output would loop forever;
@@ -79,7 +79,7 @@ Markdown (`.md`) is deliberately not included: it is prose, not code.
 
 `docs/api/openapi.json` (Phase 4) — the API's published OpenAPI document: almost 5,000 lines that `cli openapi` writes from the code itself. The code that produces it is explained line by line instead (`http/problems.py`, `cli.py`), and a test fails if the file and the code ever disagree.
 
-@@ 34-38
+@@ 35-39
 `prune = [ … ]` lists **folder names the scanner never enters**, because they hold things we didn't write:
 
 - Git's own history (`.git`);

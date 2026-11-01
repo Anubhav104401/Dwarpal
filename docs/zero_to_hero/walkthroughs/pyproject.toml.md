@@ -1,5 +1,5 @@
 ---
-fingerprint: 6bae4fae418d3ba0
+fingerprint: f067a20ecb50c956
 ---
 The **root `pyproject.toml`** is the control centre of the Python side of the project. It is not a package itself — Python packaging calls this a *virtual* workspace root. It does three jobs:
 
@@ -35,7 +35,9 @@ Comments explaining what this file is. In TOML, `#` starts a comment. The first 
 - `libs/*` — every folder in `libs` (contracts, vision);
 - `ml`.
 
-Each member has its own `pyproject.toml`.
+Each member has its own `pyproject.toml`. 
+
+And since Phase 9, `packages/sdk-python` — the Python SDK (§5.9.1), a workspace member so its tests run with the rest.
 
 @@ 17
 `[dependency-groups]` — named groups of libraries that are needed for *working on* the project, but are never part of any package that gets shipped. This table is a recent official Python standard (PEP 735).
@@ -116,9 +118,9 @@ The **`docs` group** — what the book builder needs:
 `exclude = [...]` — a **regular expression** for paths mypy must skip. `[/\\]` means "a forward slash or a backslash", so the pattern matches `.snapshots` as a folder on both Linux and Windows. The single quotes make it a *literal* TOML string, so the backslashes reach mypy exactly as typed.
 
 @@ 57
-`mypy_path` — where mypy should look for our packages' source code: each package's `src` folder, plus the book folder (for `build.py`). The comma-separated form works on every operating system.
+`mypy_path` — where mypy should look for our packages' source code: each package's `src` folder, plus the book folder (for `build.py`). The comma-separated form works on every operating system. Since Phase 9 also `packages/sdk-python`, the Python SDK (§5.9.1).
 
-@@ 58-71
+@@ 58-73
 `files = [...]` — what mypy checks when you simply run `mypy`:
 
 - the task runner;
@@ -129,27 +131,27 @@ The **`docs` group** — what the book builder needs:
 
 Why type-check tests? A test with a type mistake can pass **for the wrong reason**. Imagine the check `outcome != "fail"` where `outcome` is, by mistake, a whole response object instead of a piece of text. An object and a text can never be equal, so the check always passes — even when the answer really *was* "fail". mypy's strict mode reports comparisons between things that can never be equal.
 
-When mypy was first pointed at the tests, it found exactly one problem: OpenCV's blur function returns a picture whose type is vaguer than the quality checker expects. It was fixed the same way as in the real code, with `np.asarray(..., dtype=np.uint8)` (§4.9).
+When mypy was first pointed at the tests, it found exactly one problem: OpenCV's blur function returns a picture whose type is vaguer than the quality checker expects. It was fixed the same way as in the real code, with `np.asarray(..., dtype=np.uint8)` (§4.9). Since Phase 9 also `packages/sdk-python`, the Python SDK (§5.9.1).
 
-@@ 73-76
+@@ 75-78
 **A mypy exception for timm** (added in Phase 2). In strict mode, mypy only accepts names a library explicitly marks as public. timm makes `create_optimizer_v2` and `ModelEmaV3` public in the ordinary Python way but without that marking, so mypy is told to accept them for timm only.
 
-@@ 78-81
+@@ 80-83
 **A mypy exception for ONNX** (added in Phase 2): ONNX Runtime ships no type information, and the `onnx` library's is incomplete, so mypy is told not to demand it for these two. Our code's own types are still checked fully.
 
-@@ 83
+@@ 85
 `[tool.pytest.ini_options]` — settings for pytest (the name is historical: pytest settings once lived only in `.ini` files).
 
-@@ 84
+@@ 86
 `minversion = "9.0"` — refuse to run with a pytest older than 9.0.
 
-@@ 85
-`testpaths` — where pytest looks for tests when run without arguments: the book's tests, then every package under `services`, `libs` and `ml`. Inside those folders pytest collects files whose names start with `test_`.
+@@ 87
+`testpaths` — where pytest looks for tests when run without arguments: the book's tests, then every package under `services`, `libs` and `ml`. Inside those folders pytest collects files whose names start with `test_`. Since Phase 9 also `packages/sdk-python`, the Python SDK (§5.9.1).
 
-@@ 86
+@@ 88
 `pythonpath = ["docs/zero_to_hero"]` — add the book folder to Python's search path during tests, so `test_build.py` can simply write `import build`.
 
-@@ 87
+@@ 89
 `addopts` — options added to every pytest run:
 
 - `-ra` — print a short summary of every test that didn't simply pass (skipped, failed, …);
@@ -157,5 +159,5 @@ When mypy was first pointed at the tests, it found exactly one problem: OpenCV's
 - `--strict-config` — a misspelled setting in this file is an error;
 - `--import-mode=importlib` — import test files without modifying Python's search path, so tests in different packages can't clash by having the same file name.
 
-@@ 88
+@@ 90
 `xfail_strict = true` — some tests can be marked "expected to fail" (for a known bug). If such a test unexpectedly *passes*, treat that as a failure, so the outdated marker gets noticed and removed.

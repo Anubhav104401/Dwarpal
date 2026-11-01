@@ -1,5 +1,5 @@
 ---
-fingerprint: d7637b87bae8cd2b
+fingerprint: b4b2a887838bc8bd
 ---
 `tasks.py` gives every project check a short name, and runs it the same way on Windows, macOS and Linux. `uv run tasks.py check` is the single command that runs everything CI runs (§4.7).
 
@@ -55,7 +55,9 @@ The tasks:
 - `format` — apply formatting and the safe automatic fixes;
 - `typecheck` — mypy (it reads its settings from `pyproject.toml`);
 - `test` — pytest, **twice**: first the book's, the services' and the libraries' tests, then the ML package's. The comment gives the reason. Once, in five full runs, Python crashed while importing a PyTorch library into a process that had already loaded OpenCV's and ONNX Runtime's native code — a clash between compiled libraries, not a failing test. In separate processes they never meet. (Giving pytest folders on the command line overrides the `testpaths` list in `pyproject.toml`.)
-- `book` — the book builder in strict mode.
+- `book` — the book builder in strict mode. 
+
+Since Phase 9 the first test run includes the Python SDK's tests (`packages/sdk-python`, §5.9.1).
 
 @@ 40
 **`check` is built from the others** by joining their command lists with `+`: lint, then types, then tests, then the book. Cheap checks come first, so mistakes are reported as early as possible.

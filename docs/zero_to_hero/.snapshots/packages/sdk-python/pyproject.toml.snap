@@ -1,0 +1,15 @@
+[project]
+name = "dwarpal"
+version = "0.1.0"
+description = "Dwarpal's Python SDK: create age checks, read their results, verify age tokens and webhooks."
+readme = "README.md"
+# Older than the services' 3.13, so websites on an older Python can use it too.
+requires-python = ">=3.11"
+dependencies = [
+  "httpx>=0.27,<1",
+  "joserfc>=1.0,<2",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"

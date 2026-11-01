@@ -32,7 +32,7 @@ TASKS: dict[str, list[list[str]]] = {
     # Two runs: the ML tests load PyTorch, which once crashed while being imported into a process that had already
     # loaded OpenCV's and ONNX Runtime's native libraries. Each in its own process, they can't meet.
     "test": [
-        [PYTHON, "-m", "pytest", "docs/zero_to_hero/tests", "services", "libs"],
+        [PYTHON, "-m", "pytest", "docs/zero_to_hero/tests", "services", "libs", "packages/sdk-python"],
         [PYTHON, "-m", "pytest", "ml"],
     ],
     "book": [[PYTHON, "docs/zero_to_hero/build.py", "--strict"]],

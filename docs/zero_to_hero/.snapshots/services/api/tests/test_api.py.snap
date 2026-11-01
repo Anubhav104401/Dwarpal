@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 
 import cv2
 import docker
+import dwarpal
 import httpx
 import numpy as np
 import pytest
@@ -260,6 +261,33 @@ async def test_an_adult_passes_and_the_website_can_verify_the_signed_token(datab
     assert token.claims["sid"] == created["id"]
     assert token.claims["livemode"] is False
     assert not {"age", "mean", "estimated_age"} & set(token.claims)
+
+
+@pytest.mark.anyio
+async def test_the_python_sdk_runs_a_whole_check_against_the_real_api(databases: tuple[str, str]) -> None:
+    """Phase 9's Python SDK, against this API: create a session, pass the face check, read the result, and verify
+    its token with the SDK's own checks — as a Python website would."""
+    async with harness(databases) as h:
+        http = httpx.AsyncClient(transport=h.transport, base_url="http://api")
+        async with dwarpal.AsyncClient(h.key, "http://api", http=http) as client:
+            created = await client.create_session(policy="uk_osa_18", return_url=RETURN_URL)
+            flow = await start(h, {"id": created.id, "client_secret": created.url.split("#cs=")[1]})
+            assert (await attempt(h, created.id, flow, [PORTRAIT] * 6)).json()["outcome"] == "pass"
+            result = await client.retrieve_session(created.id)
+        jwks = (await h.client.get("/.well-known/jwks.json")).json()
+    # The SDK fetches the public keys itself; here they come from the API's own answer, through a fake address.
+    served = httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200, json=jwks)))
+    keys = dwarpal.Keys("http://localhost:8000", http=served)
+    assert result.age_token is not None
+    verdict = dwarpal.verify_age_token(
+        result.age_token,
+        issuer="http://localhost:8000",
+        audience=h.project,
+        min_age=18,
+        session_id=created.id,
+        keys=keys,
+    )
+    assert (result.status, result.outcome, verdict.allowed, verdict.policy) == ("completed", "pass", True, "uk_osa_18")
 
 
 @pytest.mark.anyio
