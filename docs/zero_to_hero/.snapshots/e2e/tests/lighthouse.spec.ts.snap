@@ -43,11 +43,16 @@ test("key pages score at least 90 in Lighthouse, and the private ones stay out o
   // its full log only to people signed in to GitHub.
   try {
     execFileSync(process.execPath, args, { encoding: "utf8", stdio: "pipe" });
-  } catch (error) {
-    const { stdout = "", stderr = "" } = error as { stdout?: string; stderr?: string };
-    const lines = `${stdout}\n${stderr}`.split("\n");
-    const misses = lines.filter((line) => /expected|found|failure|✘|×/i.test(line));
-    throw new Error(`Lighthouse assertions failed:\n${misses.slice(0, 40).join("\n")}`);
+  } catch {
+    // Each page's scores, from the saved list of reports: enough to see which page fell short, and where.
+    const saved: Array<{ url: string; summary: Record<string, number> }> = JSON.parse(
+      readFileSync("test-results/lighthouse/manifest.json", "utf8"),
+    );
+    const scores = saved.map(({ url, summary }) => {
+      const each = Object.entries(summary).map(([name, score]) => `${name} ${Math.round(score * 100)}`);
+      return `${url}: ${each.join(", ")}`;
+    });
+    throw new Error(`a page scored under its minimum in lighthouserc.json:\n${scores.join("\n")}`);
   }
 
   // The console and the verify page are private: their search score can't reach 90, because they ask search engines

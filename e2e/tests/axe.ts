@@ -13,7 +13,8 @@ export async function violations(page: Page): Promise<string[]> {
       document
         .getAnimations()
         .filter((a) => a.effect?.getTiming().iterations !== Number.POSITIVE_INFINITY)
-        .map((a) => a.finished),
+        // An animation cancelled meanwhile (the page moved on) rejects its `finished`: that counts as done too.
+        .map((a) => a.finished.catch(() => undefined)),
     ),
   );
   const results = await new AxeBuilder({ page }).withTags(STANDARDS).analyze();

@@ -1,5 +1,5 @@
 ---
-fingerprint: b59c9c5af222f9e4
+fingerprint: b4fcb925e6c4bd22
 ---
 The **accessibility check** every browser test can use: run axe-core on the page and list what it breaks. It moved here from the accessibility test in Phase 6 (§5.6.3), so the age-check test can check the document screens with the very same rules.
 
@@ -12,8 +12,10 @@ The rules to check: those of WCAG 2.2 at levels A and AA, as axe-core tags them 
 @@ 7-8
 **`violations`** — every accessibility rule the page breaks, as one line each; an empty list when it breaks none, which is what every test expects.
 
-@@ 9-18
+@@ 9-19
 First let one-off animations finish — a card fading in, say. Colours measured mid-fade are blends, not the page's colours, and would give false contrast failures. Endless animations (a spinner) never finish, so they are left out.
 
-@@ 19-23
+An animation that is *cancelled* while the test waits — the page moved on — makes its `finished` fail rather than end (WebKit on GitHub did this once); `.catch(() => undefined)` counts that as finished too, so the check goes on instead of failing.
+
+@@ 20-24
 Run axe with those rules, and turn each violation into "rule — what it means — where", naming the elements (`target`) it found on the page.
