@@ -1,91 +1,51 @@
-/** Friendly words for the API's short codes: a tip when photos weren't good enough, and a message when something stops the check. */
+/** Which of the API's short codes have their own words for the person (decision D2 moved the words themselves into
+ * `messages/`, one file per language): a tip when photos weren't good enough, a message when something stops the
+ * check. Anything else gets the general one. */
 
-const TIPS: Record<string, string> = {
-  undecodable: "Your camera's pictures couldn't be read. Please try again.",
-  no_face: "We couldn't see a face. Look straight into the camera.",
-  multiple_faces: "We can see more than one face. Make sure only you are in view.",
-  face_too_small: "Move a little closer to the camera.",
-  too_dark: "It's too dark. Face a window or a lamp.",
-  too_bright: "There's too much light. Turn away from bright lights behind you.",
-  too_blurry: "The photos were blurry. Hold still while they are taken.",
-  not_frontal: "Look straight at the camera, not to the side.",
-  low_confidence: "We couldn't see your face clearly. Uncover your face and try again.",
-  inconsistent_frames: "Keep still and stay in view while the photos are taken.",
-  analysis_unavailable: "The checker is busy right now. Please try again in a moment.",
+const TIPS = new Set([
+  "undecodable",
+  "no_face",
+  "multiple_faces",
+  "face_too_small",
+  "too_dark",
+  "too_bright",
+  "too_blurry",
+  "not_frontal",
+  "low_confidence",
+  "inconsistent_frames",
+  "analysis_unavailable",
   // Liveness: deliberately the same words whichever check it was, so nobody can learn which one to fool.
-  liveness_check_failed:
-    "Follow the prompts on screen: turn your head when asked, and keep your face in view.",
-  liveness_unavailable: "We couldn't complete the check. Please try again.",
+  "liveness_check_failed",
+  "liveness_unavailable",
   // The document check (Phase 6).
-  mrz_not_found:
-    "We couldn't find the lines of letters and <<< at the bottom of the photo page. Lay it flat and fill the picture.",
-  mrz_unreadable:
-    "We couldn't read the lines at the bottom of the photo page. Avoid glare and hold the camera steady.",
-  mrz_check_failed:
-    "We couldn't read the lines at the bottom of the photo page clearly. Try again in good light, without glare.",
-  document_face_not_found: "We couldn't see the photo on your document. Show the whole photo page.",
-  face_not_found: "We couldn't see your face in the selfie. Look straight into the camera.",
-  face_mismatch: "Your selfie didn't match the photo on the document. Use your own document, in good light.",
-};
+  "mrz_not_found",
+  "mrz_unreadable",
+  "mrz_check_failed",
+  "document_face_not_found",
+  "face_not_found",
+  "face_mismatch",
+]);
 
-export const DEFAULT_TIP = "The photos didn't work out. Please try again in good, even light.";
+const PROBLEMS = new Set([
+  "invalid_client_secret",
+  "session_not_found",
+  "session_not_open",
+  "too_many_attempts",
+  "too_many_challenges",
+  "camera_blocked",
+  "camera_missing",
+  "network_error",
+]);
 
+/** The general tip's and problem's key. */
+export const DEFAULT = "default";
+
+/** The tip for the first reason that has one (its key in `Tips`), or the general tip. */
 export function tipFor(reasons: readonly string[]): string {
-  for (const reason of reasons) {
-    const tip = TIPS[reason];
-    if (tip !== undefined) {
-      return tip;
-    }
-  }
-  return DEFAULT_TIP;
+  return reasons.find((reason) => TIPS.has(reason)) ?? DEFAULT;
 }
 
-export interface Problem {
-  title: string;
-  detail: string;
-}
-
-const PROBLEMS: Record<string, Problem> = {
-  invalid_client_secret: {
-    title: "This link doesn't work",
-    detail: "It may be incomplete or already used. Go back to the website and start the age check again.",
-  },
-  session_not_found: {
-    title: "This link doesn't work",
-    detail: "Go back to the website and start the age check again.",
-  },
-  session_not_open: {
-    title: "This age check has ended",
-    detail: "It expired before it was finished. Go back to the website and start a new one.",
-  },
-  too_many_attempts: {
-    title: "Too many tries",
-    detail:
-      "This device has tried the age check many times in the last hour. Please wait a while, then try again.",
-  },
-  too_many_challenges: {
-    title: "Too many tries",
-    detail: "This age check can't take any more photos. Go back to the website and start a new one.",
-  },
-  camera_blocked: {
-    title: "We need your camera",
-    detail: "Allow camera access for this page in your browser's settings, then reload the page.",
-  },
-  camera_missing: {
-    title: "No camera found",
-    detail: "Use a device with a front-facing camera, or plug one in and reload the page.",
-  },
-  network_error: {
-    title: "You seem to be offline",
-    detail: "Check your internet connection, then reload the page.",
-  },
-};
-
-export const DEFAULT_PROBLEM: Problem = {
-  title: "Something went wrong",
-  detail: "Please reload the page. If it keeps happening, go back to the website and start again.",
-};
-
-export function problemFor(code: string): Problem {
-  return PROBLEMS[code] ?? DEFAULT_PROBLEM;
+/** The problem's key in `Problems`: its own, or the general one — never a raw code shown to the person. */
+export function problemFor(code: string): string {
+  return PROBLEMS.has(code) ? code : DEFAULT;
 }

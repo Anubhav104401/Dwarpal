@@ -22,6 +22,8 @@ The owner answered every waiting decision at once, and asked for the decided wor
 | O6 | Placeholder stays; publishing the practice statement stays blocked |
 | O5 | The DPIA, practice statement and compliance map are labelled **draft, not legally reviewed** |
 | O2 | **Oracle free tier** for Phase 8 when it starts (the owner creates the account and domain) |
+| D2b | *Optional, not blocking*: a Devanagari typeface for the Hindi pages (e.g. Noto Sans Devanagari, SIL OFL), which Geist lacks; today the visitor's system font is used. Not downloaded; ask when convenient |
+| D2c | *Not a download*: a native Hindi speaker to review `apps/web/messages/hi.json`, machine-drafted on 1 Nov |
 | D1b | *Optional, not blocking*: `@types/three` (TypeScript types for three.js, npm, 0.186.x) would replace the hand-written `apps/web/types/three.d.ts`. Not downloaded; ask when convenient |
 
 ## Decided on 27 Oct 2026

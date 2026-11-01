@@ -1,0 +1,286 @@
+{
+  "Language": {
+    "label": "Language",
+    "en": "English",
+    "hi": "हिन्दी"
+  },
+  "Shell": {
+    "footer1": "Your photos are checked once and never stored.",
+    "footer2": "Dwarpal never learns who you are — only whether you are old enough."
+  },
+  "Home": {
+    "metaTitle": "Dwarpal · Private age checks",
+    "metaDescription": "Age checks that look, decide and forget: a few seconds of camera, no photos kept, only a yes or no.",
+    "sectionsLabel": "Sections",
+    "nav": {
+      "how-it-works": "How it works",
+      "accuracy": "Accuracy",
+      "developers": "Developers",
+      "compliance": "Compliance",
+      "faq": "Questions"
+    },
+    "console": "Console",
+    "badge": "In development · test checks only",
+    "title": "Look. Decide. Forget.",
+    "lead": "Dwarpal tells a website whether someone is old enough, from a few seconds of camera — and keeps no photos. The website learns one thing: old enough, or not.",
+    "tryShop": "Try it on the demo shop",
+    "addToSite": "Add it to your website",
+    "how": {
+      "title": "How it works",
+      "lead": "Three steps, a few seconds each. The website never sees your face.",
+      "step": "Step {number}",
+      "look": {
+        "title": "Look",
+        "text": "The website opens the check over its page. You look at your camera for a few seconds and turn your head when asked, so a photo can't simply stand in for you."
+      },
+      "decide": {
+        "title": "Decide",
+        "text": "An AI estimates your age from a few frames. It says yes only when it is sure you are over the website's age; when it isn't sure, it says so, and the website can offer a stronger check instead of a guess."
+      },
+      "forget": {
+        "title": "Forget",
+        "text": "The frames are checked once, in memory, and gone. The website receives a signed answer for its age line — old enough, or not — and nothing else."
+      }
+    },
+    "privacy": {
+      "title": "The privacy promise",
+      "lead": "An age check shouldn't cost you your privacy. These hold for every check, by design rather than by policy.",
+      "photos": {
+        "title": "No photos kept",
+        "text": "Frames exist only in memory while one request is checked. No part of the system can store them."
+      },
+      "identity": {
+        "title": "No identity",
+        "text": "Dwarpal never asks who you are, and the website never learns it from Dwarpal."
+      },
+      "age": {
+        "title": "No exact age",
+        "text": "The website learns only whether you meet its age line — not your estimated age."
+      },
+      "signed": {
+        "title": "A signed answer",
+        "text": "The answer is a token signed with Dwarpal's keys, which the website checks on its own server."
+      }
+    },
+    "accuracy": {
+      "title": "Accuracy, measured",
+      "lead": "The figures of the age model running now, read from it as this page loads. Each age line trades keeping minors out against sending adults to a stronger check."
+    },
+    "developers": {
+      "title": "For developers",
+      "lead": "Your server creates a session; your page opens the check; your server verifies the signed answer. The developer guides cover the rest.",
+      "server": "On your server",
+      "page": "On your page",
+      "guides": "The guides — the browser and Node.js SDKs, and a checklist before going live — are in the repository's <code>docs/developers</code> folder, with the API's OpenAPI document."
+    },
+    "compliance": {
+      "title": "Where it fits",
+      "lead": "What the main rules ask of an age check, and how Dwarpal's design answers it.",
+      "asks": "What it asks",
+      "answers": "How Dwarpal answers",
+      "note": "A draft summary, not yet reviewed by a lawyer, and not legal advice. Dwarpal is in development and hasn't been assessed under any of these rules.",
+      "uk": {
+        "place": "United Kingdom",
+        "law": "Online Safety Act 2023",
+        "asks": "“Highly effective” age assurance: technically accurate, robust, reliable and fair. Ofcom lists facial age estimation among the methods that can qualify, with an age line set above the legal age.",
+        "fit": "Lines set with a margin below them, checked against the risk budget; a live-person check; a stronger check when unsure."
+      },
+      "eu": {
+        "place": "European Union",
+        "law": "Digital Services Act, Article 28",
+        "asks": "Age assurance that is accurate, reliable, robust, non-intrusive and non-discriminatory. The EU's age-verification blueprint proves “over N” without revealing identity.",
+        "fit": "Only “over N” leaves Dwarpal; errors are measured for each group; people are told what happens before the camera starts."
+      },
+      "us": {
+        "place": "United States",
+        "law": "State age-verification laws",
+        "asks": "Age verification for sexual content in many states, upheld by the Supreme Court in Free Speech Coalition v. Paxton (2025).",
+        "fit": "A signed age token that the website's server verifies itself, with each check's method and policy recorded."
+      },
+      "au": {
+        "place": "Australia",
+        "law": "Social media minimum age",
+        "asks": "Reasonable steps to keep under-16s off social media. The national trial recommends layers: estimation first, something more definite when uncertain.",
+        "fit": "That layering is Dwarpal's design: pass, fail, or a stronger check — with a line at 16."
+      },
+      "in": {
+        "place": "India",
+        "law": "DPDP Act 2023 and Rules 2025",
+        "asks": "Anyone under 18 is a child, whose data needs verifiable parental consent; minors shouldn't be able to fake their age.",
+        "fit": "An adult check that keeps no identity — usable for the consenting parent too. Aadhaar Secure QR is planned, not built."
+      }
+    },
+    "faq": {
+      "title": "Questions",
+      "lead": "What people ask before they look at the camera.",
+      "stored": {
+        "q": "Are my photos stored?",
+        "a": "No. The frames from your camera are checked in memory, during one request, and never written anywhere. What is kept is numbers about the check — scores and the outcome — for the website's retention period."
+      },
+      "age": {
+        "q": "Does the website learn my age?",
+        "a": "No. It learns only whether you meet its age line, in a token Dwarpal signs. Not your estimated age, not a photo, not who you are."
+      },
+      "unsure": {
+        "q": "I'm an adult and it wasn't sure. Why?",
+        "a": "Faces don't carry birth certificates. To keep people under the age out, the AI says yes only when it is sure, and people just over the age are the hardest to be sure about. When it isn't sure, you can confirm your age with a passport or ID card instead."
+      },
+      "fooled": {
+        "q": "Can a photo or a video fool it?",
+        "a": "It is built not to be: you are asked to turn your head in an order chosen for that check, and a separate model looks for screens and prints. It isn't perfect, and the results of the attacks tried so far are published in its practice statement."
+      },
+      "fair": {
+        "q": "Is it fair to everyone?",
+        "a": "Its errors are measured for each age and group of people. The model now running doesn't yet meet Dwarpal's own standard for that, which is why it decides test checks only."
+      },
+      "camera": {
+        "q": "What if I can't use a camera?",
+        "a": "A website using Dwarpal should always offer another way. Dwarpal's own stronger check, with an ID document, needs a camera too, for its selfie."
+      }
+    },
+    "demo": {
+      "title": "See it on a shop",
+      "text": "Amber Cellars, a made-up wine shop, uses Dwarpal at its door, with the same few lines of code.",
+      "visit": "Visit the demo shop",
+      "console": "Open the console"
+    },
+    "footer": "Dwarpal — the guardian at the gate. In development, and not yet hosted for real visitors."
+  },
+  "Accuracy": {
+    "unavailable": "The figures can't be loaded right now.",
+    "line": "Age line",
+    "minors": "Under the age who pass, at most",
+    "adults": "Adults 3+ years over turned away, at most",
+    "stepUp": "Adults just over sent to a stronger check",
+    "notMeasured": "not measured",
+    "share": "{share} of {ages}",
+    "model": "Model {version}.",
+    "measuredOn": "Model {version}, measured on {faces} photos from the {dataset} dataset, whose ages were estimated rather than documented.",
+    "bound": "“At most” is a 95 % upper bound for any single age in the five years under the line.",
+    "uncalibrated": "These lines don't yet meet Dwarpal's own release standard (2 % for every age and group), so this model decides test checks only."
+  },
+  "Verify": {
+    "metaTitle": "Confirm your age · Dwarpal",
+    "opening": "Opening your age check…",
+    "fullPage": "Open the check in a full page",
+    "reference": "Reference: {id}",
+    "label": "{project} · {age}+",
+    "introTitle": "Confirm you are {age} or over",
+    "introLead": "{project} asks for a quick age check before you continue.",
+    "promise1": "We take five quick photos with your camera.",
+    "promise2": "An AI estimates whether you are old enough. It never works out who you are.",
+    "promise3": "The photos are checked once, then deleted. Nothing is stored.",
+    "startCamera": "Start the camera",
+    "tries": "{count, plural, =1 {Last try} other {# tries left}}",
+    "checking": "Checking your photos…",
+    "checkingDetail": "This takes a second.",
+    "ending": {
+      "pass": {
+        "title": "You're all set",
+        "body": "Your age check is complete. {project} now knows you are {age} or over — nothing else."
+      },
+      "fail": {
+        "title": "We couldn't confirm your age",
+        "body": "This check couldn't confirm that you are {age} or over."
+      },
+      "step_up": {
+        "title": "We need a stronger check",
+        "body": "Photos alone were too close to call. You can confirm your age with a passport or ID card instead."
+      },
+      "reject": {
+        "title": "We couldn't complete the check",
+        "body": "This age check couldn't be completed."
+      }
+    },
+    "useDocument": "Use a passport or ID card",
+    "notNow": "Not now — return to {project}",
+    "continue": "Continue to {project}",
+    "returning": "Returning…",
+    "documentTitle": "Confirm your age with an ID document",
+    "documentStep1": "A photo of your passport's photo page, or the side of your ID card with lines of letters and '<<<' at the bottom.",
+    "documentStep2": "A short selfie, turning your head as asked, so we know the document is yours.",
+    "documentStep3": "We read your date of birth and compare the faces. Your name and document number are never kept, and both photos are deleted straight after the check.",
+    "documentButton": "Take or choose a photo of your document",
+    "selfieLead": "Your document's photo is ready. Now a short selfie, so we know it's yours."
+  },
+  "Camera": {
+    "noFace": "We can't see your face yet. Look at the camera.",
+    "manyFaces": "Make sure only you are in view.",
+    "closer": "Move a little closer.",
+    "centre": "Centre your face in the oval.",
+    "straight": "Look straight at the camera.",
+    "ready": "That's good. Press Start when you're ready.",
+    "starting": "Starting the camera…",
+    "holdStill": "Hold still… {taken} of {total}",
+    "keepLooking": "Keep looking at the screen.",
+    "thatsIt": "That's it — hold still…",
+    "checking": "Checking you're here…",
+    "start": "Start",
+    "poses": {
+      "turn_left": "Turn your head to your left, eyes on the screen",
+      "turn_right": "Turn your head to your right, eyes on the screen",
+      "look_up": "Lift your chin up, eyes on the screen"
+    }
+  },
+  "Tips": {
+    "default": "The photos didn't work out. Please try again in good, even light.",
+    "undecodable": "Your camera's pictures couldn't be read. Please try again.",
+    "no_face": "We couldn't see a face. Look straight into the camera.",
+    "multiple_faces": "We can see more than one face. Make sure only you are in view.",
+    "face_too_small": "Move a little closer to the camera.",
+    "too_dark": "It's too dark. Face a window or a lamp.",
+    "too_bright": "There's too much light. Turn away from bright lights behind you.",
+    "too_blurry": "The photos were blurry. Hold still while they are taken.",
+    "not_frontal": "Look straight at the camera, not to the side.",
+    "low_confidence": "We couldn't see your face clearly. Uncover your face and try again.",
+    "inconsistent_frames": "Keep still and stay in view while the photos are taken.",
+    "analysis_unavailable": "The checker is busy right now. Please try again in a moment.",
+    "liveness_check_failed": "Follow the prompts on screen: turn your head when asked, and keep your face in view.",
+    "liveness_unavailable": "We couldn't complete the check. Please try again.",
+    "mrz_not_found": "We couldn't find the lines of letters and '<<<' at the bottom of the photo page. Lay it flat and fill the picture.",
+    "mrz_unreadable": "We couldn't read the lines at the bottom of the photo page. Avoid glare and hold the camera steady.",
+    "mrz_check_failed": "We couldn't read the lines at the bottom of the photo page clearly. Try again in good light, without glare.",
+    "document_face_not_found": "We couldn't see the photo on your document. Show the whole photo page.",
+    "face_not_found": "We couldn't see your face in the selfie. Look straight into the camera.",
+    "face_mismatch": "Your selfie didn't match the photo on the document. Use your own document, in good light.",
+    "document_unusable": "That file couldn't be used. Take a photo instead."
+  },
+  "Problems": {
+    "default": {
+      "title": "Something went wrong",
+      "detail": "Please reload the page. If it keeps happening, go back to the website and start again."
+    },
+    "invalid_client_secret": {
+      "title": "This link doesn't work",
+      "detail": "It may be incomplete or already used. Go back to the website and start the age check again."
+    },
+    "session_not_found": {
+      "title": "This link doesn't work",
+      "detail": "Go back to the website and start the age check again."
+    },
+    "session_not_open": {
+      "title": "This age check has ended",
+      "detail": "It expired before it was finished. Go back to the website and start a new one."
+    },
+    "too_many_attempts": {
+      "title": "Too many tries",
+      "detail": "This device has tried the age check many times in the last hour. Please wait a while, then try again."
+    },
+    "too_many_challenges": {
+      "title": "Too many tries",
+      "detail": "This age check can't take any more photos. Go back to the website and start a new one."
+    },
+    "camera_blocked": {
+      "title": "We need your camera",
+      "detail": "Allow camera access for this page in your browser's settings, then reload the page."
+    },
+    "camera_missing": {
+      "title": "No camera found",
+      "detail": "Use a device with a front-facing camera, or plug one in and reload the page."
+    },
+    "network_error": {
+      "title": "You seem to be offline",
+      "detail": "Check your internet connection, then reload the page."
+    }
+  }
+}

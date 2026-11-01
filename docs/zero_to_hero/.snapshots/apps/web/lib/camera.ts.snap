@@ -2,7 +2,6 @@
 
 import {
   type Challenge,
-  CUES,
   frontalAngles,
   type HeadAngles,
   type Phase,
@@ -35,8 +34,8 @@ export interface LabelledFrame {
 export interface ChallengeHooks {
   /** Show this colour around the screen, or none. */
   onColour: (colour: string | null) => void;
-  /** Show this instruction, or none. */
-  onCue: (cue: string | null) => void;
+  /** The pose the person is asked for now, or none; the page puts it into words, in its language. */
+  onCue: (pose: Pose | null) => void;
   onProgress: (taken: number, total: number) => void;
   /** How much of the current pose is reached, from 0 to 1 in steps of 0.05 — or `null` when it can't be measured. */
   onReach: (share: number | null) => void;
@@ -160,7 +159,7 @@ export async function runChallenge(
 
   const facing = frontalAngles(frontal);
   for (const pose of challenge.poses) {
-    hooks.onCue(CUES[pose]);
+    hooks.onCue(pose);
     await holdPose(pose, facing, hooks, () => snap(pose));
     for (let index = 0; index < FRAMES_PER_POSE; index += 1) {
       snap(pose);

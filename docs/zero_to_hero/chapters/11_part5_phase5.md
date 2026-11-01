@@ -7,7 +7,7 @@ Phase 5 gives Dwarpal the faces people see: the console for its customers, a pol
 | **Console** — sign-in, organisations, members, keys, audit log | 🟡 first pages (§5.5.1); a project's sessions, decision traces, counts and policies (§5.5.2); webhooks (§5.5.3); one-time codes and member roles (§5.5.4); a command palette to come |
 | Design system — tokens, typography, components, motion | 🟢 first version (§5.5.6): OKLCH tokens (midnight-indigo ink, saffron, teal), Geist Sans and Mono, a type scale, motion presets, shared components and a specimen page, checked in light and dark |
 | Marketing site | 🟢 home page with every section and a live accuracy table (§5.5.9), and its 3D hero (§5.5.10) |
-| Verify flow in English and Hindi | 🗓 waits for an approved translation library |
+| Verify flow in English and Hindi | 🟢 the home page and the verify page in both, with a language switch (§5.5.11); the Hindi needs a native speaker's review |
 | Exit tests on three browser engines, accessibility and Lighthouse checks | 🟢 built (§5.5.5): Chromium and WebKit pass here, Firefox can't start on this computer; axe clean on the key pages; Lighthouse ≥ 90 |
 | Demo shop and SDKs — `@dwarpal/js`, `@dwarpal/react`, `@dwarpal/node` | 🟢 the check opens in a modal on the website's own page (§5.5.7); the shop uses the React button |
 | Policy editor with projected adult step-up rate | 🟢 the model's own lines, with how adults fared at each (§5.5.8) |
@@ -396,3 +396,40 @@ The still artwork (it can now be drawn without its face), the home page, the web
 !!! honest "Honest limitation"
     - **Hand-written types.** three.js ships no type definitions, and the usual ones (`@types/three`) are a separate download not yet approved (D1b). The few parts the hero uses are typed by hand (`types/three.d.ts`); TypeScript trusts them, and can't check them against three.js itself.
     - **Lighthouse's own browser draws no WebGL**, so its score is the page without the 3D face; the browser tests check the face itself in Chromium and WebKit.
+
+### 5.5.11 Hindi
+
+The design asks for the public pages in English and Hindi — India is one of Dwarpal's markets, and its DPDP Act protects every child there. The owner approved **next-intl** on 1 November (decision D2), a library that gives each page its words in the visitor's language. Four decisions shaped the work:
+
+1. **The words leave the code.** Every sentence the home page and the verify page show moved into `messages/en.json` and `messages/hi.json`, under keys such as `Verify.introTitle`. The code asks for keys; next-intl fills in the parts in braces (`Confirm you are {age} or over`) and picks plural forms ("2 tries left", "Last try").
+2. **The address doesn't change.** `/` is the home page in either language. The language comes from the person's own choice, remembered in a cookie, else from what their browser asks for (`Accept-Language`), else English. The language switch is a plain form, so it works even without JavaScript.
+3. **Only what the browser needs travels.** The home page is drawn on the server in the chosen language, so it sends no translation code at all; the verify page, which runs in the browser, gets only its own groups of words.
+4. **The console stays English** — it is an operator's tool — and says so (`lang="en"`), so a screen reader never reads its English as Hindi.
+
+!!! kid "Explain like I'm six — a book with two languages"
+    Imagine a picture book where every sentence is a little sticker. The book itself only has empty spaces with labels like "page 3, top". There are two sticker sheets, one in English and one in Hindi. When you open the book, someone sticks on the sheet you can read. The pictures — and the story — stay the same.
+
+!walk apps/web/i18n/locales.ts
+
+!walk apps/web/i18n/locales.test.ts
+
+!walk apps/web/i18n/request.ts
+
+!walk apps/web/i18n/actions.ts
+
+!walk apps/web/components/language-switch.tsx
+
+!walk apps/web/app/console/layout.tsx
+
+!walk apps/web/messages/en.json
+
+!walk apps/web/messages/hi.json
+
+The home page, its accuracy table, the verify page and its camera screen, the tips and problems (`advice.ts`, now only choosing keys), the camera code (it reports the pose, not words), the page frame, the root layout (the page's `lang`), the design system's page, the Next.js configuration, the workspace file (two install scripts declined), the web app's packages and the browser tests changed too; each was re-explained.
+
+**What the tests prove**: the language is chosen in the right order; every tip and problem has its words in both languages, and the Hindi file has exactly the English file's keys; choosing Hindi switches the page — heading, title and `lang` — and is remembered; a browser set to Hindi gets Hindi at once; the Hindi home page breaks no accessibility rule; the verify page speaks Hindi too; and the console stays marked English. Lighthouse still scores the home page above 90.
+
+!!! honest "Honest limitation"
+    - **The Hindi is machine-drafted** — by the AI that wrote this code — and needs a native speaker's review before real visitors read it, above all the compliance map and the privacy promises.
+    - **No Devanagari typeface is bundled.** Geist has no Devanagari letters, so Hindi text uses the visitor's system font (Nirmala UI on Windows, Noto Sans Devanagari on Android). A bundled font, such as Noto Sans Devanagari, would be another download (D2b).
+    - **Inside a website's frame the choice may not stick**: browsers often withhold a framed page's cookies, so there the language follows the browser's settings.

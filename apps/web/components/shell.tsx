@@ -1,4 +1,7 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+
+import { LanguageSwitch } from "./language-switch";
 
 import { Badge, button } from "./ui";
 
@@ -31,6 +34,7 @@ export function Mark({ className = "size-7" }: { className?: string }) {
 }
 
 export function Shell({ children, label }: { children: ReactNode; label?: string }) {
+  const t = useTranslations("Shell");
   return (
     <div className="relative flex min-h-dvh flex-col items-center px-4 py-8 sm:py-14">
       <div
@@ -48,9 +52,12 @@ export function Shell({ children, label }: { children: ReactNode; label?: string
       </header>
       <main className="relative mt-6 w-full max-w-md flex-1">{children}</main>
       <footer className="relative mt-10 max-w-md text-center text-xs leading-relaxed text-ink-600 dark:text-ink-400">
-        Your photos are checked once and never stored.
+        {t("footer1")}
         <br />
-        Dwarpal never learns who you are — only whether you are old enough.
+        {t("footer2")}
+        <span className="mt-3 flex justify-center">
+          <LanguageSwitch />
+        </span>
       </footer>
     </div>
   );

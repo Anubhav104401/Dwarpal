@@ -1,6 +1,6 @@
 # Phase 5 report — front-end excellence
 
-**Dates:** from 26 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** 🟡 in progress — the console is built and tested; the exit tests are built and pass on Chromium and WebKit (Firefox can't start on this computer, so it waits for CI); the design system's first version is built (Geist kept); the marketing site is built, with its 3D hero (1 Nov, D1); Hindi is next (D2) ([pending decisions](pending-decisions.md)).
+**Dates:** from 26 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** 🟡 in progress — the console is built and tested; the exit tests are built and pass on Chromium and WebKit (Firefox can't start on this computer, so it waits for CI); the design system's first version is built (Geist kept); the marketing site is built, with its 3D hero (1 Nov, D1); the public pages are in English and Hindi (1 Nov, D2) ([pending decisions](pending-decisions.md)).
 
 **Exit (from the roadmap):** Lighthouse ≥ 90 in all categories on key pages; axe clean; Playwright passes on Chromium, Firefox and WebKit.
 
@@ -47,5 +47,5 @@
 
 ## Open items
 
-1. Design system: a display serif and token colours for the verify flow's icons; Hindi (D2, approved 1 Nov) in progress; three.js typed by hand until `@types/three` is approved (D1b); the compliance map needs the legal review (O5) before publishing; Firefox proof on CI (O1); Lighthouse CI dependency fixes (D14).
+1. Design system: a display serif and token colours for the verify flow's icons; the Hindi (D2, done 1 Nov) is machine-drafted and needs a native speaker's review, and uses the system's Devanagari font (a bundled one would be D2b); three.js typed by hand until `@types/three` is approved (D1b); the compliance map needs the legal review (O5) before publishing; Firefox proof on CI (O1); Lighthouse CI dependency fixes (D14).
 2. Console pages: the planned set is done — sessions (with search), traces, counts, policies, webhooks (with an on/off switch), one-time codes (with a QR code, recovery codes, and switching off), member roles (with a browser test). The rest of the design's list was added on 29 Oct: a daily chart of the counts, the age model's page, and the sidebar with a command palette (⌘K). Later on 29 Oct, the dashboard's face-check figures followed: the median time to a decision (a band of seconds, against the 15 s target), and the shares rejected as likely attacks and sent to a stronger check, from new daily counts by band of time (migration 0009). The policy editor's projected step-up rate followed on 31 Oct. Still not built: step-up conversion (needs the Phase 6 verifiers), and the model page's fairness charts (no fairness results are published yet).

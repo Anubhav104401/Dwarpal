@@ -33,12 +33,6 @@ export const TURN_SHIFT = 0.25;
 export const RAISE_SHIFT = 0.12;
 export const FRONTAL_YAW = 0.15;
 
-export const CUES: Record<Pose, string> = {
-  turn_left: "Turn your head to your left, eyes on the screen",
-  turn_right: "Turn your head to your right, eyes on the screen",
-  look_up: "Lift your chin up, eyes on the screen",
-};
-
 const POSES: readonly Pose[] = ["turn_left", "turn_right", "look_up"];
 const COLOUR = /^#[0-9a-f]{6}$/;
 // Names that virtual-camera programs give their devices. A match is reported, not acted on, by the page.

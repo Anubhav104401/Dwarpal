@@ -27,8 +27,9 @@ const TYPE = [
 /** The design system's specimen: every token and component on one page, which the accessibility tests check in the
  * light and the dark theme — so a change that breaks contrast anywhere fails here first. */
 export default function DesignPage() {
+  // Written in English only, whatever language the page as a whole is in (decision D2).
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+    <div lang="en" className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <header className="flex items-center gap-2.5">
         <Mark />
         <h1 className="text-display font-semibold">Design system</h1>

@@ -1,12 +1,13 @@
 "use client";
 
 import type { FaceLandmarker } from "@mediapipe/tasks-vision";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { accentButton } from "@/components/shell";
 import { closeCamera, openCamera, runChallenge } from "@/lib/camera";
-import { type Challenge, FRONTAL_YAW, isVirtualCamera } from "@/lib/challenge";
+import { type Challenge, FRONTAL_YAW, isVirtualCamera, type Pose } from "@/lib/challenge";
 import type { CapturedAttempt } from "@/lib/flow-api";
 import { loadLandmarker, type Reading, read } from "@/lib/landmarker";
 
@@ -47,24 +48,24 @@ function FaceGuide({ active, good }: { active: boolean; good: boolean }) {
   );
 }
 
-/** Plain words for what the landmarker sees, and whether the face is ready. */
+/** What the landmarker sees, as the key of its plain words (`Camera` in `messages/`), and whether the face is ready. */
 function guidance(reading: Reading | null): { hint: string; good: boolean } {
   if (reading === null || reading.faces === 0) {
-    return { hint: "We can't see your face yet. Look at the camera.", good: false };
+    return { hint: "noFace", good: false };
   }
   if (reading.faces > 1) {
-    return { hint: "Make sure only you are in view.", good: false };
+    return { hint: "manyFaces", good: false };
   }
   if (!reading.closeEnough) {
-    return { hint: "Move a little closer.", good: false };
+    return { hint: "closer", good: false };
   }
   if (!reading.centred) {
-    return { hint: "Centre your face in the oval.", good: false };
+    return { hint: "centre", good: false };
   }
   if (reading.angles !== null && Math.abs(reading.angles.yaw) > FRONTAL_YAW) {
-    return { hint: "Look straight at the camera.", good: false };
+    return { hint: "straight", good: false };
   }
-  return { hint: "That's good. Press Start when you're ready.", good: true };
+  return { hint: "ready", good: true };
 }
 
 export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: CameraViewProps) {
@@ -78,7 +79,9 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
   const [graceOver, setGraceOver] = useState(false);
   const [running, setRunning] = useState(false);
   const [colour, setColour] = useState<string | null>(null);
-  const [cue, setCue] = useState<string | null>(null);
+  const [pose, setCue] = useState<Pose | null>(null);
+  const t = useTranslations("Camera");
+  const cue = pose === null ? null : t(`poses.${pose}`);
   const [reach, setReach] = useState<number | null>(null);
   const [progress, setProgress] = useState<[number, number]>([0, 0]);
 
@@ -200,8 +203,8 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
 
   const [taken, total] = progress;
   const message = running
-    ? (cue ?? (colour === null ? `Hold still… ${taken} of ${total}` : "Keep looking at the screen."))
-    : (tip ?? guide?.hint ?? "Starting the camera…");
+    ? (cue ?? (colour === null ? t("holdStill", { taken, total }) : t("keepLooking")))
+    : (tip ?? (guide === null ? t("starting") : t(guide.hint)));
 
   return (
     <div>
@@ -216,7 +219,7 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
               style={{ backgroundColor: colour }}
             >
               <p className="rounded-full bg-black/60 px-5 py-2 text-lg font-medium text-white">
-                Keep looking at the screen.
+                {t("keepLooking")}
               </p>
             </div>,
             document.body,
@@ -232,13 +235,11 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
         />
         <FaceGuide active={running} good={guide?.good ?? false} />
         {ready ? null : (
-          <p className="absolute inset-0 grid place-items-center text-sm text-ink-300">
-            Starting the camera…
-          </p>
+          <p className="absolute inset-0 grid place-items-center text-sm text-ink-300">{t("starting")}</p>
         )}
         {cue === null ? null : (
           <div className="absolute inset-x-4 bottom-4 rounded-xl bg-black/70 px-4 py-3 text-center text-white">
-            <p className="text-lg font-medium">{reach === 1 ? "That's it — hold still…" : cue}</p>
+            <p className="text-lg font-medium">{reach === 1 ? t("thatsIt") : cue}</p>
             {reach === null ? null : (
               // How far the head has got: it fills as the person turns, so they can see when it is enough.
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20" aria-hidden="true">
@@ -263,7 +264,7 @@ export function CameraView({ tip, getChallenge, onCaptured, onCameraError }: Cam
         disabled={!ready || running || !(guide?.good || graceOver)}
         onClick={start}
       >
-        {running ? "Checking you're here…" : "Start"}
+        {running ? t("checking") : t("start")}
       </button>
     </div>
   );

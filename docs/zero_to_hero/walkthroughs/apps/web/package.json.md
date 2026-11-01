@@ -1,5 +1,5 @@
 ---
-fingerprint: 8561543bd56fb7f7
+fingerprint: 156bca4fb43fde45
 ---
 The package description of **`@dwarpal/web`** — the **hosted verify page**: the website a person is sent to by a shop, where they take the age check with their camera. It is built with **Next.js** (§4.17), the React framework chosen in ADR-0012.
 
@@ -35,11 +35,12 @@ The scripts:
 @@ 13
 The end of the scripts.
 
-@@ 14-23
+@@ 14-24
 What the page needs to run, each pinned exactly:
 
 - `geist` — the **Geist** typeface, as font files inside the package (its licence, the SIL Open Font License, allows exactly this). The page serves the fonts itself, so a visitor's browser never contacts a font service;
 - `next` 16.4.2 — the framework (upgraded from 16.4.0 on 27 Oct 2026 to fix two critical remote-code-execution flaws and a denial-of-service flaw that `pnpm audit` reported);
+- `next-intl` 4.14.9 (approved as D2, 1 Nov) — the public pages in English and Hindi (§5.5.11);
 - `qrcode` 1.5.4 (Phase 5, approved as D13) — draws the QR code on the console's *Security* page;
 - `react` and `react-dom` 19.3.0 — the library that draws the page (§4.16), and its part for web browsers;
 - `three` 0.186.1 (approved as D1, 1 Nov) — **three.js**, for the home page's 3D hero (§5.5.10). Version 0.187.0 existed, but was less than a week old.
@@ -50,8 +51,8 @@ Added in Phase 3: `@mediapipe/tasks-vision` 1.1.0 — Google's **MediaPipe** vis
 
 Added with decision D16: `@dwarpal/js`, this repository's own browser SDK (`workspace:*`). The verify page imports its **message protocol** (`protocol.ts`), so the messages it sends to a website that framed it are exactly the ones the SDK reads.
 
-@@ 24-34
+@@ 25-35
 What's needed only to develop and build it: the shared TypeScript settings; **Tailwind CSS** and its PostCSS plugin (§4.18); type descriptions of Node.js, `qrcode`, React and React DOM; the TypeScript compiler; and Vitest.
 
-@@ 35
+@@ 36
 The closing brace.

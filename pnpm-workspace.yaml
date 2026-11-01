@@ -21,3 +21,9 @@ overrides:
   basic-ftp: 6.2.1
   zod: 4.6.6
   body-parser: 1.20.9
+
+# Install scripts that are never run (Phase 5, decision D2). next-intl brings both for its message extractor, which
+# this project doesn't use; each ships prebuilt binaries as separate packages, so its script has nothing to do here.
+allowBuilds:
+  "@parcel/watcher": false
+  "@swc/core": false

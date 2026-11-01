@@ -1,10 +1,11 @@
 "use client";
 
 import { MESSAGE_SOURCE, type VerifyMessage } from "@dwarpal/js";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { accentButton, card, primaryButton, quietButton, Shell } from "@/components/shell";
-import { type Problem, problemFor, tipFor } from "@/lib/advice";
+import { problemFor, tipFor } from "@/lib/advice";
 import type { Challenge } from "@/lib/challenge";
 import { DocumentPhotoError, prepareDocument } from "@/lib/document-photo";
 import { type CapturedAttempt, FlowClient, FlowError, type FlowSession } from "@/lib/flow-api";
@@ -16,12 +17,13 @@ type Ending = "pass" | "fail" | "step_up" | "reject";
 type Stage =
   | { kind: "loading" }
   | { kind: "intro"; session: FlowSession }
+  // Tips and problems are keys of their words (`Tips`, `Problems` in `messages/`), put into words when shown.
   | { kind: "camera"; session: FlowSession; tip: string | null }
   | { kind: "checking"; session: FlowSession }
   | { kind: "document"; session: FlowSession; tip: string | null }
   | { kind: "selfie"; session: FlowSession; document: Blob }
   | { kind: "finished"; session: FlowSession; ending: Ending }
-  | { kind: "problem"; problem: Problem; requestId: string | null };
+  | { kind: "problem"; problem: string; requestId: string | null };
 
 /** Read the one-time secret from the link's #fragment, then remove it from the address bar and the history. */
 function takeSecretFromLink(): string | null {
@@ -75,50 +77,18 @@ function Icon({ tone, children }: { tone: string; children: ReactNode }) {
   );
 }
 
-const ENDINGS: Record<
-  Ending,
-  { title: string; body: (s: FlowSession) => string; tone: string; path: string }
-> = {
-  pass: {
-    title: "You're all set",
-    body: (s) =>
-      `Your age check is complete. ${s.projectName} now knows you are ${s.minAge} or over — nothing else.`,
-    tone: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-    path: "M5 12.5l4.5 4.5L19 7.5",
-  },
-  fail: {
-    title: "We couldn't confirm your age",
-    body: (s) => `This check couldn't confirm that you are ${s.minAge} or over.`,
-    tone: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-    path: "M7 7l10 10M17 7L7 17",
-  },
-  step_up: {
-    title: "We need a stronger check",
-    body: () =>
-      "Photos alone were too close to call. You can confirm your age with a passport or ID card instead.",
-    tone: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-    path: "M12 7v6m0 4h.01",
-  },
-  reject: {
-    title: "We couldn't complete the check",
-    body: () => "This age check couldn't be completed.",
-    tone: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-    path: "M7 7l10 10M17 7L7 17",
-  },
+/** How each ending looks: its icon's colours and shape. Its words are in `Verify.ending` (`messages/`). */
+const ENDINGS: Record<Ending, { tone: string; path: string }> = {
+  pass: { tone: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400", path: "M5 12.5l4.5 4.5L19 7.5" },
+  fail: { tone: "bg-rose-500/15 text-rose-600 dark:text-rose-400", path: "M7 7l10 10M17 7L7 17" },
+  step_up: { tone: "bg-amber-500/15 text-amber-600 dark:text-amber-400", path: "M12 7v6m0 4h.01" },
+  reject: { tone: "bg-rose-500/15 text-rose-600 dark:text-rose-400", path: "M7 7l10 10M17 7L7 17" },
 };
 
-const PROMISES = [
-  "We take five quick photos with your camera.",
-  "An AI estimates whether you are old enough. It never works out who you are.",
-  "The photos are checked once, then deleted. Nothing is stored.",
-];
+const PROMISES = ["promise1", "promise2", "promise3"] as const;
 
 /** What the document check does, said before the person chooses a photo of their document (Phase 6). */
-const DOCUMENT_STEPS = [
-  "A photo of your passport's photo page, or the side of your ID card with lines of letters and <<< at the bottom.",
-  "A short selfie, turning your head as asked, so we know the document is yours.",
-  "We read your date of birth and compare the faces. Your name and document number are never kept, and both photos are deleted straight after the check.",
-];
+const DOCUMENT_STEPS = ["documentStep1", "documentStep2", "documentStep3"] as const;
 
 /** How many tries the document check allows (the API's MAX_DOCUMENT_ATTEMPTS). */
 const DOCUMENT_TRIES = 3;
@@ -128,6 +98,9 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
   const [leaving, setLeaving] = useState(false);
   const [framedBy, setFramedBy] = useState<string | null>(null);
   const [documentTries, setDocumentTries] = useState(DOCUMENT_TRIES);
+  const t = useTranslations("Verify");
+  const tips = useTranslations("Tips");
+  const problems = useTranslations("Problems");
   const secret = useRef<string | null>(null);
   const flow = useRef<FlowClient | null>(null);
 
@@ -197,8 +170,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     try {
       setStage({ kind: "selfie", session, document: await prepareDocument(file) });
     } catch (error) {
-      const tip =
-        error instanceof DocumentPhotoError ? "That file couldn't be used. Take a photo instead." : null;
+      const tip = error instanceof DocumentPhotoError ? "document_unusable" : null;
       setStage({ kind: "document", session, tip });
     }
   }, []);
@@ -259,7 +231,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     return (
       <Shell>
         <div className={`${card} grid h-64 place-items-center`} aria-busy="true">
-          <p className="text-sm text-ink-600 dark:text-ink-400">Opening your age check…</p>
+          <p className="text-sm text-ink-600 dark:text-ink-400">{t("opening")}</p>
         </div>
       </Shell>
     );
@@ -272,20 +244,22 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
           <Icon tone="bg-ink-500/15 text-ink-600 dark:text-ink-300">
             <path d="M12 8v5m0 3.5h.01M10.3 3.9L2.6 17.3A2 2 0 0 0 4.3 20.3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
           </Icon>
-          <h1 className="mt-5 text-2xl font-semibold tracking-tight">{stage.problem.title}</h1>
-          <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">{stage.problem.detail}</p>
+          <h1 className="mt-5 text-2xl font-semibold tracking-tight">{problems(`${stage.problem}.title`)}</h1>
+          <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">
+            {problems(`${stage.problem}.detail`)}
+          </p>
           {framedBy === null ? null : (
             <button
               type="button"
               className={`${primaryButton} mt-8`}
               onClick={() => tellWebsite({ source: MESSAGE_SOURCE, type: "full_page", sessionId })}
             >
-              Open the check in a full page
+              {t("fullPage")}
             </button>
           )}
           {stage.requestId === null ? null : (
             <p className="mt-6 font-mono text-xs text-ink-600 dark:text-ink-400">
-              Reference: {stage.requestId}
+              {t("reference", { id: stage.requestId })}
             </p>
           )}
         </section>
@@ -294,15 +268,18 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
   }
 
   const { session } = stage;
-  const label = `${session.projectName} · ${session.minAge}+`;
+  const label = t("label", { project: session.projectName, age: session.minAge });
+  const tries = (count: number) => t("tries", { count });
 
   if (stage.kind === "intro") {
     return (
       <Shell label={label}>
         <section className={card}>
-          <h1 className="text-2xl font-semibold tracking-tight">Confirm you are {session.minAge} or over</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t("introTitle", { age: session.minAge })}
+          </h1>
           <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">
-            {session.projectName} asks for a quick age check before you continue.
+            {t("introLead", { project: session.projectName })}
           </p>
           <ol className="mt-6 space-y-3">
             {PROMISES.map((promise, index) => (
@@ -310,7 +287,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
                 <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-500/20 text-xs font-semibold text-brand-700 dark:text-brand-300">
                   {index + 1}
                 </span>
-                {promise}
+                {t(promise)}
               </li>
             ))}
           </ol>
@@ -319,7 +296,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
             className={`${accentButton} mt-8`}
             onClick={() => setStage({ kind: "camera", session, tip: null })}
           >
-            Start the camera
+            {t("startCamera")}
           </button>
         </section>
       </Shell>
@@ -331,13 +308,13 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
       <Shell label={label}>
         <section className={card}>
           <CameraView
-            tip={stage.tip}
+            tip={stage.tip === null ? null : tips(stage.tip)}
             getChallenge={getChallenge}
             onCaptured={(captured) => onCaptured(session, captured)}
             onCameraError={onCameraError}
           />
           <p className="mt-4 text-center text-xs text-ink-600 dark:text-ink-400">
-            {session.attemptsRemaining === 1 ? "Last try" : `${session.attemptsRemaining} tries left`}
+            {tries(session.attemptsRemaining)}
           </p>
         </section>
       </Shell>
@@ -348,13 +325,13 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     return (
       <Shell label={label}>
         <section className={card}>
-          <h1 className="text-2xl font-semibold tracking-tight">Confirm your age with an ID document</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("documentTitle")}</h1>
           {stage.tip === null ? null : (
             <p
               className="mt-3 rounded-xl bg-amber-500/15 px-4 py-3 text-sm text-amber-800 dark:text-amber-200"
               role="alert"
             >
-              {stage.tip}
+              {tips(stage.tip)}
             </p>
           )}
           <ol className="mt-6 space-y-3">
@@ -363,7 +340,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
                 <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-500/20 text-xs font-semibold text-brand-700 dark:text-brand-300">
                   {index + 1}
                 </span>
-                {step}
+                {t(step)}
               </li>
             ))}
           </ol>
@@ -372,7 +349,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
           <label
             className={`${accentButton} mt-8 cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-brand-500`}
           >
-            Take or choose a photo of your document
+            {t("documentButton")}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
@@ -381,9 +358,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
               onChange={(event) => onDocumentChosen(session, event.target.files?.[0])}
             />
           </label>
-          <p className="mt-4 text-center text-xs text-ink-600 dark:text-ink-400">
-            {documentTries === 1 ? "Last try" : `${documentTries} tries left`}
-          </p>
+          <p className="mt-4 text-center text-xs text-ink-600 dark:text-ink-400">{tries(documentTries)}</p>
         </section>
       </Shell>
     );
@@ -394,9 +369,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     return (
       <Shell label={label}>
         <section className={card}>
-          <p className="mb-4 text-sm text-ink-600 dark:text-ink-400">
-            Your document's photo is ready. Now a short selfie, so we know it's yours.
-          </p>
+          <p className="mb-4 text-sm text-ink-600 dark:text-ink-400">{t("selfieLead")}</p>
           <CameraView
             tip={null}
             getChallenge={getChallenge}
@@ -415,9 +388,9 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
           <div>
             <div className="mx-auto size-10 motion-safe:animate-spin rounded-full border-[3px] border-brand-500/25 border-t-brand-500" />
             <p className="mt-5 font-medium" role="status">
-              Checking your photos…
+              {t("checking")}
             </p>
-            <p className="mt-1 text-sm text-ink-600 dark:text-ink-400">This takes a second.</p>
+            <p className="mt-1 text-sm text-ink-600 dark:text-ink-400">{t("checkingDetail")}</p>
           </div>
         </section>
       </Shell>
@@ -431,8 +404,10 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
         <Icon tone={ending.tone}>
           <path d={ending.path} strokeLinecap="round" strokeLinejoin="round" />
         </Icon>
-        <h1 className="mt-5 text-2xl font-semibold tracking-tight">{ending.title}</h1>
-        <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">{ending.body(session)}</p>
+        <h1 className="mt-5 text-2xl font-semibold tracking-tight">{t(`ending.${stage.ending}.title`)}</h1>
+        <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">
+          {t(`ending.${stage.ending}.body`, { project: session.projectName, age: session.minAge })}
+        </p>
         {stage.ending === "step_up" ? (
           <>
             <button
@@ -440,15 +415,15 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
               className={`${accentButton} mt-8`}
               onClick={() => setStage({ kind: "document", session, tip: null })}
             >
-              Use a passport or ID card
+              {t("useDocument")}
             </button>
             <button type="button" className={`${quietButton} mt-3`} disabled={leaving} onClick={leave}>
-              {leaving ? "Returning…" : `Not now — return to ${session.projectName}`}
+              {leaving ? t("returning") : t("notNow", { project: session.projectName })}
             </button>
           </>
         ) : (
           <button type="button" className={`${primaryButton} mt-8`} disabled={leaving} onClick={leave}>
-            {leaving ? "Returning…" : `Continue to ${session.projectName}`}
+            {leaving ? t("returning") : t("continue", { project: session.projectName })}
           </button>
         )}
       </section>

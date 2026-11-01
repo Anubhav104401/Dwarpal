@@ -64,9 +64,17 @@ test("the cellar stays closed to anyone without a pass", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Verify my age to enter" })).toBeVisible();
 });
 
-test("a verify link without its secret explains what to do", async ({ page }) => {
+test("a verify link without its secret explains what to do, in the person's language", async ({
+  page,
+  browser,
+}) => {
   await page.goto(`${VERIFY}/v/vs_01M51KF05CE4GSBH7F0G43G01V`);
   await expect(page.getByRole("heading", { name: "This link doesn't work" })).toBeVisible();
+  const hindi = await browser.newContext({ locale: "hi-IN" });
+  const other = await hindi.newPage();
+  await other.goto(`${VERIFY}/v/vs_01M51KF05CE4GSBH7F0G43G01V`);
+  await expect(other.getByRole("heading", { name: "यह लिंक काम नहीं करता" })).toBeVisible();
+  await hindi.close();
 });
 
 test("a return link only works in the browser that started the check", async ({ page }) => {

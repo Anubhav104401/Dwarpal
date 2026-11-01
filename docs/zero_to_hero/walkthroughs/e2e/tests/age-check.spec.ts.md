@@ -1,5 +1,5 @@
 ---
-fingerprint: cc944b8bea9b6bc6
+fingerprint: 71c36a9e44770dee
 ---
 **The end-to-end tests**: short stories, acted out by **Playwright** in a real Chromium browser (§4.20). The first one is the whole slice working together — the shop, the SDKs, the verify page in its modal, the camera, the API, the inference service, the decision engine, the signed token and the shop's pass:
 
@@ -78,62 +78,62 @@ The end of test 1.
 @@ 61-65
 **Test 2: the cellar stays closed without a pass.** Going straight to `/cellar` must land back at the entrance, with the "Verify my age" button.
 
-@@ 67-70
-**Test 3: a verify link without its secret explains what to do.** A link with a valid-looking session ID but no `#cs=` part must say "This link doesn't work" — politely, and without asking the API anything.
+@@ 67-78
+**Test 3: a verify link without its secret explains what to do, in the person's language.** A link with a valid-looking session ID but no `#cs=` part must say "This link doesn't work" — and, in a browser set to Hindi, "यह लिंक काम नहीं करता" (§5.5.11).
 
-@@ 72-78
+@@ 80-86
 **Test 4: a return link only works in the browser that started the check.** Opening the shop's return address directly — as someone would with a link sent by a friend — must lead to the "Please finish the check where you started it" page, because this browser never started that check.
 
-@@ 80-84
+@@ 88-92
 **Test 5: the modal closes, and the shop is as it was.** Open the check, and wait for it inside the frame.
 
-@@ 85-86
+@@ 93-94
 Press the modal's **Close**: the dialog is gone.
 
-@@ 87
+@@ 95
 And the keyboard focus is back on the button that opened it, so someone using a keyboard carries on where they were. (This caught a real bug: the React button was *disabled* while busy, which threw the focus away.)
 
-@@ 88
+@@ 96
 End of test 5.
 
-@@ 90-93
+@@ 98-101
 **Test 6: no other website may frame a verify page.** Ask the verify page's web server directly for a page whose session doesn't exist: its policy must say `frame-ancestors 'none'` — no website at all may show it in a frame.
 
 @@ 9-10
 The API's address, for the document test, which creates its own session; and the specimen passport the configuration drew.
 
-@@ 95-96
+@@ 103-104
 **`steppedUp`** (§5.6.3) — a session the face check couldn't decide. The fake camera's portrait passes every face check, so this one is made through the API instead.
 
-@@ 97-101
+@@ 105-109
 Create a session with the demo project's test key (handed over by the configuration), and keep its ID and client secret.
 
-@@ 102-105
+@@ 110-113
 Start its flow with the secret, as the verify page would, and keep the flow token.
 
-@@ 106-110
+@@ 114-118
 Three face attempts, each with a fresh challenge…
 
-@@ 111-122
+@@ 119-130
 …whose three frames, labelled as frontal, are not pictures at all (the bytes `not a picture`): the inference service can't decode them, so each attempt is retried — and the third steps up.
 
-@@ 123-131
+@@ 131-139
 Post each attempt; after the third, the outcome must be `step_up`. Return the session's ID and secret.
 
-@@ 133-138
+@@ 141-146
 **Test — a person the face check can't decide confirms their age with a passport and a selfie.** Open the verify page with the stepped-up session's link: the secret travels in the `#` fragment, as a real link carries it.
 
-@@ 139-140
+@@ 147-148
 The step-up ending, and its new button.
 
-@@ 142-147
+@@ 150-155
 The document stage says what will happen — including that the name and document number are never kept — before anything is chosen; it breaks no accessibility rule; and then the specimen passport is chosen, as a person would choose a photo (`setInputFiles` fills the hidden file input).
 
-@@ 149-154
+@@ 157-162
 The selfie stage: the same camera screen as a face check, playing the fake camera's portrait — the same face as on the specimen. Its result: "You're all set".
 
-@@ 156-160
+@@ 164-168
 The website's view, with the same test key: the session…
 
-@@ 161-164
+@@ 169-172
 …is completed with a pass, and its token's claims (the middle part of the JWT, decoded) say how: a face estimate, the document's MRZ and a face match.

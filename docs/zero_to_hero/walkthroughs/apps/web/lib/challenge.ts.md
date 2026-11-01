@@ -35,16 +35,13 @@ The comment explains the page's **targets**: shifts from the person's own fronta
 @@ 34
 `FRONTAL_YAW = 0.15` — the guidance asks people to look straighter than this before starting.
 
-@@ 36-40
-**`CUES`** — the instruction shown for each pose. "Eyes on the screen" matters: people tend to follow their own head with their eyes and lose sight of the prompts and the meter. "Lift your chin up" says plainly what "look up" means. `Record<Pose, string>` makes TypeScript check that every pose has exactly one instruction.
-
-@@ 42
+@@ 36
 The three poses as a list, for checking the server's answer. `readonly` — it can't be changed.
 
-@@ 43
+@@ 37
 `COLOUR` — a **regular expression** for a web colour: `#` and exactly six hexadecimal digits, the same rule as the server's contract.
 
-@@ 44-46
+@@ 38-40
 `VIRTUAL_CAMERA` — names that virtual-camera programs give their pretend cameras: OBS, ManyCam, XSplit, Snap Camera and others. Such a program can feed *any* video — including a recording or a deepfake — to the page as if it were a camera. In the pattern:
 
 - `\b` — a word boundary, so `ndi` matches the word "NDI" but not the inside of another word;
@@ -53,74 +50,74 @@ The three poses as a list, for checking the server's answer. `readonly` — it c
 
 As the comment says, the page only *reports* a match. Some people use these programs for ordinary video calls; the server weighs it with everything else.
 
-@@ 48
+@@ 42
 **`isVirtualCamera`** — whether a camera's name matches. `.test` returns `true` or `false`.
 
-@@ 50-51
+@@ 44-45
 **`poseProgress`** — how much of the pose's target the head has reached, from its frontal angles: 0 (not at all, or the wrong way) to 1 (enough). It drives the on-screen meter, and a full meter (1) is what the page waits for.
 
-@@ 52
+@@ 46
 Its inputs: the pose, the head's angles now, and the frontal angles to measure from.
 
-@@ 53-58
+@@ 47-52
 How far the head has moved in the pose's direction, as a share of the target: for a left turn, the rise in yaw divided by `TURN_SHIFT`; for a right turn, the fall in yaw; for looking up, the fall in pitch divided by `RAISE_SHIFT`. `a ? b : c ? d : e` is a chain of choices: "if a, b; otherwise if c, d; otherwise e".
 
-@@ 59-60
+@@ 53-54
 Keep it between 0 and 1: a turn the wrong way gives a negative share, shown as 0; a turn past the target, as 1.
 
-@@ 62
+@@ 56
 **`median`** — the middle value of a list of numbers.
 
-@@ 63
+@@ 57
 Sort a copy (`[...values]` copies the list, so the caller's list isn't reordered), smallest first. `(a, b) => a - b` tells `sort` to compare numbers by size; without it, JavaScript would sort them as text.
 
-@@ 64
+@@ 58
 The position of the middle.
 
-@@ 65-66
+@@ 59-60
 With an odd number of values, the one in the middle; with an even number, the average of the two middle ones. The `?? 0` parts only satisfy TypeScript, which can't know those positions exist.
 
-@@ 68-69
+@@ 62-63
 **`frontalAngles`** — the person's angles when facing the camera: the median of the landmarker readings taken with the baseline photos, as on the server. `readonly` promises the list isn't changed.
 
-@@ 70-72
+@@ 64-66
 No readings — the landmarker couldn't see a face, or isn't running: `null`. The page can't measure poses then, so it simply waits out each pose's time.
 
-@@ 73-74
+@@ 67-68
 The median yaw and the median pitch.
 
-@@ 76-79
+@@ 70-73
 **`Point`** — a position in the picture: `x` across, `y` down. MediaPipe gives positions as fractions of the picture's width and height, from 0 to 1.
 
-@@ 81
+@@ 75
 **`middle`** — the point halfway between two points.
 
-@@ 83-84
+@@ 77-78
 **`anglesFrom`** — the head's angles from four points of the face: the two eyes, the nose tip and the middle of the mouth. As the comment says, the formulas are the server's (`quality.py`).
 
-@@ 85
+@@ 79
 The point between the eyes.
 
-@@ 86
+@@ 80
 The distance between the eyes — `Math.hypot` is Pythagoras: the length of the line from one eye to the other. `Math.max(…, 1e-6)` (one millionth) keeps it from ever being zero, so the division below can't fail.
 
-@@ 87
+@@ 81
 How far the mouth is below the eyes, also never zero.
 
-@@ 88-89
+@@ 82-83
 **Yaw**: how far the nose is to the side of the eyes' midpoint, measured in eye distances. **Pitch**: how far down from the eyes the nose sits, as a fraction of the way to the mouth. Dividing makes both independent of how big the face is in the picture.
 
-@@ 91-92
+@@ 85-86
 **`readChallenge`** — check and convert the server's answer. The page treats the answer as untrusted data (`Record<string, unknown>`: an object whose values could be anything) and refuses anything it can't play exactly.
 
-@@ 93
+@@ 87
 Take the four fields out, renaming `challenge_id` to `id` and `step_ms` to `stepMs` as they come (`challenge_id: id` means "the field `challenge_id`, into a variable named `id`").
 
-@@ 94-105
+@@ 88-99
 **Every check at once**, joined with `&&` ("and"): the ID is a non-empty text; `poses` is a non-empty list (`Array.isArray`) whose every item (`every`) is a known pose; `colours` is a list of at least two items, each a well-formed colour; `stepMs` is a number from 400 to 2000. `pose as Pose` only tells TypeScript to allow the comparison; `includes` does the real check.
 
-@@ 106-108
+@@ 100-102
 If anything is wrong, stop with an error — the camera screen shows it like a camera error.
 
-@@ 109-110
+@@ 103-104
 Return the challenge in the page's own shape. Thanks to the checks, the type assertions (`as Pose[]`) are safe.

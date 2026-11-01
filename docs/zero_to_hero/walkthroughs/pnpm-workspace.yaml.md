@@ -1,5 +1,5 @@
 ---
-fingerprint: 4c763c4585a58742
+fingerprint: d3bfb488ea90c841
 ---
 This file tells pnpm that this repository is a **workspace**: several JavaScript packages managed together, installed together and able to depend on each other (§4.4).
 
@@ -46,3 +46,6 @@ The four: `tmp` (temporary files — 0.2.7 since 1 Nov, decision D14b, when a ne
 
 @@ 23
 And `body-parser` (reading request bodies in Lighthouse CI's local server), added on 30 Oct: its fixed version, 1.20.9, came out on 22 Oct, so the seven-day wait (`minimumReleaseAge`) held it back until 29 Oct.
+
+@@ 25-29
+**`allowBuilds`** (§5.5.11) — install scripts pnpm must never run. Packages may ship a script that runs as they are installed, with the installing user's rights; pnpm refuses to run any it hasn't been told about, and stops. next-intl brings two packages with such scripts, `@parcel/watcher` and `@swc/core`, for its message extractor — a tool this project doesn't use. Each also ships its compiled program as a separate package for each kind of computer, so the scripts have nothing to do here. `false` says: known, and not to be run.

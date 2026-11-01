@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { violations } from "./axe.js";
+
 test("the home page shows the running model's lines, and leads to the demo shop and the console", async ({
   page,
 }) => {
@@ -35,4 +37,37 @@ test("the hero's face turns 3D where the browser can draw it, and stays still fo
   await expect(calm.locator("canvas")).toBeHidden();
   await expect(calm.locator('svg[viewBox="0 0 240 280"] circle')).toHaveCount(168);
   await calm.close();
+});
+
+test("the home page speaks Hindi to anyone who chooses it, and remembers the choice", async ({ page }) => {
+  await page.goto("http://localhost:3000/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await page.getByRole("button", { name: "हिन्दी" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("देखो। तय करो। भूल जाओ।");
+  await expect(page.locator("html")).toHaveAttribute("lang", "hi");
+  await expect(page).toHaveTitle("द्वारपाल · निजी उम्र जाँच");
+  for (const question of await page.locator("details").all()) {
+    await question.evaluate((element) => element.setAttribute("open", ""));
+  }
+  expect(await violations(page)).toEqual([]);
+
+  // Remembered on the next visit; and English is one press away.
+  await page.reload();
+  await expect(page.getByRole("button", { name: "हिन्दी" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "English" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Look. Decide. Forget.");
+});
+
+test("a browser that asks for Hindi gets it without choosing, and the console stays English", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ locale: "hi-IN" });
+  const page = await context.newPage();
+  await page.goto("http://localhost:3000/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "hi");
+  await expect(page.getByRole("heading", { name: "यह कैसे काम करता है" })).toBeVisible();
+  // The console is written in English only, and says so for screen readers.
+  await page.goto("http://localhost:3000/console");
+  await expect(page.locator("div[lang=en]").first()).toContainText("Sign in");
+  await context.close();
 });

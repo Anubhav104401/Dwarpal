@@ -2,6 +2,7 @@ import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import { getLocale } from "next-intl/server";
 import type { ReactNode } from "react";
 
 import "./globals.css";
@@ -23,8 +24,10 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   // Reading the request makes every page render per request, so each gets the nonce of its own policy (proxy.ts).
   await headers();
+  // The page's language (decision D2), so screen readers pronounce it and browsers pick the right fonts.
+  const locale = await getLocale();
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang={locale} className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body className="min-h-dvh bg-ink-50 font-sans text-ink-900 antialiased dark:bg-ink-950 dark:text-ink-100">
         {children}
       </body>
