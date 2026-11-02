@@ -20,10 +20,10 @@ from onnx import TensorProto, helper, numpy_helper
 
 from dwarpal_contracts import DocumentAnalysis, FaceAnalysis, FaceRequestMeta, FrameMeta
 from dwarpal_inference.backends import AGES, ModelFileError, OnnxAgeBackend, StubAgeBackend
-from dwarpal_inference.main import build_age_backend, create_app
+from dwarpal_inference.main import build_age_backend, build_pipeline, create_app
 from dwarpal_inference.pipeline import FacePipeline, sharpest
 from dwarpal_inference.settings import Settings
-from dwarpal_vision import FaceDetector
+from dwarpal_vision import Face, FaceDetector, Image, RenderDetector
 from dwarpal_vision.document import Tesseract
 from dwarpal_vision.specimen import specimen_jpeg
 
@@ -77,6 +77,27 @@ def test_a_bad_frame_is_reported_without_spoiling_the_others(pipeline: FacePipel
     result = pipeline.analyze(burst(2), [b"definitely not an image", PORTRAIT])
     assert result.frames[0].flags == ["undecodable"]
     assert result.usable_frames == 1
+
+
+class FixedRender(RenderDetector):
+    """Stands in for a trained render detector: the same answer for every face."""
+
+    def __init__(self, chance: float) -> None:
+        self.chance = chance
+
+    def rendered(self, image: Image, face: Face) -> float:
+        return self.chance
+
+
+def test_the_render_detector_is_recorded_for_every_face_and_off_without_a_model() -> None:
+    result = FacePipeline(FaceDetector(MODEL), StubAgeBackend(30.0, 2.5), render=FixedRender(0.25)).analyze(
+        burst(2), [PORTRAIT] * 2
+    )
+    assert [frame.rendered_score for frame in result.frames] == [0.25, 0.25]
+    assert result.liveness is not None and result.liveness.rendered == 0.25
+    assert build_pipeline(Settings()).render is None
+    with pytest.raises(FileNotFoundError, match="render detector not found"):
+        build_pipeline(Settings(render_model="registry/render/none/render.onnx"))
 
 
 def test_no_usable_frames_means_no_age_estimate(pipeline: FacePipeline) -> None:

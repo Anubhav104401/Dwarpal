@@ -1,6 +1,7 @@
 # Consent form — video of your face for training Dwarpal's render detector
 
 > **Draft.** To be reviewed by a lawyer before anyone signs it (with the privacy documents, O5). Adults (18 or over) only.
+> A Hindi draft: [consent-form.hi.md](consent-form.hi.md).
 
 **Who asks:** the Dwarpal project, run by its owner, [name], [contact email].
 

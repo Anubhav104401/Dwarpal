@@ -316,6 +316,7 @@ def test_the_liveness_report_counts_outcomes_problems_signs_and_light() -> None:
                 "evidence": "images",
                 "presentation": 0.9 if passed else 0.1,
                 "screen_pattern": 1.1,
+                "rendered": 0.2 if passed else 0.7,
             }
         }
 
@@ -333,7 +334,10 @@ def test_the_liveness_report_counts_outcomes_problems_signs_and_light() -> None:
     assert "pose measured by: five_points 4" in report
     assert "pose reach from frontal, median / lowest: turn_left +0.30 / +0.05" in report
     assert "injection signs: automation 1" in report
-    assert "presentation: real-face chance median 0.90, lowest 0.10; screen pattern median 1.10" in report
+    assert (
+        "presentation: real-face chance median 0.90, lowest 0.10; screen pattern median 1.10; "
+        "rendered chance median 0.20, highest 0.70"
+    ) in report
     assert "light shown: 4 of 4; usable: 3 of 4; skin correlation median +0.60, range +0.40 to +0.80" in report
 
 

@@ -8,6 +8,7 @@ from dwarpal_vision.detect import Face, FaceDetector
 from dwarpal_vision.hands import HandDetector
 from dwarpal_vision.mesh import FaceMesh, HeadAngles
 from dwarpal_vision.quality import DEFAULT_RULES, Quality, QualityRules, assess
+from dwarpal_vision.render import RenderDetector
 
 __all__ = [
     "DEFAULT_RULES",
@@ -20,6 +21,7 @@ __all__ = [
     "Image",
     "Quality",
     "QualityRules",
+    "RenderDetector",
     "SpoofDetector",
     "SpoofModel",
     "align_face",

@@ -1,5 +1,5 @@
 ---
-fingerprint: 32d39915ac490945
+fingerprint: 44de14d0f451a32d
 ---
 The vision package's **front door**: it re-exports the useful names from its four modules, so other code can simply write `from dwarpal_vision import FaceDetector, assess`.
 
@@ -35,5 +35,8 @@ The face mesh and its head-angle result (`mesh.py`).
 @@ 10
 From `quality.py`: the default rules, the `Quality` result, the `QualityRules` settings, and `assess`, which checks a frame.
 
-@@ 12-31
+@@ 13-33
 `__all__` — the public interface, one name per line, in alphabetical order (capitals first, as Ruff's sorter arranges them).
+
+@@ 11
+The render detector's wrapper (§5.9.4).

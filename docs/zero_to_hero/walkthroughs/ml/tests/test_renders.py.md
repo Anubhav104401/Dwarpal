@@ -1,5 +1,5 @@
 ---
-fingerprint: 074bb8d62dd834c6
+fingerprint: c5c679565c747628
 ---
 **Tests for the render detector's own data** (decision D22, 2 Nov 2026).
 
@@ -51,8 +51,11 @@ A person's clip and a render's. Withdrawing before the register says so is refus
 @@ 70-71
 The register now says withdrawn; `check` fails, because a clip filmed under it is still there.
 
-@@ 72-75
-`withdraw` deletes that one clip and its folder; the render stays, and `check` passes again.
+@@ 74-78
+`withdraw` deletes that one clip and its folder, and the prepared crops with it; the render stays, and `check` passes again.
 
-@@ 78-82
+@@ 81-85
 A thousand IDs: each always lands in the same split, and the shares come out close to 70 / 15 / 15.
+
+@@ 72-73
+Prepared crops on disk, as `render_detector.prepare` would leave them.

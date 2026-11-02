@@ -1,5 +1,5 @@
 ---
-fingerprint: 68ca9aae5b0f3063
+fingerprint: b203eef5df65fa36
 ---
 The **fast tests**: everything that can be checked without a database, a network or a clock — identifiers, keys, policies, the decision engine, the state machine, the production guard and the log format. All 30 finish in about two seconds.
 
@@ -152,31 +152,31 @@ Every challenge has 3 or 4 poses, at most one look-up, the right number of colou
 @@ 305
 And all **24** possible pose orders turn up: 10 with three poses and 14 with four, once the two rules are applied. If the generator favoured some orders, an attacker could prepare for those.
 
-@@ 308-320
-**The liveness report** — first a small helper that builds the stored scores of one attempt: whether the pose passed, its problems, how far its turn got (0.3 when it passed, 0.05 when it didn't), the injection signs, a skin correlation (or `None` for "not measurable"), and the presentation evidence: a real-face chance of 0.9 when it passed and 0.1 when it didn't, and a screen pattern of 1.1.
+@@ 308-321
+**The liveness report** — first a small helper that builds the stored scores of one attempt: whether the pose passed, its problems, how far its turn got (0.3 when it passed, 0.05 when it didn't), the injection signs, a skin correlation (or `None` for "not measurable"), and the presentation evidence: a real-face chance of 0.9 when it passed and 0.1 when it didn't, and a screen pattern of 1.1. Each attempt also carries a render detector's chance: 0.2 when it passed, 0.7 when not.
 
-@@ 322-329
+@@ 323-330
 Four made-up attempts: two passes with good light measurements, a retry whose head never turned left, and a step-up caused by automation.
 
-@@ 330-357
+@@ 331-361
 The report counts them correctly: the outcomes, 3 of 4 pose checks passed (a false-reject rate of 25% *if* these were all genuine people), the one problem, the measurement used, the turn's reach — median 0.30, lowest 0.05 — the one sign, the presentation line (real-face chance median 0.90, lowest 0.10), and the light: shown 4 times, usable 3, median skin correlation 0.6.
 
-Then four decision tests. **The screen light is recorded but decides nothing**: even a correlation of −0.25 lets a clear adult pass — genuine faces in the owner's tests measured that low. **A hand beside the face decides nothing yet**: the hand detector isn't trusted. **A face the anti-spoofing networks doubt goes to step-up**: a real-face chance of 0.95 passes, 0.2 steps up.
+Then four decision tests. **The screen light is recorded but decides nothing**: even a correlation of −0.25 lets a clear adult pass — genuine faces in the owner's tests measured that low. **A hand beside the face decides nothing yet**: the hand detector isn't trusted. **A face the anti-spoofing networks doubt goes to step-up**: a real-face chance of 0.95 passes, 0.2 steps up. The presentation line now also gives the render detector's median (0.20) and highest (0.70) chance.
 
-@@ 360-361
+@@ 364-365
 **A live session needs the anti-spoofing verdict.** Two passing liveness results, one with the networks' verdict (0.97) and one without.
 
-@@ 362-365
+@@ 366-369
 In a live session, the measured one passes and the unmeasured one gets a retry (`liveness_unavailable`).
 
-@@ 366
+@@ 370
 In a test session, the unmeasured one still passes: tests and local development work without the networks.
 
-@@ 369-370
+@@ 373-374
 **Bands of time, and the median band.** Times on and around the edges of bands: below zero and under 5 s go in the first band; exactly 5 s starts the next; anything from 5 minutes on is in the last.
 
-@@ 371-372
+@@ 375-376
 A band's end is the next band's start, and the last has none; and every band's own start falls in that band.
 
-@@ 373-376
+@@ 377-380
 No checks, no median. Of three checks, the 2nd's band. Of four, two fast and two slow, the slower middle one — a tie never flatters the figure. And a single check in the last band gives a band without an end.

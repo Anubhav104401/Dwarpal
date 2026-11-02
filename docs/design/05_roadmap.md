@@ -18,7 +18,7 @@
 | 6 | Step-up verifiers — MRZ, then Aadhaar Secure QR | 🟡 MRZ done end to end — [report](../reports/phase-6.md); Aadhaar deferred by the owner (D8, O7) |
 | 7 | Hardening — security, observability, load, privacy docs | 🟡 nearly all done — [report](../reports/phase-7.md); open: SLOs measured on the real server, alert delivery |
 | 8 | Deployment — VM, TLS, CI/CD, backups, runbooks, Helm | 🟡 everything written and checked — [report](../reports/phase-8.md); waits on the owner's server, domain and backups storage |
-| 9 | Stretch — Age Pass credential, passkeys, render detector, Python SDK | 🟡 SDK, passkeys, Age Pass built — [report](../reports/phase-9.md); render detector waits for data |
+| 9 | Stretch — Age Pass credential, passkeys, render detector, Python SDK | 🟡 SDK, passkeys, Age Pass built — [report](../reports/phase-9.md); render detector's code built, its data being made (D22; filming waits for D23) |
 
 Each phase ends with a **phase report** in `docs/reports/`: what was built, what was measured, what changed from the plan and why, and the known limitations. The book's changelog links to it.
 

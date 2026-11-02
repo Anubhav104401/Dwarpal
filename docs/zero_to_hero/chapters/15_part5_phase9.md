@@ -125,6 +125,22 @@ A training set is the one place in Dwarpal where faces are kept, so it has rules
 
 !walk ml/tests/test_renders.py
 
+The detector itself starts from a network the service already trusts: **MiniFASNet V2**, the anti-spoofing network of §5.3, which has learnt what a camera sees of a screen or a print. Its last layer is swapped for one with two answers — *real*, *rendered* — and the whole network is trained further on the clips' face crops. The threshold is chosen on the validation people so that at most 5 % of real faces are called rendered, and the test people then measure the two standard error rates: **APCER** (renders taken for real) and **BPCER** (real people taken for renders). Only a network that passes its release gates can be exported.
+
+!walk ml/src/dwarpal_ml/render_detector.py
+
+!walk ml/src/dwarpal_ml/minifasnet_v2_shapes.json
+
+!walk ml/render_gates.toml
+
+!walk ml/tests/test_render_detector.py
+
+In the service it is **recorded only**, like the screen light (§5.3): the inference service measures it on every face once `DWARPAL_INFERENCE_RENDER_MODEL` names a trained file, the attempt's median is stored with the other liveness evidence, and `liveness-report` summarises it — but no rule reads it until it has been measured on real attempts.
+
+!walk libs/vision/src/dwarpal_vision/render.py
+
+The contracts (`rendered_score` per frame, `rendered` per attempt), the vision package's list, the pipeline, the inference settings and start-up, the liveness report and their tests changed too; each was re-explained. The consent form has a Hindi draft (`docs/data/consent-form.hi.md`), machine-drafted like the rest of the Hindi.
+
 !!! honest "Honest limitation"
-    Nothing is filmed or trained yet: the renders need Blender, the MPFB extension and MakeHuman's assets, which wait for the owner's approval to download (D23); the consent form waits for a lawyer's review. A first set will be small — 40 made-up people, a few cameras and rooms — and a real-time swap of a real person's face isn't covered at all.
+    Nothing is filmed or trained yet: the renders need Blender, the MPFB extension and MakeHuman's assets, which wait for the owner's approval to download (D23); the consent form waits for a lawyer's review. The tests prove the machinery on fake pictures (speckle against smooth ramps), not that it can tell a real face from a good render: that needs the real clips. A first set will be small — 40 made-up people, a few cameras and rooms — and a real-time swap of a real person's face isn't covered at all.
 

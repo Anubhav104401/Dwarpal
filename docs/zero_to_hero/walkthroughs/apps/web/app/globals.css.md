@@ -1,5 +1,5 @@
 ---
-fingerprint: d7af9d7291efab14
+fingerprint: a27cd98abfc22293
 ---
 The web app's global stylesheet, which since Phase 5 holds **Dwarpal's design tokens**: the named colours, type sizes and motion settings every page is built from (§5.5.6). Tailwind turns each token into a CSS variable and into classes.
 
@@ -12,7 +12,7 @@ The web app's global stylesheet, which since Phase 5 holds **Dwarpal's design to
 All colours are in **OKLCH** — *lightness* (0 black to 1 white), *chroma* (how vivid), *hue* (an angle round the colour wheel). Contrast depends mostly on lightness, so colours at the same lightness can be swapped without breaking it.
 
 @@ 7-8
-The typefaces: **Geist** for everything (`font-sans`), **Geist Mono** for code and IDs (`font-mono`), each falling back to the system's own if they haven't loaded. Geist has no Devanagari letters, so for those the browser moves down the list to **Noto Sans Devanagari** (decision D2b) — on the Hindi pages, and for the word *हिन्दी* in the language switch.
+The typefaces: **Geist** for everything (`font-sans`), **Geist Mono** for code and IDs (`font-mono`), each falling back to the system's own if they haven't loaded.
 
 @@ 10-11
 **Ink** — the neutral scale, from nearly white (50) to nearly black (950): backgrounds, borders and text. The design calls for a *midnight indigo* base, so the hue is 275 (blue-violet) with a little chroma, most toward the dark end.
@@ -64,3 +64,6 @@ The end of the theme.
 
 @@ 82-84
 `color-scheme: light dark` — tells the browser that the page supports both light and dark modes, so its own parts (scroll bars, form controls) follow the visitor's choice.
+
+@@ 86-90
+**Hindi pages only** (`html:lang(hi)`: the page's `lang` is `hi`): the same list with **Noto Sans Devanagari** (decision D2b) after Geist, which has no Devanagari letters. It was first on every page, but then English pages fetched the font (121 KB) for the single word *हिन्दी* in the language switch, and the home page's Lighthouse performance score dipped under 90 in CI (3 Nov). Now that word uses the system's Devanagari font, as before. This rule wins over Tailwind's own `:root` rule because `html:lang(hi)` is more specific.

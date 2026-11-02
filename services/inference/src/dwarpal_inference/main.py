@@ -22,7 +22,7 @@ from dwarpal_inference.backends import AgeBackend, OnnxAgeBackend, StubAgeBacken
 from dwarpal_inference.document import DocumentReader
 from dwarpal_inference.pipeline import FacePipeline
 from dwarpal_inference.settings import Settings
-from dwarpal_vision import FaceDetector, FaceMesh, HandDetector, SpoofDetector, SpoofModel
+from dwarpal_vision import FaceDetector, FaceMesh, HandDetector, RenderDetector, SpoofDetector, SpoofModel
 from dwarpal_vision.document import Tesseract
 from dwarpal_vision.match import FaceMatcher
 
@@ -43,12 +43,15 @@ def build_pipeline(settings: Settings) -> FacePipeline:
     ]
     # Made from the pinned weights by `python -m dwarpal_ml.antispoof`; without them, liveness says so and decides less.
     spoof = SpoofDetector(models) if all(model.path.is_file() for model in models) else None
+    # Recorded only (ADR-0021); a model named but missing stops the start-up rather than quietly measuring nothing.
+    render = RenderDetector(settings.models_dir / settings.render_model) if settings.render_model else None
     return FacePipeline(
         detector,
         build_age_backend(settings),
         mesh=mesh,
         hands=hands,
         spoof=spoof,
+        render=render,
         trust_labels=settings.liveness == "labels",
         age_frames=settings.age_frames,
     )

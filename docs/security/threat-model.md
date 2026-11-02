@@ -92,8 +92,8 @@ The browser and everything on the internet is untrusted. The inference service i
 | :-- | :-- |
 | An adult does the check for a child | **not preventable** by any remote method; the design limits reuse (tokens bound to one session and website, short-lived) |
 | A child presents an adult's photo or video | blocked in the owner's red team (Phase 3): 0 of 3 posed-selfie and 0 of 4 video attacks passed with anti-spoofing |
-| Virtual camera feeding pre-recorded or synthetic video | **untested** (Phase 3 open item); injection signs only catch naive cases |
-| Real-time deepfake | **untested** |
+| Virtual camera feeding pre-recorded or synthetic video | **untested** (Phase 3 open item); injection signs only catch naive cases. A render detector (liveness level 6, ADR-0021) is built and records its chance once trained, but waits for data and decides nothing |
+| Real-time deepfake | **untested**; no licensed data to train on (render-detector-datasets.md) |
 | Masks | **untested** |
 | Retrying until the estimate drifts over the line | session attempt limits; device and address budgets; each retry raises the bar |
 | Borrowed document (step-up) | face match document ↔ selfie (Phase 6, waiting for a model) |
@@ -103,7 +103,7 @@ The browser and everything on the internet is untrusted. The inference service i
 
 1. ~~Next.js 16.4.0's two critical remote-code-execution flaws and one high denial-of-service flaw~~ (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r) — **fixed 27 Oct**: both apps upgraded to 16.4.2 (decision D12); `pnpm audit` reports no known vulnerabilities.
 2. **The API logs in as the database owner and switches role** — a fully attacker-controlled statement could `RESET ROLE`. Production must use a login that is only a member of `dwarpal_app` (Phase 8).
-3. **Untested presentation attacks** — virtual camera, deepfake, mask; one-person measurement (Phase 3 open items).
+3. **Untested presentation attacks** — virtual camera, deepfake, mask; one-person measurement (Phase 3 open items). The render detector's code is ready (3 Nov); its data is being made under ADR-0021.
 4. **No dependency or container scanning yet** — Semgrep, pip-audit, Trivy, ZAP pending (D9).
 5. **DNS rebinding window** between the webhook address check and the connection — worker egress filtering in Phase 8.
 6. **Audit chain not anchored outside the database** — a consistent rewrite by someone controlling the database would go unnoticed.

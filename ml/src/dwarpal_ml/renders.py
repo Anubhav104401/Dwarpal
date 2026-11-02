@@ -195,6 +195,8 @@ def withdraw(consent_id: str, folder: Path = DATA) -> int:
     for clip in gone:
         shutil.rmtree(folder / "clips" / clip.clip_id, ignore_errors=True)
     write_clips([c for c in clips if c.consent != consent_id], folder)
+    # The prepared crops (dwarpal_ml.render_detector) hold faces too: all of them go, to be prepared again.
+    shutil.rmtree(folder / "crops", ignore_errors=True)
     return len(gone)
 
 

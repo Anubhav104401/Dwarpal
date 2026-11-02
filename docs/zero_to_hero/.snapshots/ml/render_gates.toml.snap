@@ -1,0 +1,30 @@
+# Release gates for the render detector (liveness level 6, ADR-0021): what it must achieve on the test split before it
+# may be exported. Checked by `python -m dwarpal_ml.render_detector evaluate`; `metric` is a path into evaluation.json.
+#
+# PROVISIONAL, for the owner to confirm. The threshold is chosen on the validation split so that at most 5 % of real
+# people's crops are called rendered; these gates use the upper ends of 95 % intervals, so a small test set can't pass
+# by luck.
+
+[[gate]]
+name = "renders-caught"
+metric = "test.apcer.upper"
+max = 0.10
+why = "Rendered faces taken for real: at most 10 %, with 95 % confidence"
+
+[[gate]]
+name = "real-people-refused"
+metric = "test.bpcer.upper"
+max = 0.10
+why = "Real people's faces taken for renders: at most 10 %, with 95 % confidence"
+
+[[gate]]
+name = "enough-real-people"
+metric = "test.people.real"
+min = 5
+why = "The test rests on at least 5 real people the model never saw"
+
+[[gate]]
+name = "enough-made-up-people"
+metric = "test.people.rendered"
+min = 5
+why = "And at least 5 made-up people it never saw"

@@ -1,5 +1,5 @@
 ---
-fingerprint: e21278c10a96255d
+fingerprint: 5d9906faa46b87a1
 ---
 A small **command-line tool** for two jobs a developer needs before the API is useful:
 
@@ -216,86 +216,86 @@ One short text per pose name: the **median** and the **lowest** value, such as `
 @@ 223
 Which measurement each pose check used, counted.
 
-@@ 224-226
-The presentation evidence, gathered over the attempts: the real-face chances, the screen patterns, and for every pose whether it was caught mid-turn (`True`/`False`). `.get(…)` skips results stored before these fields existed.
+@@ 224-227
+The presentation evidence, gathered over the attempts: the real-face chances, the screen patterns, the render detector's chances, and for every pose whether it was caught mid-turn (`True`/`False`). `.get(…)` skips results stored before these fields existed.
 
-@@ 227-228
+@@ 228-229
 Build the report line by line. The first: the number of attempts and each outcome with its count, most common first. `", ".join(…)` puts commas between the parts.
 
-@@ 229
+@@ 230
 The evidence counts — or `none`. `or "none"` works because an empty text counts as false.
 
-@@ 230-235
+@@ 231-236
 How many pose challenges passed, as a count and a percentage (`:.0%` formats 0.9 as `90%`), and the **false-reject rate if every attempt was genuine** — the share that failed. The extra part is added only if there were pose results (`if poses else ""`), which also avoids dividing by zero.
 
-@@ 236-239
+@@ 237-240
 The pose problems, the measurement used, how far each pose got (median and lowest — the numbers from which the pose limits are set), and the injection signs, each with its count, or `none`.
 
-@@ 240-243
-**The presentation line**: the real-face chance's median and lowest value (or `not measured`), the screen pattern's median, and how many poses were caught mid-turn. `sum` of `True`/`False` values counts the `True`s.
+@@ 241-249
+**The presentation line**: the real-face chance's median and lowest value (or `not measured`), the screen pattern's median, the render detector's median and highest chance (when measured), and how many poses were caught mid-turn. `sum` of `True`/`False` values counts the `True`s.
 
-@@ 244-249
+@@ 250-255
 How many attempts showed the colours and how many had a usable light measurement, and — if there were any skin correlations — their **median** (the middle value, which one odd attempt can't drag far) and their range. `:+.2f` prints a number with two decimals and always a sign, such as `+0.62`.
 
-@@ 250-251
+@@ 256-257
 Close the list, and join the lines with line breaks into one text.
 
-@@ 254
+@@ 260
 **`liveness_report`** — read the attempts from the database and summarise them. It is `async` because the database code is.
 
-@@ 255-256
+@@ 261-262
 Connect to the database and open a session.
 
-@@ 257-263
+@@ 263-269
 Fetch only two columns — the outcome and the scores — of every **face** attempt created at or after `since`. `.all()` returns the rows.
 
-@@ 264
+@@ 270
 Close the connection.
 
-@@ 265
+@@ 271
 Turn each row into an (outcome, scores) pair and summarise them.
 
-@@ 268
+@@ 274
 **`main`** — what runs when the module is started as a program. `argv` lets tests pass arguments directly; normally it is `None`, and `argparse` reads the real command line.
 
-@@ 269-286
+@@ 275-292
 Describe the tool, accept exactly one of the nine commands (listed one per line), the optional `--since`, and for the key commands `--lookup` (the key id) and `--grace-hours` (24 if not given; `type=float` allows `0.5`); `--once` (`action="store_true"`: present means true) is for `deliver-webhooks`. Then read them. `type=datetime.fromisoformat` converts the text (such as `2026-10-17T12:00`) into a date and time; a malformed one is refused with a message. Anything else prints a helpful usage message and stops.
 
-@@ 287-290
+@@ 293-296
 `migrate`: apply the migrations, say so, and return `0` (success).
 
-@@ 291-302
+@@ 297-308
 `liveness-report`: from `--since`, or from 24 hours ago if it was left out. A time typed without a time zone is taken as UTC (`replace(tzinfo=UTC)`), because the database stores times in UTC and can't compare them with a time that has none. Print the report and return `0`.
 
 `deliver-webhooks`: run the worker with the normal settings.
 
 `openapi`: create `docs/api/` if it doesn't exist (`mkdir(parents=True, exist_ok=True)`), write the document with Unix line endings, say where, and succeed.
 
-@@ 303-305
+@@ 309-311
 `maintain`: run the jobs and print the summary.
 
-@@ 306-309
+@@ 312-315
 `verify-audit`: print the report, and fail (exit code `1`) if any chain is broken, so a scheduler or monitoring system notices.
 
-@@ 310-311
+@@ 316-317
 The key commands need to know which key: without `--lookup`, `parser.error` prints the usage and stops with an error.
 
-@@ 312-315
+@@ 318-321
 `rotate-key`: make the replacement, print it once with a reminder to store it and when the old key stops, and succeed.
 
-@@ 316-319
+@@ 322-325
 `revoke-key`: switch the key off and say so, or say there was no such working key and return `1`, failure, so a script that calls this notices.
 
-@@ 320
+@@ 326
 Otherwise, `seed-dev`: run the async seed with the normal settings. `asyncio.run` starts the async engine, runs the function to the end, and returns its result.
 
-@@ 321-322
+@@ 327-328
 Print the project ID, the key, and the key id (characters 8 to 19 of the key: `plaintext[8:20]` skips `dk_test_` and takes the 12 that follow), with a reminder to store the key now. `\n` inside the text starts a new line.
 
 The message uses only plain ASCII characters. An earlier version contained a long dash `—`, which came out as `�` when the output was saved to a file on Windows: Python then writes text with Windows' older character table, which other tools don't expect.
 
-@@ 323
+@@ 329
 Success.
 
-@@ 326-327
+@@ 332-333
 Run `main` only when the module is started as a program, and hand its result to the operating system as the **exit code**: `0` means success, anything else failure (§4.6).

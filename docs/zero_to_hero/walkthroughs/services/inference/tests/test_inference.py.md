@@ -1,5 +1,5 @@
 ---
-fingerprint: 770f010a022afee0
+fingerprint: c2d0d61662a4e0a8
 ---
 Tests for the inference service, at two levels:
 
@@ -40,7 +40,7 @@ Tools to write `client_for` (line 30), a helper that starts the app and opens a 
 From `onnx`: the data-type names (`TensorProto`), the graph builder (`helper`) and the converter from NumPy arrays (`numpy_helper`).
 
 @@ 21-26
-The code under test: the contracts (now with `DocumentAnalysis`), both age models with their fingerprint error and age scale, the backend chooser and the app factory, the pipeline and its frame chooser (`sharpest`), the settings, and the face detector.
+The code under test: the contracts (now with `DocumentAnalysis`), both age models with their fingerprint error and age scale, the backend chooser and the app factory, the pipeline and its frame chooser (`sharpest`), the settings, and the face detector. Also the pipeline builder, and the render detector with the types its stand-in needs.
 
 @@ 30-32
 The repository root (`parents[3]` climbs `tests → inference → services → root`). The portrait's bytes are read **once** and shared by every test, together with the model file's location.
@@ -90,16 +90,16 @@ And the chooser on its own: the two 0.9s first, in their original order, then 0.
 @@ 76-79
 **One bad frame doesn't spoil the others.** The first "frame" is not an image at all. It is reported as `undecodable`, while the second frame is still used.
 
-@@ 82-85
+@@ 103-106
 **No usable frame, no estimate.** Sixteen zero bytes are not an image, so there is no age estimate at all (`None`) — rather than a made-up one.
 
-@@ 88
+@@ 109
 `@pytest.mark.anyio` — this test is **asynchronous** (`async def`). It must be run by an event loop, which anyio's pytest plugin provides.
 
-@@ 89-90
+@@ 110-111
 **A real multipart request.** `files` maps each form field name (`frame_0`, `frame_1`) to a file name, its bytes and its content type, exactly as a browser sends uploads.
 
-@@ 91-95
+@@ 112-116
 Start an app whose stand-in model says 40, then:
 
 - post the metadata (`data`) and the frames (`files`) to the analysis endpoint;
@@ -107,58 +107,58 @@ Start an app whose stand-in model says 40, then:
 
 `await` waits for each response without blocking anything else.
 
-@@ 96-100
+@@ 117-121
 The request succeeded (`200`). The response is read back through the contract (`model_validate`), which would fail if any field were wrong. The model version, the number of usable frames and the readiness answer are all as expected.
 
-@@ 103-108
+@@ 124-129
 **Readiness says when the anti-spoofing networks are missing.** Start the service with file names that don't exist: it still starts, and `/readyz` reports `antispoof: missing`.
 
-@@ 111-119
+@@ 132-140
 **A missing frame is refused, and named.** The metadata promises two frames but only `frame_0` is sent, so the answer must be `422` with the exact message `frame_1 is missing`.
 
-@@ 122-123
+@@ 143-144
 **`tiny_model`** — build a stand-in ONNX age model with the real one's interface — pixels in, 101 probabilities out — without PyTorch or any training. The service must be testable on its own, in seconds.
 
-@@ 124
+@@ 145
 Its only weights: a 3 × 101 grid of numbers spread evenly from −1 to 1.
 
-@@ 125-136
+@@ 146-157
 The model's **graph**, node by node: average each colour over the whole picture (`GlobalAveragePool`, giving 3 numbers per face), lay them flat, multiply by the weights (101 scores), and turn them into probabilities (`Softmax`). Then its input and output, named and shaped exactly like the real model's (`faces` is a size left open), and the weights, scaled so that pixels of 0–255 give moderate scores.
 
-@@ 137
+@@ 158
 Wrap the graph as a model for ONNX's operator set 18, in file-format version 10 — the format the real export uses. (The `onnx` library would otherwise write its newest format, 14, which ONNX Runtime 1.31 can't read yet: the first version of this test found that.)
 
-@@ 138-143
+@@ 159-164
 Save it, fingerprint it, and write a minimal manifest naming its version, file and fingerprint.
 
-@@ 146-153
+@@ 167-174
 **An ONNX model gives one distribution per face**: two faces in (all black, all white), two rows of 101 probabilities out, each adding up to 1, different from each other; and the version is the manifest's.
 
-@@ 156-163
+@@ 177-184
 **The wrong file is refused**: a model file with a few extra bytes no longer matches its fingerprint, and the backend refuses to load it; a missing file is refused too.
 
-@@ 166-170
+@@ 187-191
 **The settings choose the backend**: `onnx` with a model folder gives the ONNX model; the default settings still give the stand-in.
 
-@@ 173-178
+@@ 194-199
 **`Slow`** — a stand-in pipeline that takes a quarter of a second and returns an empty analysis: enough to keep the one worker busy.
 
-@@ 181-183
+@@ 202-204
 **Test — a short wait, then "busy"** (Phase 7), run twice (`parametrize`): with a wait of 0.05 s, one of two simultaneous requests must be told busy; with 1 s, both are served.
 
-@@ 184-186
+@@ 205-207
 One frame, its labels, and an app with a single worker and the chosen wait.
 
-@@ 187-189
+@@ 208-210
 Start it, swap in the slow pipeline, and collect the status codes.
 
-@@ 191-192
+@@ 212-213
 **`send`** — one analysis request; note its status code.
 
-@@ 194-196
+@@ 215-217
 Send two at once (`create_task_group` runs both, and waits for both).
 
-@@ 197
+@@ 218
 In order: 200 and 503 for the short wait — the second request gave up while the first was being analysed; 200 and 200 for the long one — it waited its turn.
 
 @@ 13
@@ -167,29 +167,41 @@ In order: 200 and 503 for the short wait — the second request gave up while th
 @@ 27-28
 For the document checks: `Tesseract`, to find out whether OCR is available, and `specimen_jpeg`, which draws a photographed specimen passport.
 
-@@ 200-208
+@@ 221-229
 `TESSERACT` — how to run Tesseract here: installed, or in the project's OCR container; `None` if neither answers.
 
-@@ 211-214
+@@ 232-235
 **Test — a document check reads the zone and matches the selfie to the printed face.** Skipped without Tesseract.
 
-@@ 215-217
+@@ 236-238
 Three selfie frames of the test portrait, and a photographed specimen passport carrying the same face.
 
-@@ 218-222
+@@ 239-243
 Post them to the document address, and ask for readiness too.
 
-@@ 223-226
+@@ 244-247
 Two lines read, starting `P<UTO`, and **no name** in them: the names line is blanked before it leaves the service.
 
-@@ 227-230
+@@ 248-251
 One face found on the document, alike enough to the selfie (above 0.5; OpenCV's threshold for the same person is 0.363); the selfie analysed as a face attempt; and OCR reported ready.
 
-@@ 233-236
+@@ 254-257
 **Test — without Tesseract, a document check says so.** A service told to start a program that doesn't exist.
 
-@@ 237-240
+@@ 258-261
 Post the portrait as the "document": it has no MRZ at all.
 
-@@ 241-244
+@@ 262-265
 No zone is read, for the right reason (no band was found, so Tesseract wasn't needed), and readiness says OCR is `missing`.
+
+@@ 82-89
+**`FixedRender`** stands in for a trained render detector: it skips loading a file and gives every face the same chance. Being a `RenderDetector`, the type checker accepts it wherever the real one goes.
+
+@@ 92-97
+With it, every frame's report carries its chance, and the attempt's liveness the median.
+
+@@ 98
+Without `render_model` set, as by default, there is no render detector at all.
+
+@@ 99-100
+A model named but missing stops the start-up, with a message saying what's missing.

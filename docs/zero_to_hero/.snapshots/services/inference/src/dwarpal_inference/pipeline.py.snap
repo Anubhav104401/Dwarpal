@@ -26,6 +26,7 @@ from dwarpal_vision import (
     HandDetector,
     Image,
     QualityRules,
+    RenderDetector,
     SpoofDetector,
     align_face,
     assess,
@@ -54,6 +55,7 @@ class FacePipeline:
         mesh: FaceMesh | None = None,
         hands: HandDetector | None = None,
         spoof: SpoofDetector | None = None,
+        render: RenderDetector | None = None,
         trust_labels: bool = False,
         age_frames: int = 3,
     ) -> None:
@@ -63,6 +65,7 @@ class FacePipeline:
         self.mesh = mesh
         self.hands = hands
         self.spoof = spoof
+        self.render = render
         self.trust_labels = trust_labels
         self.age_frames = age_frames
 
@@ -97,6 +100,7 @@ class FacePipeline:
             one = quality.faces == 1
             real = self.spoof.real(image, faces[0]) if self.spoof is not None and one else None
             pattern = screen_pattern(image, faces[0]) if one else None
+            rendered = self.render.rendered(image, faces[0]) if self.render is not None and one else None
             reports.append(
                 FrameReport(
                     index=frame.index,
@@ -112,6 +116,7 @@ class FacePipeline:
                     hands_near_face=nearby,
                     real_score=real,
                     screen_pattern=pattern,
+                    rendered_score=rendered,
                     flags=list(quality.flags),
                 )
             )
@@ -136,6 +141,7 @@ class FacePipeline:
             injection=injection_signs(seen, meta.signals, trusting),
             presentation=median_of([r.real_score for r in reports]) if not trusting else None,
             screen_pattern=median_of([r.screen_pattern for r in reports]) if not trusting else None,
+            rendered=median_of([r.rendered_score for r in reports]) if not trusting else None,
             evidence="labels" if trusting else "images",
         )
         elapsed = (time.perf_counter() - started) * 1000.0

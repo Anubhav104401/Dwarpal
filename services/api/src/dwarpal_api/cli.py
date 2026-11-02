@@ -223,6 +223,7 @@ def liveness_summary(attempts: list[tuple[str, dict[str, Any]]]) -> str:
     measured = Counter(pose.get("measured_by", "five_points") for pose in poses)
     real = [live["presentation"] for live in lives if live.get("presentation") is not None]
     patterns = [live["screen_pattern"] for live in lives if live.get("screen_pattern") is not None]
+    rendered = [live["rendered"] for live in lives if live.get("rendered") is not None]
     gradual = [moved for pose in poses for _, moved in pose.get("gradual", [])]
     lines = [
         f"{len(attempts)} face attempts: " + ", ".join(f"{name} {count}" for name, count in outcomes.most_common()),
@@ -240,6 +241,11 @@ def liveness_summary(attempts: list[tuple[str, dict[str, Any]]]) -> str:
         "presentation: "
         + (f"real-face chance median {statistics.median(real):.2f}, lowest {min(real):.2f}" if real else "not measured")
         + (f"; screen pattern median {statistics.median(patterns):.2f}" if patterns else "")
+        + (
+            f"; rendered chance median {statistics.median(rendered):.2f}, highest {max(rendered):.2f}"
+            if rendered
+            else ""
+        )
         + f"; poses caught mid-turn {sum(gradual)} of {len(gradual)}",
         f"light shown: {shown} of {len(lives)}; usable: {len(lights)} of {len(lives)}"
         + (

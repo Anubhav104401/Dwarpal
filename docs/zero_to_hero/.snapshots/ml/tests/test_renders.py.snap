@@ -69,8 +69,11 @@ def test_withdrawing_consent_deletes_that_persons_clips_and_check_catches_leftov
         renders.withdraw("c-001", tmp_path)
     consent(tmp_path, withdrawn="2026-11-04")
     assert renders.main(["--folder", str(tmp_path), "check"]) == 1
+    (tmp_path / "crops").mkdir()
+    (tmp_path / "crops" / "train.npz").write_bytes(b"faces")
     assert renders.withdraw("c-001", tmp_path) == 1
     assert not (tmp_path / "clips" / clip.clip_id).exists()
+    assert not (tmp_path / "crops").exists()
     assert [c.identity for c in renders.read_clips(tmp_path)] == ["render-001"]
     assert renders.main(["--folder", str(tmp_path), "check"]) == 0
 

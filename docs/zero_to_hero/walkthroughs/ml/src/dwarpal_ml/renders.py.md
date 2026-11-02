@@ -1,5 +1,5 @@
 ---
-fingerprint: 9f5f1c3aefb4e62f
+fingerprint: a033effd7be1dadb
 ---
 **The render detector's own data** (decision D22, 2 Nov 2026; ADR-0021): a tool that films and files clips — of real people only under a standing written consent, and of made-up people we render — splits them by person, and deletes a person's clips when they withdraw.
 
@@ -132,44 +132,44 @@ Only once the register says the consent was withdrawn — the register stays the
 @@ 193-196
 Every clip filmed under that consent: its folder deleted…
 
-@@ 197-198
-…its line dropped from the list, and the number deleted returned.
+@@ 197-200
+…its line dropped from the list. The prepared crops (`render_detector.prepare`) hold faces too, and are gathered from every clip at once, so they are all deleted and must be prepared again. The number of clips deleted is returned.
 
-@@ 201-213
+@@ 203-215
 **`camera_frames`**: frames from a webcam, for the given number of seconds at the camera's own frame rate (30 if it doesn't say). `yield` hands each frame on as it arrives; `finally` releases the camera even if something fails. Not run by the tests (`pragma: no cover`): they have no webcam.
 
-@@ 216-218
+@@ 218-220
 **`main`**: the command line. Every command takes `--folder`, so the tests can work in a temporary one.
 
-@@ 219-222
+@@ 221-224
 Three short commands: `check`, `split` and `inject`.
 
-@@ 223-230
+@@ 225-232
 **`record`** and its options. `--consent` isn't required by the parser but by the rule, so a missing one gets the rule's own explanation.
 
-@@ 231-232
+@@ 233-234
 **`withdraw`**, with the consent's ID.
 
-@@ 233-234
+@@ 235-236
 The options read, and the folder.
 
-@@ 235-239
+@@ 237-241
 Filming: the webcam's frames go straight to `record`.
 
-@@ 240-243
+@@ 242-245
 Injecting and withdrawing print how many clips changed.
 
-@@ 244-247
+@@ 246-249
 The split: how many clips of each kind each split holds.
 
-@@ 248-251
+@@ 250-253
 Otherwise, `check`: the problems, or the all-clear; exit code 1 if there are any.
 
-@@ 252-254
+@@ 254-256
 A refusal (a missing consent, a bad name) is printed as one line, without a traceback, and fails.
 
-@@ 255
+@@ 257
 Success.
 
-@@ 258-259
+@@ 260-261
 Run as a program, `main`'s answer becomes the exit code.

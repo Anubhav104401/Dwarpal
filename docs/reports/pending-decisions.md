@@ -4,6 +4,23 @@ Work that needs your answer — a download, a design choice, an account, or some
 
 **Started:** 26 Oct 2026, overnight run. **Phase 4 is complete** (commits `450bfba`, `7d730ee`, `95f3e91`).
 
+## Morning summary — 4 Nov (overnight work, 3→4 Nov)
+
+**Your answers still open**, in the order they unblock things:
+
+| # | What | Unblocks |
+| :-: | :-- | :-- |
+| D23 | Approve the three downloads for making renders (Blender 5.2.3, MPFB 2.0.18, MakeHuman's CC0 assets — sizes and sources under *Waiting for you (3 Nov)*) | the made-up people; then training |
+| O11 | Send the two dataset requests (`docs/data/dataset-requests.md`) | other people's renders, if allowed |
+| O12 | Have the consent form reviewed (English, and the new Hindi draft), then film yourself first | the real side of the data |
+| O2c, O10, O8, O9 | The server, the domain, backup storage, GitHub deploy settings (unchanged since 2 Nov) | the first deploy |
+
+**Done overnight** (no decision needed):
+
+- **The render detector's code, ready for the data** (§5.9.4): MiniFASNet V2 with a two-answer head; crops prepared only from clips with a standing consent; training; a threshold that refuses at most 5 % of real people on validation; APCER and BPCER on the test people against release gates (`ml/render_gates.toml`, provisional — yours to confirm); an ONNX export; and the inference service records its chance (never decides) once `DWARPAL_INFERENCE_RENDER_MODEL` names a trained file. Tested on fake pictures only.
+- **Two CI flakes fixed**: the passport test's "checker is busy" (the document check now waits up to 20 s); and Lighthouse's home-page performance (87, under 90) — English pages no longer fetch the Devanagari font for the one Hindi word in the language switch.
+- **A Hindi draft of the consent form** (`docs/data/consent-form.hi.md`), marked for native and legal review.
+
 ## Morning summary — 2 Nov, 10 am (overnight work on Phases 8 and 9)
 
 **Still waiting for you** — steps only you can take (each says what it unblocks):

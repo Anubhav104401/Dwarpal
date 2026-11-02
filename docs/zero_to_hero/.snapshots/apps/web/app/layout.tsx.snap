@@ -6,7 +6,8 @@ import { getLocale } from "next-intl/server";
 import type { ReactNode } from "react";
 
 // Noto Sans Devanagari (decision D2b), served from this site: Geist has no Devanagari letters, so the Hindi pages
-// borrow them from it. Each of its faces is fetched only when a page shows a letter in that face's range.
+// borrow them from it (globals.css names it on Hindi pages only). Each of its faces is fetched only when a page uses
+// it for a letter in that face's range.
 import "@fontsource-variable/noto-sans-devanagari";
 import "./globals.css";
 

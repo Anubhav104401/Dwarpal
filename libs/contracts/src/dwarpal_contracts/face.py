@@ -71,6 +71,8 @@ class FrameReport(Contract):
     # a screen's regular pixel pattern is in the face. None when not measured.
     real_score: Probability | None = None
     screen_pattern: float | None = None
+    # How likely the face was rendered by a computer (liveness level 6, ADR-0021); None without a trained model.
+    rendered_score: Probability | None = None
     flags: list[str]
 
     @property
@@ -113,6 +115,8 @@ class Liveness(Contract):
     # Medians over the photos of one person: the anti-spoofing networks' "real face" chance, and the screen pattern.
     presentation: Probability | None = None
     screen_pattern: float | None = None
+    # The render detector's median "rendered" chance: recorded only, deciding nothing until it is measured.
+    rendered: Probability | None = None
     # "images": measured from the frames. "labels": the frames' phase labels were trusted instead — a test mode,
     # possible only with the stand-in age model, and never accepted for a live session.
     evidence: Literal["images", "labels"] = "images"

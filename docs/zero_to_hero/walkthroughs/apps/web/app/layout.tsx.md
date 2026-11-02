@@ -1,5 +1,5 @@
 ---
-fingerprint: 7b9b921fc77d5f9e
+fingerprint: 0618b1685ccf634b
 ---
 The **root layout**: the outer frame of every page of the verify app — the `<html>` and `<body>` elements, the font, the global styles, and the page's information for browsers and search engines. In Next.js's App Router (§4.17), a file named `layout.tsx` wraps every page in its folder and below.
 
@@ -15,28 +15,28 @@ Two Next.js types: `Metadata` (the page's title and description) and `Viewport` 
 @@ 6
 React's `ReactNode` type: "anything React can draw" — elements, text, lists of them, or nothing.
 
-@@ 11
+@@ 12
 Load the global stylesheet. Importing a CSS file from a layout applies it to every page.
 
-@@ 13-17
+@@ 14-18
 **`metadata`** — Next.js reads this exported object and writes the matching tags into the page's `<head>`:
 
 - the title, shown in the browser tab;
 - a description;
 - `robots: { index: false, follow: false }` — ask search engines not to list these pages or follow their links. Verify pages are personal, one-time pages; they have no business in search results.
 
-@@ 19-25
+@@ 20-26
 **`viewport`** — how the page meets the screen: it supports light and dark modes, and on phones the browser's own bar takes a matching colour — the design system's `ink-50` in light mode, `ink-950` in dark, chosen by a **media query** about the visitor's preference. (The hex codes are those two OKLCH tokens converted, because this setting doesn't read CSS variables.)
 
-@@ 27-29
+@@ 28-30
 **`RootLayout`** — the layout component itself. Its one input, `children`, is the page being shown inside it. `export default` marks it as the file's main export, which is how Next.js finds it.
 
 Since Phase 7 it is `async` and reads the request's headers. It doesn't need them; reading them tells Next.js that every page depends on its request, so pages are rendered when asked for, not once at build time — and only then can each carry the nonce of its own content security policy (`proxy.ts`).
 
-@@ 32-33
+@@ 33-34
 It returns **JSX** (§4.16). `<html lang={locale}>` declares the page's language — `en` or `hi` — so screen readers pronounce the text correctly and browsers choose fonts with the right letters (Hindi is written in Devanagari). The classes from Geist make both typefaces available to the CSS.
 
-@@ 34
+@@ 35
 `<body>` with Tailwind classes:
 
 - `min-h-dvh` — at least the full height of the screen (`dvh`: the height that is actually visible on phones, whose toolbars come and go);
@@ -45,17 +45,17 @@ It returns **JSX** (§4.16). `<html lang={locale}>` declares the page's language
 - `antialiased` — smoother text edges on some screens;
 - `dark:bg-ink-950`, `dark:text-ink-100` — the same in dark mode: a midnight background, light text.
 
-@@ 35
+@@ 36
 `{children}` — the page itself goes here. Curly braces put a JavaScript value into JSX.
 
-@@ 36-39
+@@ 37-40
 The closing tags and braces.
 
 @@ 5
 `getLocale` — the language next-intl chose for this request (`i18n/request.ts`).
 
-@@ 30-31
+@@ 31-32
 The page's language (§5.5.11): English or Hindi.
 
-@@ 8-10
-**Noto Sans Devanagari** (decision D2b, approved 2 Nov; SIL Open Font Licence), from the `@fontsource-variable` package: importing it adds its `@font-face` rules, and the font files are served by this site, not fetched from Google. Each face covers a range of characters, and a browser fetches a face only when the page shows a character in its range — so English pages fetch, at most, the Devanagari face (121 KB) for the language switch's *हिन्दी*.
+@@ 8-11
+**Noto Sans Devanagari** (decision D2b, approved 2 Nov; SIL Open Font Licence), from the `@fontsource-variable` package: importing it adds its `@font-face` rules, and the font files are served by this site, not fetched from Google. A browser fetches a face only when a page *uses* it for a character in its range, and `globals.css` names the font on Hindi pages only — so English pages fetch nothing.
