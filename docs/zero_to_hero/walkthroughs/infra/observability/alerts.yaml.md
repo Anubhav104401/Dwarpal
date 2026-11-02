@@ -1,5 +1,5 @@
 ---
-fingerprint: 139fa55c2a39f306
+fingerprint: 3c1cc9e457641359
 ---
 **The alert rules** (Phase 7, D11; design §11): Prometheus checks these every 15 seconds and marks an alert as *firing* when its condition holds. They watch the two promises the API makes: answer 99.9 % of requests without a server error, and keep a face attempt's 95th percentile within 1.5 seconds (NFR-05).
 
@@ -38,3 +38,6 @@ Its `severity` label is `page` — wake someone — and its summary says what is
 
 @@ 52-55
 A ticket, with a summary that names the requirement it protects.
+
+@@ 57-64
+**`MetricsMissing`**: every other rule needs metrics to arrive. `up{job="dwarpal"}` is 0 when Prometheus couldn't collect from the collector; five minutes of that is an alert, marked `page` — without it, a broken pipe would look like a quiet, healthy service.

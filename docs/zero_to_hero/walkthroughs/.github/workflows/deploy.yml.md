@@ -1,5 +1,5 @@
 ---
-fingerprint: a6b3ec5a85a43e39
+fingerprint: 4635c79422b1350f
 ---
 **Building and deploying** (Phase 8, §5.8.2), on GitHub: the four images built on Arm machines, published to GitHub's container registry (GHCR), and deployed to the server over SSH. Started by hand only.
 
@@ -51,8 +51,8 @@ The SSH key made only for deploys (a repository *secret*), the server's address,
 @@ 76-79
 Write them where SSH looks, readable only by this job's user.
 
-@@ 80-83
-Copy this commit's Compose file, Caddy settings and scripts to the server (`.env` stays as it is), then run `deploy.sh` there with this commit's tag. If the new version isn't healthy, it rolls back and fails, and so does this job.
-
 @@ 56-57
 A **label** inside each image naming the repository it was built from (`org.opencontainers.image.source`, a standard label). GitHub's registry reads it and links the package to this repository, so the packages appear on the repository's page.
+
+@@ 80-85
+Copy this commit's Compose file, Caddy settings, the alerts' settings and rules (§5.8.4) and scripts to the server (`.env`, and the mail settings `alert_email.py` wrote, stay as they are), then run `deploy.sh` there with this commit's tag. If the new version isn't healthy, it rolls back and fails, and so does this job.

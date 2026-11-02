@@ -61,8 +61,10 @@ Only when the live database is lost or damaged. (To *check* backups without touc
 
 ## 5. Incident
 
-1. **See:** `docker compose ps` (what's unhealthy), `docker compose logs --since 30m <service>`, Grafana's *Dwarpal
-   API* dashboard if the observability profile runs.
+1. **See:** the alert's mail, if one came (README step 10: its subject names the rule in `alerts.yaml`);
+   `docker compose ps` (what's unhealthy), `docker compose logs --since 30m <service>`; the alerts firing now,
+   as Prometheus sees them (`docker compose exec prometheus wget -qO- localhost:9090/api/v1/alerts`), or
+   Grafana's *Dwarpal API* dashboard on a laptop running the observability profile.
 2. **Stop the harm first.** Dwarpal fails closed (§5.7.1): with the inference service or a database down, nobody
    passes — people are told to retry. If a release is at fault, roll back (section 2). If the server is overloaded,
    `docker compose restart inference`.

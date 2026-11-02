@@ -12,6 +12,7 @@ One server (Oracle Cloud's Always Free Ampere machine, decision O2b), Docker Com
 | [`gen_secrets.py`](gen_secrets.py) | Makes the server's `.env` of fresh secrets, on the server |
 | [`deploy.sh`](deploy.sh) | Deploys one version; rolls back if it isn't healthy |
 | [`backup.sh`](backup.sh) / [`restore_drill.sh`](restore_drill.sh) | Encrypted off-site backups, and the proof they restore |
+| [`alert_email.py`](alert_email.py), [`collector.yaml`](collector.yaml), [`prometheus.yaml`](prometheus.yaml) | Alerts by email: the mail settings, and what carries the metrics to the alert rules ([`../observability/alerts.yaml`](../observability/alerts.yaml)) |
 | [`../../.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) | Builds the images on GitHub, publishes them to GHCR, deploys |
 
 ## First-time setup
@@ -24,7 +25,8 @@ the network's security list, the domain bought).
 2. **Files.** From a checkout of the repository, on your computer:
 
    ```
-   scp infra/deploy/compose.yaml infra/deploy/Caddyfile infra/deploy/*.sh infra/deploy/gen_secrets.py ubuntu@<ip>:/opt/dwarpal/
+   scp infra/deploy/compose.yaml infra/deploy/Caddyfile infra/deploy/*.sh infra/deploy/*.py infra/deploy/collector.yaml \
+     infra/deploy/prometheus.yaml infra/observability/alerts.yaml ubuntu@<ip>:/opt/dwarpal/
    ```
 
 3. **Secrets**, made on the server and never copied anywhere else:
@@ -81,3 +83,18 @@ the network's security list, the domain bought).
 
 9. **The restore drill**, once backups exist: `./restore_drill.sh`, and record its report in the Phase 8 report —
    the phase's exit criterion.
+
+10. **Alerts by email** (decided 2 Nov). Make a password for sending mail — for Gmail, an *app password*
+    (Google Account → Security → 2-Step Verification → App passwords) — then, on the server:
+
+    ```
+    cd /opt/dwarpal && python3 alert_email.py --to <your email> --smtp-host smtp.gmail.com:587 --smtp-user <gmail address>
+    docker compose up -d --wait
+    ```
+
+    It asks for the password twice without showing it, keeps it in `smtp_password` (readable by you only), writes
+    `alertmanager.yml`, and adds `COMPOSE_PROFILES=alerts` to `.env`, so Compose starts the collector, Prometheus
+    (`prom/prometheus:v3.13.4`) and Alertmanager (`prom/alertmanager:v0.34.1`, 38 MB). You get a mail when server
+    errors spend the month's allowance too fast, when face checks are slow, or when the metrics stop arriving — and
+    another when each is over. They watch from inside the server, so if the whole server stops, no mail comes: a free
+    outside uptime check of `https://api.<domain>/readyz` covers that.

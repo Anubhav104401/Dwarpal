@@ -103,6 +103,29 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: docker compose -f infra/compose/compose.yaml up -d --wait
       - run: docker compose -f infra/compose/compose.yaml down -v
+      # The server's alert settings (alerts by email, 2 Nov), checked by each program's own checker: Prometheus's with
+      # the shared rules, the collector's, and Alertmanager's as alert_email.py writes them (a made-up password).
+      - name: Production alert settings are valid
+        run: |
+          python3 - <<'PY'
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("alert_email", "infra/deploy/alert_email.py")
+          mail = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mail)
+          config = mail.alertmanager_config("owner@example.org", "smtp.example.org:587", "sender@example.org")
+          open("alertmanager.yml", "w").write(config)
+          open("smtp_password", "w").write("not-a-real-password")
+          PY
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/infra/deploy/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro" \
+            -v "$PWD/infra/observability/alerts.yaml:/etc/prometheus/alerts.yaml:ro" \
+            prom/prometheus:v3.13.4 check config /etc/prometheus/prometheus.yaml
+          docker run --rm -v "$PWD/infra/deploy/collector.yaml:/config.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.163.1 validate --config=/config.yaml
+          docker run --rm --entrypoint amtool \
+            -v "$PWD/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro" \
+            -v "$PWD/smtp_password:/etc/alertmanager/smtp_password:ro" \
+            prom/alertmanager:v0.34.1 check-config /etc/alertmanager/alertmanager.yml
 
   helm:
     name: Helm - the Kubernetes chart lints and renders

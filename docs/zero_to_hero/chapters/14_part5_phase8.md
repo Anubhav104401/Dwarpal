@@ -91,3 +91,21 @@ A small file of shared template pieces (`templates/_helpers.tpl`) builds each im
 
 !!! honest "Honest limitation"
     The chart is checked on every push — CI lints it and renders every template with Helm 4 (decision D19, 2 Nov) — but it has never been installed on a real cluster. Rendering proves the templates are well formed, not that the services run well under Kubernetes.
+
+### 5.8.4 Alerts by email
+
+Phase 7 wrote the alert rules — server errors spending the month's allowance too fast, slow face checks — but on a laptop they only lit up a page nobody was watching. On 2 November the owner chose **email**: when a rule fires, a mail arrives, and another when it is over.
+
+Three more programs do it, all on the server and none reachable from outside it. The API sends its counts to the **collector**; **Prometheus** collects them every 15 seconds and checks the rules; **Alertmanager** groups what fires and sends the mail. They stay off until the owner runs one script, which asks for the mail account's password without showing it and turns them on.
+
+!walk infra/deploy/alert_email.py
+
+!walk infra/deploy/collector.yaml
+
+!walk infra/deploy/prometheus.yaml
+
+The rules themselves are the laptop's (`infra/observability/alerts.yaml`, §5.7), with one more: if Prometheus can't reach the collector for five minutes, that is an alert too — otherwise a broken pipe would look like a quiet, healthy service.
+
+!!! honest "Honest limitation"
+    Everything that watches runs on the server it watches. If the whole server stops, no mail comes: an outside uptime check (several are free) of `https://api.<domain>/readyz` covers that, and isn't set up yet. The checks that the settings are valid run in CI, but no mail has been sent yet: that waits for the server.
+

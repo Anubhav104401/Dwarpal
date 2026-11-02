@@ -25,7 +25,7 @@
 
 ## Open items
 
-1. **The render detector** (liveness level 6) needs examples of computer-rendered faces — attacks made with game engines and face-swap tools — under a licence that allows training. None is in the project; options come to the owner when the rest is done.
+1. **The render detector** (liveness level 6) needs examples of computer-rendered faces — attacks made with game engines and face-swap tools — under a licence that allows training. The owner asked for a search (2 Nov): [render-detector-datasets.md](render-detector-datasets.md) lists what exists — none both allows use in a service and shows renders filmed by a camera — and four options (D22).
 2. **Kubernetes** stays optional: the chart is checked on every push but has never run on a cluster; the Always Free server (O2b) is one machine, where Compose fits better.
 3. **The Age Pass**: no fresh batch from a pass (after 20 uses, a new face check gives a new batch); used passes are remembered in Valkey, so losing that memory would let a holder reuse their own pass; passes are offered and saved only on the verify page's own tab (browsers partition storage inside other websites' frames); the Hindi words need a native speaker's review.
-4. **The Python SDK** is unpublished: publishing to PyPI is the owner's decision, as for the JavaScript SDKs.
+4. **The SDKs stay unpublished until launch** (decided 2 Nov); [Integrating Dwarpal](../developers/README.md) shows how to install them from the repository meanwhile.

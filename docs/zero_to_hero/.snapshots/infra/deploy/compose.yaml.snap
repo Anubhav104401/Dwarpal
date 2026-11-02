@@ -19,6 +19,8 @@ x-api-env: &api-env
   DWARPAL_CONSOLE_ORIGINS: '["https://${DWARPAL_DOMAIN}"]'
   DWARPAL_MODELS_DIR: /models
   DWARPAL_AGE_MANIFEST: ${DWARPAL_AGE_MANIFEST:-registry/age/stub/manifest.json}
+  # Empty (no metrics sent) until alert_email.py points it at the collector.
+  DWARPAL_OTEL_ENDPOINT: ${DWARPAL_OTEL_ENDPOINT:-}
 
 services:
   caddy:
@@ -154,8 +156,47 @@ services:
       VALKEY_PASSWORD: ${DWARPAL_VALKEY_PASSWORD}
     restart: unless-stopped
 
+  # Alerts by email (decided 2 Nov), off until alert_email.py writes their settings and adds `COMPOSE_PROFILES=alerts`
+  # to .env: the collector receives the API's metrics, Prometheus checks the alert rules, Alertmanager sends the mail.
+  # None of them is reachable from outside the server.
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.163.1
+    profiles: [alerts]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./collector.yaml:/etc/otelcol/config.yaml:ro
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.13.4
+    profiles: [alerts]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.size=2GB # and 15 days at most, Prometheus's default
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - ./alerts.yaml:/etc/prometheus/alerts.yaml:ro
+      - prometheus-data:/prometheus
+    depends_on: [collector, alertmanager]
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    profiles: [alerts]
+    # As the owner of the mail password's file (mode 600), so it can read it and no one else can.
+    user: ${DWARPAL_ALERT_USER:-65534:65534}
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml", "--storage.path=/alertmanager"]
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./smtp_password:/etc/alertmanager/smtp_password:ro
+    # Silences and the record of mails sent last only until a restart, which may send a firing alert's mail again.
+    tmpfs: [/alertmanager]
+    restart: unless-stopped
+
 volumes:
   caddy-data:
   caddy-config:
   pgdata:
   valkeydata:
+  prometheus-data:

@@ -1,5 +1,5 @@
 ---
-fingerprint: d8019aa5b057a19e
+fingerprint: d7af9d7291efab14
 ---
 The web app's global stylesheet, which since Phase 5 holds **Dwarpal's design tokens**: the named colours, type sizes and motion settings every page is built from (§5.5.6). Tailwind turns each token into a CSS variable and into classes.
 
@@ -12,7 +12,7 @@ The web app's global stylesheet, which since Phase 5 holds **Dwarpal's design to
 All colours are in **OKLCH** — *lightness* (0 black to 1 white), *chroma* (how vivid), *hue* (an angle round the colour wheel). Contrast depends mostly on lightness, so colours at the same lightness can be swapped without breaking it.
 
 @@ 7-8
-The typefaces: **Geist** for everything (`font-sans`), **Geist Mono** for code and IDs (`font-mono`), each falling back to the system's own if they haven't loaded.
+The typefaces: **Geist** for everything (`font-sans`), **Geist Mono** for code and IDs (`font-mono`), each falling back to the system's own if they haven't loaded. Geist has no Devanagari letters, so for those the browser moves down the list to **Noto Sans Devanagari** (decision D2b) — on the Hindi pages, and for the word *हिन्दी* in the language switch.
 
 @@ 10-11
 **Ink** — the neutral scale, from nearly white (50) to nearly black (950): backgrounds, borders and text. The design calls for a *midnight indigo* base, so the hue is 275 (blue-violet) with a little chroma, most toward the dark end.

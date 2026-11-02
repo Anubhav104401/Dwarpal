@@ -12,7 +12,28 @@ This guide gets an age check working on your website. The [demo shop](../../apps
 | [Integration checklist](integration-checklist.md) | what to check before you go live |
 | [API reference](../api/openapi.json) | every endpoint, as an OpenAPI 3.1 document |
 
-> **Status.** Dwarpal is in development and not yet hosted anywhere. The SDKs are not published to a package registry: inside this repository they are used as workspace packages (`workspace:*`).
+> **Status.** Dwarpal is in development and not yet hosted anywhere. The SDKs are not published to a package registry: inside this repository they are used as workspace packages (`workspace:*`); outside it, install them from the repository, as below. They will be published at launch (decided 2 Nov 2026).
+
+## Installing the SDKs before they are published
+
+Pin a commit, so what you install can't change under you.
+
+**Python** — pip builds the package straight from its folder in the repository:
+
+```
+pip install "dwarpal @ git+https://github.com/Anubhav104401/Dwarpal@<commit>#subdirectory=packages/sdk-python"
+```
+
+**JavaScript** (`@dwarpal/node`, `@dwarpal/js`, `@dwarpal/react`) — build a package file from a checkout, and install
+that file:
+
+```
+git clone https://github.com/Anubhav104401/Dwarpal && cd Dwarpal && git checkout <commit>
+pnpm install && pnpm --filter @dwarpal/node build && pnpm --filter @dwarpal/node pack
+npm install /path/to/Dwarpal/packages/sdk-node/dwarpal-node-0.1.0.tgz   # in your own project
+```
+
+`@dwarpal/react` needs `@dwarpal/js`: pack and install both.
 
 ## How an age check works
 

@@ -4,7 +4,7 @@
    same lightness have nearly the same contrast against anything, whatever their hue. `static` makes Tailwind write
    every token into the page, even ones no class uses yet, so the specimen page (/design) can show them all. */
 @theme static {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), "Noto Sans Devanagari Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   /* Ink: the neutral scale, a midnight indigo. Its lightness steps are those of Tailwind's zinc, so every contrast the

@@ -26,6 +26,22 @@ Work that needs your answer — a download, a design choice, an account, or some
 - **CGI-render detector** (liveness level 6) — needs examples of computer-rendered faces to train and measure against, and none are licensed for this project. It waits for a dataset decision, which I will bring with options when the rest is done.
 - **Kubernetes deployment** — the Helm chart exists; trying it needs a local cluster tool (kind, a further download; Helm itself was approved 2 Nov, D19), and the Always Free server (O2b) is a single machine, where Compose is the better fit. Left optional, as the roadmap says.
 
+## Waiting for you (2 Nov, afternoon)
+
+| # | Question | Unblocks |
+| :-: | :-- | :-- |
+| D22 | **The render detector's data** — which route: research-only Microsoft renders, asking two dataset authors for terms, making our own with consent, or keep deferring? Details and links in [render-detector-datasets.md](render-detector-datasets.md); I suggest making our own, small, while asking | liveness level 6 |
+| D1b | `@types/three` 0.186.0 (1.9 MB, npm, MIT) — **not approved** on 2 Nov; the hand-written types stay | — |
+
+## Decided on 2 Nov 2026 (afternoon)
+
+| # | Decision |
+| :-: | :-- |
+| Alerts | **By email**: Alertmanager v0.34.1 (`prom/alertmanager`, Docker Hub, 38 MB arm64, Apache-2.0), with the collector and Prometheus already approved (D11), pulled only on the server and by CI's settings check. **Done**: `infra/deploy/alert_email.py`, the `alerts` profile, README step 10; the owner runs the script once the server exists |
+| D2b | **Approved**: `@fontsource-variable/noto-sans-devanagari` 5.3.0 (0.73 MB, npm, OFL-1.1). **Done**: the Hindi pages use it, served by the site |
+| SDKs | **Stay unpublished until launch**; installing from the repository is documented in `docs/developers/README.md` |
+| Render detector | **Look for a dataset**: done — [render-detector-datasets.md](render-detector-datasets.md); the choice of route is D22 |
+
 ## Decided on 2 Nov 2026
 
 The owner answered the overnight decisions in the morning, each with the recommended option.

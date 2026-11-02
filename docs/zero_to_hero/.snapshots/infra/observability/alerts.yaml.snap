@@ -53,3 +53,12 @@ groups:
           severity: ticket
         annotations:
           summary: "The 95th percentile of face attempts has been over 1.5 seconds for 10 minutes (NFR-05)."
+
+      # Every rule above needs the metrics to arrive: if Prometheus can't reach the collector, say so.
+      - alert: MetricsMissing
+        expr: up{job="dwarpal"} == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Prometheus hasn't reached the metrics collector for 5 minutes: the other alerts can't fire."
