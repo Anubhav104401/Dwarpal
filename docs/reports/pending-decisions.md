@@ -6,28 +6,37 @@ Work that needs your answer — a download, a design choice, an account, or some
 
 ## Morning summary — 2 Nov, 10 am (overnight work on Phases 8 and 9)
 
-**Waiting for you** — none of these blocked the night's work; each says what it unblocks:
+**Still waiting for you** — steps only you can take (each says what it unblocks):
 
-| # | Decision | Unblocks |
+| # | Step | Unblocks |
 | :-: | :-- | :-- |
-| D17 | **Approve pulling the base images** to build and run Dwarpal's containers: `python:3.13.17-slim-bookworm`, `node:24.22.1-bookworm-slim`, `ghcr.io/astral-sh/uv:0.13.1`, `caddy:2.11.6-alpine`, `restic/restic:0.19.1` (Docker Hub / GHCR, official images; each image's build also installs Debian's `tesseract-ocr` and pnpm via Corepack). Building happens on GitHub's machines and on the server, not this computer | the first image build and deploy |
-| D18 | **Approve publishing the images to GHCR** (GitHub's container registry, under your account). Public packages are simplest (the code is public anyway); private ones need the server to log in to GHCR with a token | the deploy workflow |
+| O2c | **Create the server** from `infra/vm/cloud-init.yaml` (Always Free Ampere, 2 cores / 12 GB, Ubuntu 24.04), open ports 80 and 443 in its security list, and send me its public IP address | the first deploy |
+| O10 | **Choose and point a domain** at that address (an `A` record for the domain, `www.`, `api.` and `shop.`) | HTTPS, and the first deploy |
 | O8 | **Create the backup storage**: in Oracle, an Object Storage bucket `dwarpal-backups` (Always Free: 20 GB) and a *customer secret key*; choose a restic password and keep it offline too (`infra/deploy/README.md`, step 8) | backups, and Phase 8's restore drill |
-| D19 | **Approve Helm** (the Kubernetes package manager, Apache-2.0: `helm` 3.x, ~16 MB binary from get.helm.sh, or the `azure/setup-helm` action pinned by commit) to lint and render the chart in CI | checking the Helm chart (§5.8.3) |
-| O9 | **GitHub settings for deploys**: a separate deploy SSH key, the `production` environment (ideally with your approval required), and the variables listed in `infra/deploy/README.md`, step 5 | automatic deploys |
-| D20 | **Passkey sign-in skips the one-time code** (built that way, the usual rule): the device has already verified the person by fingerprint, face or PIN, so a passkey counts as two factors. The alternative is to ask for the code as well. Adding a passkey needs the password (and a code, if on). Say if you want it stricter | nothing — passkeys work now (§5.9.2); this only confirms the rule |
-| D21 | **Age Pass** (design: `docs/design/06_age_pass.md`) — a reusable, unlinkable "over 18" pass kept in the person's browser, so later websites need no new face check. Questions: build it now or after launch; lifetime (90 days suggested); batch size (20 suggested); off by default for websites (suggested) | building the Age Pass |
+| O9 | **GitHub settings for deploys**: a separate deploy SSH key, the `production` environment (ideally with your approval required), and the variables listed in `infra/deploy/README.md`, step 5 | automatic deploys; after the first image build, set each `dwarpal-*` package on GitHub to **Public** (D18) |
 
 **Done overnight** (no decision needed; all checks green):
 
-- **Phase 8** — Dockerfiles, Compose with Caddy, deploy/backup/restore scripts, the manual GHCR deploy workflow, runbooks, and the Helm chart (`6b6a1da`). Waiting only on the server, the domain, and D17–D19, O8, O9.
-- **Phase 9** — the Python SDK (`9ca1bfd`); **passkeys** for console sign-in (§5.9.2), with a software test device and a Chromium end-to-end test; the Age Pass design (D21).
+- **Phase 8** — Dockerfiles, Compose with Caddy, deploy/backup/restore scripts, the manual GHCR deploy workflow, runbooks, and the Helm chart (`6b6a1da`). Waiting only on the server, the domain, O8 and O9 (D17–D19 approved 2 Nov).
+- **Phase 9** — the Python SDK (`9ca1bfd`); **passkeys** for console sign-in (§5.9.2), with a software test device and a Chromium end-to-end test; the Age Pass design (D21, approved 2 Nov: being built).
 - **CI is fully green on GitHub** (`03f3f5b`) for the first time since Phase 6: Lighthouse now starts its browser on GitHub's Linux machines, and the Python job's 30-minute timeouts were one ML test hanging (forked worker processes); it now takes 2 minutes.
 
 **Blocked, and why** (nothing for you to do yet):
 
 - **CGI-render detector** (liveness level 6) — needs examples of computer-rendered faces to train and measure against, and none are licensed for this project. It waits for a dataset decision, which I will bring with options when the rest is done.
-- **Kubernetes deployment** — the Helm chart exists; trying it needs Helm (D19) and a local cluster tool (kind, a further download), and the Always Free server (O2b) is a single machine, where Compose is the better fit. Left optional, as the roadmap says.
+- **Kubernetes deployment** — the Helm chart exists; trying it needs a local cluster tool (kind, a further download; Helm itself was approved 2 Nov, D19), and the Always Free server (O2b) is a single machine, where Compose is the better fit. Left optional, as the roadmap says.
+
+## Decided on 2 Nov 2026
+
+The owner answered the overnight decisions in the morning, each with the recommended option.
+
+| # | Decision |
+| :-: | :-- |
+| D17 | **Approved**: the five base images — `python:3.13.17-slim-bookworm` (44 MB), `node:24.22.1-bookworm-slim` (81 MB), `caddy:2.11.6-alpine` (24 MB), `restic/restic:0.19.1` (17 MB) from Docker Hub, and `ghcr.io/astral-sh/uv:0.13.1` (18 MB) from GitHub (sizes for arm64) — pulled only on GitHub's build machines and the server |
+| D18 | **Approved, public**: Dwarpal's images go to GitHub's container registry under the owner's account and are made public, so the server pulls them without a token |
+| D19 | **Approved**: Helm **4.3.1** (`helm-v4.3.1-linux-amd64.tar.gz`, 20.4 MB, get.helm.sh, Apache-2.0) on CI's machines only, checked against its SHA-256, to lint and render the chart. Helm 3, first proposed, stops getting security fixes on 11 Nov 2026 |
+| D20 | **Kept**: signing in with a passkey needs no one-time code; the device's own check of the person is the second factor |
+| D21 | **Build the Age Pass now**, with the suggested defaults: passes last 90 days, are issued 20 at a time, each is used once, and websites opt in through their policy (off by default) |
 
 ## Decided on 1 Nov 2026
 

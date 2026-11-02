@@ -44,8 +44,12 @@ the network's security list, the domain bought).
    - *Secrets*: `DEPLOY_SSH_KEY` = the private half of a **separate** key made only for deploys, whose public half
      is added to `/home/ubuntu/.ssh/authorized_keys` on the server;
    - *Environments*: a `production` environment, ideally requiring your approval before each deploy.
-6. **First deploy.** On GitHub: Actions → deploy → Run workflow. It builds the four images on Arm machines, publishes
-   them to GHCR, copies this folder's files to the server and runs `deploy.sh`.
+6. **First deploy.** On GitHub: Actions → deploy → Run workflow, **with "Also deploy" unticked** the first time: it
+   builds the four images on Arm machines and publishes them to GHCR. GitHub makes a new package private, so then
+   make each of the four `dwarpal-*` packages **public** (your profile → Packages → the package → Package settings →
+   Change visibility → Public; decision D18): the server pulls public images without logging in. Then run the
+   workflow again with "Also deploy" ticked: it builds again, copies this folder's files to the server and runs
+   `deploy.sh`. Every later deploy is a single run.
 7. **The demo shop's key.** Sign up on the console at `https://<domain>/console`, create a project whose allowed origin
    is `https://shop.<domain>`, and a **test** key. Put the project's ID and the key in `/opt/dwarpal/.env`
    (`DWARPAL_SHOP_PROJECT_ID`, `DWARPAL_SHOP_API_KEY`), then `docker compose up -d shop`.

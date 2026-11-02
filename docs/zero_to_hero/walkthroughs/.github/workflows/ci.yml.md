@@ -1,5 +1,5 @@
 ---
-fingerprint: 5b7a6b146cdbb104
+fingerprint: 1b162b9bdfc74f65
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -154,3 +154,21 @@ The book in strict mode — the last part of `tasks.py check`.
 
 @@ 47-52
 For each saved log: the slowest-tests section (from the line naming it to the next line of `=`), and the last three test names reached — if a step ran out of time, the last one is the test that was running. Each becomes one `::notice` line, which GitHub turns into an annotation (`|` stands in for line breaks, which an annotation's one line can't hold).
+
+@@ 107-110
+**`helm`** — a fifth job (decision D19): check the Kubernetes chart (§5.8.3). Ten minutes is far more than it needs.
+
+@@ 111-113
+Which Helm to use, and its **SHA-256 fingerprint**, written here rather than fetched: if anything — the download site, the network — handed over a different file, its fingerprint wouldn't match and the job would stop before running it.
+
+@@ 114-115
+Its steps, starting, as every job does, with this repository's code.
+
+@@ 116-120
+Download Helm 4.3.1 from Helm's own site (`--fail` makes an HTTP error stop the step), check its fingerprint (`sha256sum --check --strict` fails on any mismatch), and unpack only the `helm` program. Helm 4 rather than 3: Helm 3 stops getting security fixes on 11 November 2026.
+
+@@ 121-126
+**`helm lint --strict`** checks the chart for mistakes, failing on warnings too; **`helm template`** renders every template with the default settings, which fails if any template can't be filled in. The count of rendered objects goes into the log as a sign that everything rendered. As in the test steps, `shell: bash` makes a failure inside a `tee` pipeline count.
+
+@@ 127-130
+Whatever happened, the end of Helm's output becomes an annotation — readable by anyone, unlike the job's log. `|| true` keeps this step from failing when there is no log (if the download itself failed).

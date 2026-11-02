@@ -53,6 +53,8 @@ jobs:
           args=()
           if [ -n "${{ matrix.args }}" ]; then args+=(--build-arg "${{ matrix.args }}"); fi
           args+=(--build-arg "NEXT_PUBLIC_DWARPAL_API_URL=${API_URL}")
+          # The source label links each package to this repository on GitHub.
+          args+=(--label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}")
           docker build -f "${{ matrix.file }}" "${args[@]}" -t "$image:$tag" -t "$image:latest" .
           docker push "$image:$tag"
           docker push "$image:latest"

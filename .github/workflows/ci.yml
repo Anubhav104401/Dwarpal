@@ -103,3 +103,28 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: docker compose -f infra/compose/compose.yaml up -d --wait
       - run: docker compose -f infra/compose/compose.yaml down -v
+
+  helm:
+    name: Helm - the Kubernetes chart lints and renders
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      HELM: helm-v4.3.1-linux-amd64.tar.gz
+      HELM_SHA256: 0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Helm 4.3.1 (decision D19), from Helm's own site, used only if its SHA-256 is the one written above.
+      - run: |
+          curl --fail --silent --show-error --location --output "$HELM" "https://get.helm.sh/$HELM"
+          echo "$HELM_SHA256  $HELM" | sha256sum --check --strict
+          tar --extract --gzip --file "$HELM" linux-amd64/helm
+      - name: Lint and render
+        shell: bash
+        run: |
+          ./linux-amd64/helm lint --strict infra/helm/dwarpal 2>&1 | tee helm.log
+          ./linux-amd64/helm template dwarpal infra/helm/dwarpal > rendered.yaml 2>> helm.log
+          echo "rendered $(grep -c '^kind:' rendered.yaml) objects" | tee -a helm.log
+      # As for the tests: the end of Helm's output as an annotation, which anyone can read.
+      - if: always()
+        shell: bash
+        run: '[ -f helm.log ] && echo "::notice title=helm::$(tail -c 2500 helm.log | tr "\n" "|")" || true'

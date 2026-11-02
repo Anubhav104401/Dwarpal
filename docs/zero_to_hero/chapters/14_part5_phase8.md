@@ -8,7 +8,7 @@ Phases 1–7 run on one computer. Phase 8 puts Dwarpal on the internet: a server
 | Running services | The production Compose file with Caddy; the domain and its DNS; images on GHCR; deployment over SSH, checked and reversible | 🟡 all written and checked here (§5.8.2); waits for the server, the domain, and approval to pull base images and publish (D17, D18) |
 | Data safety | Encrypted off-site backups, and a restore drill on record | 🟡 backup and drill scripts (§5.8.2); wait for a storage bucket (O8) and restic's image (D17) |
 | Operations | Runbooks: deploy, roll back, rotate keys, restore, incidents | 🟢 `docs/operations/runbooks.md` |
-| Kubernetes | A Helm chart, checked in CI | 🟡 the chart (§5.8.3); its check in CI waits for Helm (D19) |
+| Kubernetes | A Helm chart, checked in CI | 🟢 the chart (§5.8.3), linted and rendered by CI with Helm 4 (D19) |
 
 ### 5.8.1 Choosing the server, and preparing it
 
@@ -90,4 +90,4 @@ The databases aren't in the chart: a cluster normally uses managed ones, whose a
 A small file of shared template pieces (`templates/_helpers.tpl`) builds each image's full name and the labels every object carries.
 
 !!! honest "Honest limitation"
-    The chart hasn't been rendered or installed: checking it (`helm lint`, `helm template`) needs Helm, a download awaiting approval (D19). Until then it is a careful description, not a tested one.
+    The chart is checked on every push — CI lints it and renders every template with Helm 4 (decision D19, 2 Nov) — but it has never been installed on a real cluster. Rendering proves the templates are well formed, not that the services run well under Kubernetes.

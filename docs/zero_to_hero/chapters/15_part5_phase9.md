@@ -72,4 +72,4 @@ The checks are pure functions, tested against a **software device** that makes r
 The store (a take-once read), the tables, the passkey lookup, the settings, the console's routes and pages, its API client, the API's and the browser's tests, and the test settings changed too; each was re-explained.
 
 !!! honest "Honest limitation"
-    Signing in with a passkey skips the one-time code, because the device has already verified the person. That is the usual rule (decision D20 in the decision log), and the owner may choose otherwise. A passkey that syncs between devices (most phone passkeys do) is only as safe as the account it syncs through.
+    Signing in with a passkey skips the one-time code, because the device has already verified the person. That is the usual rule, and the owner confirmed it (decision D20, 2 Nov). A passkey that syncs between devices (most phone passkeys do) is only as safe as the account it syncs through.
