@@ -9,16 +9,16 @@
 
 | Phase | Name | Status |
 | :-: | :-- | :-- |
-| 0 | Foundations — repository, toolchains, quality gates, CI | ✅ complete locally — [report](../reports/phase-0.md) (remote CI pending first push) |
-| 1 | Walking skeleton — end to end with a stub model | ✅ complete locally — [report](../reports/phase-1.md) (remote CI pending first push) |
-| 2 | ML core — data, training, evaluation, risk control, v1 model | ⏳ next |
-| 3 | Liveness and anti-spoofing | ⏳ |
-| 4 | Platform — tenancy, auth, policies, webhooks, audit | ⏳ |
-| 5 | Front-end excellence — design system, site, flow, console, SDKs | ⏳ |
-| 6 | Step-up verifiers — MRZ, then Aadhaar Secure QR | ⏳ |
-| 7 | Hardening — security, observability, load, privacy docs | ⏳ |
-| 8 | Deployment — VM, TLS, CI/CD, backups, runbooks, Helm | ⏳ |
-| 9 | Stretch — Age Pass credential, passkeys, render detector, Python SDK | ⏳ |
+| 0 | Foundations — repository, toolchains, quality gates, CI | ✅ complete — [report](../reports/phase-0.md); CI green on GitHub since 2 Nov (`03f3f5b`) |
+| 1 | Walking skeleton — end to end with a stub model | ✅ complete — [report](../reports/phase-1.md) |
+| 2 | ML core — data, training, evaluation, risk control, v1 model | ✅ steps 1–7 done — [report](../reports/phase-2.md); open: exact-age data for NFR-01 (owner) |
+| 3 | Liveness and anti-spoofing | 🟡 built, red-teamed by the owner — [report](../reports/phase-3.md); open: broader measurement (more people, cameras, rooms) |
+| 4 | Platform — tenancy, auth, policies, webhooks, audit | ✅ complete — [report](../reports/phase-4.md) |
+| 5 | Front-end excellence — design system, site, flow, console, SDKs | ✅ exit met on CI (Lighthouse ≥ 90, axe, Chromium/Firefox/WebKit) — [report](../reports/phase-5.md); open: Hindi and legal reviews |
+| 6 | Step-up verifiers — MRZ, then Aadhaar Secure QR | 🟡 MRZ done end to end — [report](../reports/phase-6.md); Aadhaar deferred by the owner (D8, O7) |
+| 7 | Hardening — security, observability, load, privacy docs | 🟡 nearly all done — [report](../reports/phase-7.md); open: SLOs measured on the real server, alert delivery |
+| 8 | Deployment — VM, TLS, CI/CD, backups, runbooks, Helm | 🟡 everything written and checked — [report](../reports/phase-8.md); waits on the owner's server, domain and backups storage |
+| 9 | Stretch — Age Pass credential, passkeys, render detector, Python SDK | 🟡 SDK, passkeys, Age Pass built — [report](../reports/phase-9.md); render detector waits for data |
 
 Each phase ends with a **phase report** in `docs/reports/`: what was built, what was measured, what changed from the plan and why, and the known limitations. The book's changelog links to it.
 

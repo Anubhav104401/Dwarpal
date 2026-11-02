@@ -8,6 +8,7 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     Float,
@@ -18,6 +19,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
@@ -93,6 +95,7 @@ class VerificationSession(Base):
     started_at: Mapped[datetime | None] = mapped_column(Timestamp)  # when the person first opened the verify page
     expires_at: Mapped[datetime] = mapped_column(Timestamp)
     completed_at: Mapped[datetime | None] = mapped_column(Timestamp)
+    age_pass_issued_at: Mapped[datetime | None] = mapped_column(Timestamp)  # when it gave out its one batch of passes
 
 
 class PolicyVersion(Base):
@@ -110,6 +113,8 @@ class PolicyVersion(Base):
     max_face_attempts: Mapped[int]
     token_ttl_s: Mapped[int]
     created_at: Mapped[datetime] = mapped_column(Timestamp)
+    # Whether sessions under this version accept Age Passes and give them out (migration 0011; off unless chosen).
+    accept_age_pass: Mapped[bool] = mapped_column(Boolean, server_default=false(), default=False)
 
 
 class VerificationAttempt(Base):

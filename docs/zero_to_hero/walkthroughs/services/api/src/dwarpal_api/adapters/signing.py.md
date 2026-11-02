@@ -1,5 +1,5 @@
 ---
-fingerprint: cb6cae5c6fe1a1c2
+fingerprint: 9bb0fd577b2b79fc
 ---
 This file makes the API's answers **unforgeable**. When a check ends, the website receives an **age token**: a short text that says "session `vs_…` passed the 18+ check", followed by a **digital signature**. Anyone can check the signature with the API's *public* key; only the API, holding the *private* key, could have made it (§4.12, Choice 9 "the wax seal").
 
@@ -121,29 +121,29 @@ Return the database row: the ID, the public half as a JSON dict (`as_dict(privat
 @@ 68-69
 **`jwks`** — the public keys in **JWKS** form ("JSON Web Key Set"): `{"keys": [...]}`. It is published at `/.well-known/jwks.json`, where any website can fetch it.
 
-@@ 71
-**`sign`** — turn a set of **claims** (the facts in the token) into a signed token.
+@@ 71-72
+**`sign`** — turn a set of **claims** (the facts in the token) into a signed token. `typ` names what kind of token it is: an age token unless said otherwise; since Phase 9 also an Age Pass (`dc+sd-jwt`, §5.9.3), signed by the same keys.
 
-@@ 72-73
+@@ 73-74
 Refuse to sign before `load` has run. That would be a programming mistake, so it is a `RuntimeError` rather than an `ApiError`.
 
-@@ 74
-The token's **header**: the algorithm, the type, and which key signed it.
-
 @@ 75
+The token's **header**: the algorithm, the type asked for, and which key signed it.
+
+@@ 76
 Sign and encode. The result is three Base64url parts joined by dots: `header.claims.signature`. `algorithms=[ALG]` is an **allow-list**: joserfc refuses to use anything but Ed25519, even if a header asked for something else.
 
-@@ 77-79
-**`verify`** — the opposite of `sign` (Phase 4, for token introspection): the claims of a token signed by one of the key ring's current keys, or `None` for anything else. Checking the times is left to the caller, which knows what "now" is.
+@@ 78-81
+**`verify`** — the opposite of `sign` (Phase 4, for token introspection; Phase 9, for Age Passes): the claims of a token of the expected type, signed by one of the key ring's current keys, or `None` for anything else. Checking the times is left to the caller, which knows what "now" is.
 
-@@ 80-82
+@@ 82-84
 Build a key set from the public keys the ring publishes, and decode the token with it, accepting only Ed25519. The token's `kid` picks the key; a token signed by any other key, or with any other algorithm, fails.
 
-@@ 83-84
+@@ 85-86
 Any failure — a bad signature, an unknown key, a token that isn't a JWT at all — becomes `None`: the caller only needs to know "not genuine".
 
-@@ 85-86
-A genuine signature on the wrong *type* of token is still not an age token.
+@@ 87-88
+A genuine signature on the wrong *type* of token is still refused: an age token is no Age Pass, and an Age Pass no age token.
 
-@@ 87
+@@ 89
 Return the claims as an ordinary dict.

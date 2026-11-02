@@ -334,7 +334,8 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
               <th className="py-2 pr-3 font-medium">Policy</th>
               <th className="py-2 pr-3 font-medium">Age</th>
               <th className="py-2 pr-3 font-medium">Risk budget</th>
-              <th className="py-2 font-medium">Attempts</th>
+              <th className="py-2 pr-3 font-medium">Attempts</th>
+              <th className="py-2 font-medium">Age Pass</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-200 dark:divide-white/10">
@@ -345,7 +346,8 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
                 </td>
                 <td className="py-2 pr-3 tabular-nums">{p.minAge}+</td>
                 <td className="py-2 pr-3 tabular-nums">{(p.riskBudget * 100).toFixed(1)} %</td>
-                <td className="py-2 tabular-nums">{p.maxFaceAttempts}</td>
+                <td className="py-2 pr-3 tabular-nums">{p.maxFaceAttempts}</td>
+                <td className="py-2">{p.acceptAgePass ? "accepted" : "—"}</td>
               </tr>
             ))}
           </tbody>

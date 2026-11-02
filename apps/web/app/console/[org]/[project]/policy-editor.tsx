@@ -45,6 +45,7 @@ export function PolicyEditor({ client, org, project, onAdded }: Props) {
         line.minAge,
         Number(data.get("tries")),
         line.riskBudget,
+        data.get("agePass") === "on",
       );
       form.reset();
       await onAdded();
@@ -90,6 +91,24 @@ export function PolicyEditor({ client, org, project, onAdded }: Props) {
         <button type="submit" className={smallButton}>
           Add version
         </button>
+        <div className="flex items-start gap-2 text-sm sm:col-span-4">
+          <input
+            id="policy-age-pass"
+            type="checkbox"
+            name="agePass"
+            aria-describedby="policy-age-pass-hint"
+            className="mt-1 size-4 accent-brand-600"
+          />
+          <div>
+            <label htmlFor="policy-age-pass" className="font-medium">
+              Accept Age Passes
+            </label>
+            <p id="policy-age-pass-hint" className="text-ink-500">
+              People who pass a check under this version can save an Age Pass in their browser, and a later
+              check can accept one instead of the camera. Each pass works once and proves only the age asked.
+            </p>
+          </div>
+        </div>
       </form>
 
       <section className="mt-5" aria-labelledby="projection">

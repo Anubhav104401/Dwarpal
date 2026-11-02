@@ -208,6 +208,9 @@ async def start_flow(svc: Services, session_text: str, client_secret: str) -> di
         "min_age": policy.min_age,
         "attempts_remaining": max(policy.max_face_attempts - row.attempts_count, 0),
         "return_origin": origin_of(row.return_url) if row.return_url else None,
+        # For the Age Pass (Phase 9): whether the website accepts one, and the mode a pass must match.
+        "accept_age_pass": policy.accept_age_pass,
+        "livemode": row.livemode,
     }
     return {"flow_token": token, "session": view}
 
@@ -423,7 +426,15 @@ async def submit_document_attempt(
 
 
 async def methods_of(session: AsyncSession, row: VerificationSession) -> list[str]:
-    """How a completed session was decided, for its token: by the face alone, or by a document check after it."""
+    """How a completed session was decided, for its token: by the face alone, by a document check after it, or by an
+    Age Pass (Phase 9)."""
+    decided_by_pass = await session.scalar(
+        select(func.count())
+        .select_from(VerificationAttempt)
+        .where(VerificationAttempt.session_id == row.id, VerificationAttempt.kind == "age_pass")
+    )
+    if decided_by_pass:
+        return ["age_pass"]
     decided_by_document = await session.scalar(
         select(func.count())
         .select_from(VerificationAttempt)

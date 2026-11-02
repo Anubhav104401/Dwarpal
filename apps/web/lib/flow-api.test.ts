@@ -105,6 +105,44 @@ describe("FlowClient", () => {
     });
   });
 
+  it("asks for Age Passes, a nonce and a presentation on the session's own routes (Phase 9)", async () => {
+    const seen: Request[] = [];
+    const replies = [
+      answer(200, {
+        flow_token: "flow-token",
+        session: { id: SESSION, status: "in_progress", accept_age_pass: true, livemode: false },
+      }),
+      answer(200, { passes: ["a~b~"], lines: [13, 16, 18], expires_at: "2027-01-31T00:00:00+00:00" }),
+      answer(200, { nonce: "nonce-1", audience: SESSION }),
+      answer(200, { outcome: "pass" }),
+    ];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      seen.push(new Request(input, init));
+      return replies.shift() ?? answer(500, {});
+    });
+    const client = new FlowClient(API, SESSION);
+    const session = await client.start(`${SESSION}_secret_x`);
+    const key = { kty: "EC", crv: "P-256", x: "x".repeat(43), y: "y".repeat(43) } as const;
+    const issued = await client.issueAgePasses([key]);
+    const nonce = await client.agePassNonce("device-0123456789abcdef");
+    await client.presentAgePass("a~b~kb");
+
+    expect([session.acceptAgePass, session.livemode]).toEqual([true, false]);
+    expect(issued).toEqual({ passes: ["a~b~"], lines: [13, 16, 18], expiresAt: "2027-01-31T00:00:00+00:00" });
+    expect(nonce).toEqual({ nonce: "nonce-1", audience: SESSION });
+    expect(seen.slice(1).map((request) => new URL(request.url).pathname)).toEqual([
+      `/v1/flow/sessions/${SESSION}/age-pass`,
+      `/v1/flow/sessions/${SESSION}/age-pass/nonce`,
+      `/v1/flow/sessions/${SESSION}/age-pass/present`,
+    ]);
+    expect(await seen[1]?.json()).toEqual({ keys: [key] });
+    expect(seen[2]?.headers.get("x-dwarpal-device")).toBe("device-0123456789abcdef");
+    expect(await seen[3]?.json()).toEqual({ presentation: "a~b~kb" });
+    expect(
+      seen.slice(1).every((request) => request.headers.get("authorization") === "Bearer flow-token"),
+    ).toBe(true);
+  });
+
   it("reports a lost connection as network_error", async () => {
     vi.stubGlobal("fetch", async () => {
       throw new TypeError("Failed to fetch");

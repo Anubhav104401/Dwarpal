@@ -1,5 +1,5 @@
 ---
-fingerprint: d85eaff9217b503d
+fingerprint: c4e2a3734a7c154a
 ---
 The **policies API** (Phase 4) — two endpoints for a website's server:
 
@@ -46,14 +46,17 @@ The router: every path here starts with `/v1/policies`.
 @@ 25
 `token_ttl_s` — how long the age token lasts: one minute to one hour, 10 minutes if not given.
 
-@@ 28-32
+@@ 31-35
 **`list_policies`** — `GET`, for any key that may read sessions: list everything the project can choose from.
 
-@@ 35-40
+@@ 38-43
 **`add_version`** — `POST`, answering `201 Created`; it needs the `policies:write` scope.
 
-@@ 41
-The draft: the requested rules as a `Policy` (its version is filled in by the use case).
+@@ 44-51
+The draft: the requested rules as a `Policy` (its version is filled in by the use case), with the Age Pass switch.
 
-@@ 42-45
+@@ 52-55
 Add it, in the caller's project, with the time and a new ID from the toolbox, the project's organisation and the caller as the audit log's actor; answer with the new version.
+
+@@ 26-30
+`accept_age_pass` (Phase 9) — the Age Pass switch, off unless chosen. `strict=True` takes only `true` or `false`: without it, Pydantic would read `0` as `false` and `"yes"` as `true`, and the contract test (§4.10) found exactly that — a request outside the published schema, quietly accepted.

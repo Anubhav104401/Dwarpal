@@ -1,5 +1,5 @@
 ---
-fingerprint: da39e5ccd4fbafd8
+fingerprint: 37e7b8b27a029cb4
 ---
 A project's page in the console (Phase 5, §5.5.2): its counts for the last 30 days, its sessions with each one's **decision trace** — why it ended as it did, down to the numbers — and its policies, with a form to add a version. A switch chooses test or live data. Everything comes from the console API; the page decides nothing about who may do what — it only hides a form the API would refuse.
 
@@ -201,28 +201,28 @@ End of the trace, the panel and the side-by-side area.
 @@ 327-330
 **Policies** — a panel.
 
-@@ 331-339
-A table: the policy's label, its minimum age, its risk budget, and its face attempts.
+@@ 331-340
+A table: the policy's label, its minimum age, its risk budget, its face attempts and (Phase 9) whether it accepts Age Passes.
 
-@@ 340-345
+@@ 341-346
 One row per policy: its label, marked "preset" if it's one of Dwarpal's own.
 
-@@ 346-348
-Its minimum age ("18+"), its risk budget as a percentage to one decimal place, and its attempts.
+@@ 347-350
+Its minimum age ("18+"), its risk budget as a percentage to one decimal place, its attempts, and `accepted` or a dash for the Age Pass.
 
-@@ 349-352
+@@ 351-354
 End of the row and the table.
 
-@@ 353-355
+@@ 355-357
 **The policy editor** (`policy-editor.tsx`) — only for roles that may manage policies (`CAN.managePolicies`); the API checks again. It is given the page's client and, as `onAdded`, the page's own `load`, so a new version appears in the table at once.
 
-@@ 356
+@@ 358
 End of the policies panel.
 
-@@ 358-360
+@@ 360-362
 **Webhooks** — for roles that may manage them, the panel, given the page's own client (it holds the CSRF token) and the current mode.
 
-@@ 361-363
+@@ 363-365
 End of the page and `ProjectView`.
 
 @@ 19

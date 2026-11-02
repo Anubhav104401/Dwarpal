@@ -6,7 +6,7 @@ Phases 0–8 are the plan. Phase 9 is what comes after, chosen from the roadmap'
 | :-- | :-- | :-- |
 | Python SDK | The Node SDK's calls, for Python websites | 🟢 §5.9.1 |
 | Passkeys | Console sign-in without passwords | 🟢 §5.9.2 |
-| Age Pass | A reusable "over 18" credential, kept by the person, unlinkable between websites | 🗓 |
+| Age Pass | A reusable "over 18" credential, kept by the person, unlinkable between websites | 🟢 §5.9.3 |
 | CGI-render detector | Spotting computer-rendered faces (liveness level 6) | 🗓 needs attack data |
 | Kubernetes | A deployment from the Helm chart | 🟡 the chart exists (§5.8.3) |
 
@@ -73,3 +73,44 @@ The store (a take-once read), the tables, the passkey lookup, the settings, the 
 
 !!! honest "Honest limitation"
     Signing in with a passkey skips the one-time code, because the device has already verified the person. That is the usual rule, and the owner confirmed it (decision D20, 2 Nov). A passkey that syncs between devices (most phone passkeys do) is only as safe as the account it syncs through.
+
+### 5.9.3 The Age Pass: proving your age once, for many websites
+
+Every website that uses Dwarpal sends its visitors through a face check. Someone who visits five such websites does five checks: five times the camera, five times the wait. The **Age Pass** (decision D21) lets a person who has passed once keep the result **in their own browser**, and answer the next website's check with it — in a second, with no camera.
+
+The obvious way to build that would be a cookie that says "this browser passed": any website could then ask Dwarpal "have you seen this browser before?", and Dwarpal would become exactly the tracker it promises not to be. The Age Pass is built so that **nobody — not the websites, not Dwarpal — can tell that two visits came from the same person**:
+
+| Property | How |
+| :-- | :-- |
+| It says only an age line | A pass from an 18+ check states "over 13", "over 16" and "over 18" — no photo, name, birth date or estimate — and each claim stays **hidden** until the holder chooses to show it (*selective disclosure*). An 18+ website sees "over 18", and nothing else |
+| A copy is useless | Each pass is **bound to a key** made by the browser, whose private half can't be exported even by the page. Showing a pass means signing the website's fresh challenge with that key |
+| Visits can't be linked | Passes come **twenty at a time**, each with its own salts, key and signature, and each is **used once**. Two websites see two passes that share nothing but Dwarpal's name, the day they were issued and their type |
+| Dwarpal can't link them either | It records **when** a check gave out passes — never the passes, their keys or their salts. A used pass is remembered only as a hash, until it would expire anyway, so it can't be used twice |
+| Websites choose | A website's own policy must say `accept_age_pass`; no preset does. The website needs no other change: it gets the usual signed age token, whose `methods` say `age_pass` |
+
+!!! key "Key idea — selective disclosure with salted hashes"
+    The signed pass doesn't contain "age_over_18: true". It contains a **hash** of `[salt, "age_over_18", true]`, where the salt is 16 random bytes. The browser keeps the unhashed version — the *disclosure* — beside the pass. To prove it is over 18, it shows that one disclosure: the website hashes it and finds the hash in the signed pass. The other lines stay hashes, and without their salts nobody can guess them. Decoy hashes make every pass the same size, so even the number of lines is hidden.
+
+The format is the IETF's **SD-JWT VC**: the signed pass, then the disclosures shown, then the holder's **key-binding JWT**, separated by `~`. The key-binding JWT is signed with the pass's key and names the website's nonce, the session, the time, and a hash of everything before it — so a disclosure can't be added, swapped or replayed. Dwarpal publishes where its keys are at `/.well-known/jwt-vc-issuer`, as the standard asks.
+
+!walk services/api/src/dwarpal_api/domain/agepass.py
+
+!walk services/api/src/dwarpal_api/migrations/versions/v0011_age_pass.py
+
+!walk services/api/src/dwarpal_api/app/agepass.py
+
+!walk services/api/tests/age_pass_holder.py
+
+!walk services/api/tests/test_agepass.py
+
+!walk apps/web/lib/age-pass.ts
+
+!walk apps/web/lib/age-pass.test.ts
+
+The tables, the policies (their switch, in the API, the console's editor and its list), the key ring (which now signs two types of token), the session's view and its token's methods, the flow API's three routes and the issuer metadata, the verify page and its words in English and Hindi, the flow and console clients, and the tests changed too; each was re-explained.
+
+!!! honest "Honest limitations"
+    - **A shared browser shares its passes.** A child using a parent's browser that holds passes could answer a check with one — as they could use a parent's signed-in shopping account today. A website that needs more simply leaves its policy's switch off.
+    - **Passes live where they were saved.** Inside another website's frame, browsers keep a separate storage area for each website, so the verify page offers and saves passes only on its own tab. And a pass saved on one device or browser isn't on another.
+    - **"Used once" relies on Valkey** remembering used passes until they expire. If that memory were lost, a holder could show one of their own passes twice — still only their own, and still only for its age line.
+    - **The Hindi words are machine-drafted**, like the rest of the Hindi (D2): a native speaker's review is still needed.

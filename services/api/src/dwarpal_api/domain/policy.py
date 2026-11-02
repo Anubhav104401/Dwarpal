@@ -26,6 +26,7 @@ class Policy:
     max_face_attempts: int = 3
     token_ttl_s: int = 600
     version: int = 0  # 0 for a preset; 1, 2, … for the versions of a project's own policy
+    accept_age_pass: bool = False  # sessions accept Age Passes and give them out (Phase 9, D21); never for a preset
 
     @property
     def label(self) -> str:

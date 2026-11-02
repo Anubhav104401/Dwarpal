@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import re
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.datastructures import FormData, UploadFile
 
-from dwarpal_api.app import verification
+from dwarpal_api.app import agepass, verification
 from dwarpal_api.app.verification import Services
 from dwarpal_api.domain.decision import Outcome
 from dwarpal_api.errors import ApiError
@@ -103,6 +103,62 @@ async def read_attempt(form: FormData) -> tuple[str, FaceRequestMeta, list[bytes
             raise ApiError(413, "frame_too_large", f"frame_{frame.index} is larger than {MAX_FRAME_BYTES} bytes")
         frames.append(data)
     return challenge_id, meta, frames
+
+
+class HolderKey(BaseModel):
+    """The public half of a key pair the browser made for one pass: an EC key on P-256, as a JWK, and nothing more —
+    a private part (`d`) or anything else is refused."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kty: Literal["EC"]
+    crv: Literal["P-256"]
+    x: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{43}$")]
+    y: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{43}$")]
+
+
+class AgePassKeys(BaseModel):
+    """One public key per pass (Phase 9, D21)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    keys: Annotated[list[HolderKey], Field(min_length=1, max_length=20)]
+
+
+class AgePassPresentation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    presentation: Annotated[str, Field(min_length=20, max_length=4096)]
+
+
+@router.post("/age-pass")
+async def issue_age_passes(
+    body: AgePassKeys, flow: Annotated[uuid.UUID, Depends(flow_session)], svc: Annotated[Services, Depends(services)]
+) -> dict[str, Any]:
+    """A batch of Age Passes for a person who has just passed, under a policy that accepts them."""
+    return await agepass.issue(svc, flow, [key.model_dump() for key in body.keys])
+
+
+@router.post("/age-pass/nonce")
+async def age_pass_nonce(
+    request: Request,
+    flow: Annotated[uuid.UUID, Depends(flow_session)],
+    svc: Annotated[Services, Depends(services)],
+    x_dwarpal_device: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    device = x_dwarpal_device if x_dwarpal_device and DEVICE_ID.match(x_dwarpal_device) else None
+    address = request.client.host if request.client else None
+    return await agepass.nonce(svc, flow, device, address)
+
+
+@router.post("/age-pass/present")
+async def present_age_pass(
+    body: AgePassPresentation,
+    flow: Annotated[uuid.UUID, Depends(flow_session)],
+    svc: Annotated[Services, Depends(services)],
+) -> dict[str, Any]:
+    """An Age Pass in place of a face check: the session completes, as after any pass."""
+    return await agepass.present(svc, flow, body.presentation)
 
 
 @router.post("/finish")

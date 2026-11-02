@@ -1,6 +1,6 @@
 # Phase 4 report — the platform
 
-**Dates:** 24–26 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Decision record:** [ADR-0011](../adr/0011-postgresql-rls-and-valkey.md) (amended 24 Oct) · **Status:** 🟢 all six steps built and tested locally; the exit criteria (contract, integration, RLS isolation and audit-chain suites green) are met locally. Remote CI has not run yet.
+**Dates:** 24–26 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Decision record:** [ADR-0011](../adr/0011-postgresql-rls-and-valkey.md) (amended 24 Oct) · **Status:** 🟢 all six steps built and tested locally; the exit criteria (contract, integration, RLS isolation and audit-chain suites green) are met, locally and on CI (CI green on GitHub since 2 Nov (`03f3f5b`)).
 
 **Goal (from the roadmap):** turn the single age check into a platform many businesses can use at once: organisations and people, safe keys and policies, events, an audit trail, and a published contract. **Exit:** contract and integration suites green; **RLS isolation tests green**; audit-chain verification green.
 
@@ -159,7 +159,7 @@
 1. **Separate login for production.** The API currently logs in as the owner and switches role; a fully attacker-controlled statement could `RESET ROLE`. Production (Phase 7) must log in as a user that is only a member of `dwarpal_app`, with `DWARPAL_DATABASE_ROLE` empty.
 2. **New tables need explicit grants and policies** in their own migrations (no default privileges were set, on purpose). A test now fails if any table other than `alembic_version` and `signing_keys` lacks RLS; a missing *grant* shows up as failing API tests.
 3. **Policy cost at scale.** Attempts and tokens are checked through sessions, which are checked through projects. If one project reaches millions of sessions, consider a denormalised `project_id` on attempts.
-4. **Remote CI** has not run these changes yet.
+4. ~~Remote CI~~ — **done**: CI green on GitHub since 2 Nov (`03f3f5b`).
 5. **Flow-endpoint rate limits.** Per-key limits cover websites; the design's per-session and per-address limits for the verify page exist only for challenges (Phase 3 budgets), not yet for `start` and `finish`.
 6. **Guessable idempotency keys** weaken the seal for someone who also holds the master key; the docs should tell websites to use random keys (Phase 5 developer docs).
 7. ~~Step 2 needs approval~~ — **approved and built 26 Oct.** Still missing from the console: invitations, password reset and account deletion (all need outgoing e-mail), TOTP recovery codes, and the design's growing lock-out back-off (a steady rate limit is in place).

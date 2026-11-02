@@ -18,7 +18,7 @@ Work that needs your answer — a download, a design choice, an account, or some
 **Done overnight** (no decision needed; all checks green):
 
 - **Phase 8** — Dockerfiles, Compose with Caddy, deploy/backup/restore scripts, the manual GHCR deploy workflow, runbooks, and the Helm chart (`6b6a1da`). Waiting only on the server, the domain, O8 and O9 (D17–D19 approved 2 Nov).
-- **Phase 9** — the Python SDK (`9ca1bfd`); **passkeys** for console sign-in (§5.9.2), with a software test device and a Chromium end-to-end test; the Age Pass design (D21, approved 2 Nov: being built).
+- **Phase 9** — the Python SDK (`9ca1bfd`); **passkeys** for console sign-in (§5.9.2), with a software test device and a Chromium end-to-end test; and on 2 Nov, after the owner's answers, the **Age Pass** itself (D21, §5.9.3) and Helm's check of the chart in CI (D19).
 - **CI is fully green on GitHub** (`03f3f5b`) for the first time since Phase 6: Lighthouse now starts its browser on GitHub's Linux machines, and the Python job's 30-minute timeouts were one ML test hanging (forked worker processes); it now takes 2 minutes.
 
 **Blocked, and why** (nothing for you to do yet):

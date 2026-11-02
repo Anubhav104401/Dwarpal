@@ -29,6 +29,7 @@ import numpy as np
 import pytest
 import schemathesis
 import uvicorn
+from age_pass_holder import Holder
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
 from hypothesis import HealthCheck, settings
@@ -833,6 +834,127 @@ async def test_a_policy_is_versioned_and_a_session_keeps_the_version_it_started_
     assert (preset_name.status_code, preset_name.json()["code"]) == (422, "invalid_policy_name")
     assert (uncalibrated.status_code, uncalibrated.json()["code"]) == (422, "policy_not_supported")
     assert (unknown.status_code, unknown.json()["code"]) == (422, "unknown_policy")
+
+
+async def passed_with_age_passes(h: Harness, policy: str, holder: Holder) -> tuple[dict[str, Any], httpx.Response]:
+    """A session under `policy` that passes the face check, then asks for a batch of Age Passes for `holder`."""
+    created = (await create(h, policy=policy)).json()
+    flow = await start(h, created)
+    assert (await attempt(h, created["id"], flow, [PORTRAIT] * 6)).json()["outcome"] == "pass"
+    issued = await h.client.post(
+        f"/v1/flow/sessions/{created['id']}/age-pass", json={"keys": holder.public_keys()}, headers=flow
+    )
+    if issued.status_code == 200:
+        holder.keep(issued.json()["passes"])
+    return created, issued
+
+
+async def present_age_pass(
+    h: Harness, index: int, holder: Holder, policy: str, line: str = "age_over_18"
+) -> tuple[dict[str, Any], httpx.Response]:
+    """A new session under `policy`, answered with the holder's pass `index` instead of a face check."""
+    created = (await create(h, policy=policy)).json()
+    flow = await start(h, created)
+    challenge = (await h.client.post(f"/v1/flow/sessions/{created['id']}/age-pass/nonce", headers=flow)).json()
+    shown = holder.present(index, [line], challenge["nonce"], challenge["audience"])
+    response = await h.client.post(
+        f"/v1/flow/sessions/{created['id']}/age-pass/present", json={"presentation": shown}, headers=flow
+    )
+    return created, response
+
+
+@pytest.mark.anyio
+async def test_an_age_pass_from_one_check_completes_the_next_without_a_camera_once(databases: tuple[str, str]) -> None:
+    """Phase 9's Age Pass (D21): a passed check under a policy that accepts passes gives the browser a batch; a later
+    session accepts one pass in place of a face check, and each pass works once."""
+    holder = Holder()
+    async with harness(databases) as h:
+        auth = bearer_of(h.key)
+        policy = {"name": "pass_18", "min_age": 18, "accept_age_pass": True}
+        made = await h.client.post("/v1/policies", json=policy, headers=auth)
+        first, issued = await passed_with_age_passes(h, "pass_18", holder)
+        again = await h.client.post(
+            f"/v1/flow/sessions/{first['id']}/age-pass",
+            json={"keys": holder.public_keys()[:1]},
+            headers=await start(h, first),
+        )
+        second, accepted = await present_age_pass(h, 0, holder, "pass_18")
+        result = (await h.client.get(f"/v1/verification-sessions/{second['id']}", headers=auth)).json()
+        jwks = (await h.client.get("/.well-known/jwks.json")).json()
+        _, reused = await present_age_pass(h, 0, holder, "pass_18")
+        _, another = await present_age_pass(h, 1, holder, "pass_18")
+        renewed = await h.client.post(
+            f"/v1/flow/sessions/{second['id']}/age-pass",
+            json={"keys": Holder(1).public_keys()},
+            headers=await start(h, second),
+        )
+        preset = (await create(h)).json()
+        preset_flow = await start(h, preset)
+        refused = await h.client.post(f"/v1/flow/sessions/{preset['id']}/age-pass/nonce", headers=preset_flow)
+        started = await h.client.post(f"/v1/flow/sessions/{preset['id']}/start", json=secret(preset))
+        metadata = (await h.client.get("/.well-known/jwt-vc-issuer")).json()
+    assert (made.status_code, made.json()["accept_age_pass"]) == (201, True)
+    assert issued.status_code == 200, issued.text
+    assert (len(issued.json()["passes"]), issued.json()["lines"]) == (20, [13, 16, 18])
+    assert (again.status_code, again.json()["code"]) == (409, "age_pass_already_issued")
+    assert (accepted.status_code, accepted.json()["outcome"]) == (200, "pass")
+    token = jwt.decode(result["age_token"], KeySet.import_key_set(jwks), algorithms=["Ed25519"])
+    assert (result["status"], token.claims["methods"], token.claims["age_over_18"]) == ("completed", ["age_pass"], True)
+    assert (reused.status_code, reused.json()["code"]) == (409, "age_pass_used")
+    assert another.status_code == 200  # the next pass in the batch works
+    assert (renewed.status_code, renewed.json()["code"]) == (409, "age_pass_not_earned")  # a pass can't renew itself
+    assert (refused.status_code, refused.json()["code"]) == (409, "age_pass_not_accepted")  # presets never do
+    assert started.json()["session"]["accept_age_pass"] is False
+    assert metadata == {"issuer": "http://localhost:8000", "jwks_uri": "http://localhost:8000/.well-known/jwks.json"}
+
+
+@pytest.mark.anyio
+async def test_an_age_pass_must_reach_the_sessions_age_and_be_made_for_this_session(databases: tuple[str, str]) -> None:
+    holder = Holder(4)
+    async with harness(databases) as h:
+        auth = bearer_of(h.key)
+        for name, age in (("pass_18", 18), ("pass_21", 21)):
+            body = {"name": name, "min_age": age, "accept_age_pass": True}
+            await h.client.post("/v1/policies", json=body, headers=auth)
+        await passed_with_age_passes(h, "pass_18", holder)
+        _, too_low = await present_age_pass(h, 0, holder, "pass_21")
+        elsewhere = (await create(h, policy="pass_18")).json()
+        flow = await start(h, elsewhere)
+        nonce = (await h.client.post(f"/v1/flow/sessions/{elsewhere['id']}/age-pass/nonce", headers=flow)).json()
+        for_another = holder.present(1, ["age_over_18"], nonce["nonce"], "vs_" + "0" * 26)
+        wrong_audience = await h.client.post(
+            f"/v1/flow/sessions/{elsewhere['id']}/age-pass/present", json={"presentation": for_another}, headers=flow
+        )
+        no_nonce = await h.client.post(
+            f"/v1/flow/sessions/{elsewhere['id']}/age-pass/present",
+            json={"presentation": holder.present(1, ["age_over_18"], nonce["nonce"], nonce["audience"])},
+            headers=flow,
+        )
+        slow = (await create(h, policy="pass_18")).json()
+        slow_flow = await start(h, slow)
+        assert (await attempt(h, slow["id"], slow_flow, [PORTRAIT] * 6)).json()["outcome"] == "pass"
+        engine = make_engine(databases[0])
+        async with make_sessions(engine)() as session:
+            earlier = datetime.now(UTC) - timedelta(minutes=20)
+            await session.execute(
+                update(VerificationSession)
+                .where(VerificationSession.id == ids.decode("vs", slow["id"]))
+                .values(completed_at=earlier)
+            )
+            await session.commit()
+        await engine.dispose()
+        too_late = await h.client.post(
+            f"/v1/flow/sessions/{slow['id']}/age-pass", json={"keys": Holder(1).public_keys()}, headers=slow_flow
+        )
+        leaked_key = {**Holder(1).public_keys()[0], "d": "AAAA"}
+        leaked = await h.client.post(
+            f"/v1/flow/sessions/{slow['id']}/age-pass", json={"keys": [leaked_key]}, headers=slow_flow
+        )
+    assert (too_low.status_code, too_low.json()["code"]) == (422, "age_pass_line_too_low")
+    assert (wrong_audience.status_code, wrong_audience.json()["code"]) == (422, "age_pass_bad_key_binding")
+    assert (no_nonce.status_code, no_nonce.json()["code"]) == (409, "age_pass_nonce_expired")  # each nonce, once
+    assert (too_late.status_code, too_late.json()["code"]) == (409, "age_pass_too_late")
+    assert (leaked.status_code, leaked.json()["code"]) == (422, "invalid_request")  # a private part, refused
 
 
 @pytest.mark.anyio

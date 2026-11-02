@@ -1,5 +1,5 @@
 ---
-fingerprint: 487819bcc8517fc9
+fingerprint: 3a7023d7428a034b
 ---
 The **console API** (Phase 4, §5.4.5), under `/console/v1`: what Dwarpal's own web console calls for a signed-in person. Unlike the website API, which uses API keys, it uses a **cookie**, because people sign in with a browser.
 
@@ -147,31 +147,31 @@ The path every project route starts with, written once; and `Live`, the `livemod
 @@ 338-340
 **`project_policies`** — `GET …/policies`.
 
-@@ 343-348
-**`add_policy_version`** — `POST …/policies`, a change (so it needs the CSRF token): build the draft from the body, and add it.
+@@ 343-355
+**`add_policy_version`** — `POST …/policies`, a change (so it needs the CSRF token): build the draft from the body — the Age Pass switch included — and add it.
 
-@@ 351-354
+@@ 358-361
 **`ConsoleEndpoint`** — that body plus `livemode` (test unless asked). A website's key is already test or live; a person in the console chooses.
 
-@@ 357-361
+@@ 364-368
 **`project_webhooks`** — `GET …/webhooks`: the endpoints, test or live.
 
-@@ 364-368
+@@ 371-375
 **`add_webhook`** — `POST …/webhooks`, a change: `201`, with the secret.
 
-@@ 371-376
+@@ 378-383
 **`remove_webhook`** — `DELETE …/webhooks/{id}`: `204`. The mode comes in the address (`?livemode=true`), like every other webhook route here.
 
-@@ 379-389
+@@ 386-396
 **`switch_webhook`** — `PATCH …/webhooks/{id}`, a change: on or off, in the mode the address names.
 
-@@ 392-396
+@@ 399-403
 **`send_test_event`** — `POST …/webhooks/{id}/test`: `202 Accepted` — queued, not yet sent.
 
-@@ 399-403
+@@ 406-410
 **`webhook_deliveries`** — `GET …/webhooks/{id}/deliveries`.
 
-@@ 406-410
+@@ 413-417
 **`replay_delivery`** — `POST …/webhook-deliveries/{id}/replay`: `202`.
 
 @@ 108

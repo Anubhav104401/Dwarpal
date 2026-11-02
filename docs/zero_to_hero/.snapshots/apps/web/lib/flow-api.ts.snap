@@ -1,5 +1,6 @@
 /** The verify page's client for the Dwarpal flow API. After `start`, every call carries the session's flow token. */
 
+import type { HolderKey } from "./age-pass";
 import type { LabelledFrame } from "./camera";
 import { type Challenge, readChallenge, type Signals } from "./challenge";
 import { deviceId } from "./device";
@@ -16,6 +17,16 @@ export interface FlowSession {
   attemptsRemaining: number;
   /** The website the session returns to — the only one this page talks to when it is inside that website's frame. */
   returnOrigin: string | null;
+  /** Whether the website's policy accepts Age Passes (Phase 9), and the mode — test or live — a pass must match. */
+  acceptAgePass: boolean;
+  livemode: boolean;
+}
+
+/** A batch of Age Passes: the passes, the age lines each states, and when they expire. */
+export interface IssuedPasses {
+  passes: string[];
+  lines: number[];
+  expiresAt: string;
 }
 
 export interface AttemptResult {
@@ -73,6 +84,8 @@ export class FlowClient {
       minAge: asCount(session.min_age),
       attemptsRemaining: asCount(session.attempts_remaining),
       returnOrigin: typeof session.return_origin === "string" ? session.return_origin : null,
+      acceptAgePass: session.accept_age_pass === true,
+      livemode: session.livemode === true,
     };
   }
 
@@ -94,6 +107,32 @@ export class FlowClient {
     const form = attemptForm(captured);
     form.set("document", document, "document.jpg");
     return readResult(await this.#post("/stepup/mrz", form));
+  }
+
+  /** A batch of Age Passes after a passed check, one bound to each public key this browser made. */
+  async issueAgePasses(keys: readonly HolderKey[]): Promise<IssuedPasses> {
+    const data = await this.#post("/age-pass", JSON.stringify({ keys }));
+    return {
+      passes: Array.isArray(data.passes) ? data.passes.map(asText) : [],
+      lines: Array.isArray(data.lines) ? data.lines.map(asCount) : [],
+      expiresAt: asText(data.expires_at),
+    };
+  }
+
+  /** A one-time nonce for an Age Pass's presentation, and the audience (this session) it must name. Like a face
+   * challenge, it carries the device ID, for the same hourly budget. */
+  async agePassNonce(device: string | null = deviceId()): Promise<{ nonce: string; audience: string }> {
+    const data = await this.#post(
+      "/age-pass/nonce",
+      null,
+      device === null ? {} : { "X-Dwarpal-Device": device },
+    );
+    return { nonce: asText(data.nonce), audience: asText(data.audience) };
+  }
+
+  /** Show one Age Pass in place of a face check. Resolves once the check has passed. */
+  async presentAgePass(presentation: string): Promise<void> {
+    await this.#post("/age-pass/present", JSON.stringify({ presentation }));
   }
 
   /** Where to send the person now, or `null` if the website gave no address to return to. */

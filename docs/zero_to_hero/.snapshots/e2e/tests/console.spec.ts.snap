@@ -77,8 +77,11 @@ test("a new customer signs up, creates an API key, and sees it in an intact audi
     "Not measured",
   );
   await page.getByLabel("New version of policy").fill("shop_18");
+  // It accepts Age Passes (Phase 9): the website opts in, and the list says so.
+  await page.getByLabel("Accept Age Passes").check();
   await page.getByRole("button", { name: "Add version" }).click();
   await expect(page.getByRole("region", { name: "Policies" })).toContainText("shop_18@1");
+  await expect(page.getByRole("row", { name: /shop_18@1/ })).toContainText("accepted");
 
   // A webhook endpoint: its secret is shown once, and a test event waits to be delivered.
   await page.getByLabel("Endpoint URL").fill("http://localhost:3100/dwarpal-events");

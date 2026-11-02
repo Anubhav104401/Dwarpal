@@ -344,7 +344,14 @@ async def project_policies(org_text: str, project_text: str, current: Reader, sv
 async def add_policy_version(
     org_text: str, project_text: str, body: NewVersion, current: Changer, svc: Toolbox
 ) -> dict[str, Any]:
-    draft = Policy(body.name, body.min_age, body.risk_budget, body.max_face_attempts, body.token_ttl_s)
+    draft = Policy(
+        body.name,
+        body.min_age,
+        body.risk_budget,
+        body.max_face_attempts,
+        body.token_ttl_s,
+        accept_age_pass=body.accept_age_pass,
+    )
     return await console.add_policy_version(svc, current, org_text, project_text, draft)
 
 

@@ -1,11 +1,21 @@
 "use client";
 
 import { MESSAGE_SOURCE, type VerifyMessage } from "@dwarpal/js";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { accentButton, card, primaryButton, quietButton, Shell } from "@/components/shell";
 import { problemFor, tipFor } from "@/lib/advice";
+import {
+  forget,
+  holderKey,
+  type KeptPass,
+  keep,
+  newKeys,
+  presentation,
+  type Usable,
+  usable,
+} from "@/lib/age-pass";
 import type { Challenge } from "@/lib/challenge";
 import { DocumentPhotoError, prepareDocument } from "@/lib/document-photo";
 import { type CapturedAttempt, FlowClient, FlowError, type FlowSession } from "@/lib/flow-api";
@@ -16,13 +26,16 @@ type Ending = "pass" | "fail" | "step_up" | "reject";
 
 type Stage =
   | { kind: "loading" }
-  | { kind: "intro"; session: FlowSession }
+  // `passRefused`: an Age Pass was just refused, and removed; the camera is the way on.
+  | { kind: "intro"; session: FlowSession; passRefused?: boolean }
   // Tips and problems are keys of their words (`Tips`, `Problems` in `messages/`), put into words when shown.
   | { kind: "camera"; session: FlowSession; tip: string | null }
   | { kind: "checking"; session: FlowSession }
   | { kind: "document"; session: FlowSession; tip: string | null }
   | { kind: "selfie"; session: FlowSession; document: Blob }
-  | { kind: "finished"; session: FlowSession; ending: Ending }
+  // `earned`: passed just now by a face or document check, so this browser may save Age Passes (never after a
+  // pass decided by an Age Pass, nor on a reload).
+  | { kind: "finished"; session: FlowSession; ending: Ending; earned?: boolean }
   | { kind: "problem"; problem: string; requestId: string | null };
 
 /** Read the one-time secret from the link's #fragment, then remove it from the address bar and the history. */
@@ -93,12 +106,29 @@ const DOCUMENT_STEPS = ["documentStep1", "documentStep2", "documentStep3"] as co
 /** How many tries the document check allows (the API's MAX_DOCUMENT_ATTEMPTS). */
 const DOCUMENT_TRIES = 3;
 
+/** Age Passes saved at once (the API's BATCH): each is used once, so websites can't link one visit to another. */
+const PASSES = 20;
+
+/** Saving Age Passes after a passed check: not yet, under way, done (how many, until when), or failed. */
+type Saving =
+  | { state: "idle" }
+  | { state: "saving" }
+  | { state: "saved"; count: number; until: Date }
+  | { state: "failed" };
+
+/** Refusals that mean this pass will never be accepted: it is removed. Others (an expired nonce, a policy that
+ * doesn't take passes) say nothing against the pass itself. */
+const PASS_KEPT_ON = new Set(["age_pass_nonce_expired", "age_pass_not_accepted"]);
+
 export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: string }) {
   const [stage, setStage] = useState<Stage>({ kind: "loading" });
   const [leaving, setLeaving] = useState(false);
   const [framedBy, setFramedBy] = useState<string | null>(null);
   const [documentTries, setDocumentTries] = useState(DOCUMENT_TRIES);
+  const [pass, setPass] = useState<Usable | null>(null);
+  const [saving, setSaving] = useState<Saving>({ state: "idle" });
   const t = useTranslations("Verify");
+  const format = useFormatter();
   const tips = useTranslations("Tips");
   const problems = useTranslations("Problems");
   const secret = useRef<string | null>(null);
@@ -119,6 +149,16 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
         }
         flow.current = client;
         setFramedBy(framingWebsite(session));
+        // An Age Pass is offered only on this page's own tab: inside another website's frame, the browser keeps a
+        // separate store for each website, so passes saved there would be found only on that website again.
+        if (session.status === "in_progress" && session.acceptAgePass && framingWebsite(session) === null) {
+          usable(session.minAge, session.livemode).then(
+            (found) => {
+              if (active) setPass(found);
+            },
+            () => undefined, // no storage in this browser (a private window, say): the camera, as always
+          );
+        }
         setStage(
           session.status === "in_progress"
             ? { kind: "intro", session }
@@ -155,9 +195,36 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
       setStage(
         result.outcome === "retry"
           ? { kind: "camera", session: updated, tip: tipFor(result.reasons) }
-          : { kind: "finished", session: updated, ending: result.outcome },
+          : { kind: "finished", session: updated, ending: result.outcome, earned: result.outcome === "pass" },
       );
     } catch (error) {
+      setStage(problemStage(error));
+    }
+  }, []);
+
+  /** Answer the check with an Age Pass: a nonce from the server, the pass's one line signed over it, and done. */
+  const answerWithPass = useCallback(async (session: FlowSession, chosen: Usable) => {
+    const client = flow.current;
+    if (client === null) {
+      return;
+    }
+    setStage({ kind: "checking", session });
+    try {
+      const { nonce, audience } = await client.agePassNonce();
+      const { pass: kept, key } = chosen.kept;
+      await client.presentAgePass(await presentation(kept, key, chosen.line, nonce, audience));
+      setPass(null);
+      await forget(chosen.id); // used once, never again
+      setStage({ kind: "finished", session, ending: "pass" });
+    } catch (error) {
+      if (error instanceof FlowError && error.code.startsWith("age_pass_")) {
+        setPass(null);
+        if (!PASS_KEPT_ON.has(error.code)) {
+          await forget(chosen.id).catch(() => undefined);
+        }
+        setStage({ kind: "intro", session, passRefused: true });
+        return;
+      }
       setStage(problemStage(error));
     }
   }, []);
@@ -188,7 +255,12 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
         setStage(
           result.outcome === "retry"
             ? { kind: "document", session, tip: tipFor(result.reasons) }
-            : { kind: "finished", session, ending: result.outcome === "step_up" ? "fail" : result.outcome },
+            : {
+                kind: "finished",
+                session,
+                ending: result.outcome === "step_up" ? "fail" : result.outcome,
+                earned: result.outcome === "pass",
+              },
         );
       } catch (error) {
         setStage(problemStage(error));
@@ -196,6 +268,40 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     },
     [],
   );
+
+  /** Save a batch of Age Passes in this browser: one key pair per pass, the public halves sent, the passes kept
+   * with their private halves (which can't be read out again). */
+  async function savePasses(session: FlowSession) {
+    const client = flow.current;
+    if (client === null) {
+      return;
+    }
+    setSaving({ state: "saving" });
+    try {
+      const pairs = await newKeys(PASSES);
+      const issued = await client.issueAgePasses(
+        await Promise.all(pairs.map((pair) => holderKey(pair.publicKey))),
+      );
+      const expiresAt = Date.parse(issued.expiresAt);
+      const kept: KeptPass[] = [];
+      issued.passes.forEach((signed, index) => {
+        const pair = pairs[index];
+        if (pair !== undefined) {
+          kept.push({
+            pass: signed,
+            key: pair.privateKey,
+            lines: issued.lines,
+            expiresAt,
+            livemode: session.livemode,
+          });
+        }
+      });
+      await keep(kept);
+      setSaving({ state: "saved", count: kept.length, until: new Date(expiresAt) });
+    } catch {
+      setSaving({ state: "failed" });
+    }
+  }
 
   /** Tell the framing website something, at its origin only: nothing reaches any other page. */
   function tellWebsite(message: VerifyMessage) {
@@ -291,9 +397,32 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
               </li>
             ))}
           </ol>
+          {stage.passRefused ? (
+            <p
+              className="mt-6 rounded-xl bg-amber-500/15 px-4 py-3 text-sm text-amber-800 dark:text-amber-200"
+              role="status"
+            >
+              {t("agePassRefused")}
+            </p>
+          ) : null}
+          {pass === null ? null : (
+            <div className="mt-6 rounded-2xl border border-brand-500/40 bg-brand-500/10 p-4">
+              <h2 className="font-semibold">{t("agePassTitle")}</h2>
+              <p className="mt-1 text-sm leading-relaxed text-ink-700 dark:text-ink-300">
+                {t("agePassBody", { project: session.projectName, line: pass.line })}
+              </p>
+              <button
+                type="button"
+                className={`${accentButton} mt-4`}
+                onClick={() => answerWithPass(session, pass)}
+              >
+                {t("agePassUse")}
+              </button>
+            </div>
+          )}
           <button
             type="button"
-            className={`${accentButton} mt-8`}
+            className={`${pass === null ? accentButton : quietButton} mt-8`}
             onClick={() => setStage({ kind: "camera", session, tip: null })}
           >
             {t("startCamera")}
@@ -422,9 +551,43 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
             </button>
           </>
         ) : (
-          <button type="button" className={`${primaryButton} mt-8`} disabled={leaving} onClick={leave}>
-            {leaving ? t("returning") : t("continue", { project: session.projectName })}
-          </button>
+          <>
+            {stage.ending === "pass" && stage.earned && session.acceptAgePass && framedBy === null ? (
+              <div className="mt-6 rounded-2xl border border-ink-200 p-4 dark:border-white/10">
+                {saving.state === "saved" ? (
+                  <p className="text-sm font-medium" role="status">
+                    {t("agePassSaved", {
+                      count: saving.count,
+                      date: format.dateTime(saving.until, { dateStyle: "long" }),
+                    })}
+                  </p>
+                ) : (
+                  <>
+                    <h2 className="font-semibold">{t("agePassSaveTitle")}</h2>
+                    <p className="mt-1 text-sm leading-relaxed text-ink-700 dark:text-ink-300">
+                      {t("agePassSaveBody", { age: session.minAge })}
+                    </p>
+                    {saving.state === "failed" ? (
+                      <p className="mt-2 text-sm text-rose-700 dark:text-rose-300" role="alert">
+                        {t("agePassSaveFailed")}
+                      </p>
+                    ) : null}
+                    <button
+                      type="button"
+                      className={`${quietButton} mt-4`}
+                      disabled={saving.state === "saving"}
+                      onClick={() => savePasses(session)}
+                    >
+                      {saving.state === "saving" ? t("agePassSaving") : t("agePassSave")}
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : null}
+            <button type="button" className={`${primaryButton} mt-8`} disabled={leaving} onClick={leave}>
+              {leaving ? t("returning") : t("continue", { project: session.projectName })}
+            </button>
+          </>
         )}
       </section>
     </Shell>

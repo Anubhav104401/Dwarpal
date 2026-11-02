@@ -201,7 +201,17 @@
     "documentStep2": "A short selfie, turning your head as asked, so we know the document is yours.",
     "documentStep3": "We read your date of birth and compare the faces. Your name and document number are never kept, and both photos are deleted straight after the check.",
     "documentButton": "Take or choose a photo of your document",
-    "selfieLead": "Your document's photo is ready. Now a short selfie, so we know it's yours."
+    "selfieLead": "Your document's photo is ready. Now a short selfie, so we know it's yours.",
+    "agePassTitle": "Use your Age Pass",
+    "agePassBody": "This browser holds an Age Pass from an earlier check. It can show {project} that you are {line} or over — only that — with no camera.",
+    "agePassUse": "Use my Age Pass",
+    "agePassRefused": "That Age Pass couldn't be used, so it has been removed from this browser. Please use the camera instead.",
+    "agePassSaveTitle": "Skip the camera next time?",
+    "agePassSaveBody": "Save an Age Pass in this browser. When a website that accepts it asks whether you are {age} or over, this browser can answer instead of the camera. It holds no photo, no name and no date of birth; it works 20 times within 90 days; and websites can't use it to recognise you.",
+    "agePassSave": "Save an Age Pass",
+    "agePassSaving": "Saving…",
+    "agePassSaved": "Saved in this browser: {count} uses, until {date}.",
+    "agePassSaveFailed": "The Age Pass couldn't be saved. You can still continue."
   },
   "Camera": {
     "noFace": "We can't see your face yet. Look at the camera.",

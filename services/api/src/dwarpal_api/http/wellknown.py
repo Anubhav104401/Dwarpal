@@ -20,6 +20,13 @@ async def jwks(response: Response, svc: Annotated[Services, Depends(services)]) 
     return svc.keyring.jwks()
 
 
+@router.get("/jwt-vc-issuer")
+async def credential_issuer(svc: Annotated[Services, Depends(services)]) -> dict[str, Any]:
+    """Where to find the keys that sign Age Passes, as the SD-JWT VC standard asks an issuer to say (Phase 9)."""
+    issuer = svc.settings.issuer
+    return {"issuer": issuer, "jwks_uri": f"{issuer}/.well-known/jwks.json"}
+
+
 @router.get("/dwarpal-configuration")
 async def configuration(svc: Annotated[Services, Depends(services)]) -> dict[str, Any]:
     issuer = svc.settings.issuer

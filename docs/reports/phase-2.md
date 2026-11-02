@@ -1,6 +1,6 @@
 # Phase 2 report — ML core
 
-**Dates:** from 16 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** ✅ steps 1–7 done locally; open questions below (remote CI pending the next push)
+**Dates:** from 16 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** ✅ steps 1–7 done; open questions below; CI green on GitHub since 2 Nov (`03f3f5b`)
 
 **Goal (from the roadmap):** replace the stub age model with a trained, calibrated one whose thresholds carry a statistical guarantee per age and group.
 

@@ -1,6 +1,6 @@
 # Phase 8 report — deployment
 
-**Dates:** from 1 Nov 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Design:** [ADR-0015](../adr/0015-single-vm-compose-deployment.md) · **Status:** 🟡 in progress — everything the server will run is written and checked locally; the server, the domain, backups' storage and the first deploy wait for the owner's steps and approvals ([pending decisions](pending-decisions.md): O2b decided, D17, D18, O8, O9)
+**Dates:** from 1 Nov 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Design:** [ADR-0015](../adr/0015-single-vm-compose-deployment.md) · **Status:** 🟡 in progress — everything the server will run is written and checked locally; the base images (D17), public packages (D18) and Helm (D19) were approved on 2 Nov; the server, the domain, backups' storage and the first deploy wait for the owner's steps ([pending decisions](pending-decisions.md): O2c, O10, O8, O9)
 
 **Exit (from the roadmap):** a public HTTPS address serving the demo shop, the verify flow and the console; a successful restore drill on record.
 
@@ -33,5 +33,5 @@
 2. **Backups and the restore drill** — need the storage bucket and key (O8); the drill's report is Phase 8's exit criterion.
 3. **Capacity on 2 cores** — re-run the load test against the server (NFR-05 was met on 4 cores).
 4. **Alert delivery** (from Phase 7) — Alertmanager and a destination; the observability profile isn't part of the production Compose file yet.
-5. **Helm chart** — written (`infra/helm/dwarpal`: workloads with probes and least privilege, background jobs, ingress, autoscaling, a network policy around the inference service); linting it in CI needs Helm (D19).
+5. ~~Helm chart's check~~ — **done 2 Nov** (D19): CI downloads Helm 4.3.1, checks its SHA-256, lints the chart with `--strict` and renders its 14 objects on every push. The chart has never been installed on a real cluster.
 6. **Static INT8 and per-domain web builds** — the web image carries the API's address; a domain change means a rebuild.

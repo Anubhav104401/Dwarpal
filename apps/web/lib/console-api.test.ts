@@ -245,6 +245,43 @@ describe("ConsoleClient, members and one-time codes", () => {
   });
 });
 
+describe("ConsoleClient, policies", () => {
+  it("reads whether a policy version accepts Age Passes, and can add one that does (Phase 9)", async () => {
+    const seen: Request[] = [];
+    const policy = { id: "pass_18@1", preset: false, min_age: 18, risk_budget: 0.02, max_face_attempts: 3 };
+    const replies = [
+      answer(200, {
+        object: "list",
+        data: [
+          { ...policy, accept_age_pass: true },
+          { ...policy, id: "uk_osa_18" },
+        ],
+      }),
+      answer(201, { id: "pass_18@2" }),
+    ];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      seen.push(new Request(new URL(url, "http://console.test"), init));
+      return replies.shift();
+    });
+    const client = new ConsoleClient();
+    const listed = await client.policies("org_1", "prj_1");
+    const added = await client.addPolicy("org_1", "prj_1", "pass_18", 18, 3, 0.02, true);
+
+    expect(listed.map((p) => [p.id, p.acceptAgePass])).toEqual([
+      ["pass_18@1", true],
+      ["uk_osa_18", false],
+    ]);
+    expect(added).toBe("pass_18@2");
+    expect(await seen[1]?.json()).toEqual({
+      name: "pass_18",
+      min_age: 18,
+      max_face_attempts: 3,
+      risk_budget: 0.02,
+      accept_age_pass: true,
+    });
+  });
+});
+
 describe("CAN", () => {
   it("mirrors the API's role matrix for what the pages offer", () => {
     expect(["owner", "admin", "developer", "analyst"].map((r) => CAN.manageKeys(r as never))).toEqual([

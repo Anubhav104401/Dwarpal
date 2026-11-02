@@ -1,5 +1,5 @@
 ---
-fingerprint: 4d9f39adb77d954b
+fingerprint: 39cb4f58d79d6e5d
 ---
 **The end-to-end tests**: short stories, acted out by **Playwright** in a real Chromium browser (§4.20). The first one is the whole slice working together — the shop, the SDKs, the verify page in its modal, the camera, the API, the inference service, the decision engine, the signed token and the shop's pass:
 
@@ -143,3 +143,30 @@ If that heading never comes, the test fails with a message saying **what the pag
 
 @@ 185
 A screenshot of the result.
+
+@@ 197-201
+**Test — an Age Pass saved after one check answers the next, with no camera** (Phase 9, §5.9.3). Three minutes: it runs two checks.
+
+@@ 202-208
+A policy of the website's own that accepts passes — no preset does.
+
+@@ 209-216
+**`session`** — a new session under that policy, and its verify link.
+
+@@ 218-222
+The first check: no pass is offered yet.
+
+@@ 223-226
+The camera, as in the first test.
+
+@@ 227-229
+After the pass, **Save an Age Pass**: twenty uses, until a date.
+
+@@ 231-236
+The next check, in the same browser: the pass is offered, and the page is still accessible (axe).
+
+@@ 237-240
+**Use my Age Pass**: passed, with no camera — and no offer to save passes, since a pass can't renew itself.
+
+@@ 242-249
+The website's view: completed, passed, and the token's `methods` say `age_pass`.

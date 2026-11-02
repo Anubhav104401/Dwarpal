@@ -1,5 +1,5 @@
 ---
-fingerprint: 7f9a6a9fb34c0ff8
+fingerprint: 6f60d1c1c6abb5e9
 ---
 The **capture-flow API** — the endpoints the hosted verify page calls from the person's browser while the check is happening:
 
@@ -19,13 +19,13 @@ The docstring.
 The project-wide type-hint setting.
 
 @@ 5-7
-`re` (regular expressions), `uuid`, `Annotated` and `Any`.
+`re` (regular expressions), `uuid`, `Annotated`, `Any`, and `Literal` (a field that must be one exact value).
 
 @@ 9-11
 From FastAPI: the router, `Depends`, `Header` (to read a request header) and `Request`. From Pydantic: the model tools and `ValidationError`. From Starlette: `FormData`, the type of a parsed form, and `UploadFile`, the type of an uploaded file. (They are Starlette's, because FastAPI is built on Starlette.)
 
 @@ 13-18
-The use cases, the toolbox type, the `Outcome` names, our error class, the two dependencies used here, and the limits and frame description from the shared contracts — now including the document photo's limit (§5.6.2).
+The use cases — since Phase 9 the Age Pass's too — the toolbox type, the `Outcome` names, our error class, the two dependencies used here, and the limits and frame description from the shared contracts, including the document photo's limit (§5.6.2).
 
 @@ 20
 The router: every path starts with `/v1/flow/sessions/{session_text}`, so each endpoint automatically receives the session's ID from its address.
@@ -65,7 +65,7 @@ Hand everything to the use case, which uses up the challenge, asks the AI, decid
 @@ 65
 Answer with the outcome, the reasons, and the attempts left — never below zero.
 
-@@ 108-112
+@@ 164-168
 **`/finish`** — the use case returns where the page should send the person (or `None`), wrapped in a small JSON object.
 
 @@ 62
@@ -109,3 +109,21 @@ Read at most one byte more than the per-frame limit. If that extra byte arrived,
 
 @@ 105
 Return the three.
+
+@@ 108-117
+**`HolderKey`** (Phase 9) — the public half of a key pair the browser made for one Age Pass, as a JWK: exactly an EC key on P-256 with its two coordinates, each 43 base64url characters (32 bytes). Anything else — a private part `d`, another curve, an extra field — is refused before any use case sees it.
+
+@@ 120-125
+**`AgePassKeys`** — one to twenty such keys: one per pass.
+
+@@ 128-131
+**`AgePassPresentation`** — a presentation as one string, at most 4096 characters. The limit is about three times a real presentation's size, and low enough that even a string written entirely as JSON escape codes stays under the API's 64 KB body limit — the contract test found that a longer limit let a request be refused as too large instead of as invalid.
+
+@@ 134-139
+**`POST …/age-pass`** — a batch of passes for this browser's keys, after a pass under a policy that accepts them (`app/agepass.py`).
+
+@@ 142-151
+**`POST …/age-pass/nonce`** — a one-time number for the next presentation. Like a face challenge, it reads the browser's device ID and the network address, for the same hourly budgets.
+
+@@ 154-161
+**`POST …/age-pass/present`** — a pass in place of a face check; the session completes.

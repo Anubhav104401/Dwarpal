@@ -1,6 +1,6 @@
 # Phase 0 report — Foundations
 
-**Dates:** 15 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** ✅ complete locally (remote CI pending the first push)
+**Dates:** 15 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** ✅ complete; CI green on GitHub since 2 Nov (`03f3f5b`)
 
 ## What was built
 

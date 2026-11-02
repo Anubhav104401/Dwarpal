@@ -1,5 +1,5 @@
 ---
-fingerprint: 406630cc09e258bd
+fingerprint: 3ad1535692a208f7
 ---
 Two public addresses under `/.well-known/` — a path prefix reserved by an Internet standard (RFC 8615) for information about a site, at places everyone can predict:
 
@@ -40,13 +40,13 @@ The `response` parameter lets the endpoint add headers to the response FastAPI w
 @@ 20
 Answer with the key set.
 
-@@ 23-24
+@@ 30-31
 `GET /.well-known/dwarpal-configuration` — the **discovery document**. A program can learn everything it needs to verify our tokens from this one address. The idea is borrowed from OpenID Connect, which publishes the same kind of document for logins.
 
-@@ 25
+@@ 32
 The issuer's own address, from the settings.
 
-@@ 26-34
+@@ 33-41
 The document:
 
 - `issuer` — exactly what tokens carry in their `iss` claim;
@@ -55,3 +55,6 @@ The document:
 - `token_signing_algorithms` — `["Ed25519"]`, the only algorithm a verifier should accept;
 - `policies` — the names of the preset policies, sorted;
 - `age_model` and `age_model_calibrated` — which age model decides, and whether it is calibrated. Anyone integrating can see at a glance that, today, only test sessions are possible.
+
+@@ 21-29
+**`/.well-known/jwt-vc-issuer`** (Phase 9) — the SD-JWT VC standard asks an issuer of credentials to say, at this address, where its signing keys are. Anyone holding an Age Pass can check its signature with them; they are the same keys as the age tokens'.

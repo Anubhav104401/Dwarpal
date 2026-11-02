@@ -164,6 +164,8 @@ export interface PolicyVersion {
   minAge: number;
   riskBudget: number;
   maxFaceAttempts: number;
+  /** Sessions under this version accept Age Passes and give them out (Phase 9, D21). */
+  acceptAgePass: boolean;
 }
 
 /** The events a webhook endpoint can subscribe to (app/webhooks.py). */
@@ -550,6 +552,7 @@ export class ConsoleClient {
       minAge: asCount(p.min_age),
       riskBudget: asCount(p.risk_budget),
       maxFaceAttempts: asCount(p.max_face_attempts),
+      acceptAgePass: p.accept_age_pass === true,
     }));
   }
 
@@ -560,8 +563,15 @@ export class ConsoleClient {
     minAge: number,
     attempts: number,
     riskBudget: number,
+    acceptAgePass = false,
   ): Promise<string> {
-    const body = { name, min_age: minAge, max_face_attempts: attempts, risk_budget: riskBudget };
+    const body = {
+      name,
+      min_age: minAge,
+      max_face_attempts: attempts,
+      risk_budget: riskBudget,
+      accept_age_pass: acceptAgePass,
+    };
     const data = await this.#call("POST", `${this.#project(org, project)}/policies`, body);
     return asText(data.id);
   }

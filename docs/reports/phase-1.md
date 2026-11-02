@@ -1,6 +1,6 @@
 # Phase 1 report — Walking skeleton
 
-**Dates:** 15–16 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** ✅ complete locally (remote CI pending the first push)
+**Dates:** 15–16 Oct 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Status:** ✅ complete; CI green on GitHub since 2 Nov (`03f3f5b`)
 
 **Goal (from the roadmap):** demo shop → hosted flow → API → inference (stub) → decision → signed token → demo shop verifies it. **Met:** a Playwright test drives exactly that journey in Chromium with a fake camera, and passes.
 

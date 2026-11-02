@@ -1,5 +1,5 @@
 ---
-fingerprint: ab994457e376be8f
+fingerprint: bfe6195b240e9916
 ---
 Unit tests of the console's client (Phase 5), with the network replaced by a stand-in `fetch` that records each request and hands back prepared answers.
 
@@ -171,38 +171,41 @@ And the recovery codes came back as sent.
 @@ 245-246
 End of the test and the group.
 
-@@ 248-249
-**The page's role checks** match the API's matrix where the pages use them.
-
-@@ 250-255
+@@ 287-292
 Every role but an analyst may manage keys. (`as never` lets a plain text stand in for the `Role` type in this table.)
 
-@@ 256-257
+@@ 293-294
 A developer may not manage members; an admin may read the audit log.
 
-@@ 258-259
+@@ 295-296
 End of the test and the group.
 
-@@ 261-262
+@@ 298-299
 **The model page's client.**
 
-@@ 263-287
+@@ 300-324
 Two prepared answers: a model's details, with a training dataset that records no number of faces and one line whose adult bound is missing but whose adults were measured (one band); then a 401.
 
-@@ 288-289
+@@ 325-326
 Every request gets the next answer; a fresh client.
 
-@@ 291
+@@ 328
 Ask for the model.
 
-@@ 293-308
+@@ 330-345
 The training faces are read with their number of faces unknown (`null`), the calibration's number is kept, and the line arrives with every field renamed, the missing bound as `null`, and its adult band read whole (`step_up` as `stepUp`).
 
-@@ 309
+@@ 346
 Signed out, the client answers `null` rather than failing.
 
-@@ 310-311
+@@ 347-348
 End of the test and the group.
 
 @@ 117-121
 And the face checks' figures, read whole: five decided, four passes and a step-up, and a median band with no end.
+
+@@ 248-283
+**Policies** (Phase 9): the list says which version accepts Age Passes (a version without the field doesn't), and adding a version sends the switch with the other rules.
+
+@@ 285-286
+**The page's role checks** match the API's matrix where the pages use them.

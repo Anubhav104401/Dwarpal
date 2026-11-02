@@ -68,20 +68,22 @@ class KeyRing:
     def jwks(self) -> dict[str, Any]:
         return {"keys": self._public}
 
-    def sign(self, claims: dict[str, Any]) -> str:
+    def sign(self, claims: dict[str, Any], typ: str = JWT_TYPE) -> str:
+        """Sign with the active key. `typ` names what is signed: an age token, or an Age Pass (Phase 9)."""
         if self._signing is None:
             raise RuntimeError("the key ring has not been loaded")
-        header = {"alg": ALG, "typ": JWT_TYPE, "kid": self._signing.kid}
+        header = {"alg": ALG, "typ": typ, "kid": self._signing.kid}
         return jwt.encode(header, claims, self._signing, algorithms=[ALG])
 
-    def verify(self, token: str) -> dict[str, Any] | None:
-        """The claims of an age token signed by one of our current keys, or None for anything else: a bad signature,
-        an unknown or retired key, another algorithm or another type of token. Times are the caller's to check."""
+    def verify(self, token: str, typ: str = JWT_TYPE) -> dict[str, Any] | None:
+        """The claims of a token of type `typ` (an age token unless said) signed by one of our current keys, or None for
+        anything else: a bad signature, an unknown or retired key, another algorithm or another type of token. Times
+        are the caller's to check."""
         try:
             keys = KeySet([OKPKey.import_key(jwk) for jwk in self._public])
             decoded = jwt.decode(token, keys, algorithms=[ALG])
         except (JoseError, ValueError):
             return None
-        if decoded.header.get("typ") != JWT_TYPE:
+        if decoded.header.get("typ") != typ:
             return None
         return dict(decoded.claims)

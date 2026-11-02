@@ -1,5 +1,5 @@
 ---
-fingerprint: b870e161802b0ab4
+fingerprint: e934909a6882cfcb
 ---
 The public pages' words in **Hindi** (decision D2, §5.5.11), with exactly the keys of the English file — a test (`advice.test.ts`) checks that no key is missing in either.
 
@@ -59,20 +59,20 @@ The end of `Home`.
 @@ 177-194
 The four endings, each a title and a body; `{project}` and `{age}` are filled in.
 
-@@ 195-205
-The step-up's choices and the leaving buttons, then the document check: its title, three steps, photo button, and the selfie's line.
+@@ 195-215
+The step-up's choices and the leaving buttons, then the document check: its title, three steps, photo button, and the selfie's line. Since Phase 9, the **Age Pass**'s words: the offer before the camera (its title, what the pass shows and the button), the notice when a pass is refused, and after a passed check the offer to save passes, the button while saving, the confirmation with how many and until when, and the failure.
 
-@@ 206-218
+@@ 216-228
 **`Camera`** — the camera screen: the landmarker's guidance, the starting message, the progress and colour messages, and the button.
 
-@@ 219-224
+@@ 229-234
 The three pose instructions, by the pose's code.
 
-@@ 225-247
+@@ 235-257
 **`Tips`** — one tip per reason code the API can give (`advice.ts` chooses), plus the general one (`default`) and the unusable-file tip of the document check.
 
-@@ 248-285
+@@ 258-295
 **`Problems`** — one message per problem that stops the check, each a title and a detail, plus the general one.
 
-@@ 286
+@@ 296
 The end of the file.

@@ -1,6 +1,6 @@
 # Age Pass — design (Phase 9, FR-17)
 
-**Status:** design for review; nothing built yet. Decision D21 in `docs/reports/pending-decisions.md` asks the owner to approve it before it is built.
+**Status:** approved by the owner on 2 Nov 2026 (D21: build now; 90 days, 20 per batch, each used once, off by default) and **built** the same day — the Zero-to-Hero book's §5.9.3 walks through every line. Two details changed while building: passes are offered and saved only on the verify page's own tab (§7 below), and the presenting endpoint is `/age-pass/present` with a separate `/age-pass/nonce`.
 
 ## 1. The problem it solves
 
@@ -73,3 +73,11 @@ Nothing new needs downloading: SD-JWT is plain JSON, base64url and SHA-256 with 
 2. Pass lifetime: 90 days (suggested), 30, or 365?
 3. Batch size: 20 (suggested)?
 4. Default for new policies: passes **off** (suggested — websites opt in) or on?
+
+## 7. As built (2 Nov 2026)
+
+- **Endpoints** (flow token): `POST /v1/flow/sessions/{id}/age-pass` (issue, 1–20 public P-256 keys), `POST …/age-pass/nonce`, `POST …/age-pass/present`. Issuer metadata at `/.well-known/jwt-vc-issuer`.
+- **Format:** issuer JWT `typ: dc+sd-jwt`, signed Ed25519 with the age tokens' keys; claims `iss`, `iat` (the day, UTC), `exp` (+90 days), `vct: urn:dwarpal:age-pass:1`, `livemode`, `cnf.jwk` (P-256), `_sd` (6 digests, decoys included, sorted), `_sd_alg: sha-256`. Key binding `typ: kb+jwt`, ES256, with `nonce`, `aud` (the session's ID), `iat` (±5 min) and `sd_hash`.
+- **Rules:** issue only within 10 minutes of a passed face or document check under a policy with `accept_age_pass`, once per session, never from a pass-decided session; present only to an in-progress session whose policy accepts passes, of the same mode, showing a line at or above the policy's age; each pass once (a hash in Valkey until expiry).
+- **Frames:** browsers partition storage inside third-party frames, so the verify page offers and saves passes only when it is its own tab.
+- **Not built:** a fresh batch from a pass (passes run out after 20 uses; a new face check gives a new batch), revocation lists, and acceptance by websites directly (they get Dwarpal's usual age token instead).

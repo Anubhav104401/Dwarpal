@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from dataclasses import replace
 from datetime import datetime
 from typing import Any
 
@@ -21,7 +22,15 @@ NAME = re.compile(r"^[a-z][a-z0-9_]{2,39}$")
 
 
 def from_row(row: PolicyVersion) -> Policy:
-    return Policy(row.name, row.min_age, row.risk_budget, row.max_face_attempts, row.token_ttl_s, row.version)
+    return Policy(
+        row.name,
+        row.min_age,
+        row.risk_budget,
+        row.max_face_attempts,
+        row.token_ttl_s,
+        row.version,
+        accept_age_pass=row.accept_age_pass,
+    )
 
 
 async def latest(session: AsyncSession, project_id: uuid.UUID, name: str) -> Policy:
@@ -67,6 +76,7 @@ def view(policy: Policy) -> dict[str, Any]:
         "risk_budget": policy.risk_budget,
         "max_face_attempts": policy.max_face_attempts,
         "token_ttl_s": policy.token_ttl_s,
+        "accept_age_pass": policy.accept_age_pass,
     }
 
 
@@ -106,16 +116,22 @@ async def add_version(
                     max_face_attempts=draft.max_face_attempts,
                     token_ttl_s=draft.token_ttl_s,
                     created_at=now,
+                    accept_age_pass=draft.accept_age_pass,
                 )
             )
-            facts = {"min_age": draft.min_age, "risk_budget": draft.risk_budget, "attempts": draft.max_face_attempts}
+            facts = {
+                "min_age": draft.min_age,
+                "risk_budget": draft.risk_budget,
+                "attempts": draft.max_face_attempts,
+                "accept_age_pass": draft.accept_age_pass,
+            }
             await audit.record(session, org_id, actor, "policy.version_added", f"{draft.id}@{version}", facts, now)
             await session.commit()
     except IntegrityError:  # another request added the same version at the same moment
         raise ApiError(
             409, "policy_version_conflict", "another version was added at the same time; try again"
         ) from None
-    return view(Policy(draft.id, draft.min_age, draft.risk_budget, draft.max_face_attempts, draft.token_ttl_s, version))
+    return view(replace(draft, version=version))
 
 
 async def list_all(sessions: async_sessionmaker[AsyncSession], project_id: uuid.UUID) -> dict[str, Any]:

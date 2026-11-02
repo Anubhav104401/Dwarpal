@@ -193,3 +193,57 @@ test("a person the face check can't decide confirms their age with a passport an
   const claims = JSON.parse(Buffer.from(session.age_token.split(".")[1], "base64url").toString());
   expect(claims.methods).toEqual(["face_estimation", "document_mrz", "face_match"]);
 });
+
+test("an Age Pass saved after one check answers the next check, with no camera", async ({
+  page,
+  request,
+}, info) => {
+  test.setTimeout(180_000);
+  // Websites opt in through their own policy (decision D21): no preset accepts passes.
+  const auth = { Authorization: `Bearer ${process.env.E2E_API_KEY}` };
+  const policy = await request.post(`${API}/v1/policies`, {
+    headers: auth,
+    data: { name: "age_pass_18", min_age: 18, accept_age_pass: true },
+  });
+  expect(policy.status()).toBe(201);
+  const session = async () => {
+    const created = await request.post(`${API}/v1/verification-sessions`, {
+      headers: auth,
+      data: { policy: "age_pass_18" },
+    });
+    const { id, client_secret: secret } = await created.json();
+    return { id: String(id), url: `${VERIFY}/v/${id}#cs=${secret}` };
+  };
+
+  // The first check: the camera, as always, then the offer to save passes in this browser.
+  const first = await session();
+  await page.goto(first.url);
+  await expect(page.getByRole("heading", { name: "Confirm you are 18 or over" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Use your Age Pass" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Start the camera" }).click();
+  await expect(page.getByRole("button", { name: "Start", exact: true })).toBeEnabled({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "You're all set" })).toBeVisible({ timeout: 90_000 });
+  await page.getByRole("button", { name: "Save an Age Pass" }).click();
+  await expect(page.getByRole("status")).toContainText("Saved in this browser: 20 uses, until");
+  await page.screenshot({ path: info.outputPath("1-saved.png"), animations: "disabled" });
+
+  // The next check, in the same browser: a pass instead of the camera.
+  const second = await session();
+  await page.goto(second.url);
+  await expect(page.getByRole("heading", { name: "Use your Age Pass" })).toBeVisible();
+  expect(await violations(page)).toEqual([]);
+  await page.screenshot({ path: info.outputPath("2-offered.png"), animations: "disabled" });
+  await page.getByRole("button", { name: "Use my Age Pass" }).click();
+  await expect(page.getByRole("heading", { name: "You're all set" })).toBeVisible();
+  // A check decided by a pass gives out no new passes: a pass can't renew itself.
+  await expect(page.getByRole("button", { name: "Save an Age Pass" })).toHaveCount(0);
+
+  // The website's view: passed, and the token says how.
+  const result = await (
+    await request.get(`${API}/v1/verification-sessions/${second.id}`, { headers: auth })
+  ).json();
+  expect([result.status, result.outcome]).toEqual(["completed", "pass"]);
+  const claims = JSON.parse(Buffer.from(result.age_token.split(".")[1], "base64url").toString());
+  expect(claims.methods).toEqual(["age_pass"]);
+});

@@ -68,4 +68,4 @@ Secondary measures, recorded only: screen pattern real 0.99–1.14 vs. phone 1.1
 3. **Recorded-only signals** (light, screen pattern, mid-turn, hands, look-up) could become deciding once broader data supports limits.
 4. ~~The anti-spoofing ONNX files~~ — **resolved 24 Oct**: a live session is never decided without the anti-spoofing verdict (`liveness_unavailable`), and the inference service's `/readyz` reports `antispoof: loaded | missing`. Publishing the ONNX files through the model registry, so production doesn't need PyTorch to make them, remains a nice-to-have.
 5. ~~The intermittent test-collection crash~~ — **mitigated 24 Oct**: `tasks.py test` runs the ML tests (PyTorch) in a separate process from the services and libraries (OpenCV, ONNX Runtime). 112 + 61 tests pass.
-6. **Remote CI** has not run these changes yet.
+6. ~~Remote CI~~ — **done**: CI green on GitHub since 2 Nov (`03f3f5b`).

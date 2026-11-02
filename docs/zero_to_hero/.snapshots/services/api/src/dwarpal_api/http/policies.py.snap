@@ -23,6 +23,9 @@ class NewVersion(BaseModel):
     risk_budget: Annotated[float, Field(gt=0, le=0.1)] = 0.02
     max_face_attempts: Annotated[int, Field(ge=1, le=5)] = 3
     token_ttl_s: Annotated[int, Field(ge=60, le=3600)] = 600
+    # Accept Age Passes, and give them out after a pass (Phase 9, D21). Off unless chosen; strictly true or
+    # false, so a stray 0 or "yes" is refused rather than read as a choice.
+    accept_age_pass: Annotated[bool, Field(strict=True)] = False
 
 
 @router.get("")
@@ -38,7 +41,14 @@ async def add_version(
     caller: Annotated[Caller, Depends(needs("policies:write"))],
     svc: Annotated[Services, Depends(services)],
 ) -> dict[str, Any]:
-    draft = Policy(body.name, body.min_age, body.risk_budget, body.max_face_attempts, body.token_ttl_s)
+    draft = Policy(
+        body.name,
+        body.min_age,
+        body.risk_budget,
+        body.max_face_attempts,
+        body.token_ttl_s,
+        accept_age_pass=body.accept_age_pass,
+    )
     project = caller.project
     return await policies.add_version(
         svc.sessions, svc.manifest, project.id, draft, svc.now(), svc.new_id(), project.org_id, caller.actor
