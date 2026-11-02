@@ -119,7 +119,7 @@ The tables, the policies (their switch, in the API, the console's editor and its
 
 The fourth stretch item, a detector for **computer-rendered faces** (liveness level 6), needs examples, and none could be found that both shows rendered faces filmed by a camera and may be used in a service. On 2 November the owner chose to **make our own, and ask** (decision D22, [ADR-0021](../../adr/0021-render-detector-data.md)): made-up people rendered in Blender with MakeHuman's CC0 parts, and, for the real side, people who have signed a consent form. Meanwhile, two dataset authors are asked for terms (`docs/data/dataset-requests.md`).
 
-A training set is the one place in Dwarpal where faces are kept, so it has rules the service doesn't need: it lives only on the owner's machine (`.datasets/`, which git ignores), a real person is filed only as `person-NNN` and only under a consent that stands, and withdrawing a consent deletes their clips. The protocol (`docs/data/render-detector-protocol.md`) says what to film; this tool enforces the rules:
+A training set is the one place in Dwarpal where faces are kept, so it has rules the service doesn't need: it lives only on the owner's machine (`.datasets/`, which git ignores), a real person is filed only as `person-NNN` and only under a consent that stands, and withdrawing a consent deletes their clips. The protocol (`docs/data/render-detector-protocol.md`) says what to film; this tool enforces the rules, and films a render on a screen in step with the camera, one camera frame per rendered frame:
 
 !walk ml/src/dwarpal_ml/renders.py
 

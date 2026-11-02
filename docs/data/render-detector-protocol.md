@@ -42,9 +42,10 @@ appears in two splits.
    `.datasets/render-detector/renders/render-NNN/<light>/`.
 4. **Import the injected clips:** `python -m dwarpal_ml.renders inject` copies every rendered sequence in as an
    `injected_render` clip.
-5. **Film the screen clips:** play each sequence full-screen, and run
-   `python -m dwarpal_ml.renders record --kind screen_render --identity render-NNN --camera <name> --setting <room-light>`
-   while it plays.
+5. **Film the screen clips:** point a webcam at the screen (a monitor, or a phone mirroring the computer), then
+   `python -m dwarpal_ml.renders film .datasets/render-detector/renders/render-NNN/<light> --camera <name> --setting <screen-room-light>`.
+   It shows the sequence full-screen and takes one camera frame per rendered frame, in step; the first frame stays up
+   half a second while the camera adjusts to the screen.
 6. **Film the real clips:** first add the person to the consent register (below), then
    `python -m dwarpal_ml.renders record --kind real --identity person-NNN --consent <consent id> ...`. The tool refuses
    a real clip without a standing consent.

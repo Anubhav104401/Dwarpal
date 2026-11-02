@@ -16,7 +16,7 @@ import shutil
 import sys
 import tomllib
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Literal, cast, get_args
@@ -36,6 +36,12 @@ IDENTITY = {"real": re.compile(r"person-\d{3}"), "screen_render": re.compile(r"r
 IDENTITY["injected_render"] = IDENTITY["screen_render"]
 NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
 IMAGES = (".png", ".jpg", ".jpeg")
+# Camera frames dropped while the first rendered frame is on screen: the camera adjusts its exposure to the screen.
+SETTLE = 15
+
+type Frame = NDArray[np.uint8]
+type Show = Callable[[Frame], None]
+type Grab = Callable[[], Frame | None]
 
 
 @dataclass(frozen=True)
@@ -152,11 +158,15 @@ def record(
     target = folder / "clips" / clip.clip_id
     target.mkdir(parents=True)
     count = 0
-    for count, frame in enumerate(frames, start=1):
-        cv2.imwrite(str(target / f"frame_{count:04d}.jpg"), frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
-    if count == 0:
-        target.rmdir()
-        raise ValueError("no frames were recorded")
+    try:
+        for count, frame in enumerate(frames, start=1):
+            cv2.imwrite(str(target / f"frame_{count:04d}.jpg"), frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+        if count == 0:
+            raise ValueError("no frames were recorded")
+    except BaseException:
+        # Whatever stopped the filming, no half-written clip is left behind.
+        shutil.rmtree(target, ignore_errors=True)
+        raise
     write_clips([*clips, clip], folder)
     return clip
 
@@ -200,6 +210,60 @@ def withdraw(consent_id: str, folder: Path = DATA) -> int:
     return len(gone)
 
 
+def read_frame(path: Path) -> Frame:
+    """One rendered frame, as OpenCV reads it; a file it can't read is refused by name."""
+    image = cv2.imread(str(path))
+    if image is None:
+        raise ValueError(f"{path} isn't a readable picture")
+    return cast("Frame", image)
+
+
+def played(sequence: Path, show: Show, grab: Grab, settle: int = SETTLE) -> Iterator[Frame]:
+    """A rendered sequence shown on a screen and filmed in step: each rendered frame is shown, then one camera frame is
+    taken of it. The first is shown a little longer, and what the camera sees meanwhile is dropped."""
+    images = sorted(p for p in sequence.iterdir() if p.suffix.lower() in IMAGES)
+    if not images:
+        raise ValueError(f"{sequence} holds no rendered frames")
+    first = read_frame(images[0])
+    for _ in range(settle):
+        show(first)
+        grab()
+    for path in images:
+        show(read_frame(path))
+        frame = grab()
+        if frame is None:
+            break
+        yield frame
+
+
+def film(sequence: Path, show: Show, grab: Grab, camera: str, setting: str, folder: Path = DATA) -> Clip:
+    """A `screen_render` clip of the made-up person whose sequence it is (renders/<identity>/<light>/)."""
+    return record(played(sequence, show, grab), "screen_render", sequence.parent.name, camera, setting, "", folder)
+
+
+def full_screen(device: int) -> tuple[Show, Grab, Callable[[], None]]:  # pragma: no cover - needs a screen and webcam
+    """A full-screen window to show frames in, a webcam to grab them from, and a way to close both."""
+    capture = cv2.VideoCapture(device)
+    if not capture.isOpened():
+        raise ValueError(f"camera {device} can't be opened")
+    cv2.namedWindow("dwarpal-render", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("dwarpal-render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+    def show(image: Frame) -> None:
+        cv2.imshow("dwarpal-render", image)
+        cv2.waitKey(1)
+
+    def grab() -> Frame | None:
+        ok, frame = capture.read()
+        return cast("Frame", frame) if ok else None
+
+    def close() -> None:
+        capture.release()
+        cv2.destroyAllWindows()
+
+    return show, grab, close
+
+
 def camera_frames(index: int, seconds: float) -> Iterable[NDArray[np.uint8]]:  # pragma: no cover - needs a webcam
     capture = cv2.VideoCapture(index)
     if not capture.isOpened():
@@ -230,6 +294,11 @@ def main(argv: list[str] | None = None) -> int:
     filming.add_argument("--consent", default="", help="the consent ID, for a real person")
     filming.add_argument("--device", type=int, default=0, help="the webcam's number")
     filming.add_argument("--seconds", type=float, default=6.0)
+    showing = commands.add_parser("film", help="show a rendered sequence full-screen and film it in step")
+    showing.add_argument("sequence", type=Path, help="renders/<identity>/<light>/")
+    showing.add_argument("--camera", required=True)
+    showing.add_argument("--setting", required=True, help="the screen, room and light, e.g. phone-study-dim")
+    showing.add_argument("--device", type=int, default=0)
     leaving = commands.add_parser("withdraw", help="delete the clips of a withdrawn consent")
     leaving.add_argument("consent")
     args = parser.parse_args(argv)
@@ -238,6 +307,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "record":
             frames = camera_frames(args.device, args.seconds)
             clip = record(frames, args.kind, args.identity, args.camera, args.setting, args.consent, folder)
+            print(f"recorded {clip.clip_id}")
+        elif args.command == "film":  # pragma: no cover - needs a screen and webcam
+            show, grab, close = full_screen(args.device)
+            try:
+                clip = film(args.sequence, show, grab, args.camera, args.setting, folder)
+            finally:
+                close()
             print(f"recorded {clip.clip_id}")
         elif args.command == "inject":
             print(f"added {len(inject(folder))} injected clips")

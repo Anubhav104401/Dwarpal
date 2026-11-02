@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 
@@ -83,3 +84,34 @@ def test_a_person_lands_in_one_split_only_and_the_splits_are_roughly_seventy_fif
     assert all(renders.split_of(p) == renders.split_of(p) for p in people)
     shares = {s: sum(renders.split_of(p) == s for p in people) for s in ("train", "validation", "test")}
     assert 640 < shares["train"] < 760 and 110 < shares["validation"] < 190 and 110 < shares["test"] < 190
+
+
+def test_a_render_is_filmed_in_step_with_the_screen_after_the_camera_settles(tmp_path: Path) -> None:
+    sequence = tmp_path / "renders" / "render-007" / "side-light"
+    sequence.mkdir(parents=True)
+    for index in range(4):
+        cv2.imwrite(str(sequence / f"{index:04d}.png"), np.full((8, 8, 3), index * 60, dtype=np.uint8))
+    shown: list[int] = []
+
+    def show(image: np.ndarray) -> None:
+        shown.append(int(image[0, 0, 0]))
+
+    def grab() -> np.ndarray:
+        # The camera sees whatever is on the screen.
+        return np.full((8, 8, 3), shown[-1], dtype=np.uint8)
+
+    clip = renders.film(sequence, show, grab, "laptop", "phone-study", tmp_path)
+    assert shown == [0] * renders.SETTLE + [0, 60, 120, 180]
+    assert (clip.kind, clip.identity) == ("screen_render", "render-007")
+    kept = sorted((tmp_path / "clips" / clip.clip_id).glob("frame_*.jpg"))
+    assert [int(renders.read_frame(p)[0, 0, 0]) for p in kept] == pytest.approx([0, 60, 120, 180], abs=2)
+
+    with pytest.raises(ValueError, match="render-"):
+        renders.film(tmp_path / "renders", show, grab, "laptop", "study", tmp_path)
+    shown.clear()
+    nothing = tmp_path / "renders" / "render-008" / "dim"
+    nothing.mkdir(parents=True)
+    with pytest.raises(ValueError, match="no rendered frames"):
+        renders.film(nothing, show, grab, "laptop", "study", tmp_path)
+    assert shown == []
+    assert [p.name for p in (tmp_path / "clips").iterdir()] == [clip.clip_id]  # nothing half-written left
