@@ -151,4 +151,4 @@ All checks passed: return the settings.
 `passkey_rp_id` (Phase 9) — the site name passkeys are bound to, WebAuthn's *relying party ID*: the console's host name in production. Empty means the host of the first console origin, `localhost` in development.
 
 @@ 26-28
-**How long the document check may take** before the API gives up on it: 20 seconds. It does more than the face check — the same face checks on the selfie, then reading the document's letters and comparing two faces — and 5 seconds wasn't always enough on a busy machine (CI's end-to-end test failed twice that way by 2 Nov). Giving up still means "try again", never a pass.
+**How long the document check may take** before the API gives up on it: 20 seconds. It does more than the face check — the same face checks on the selfie, then reading the document's letters and comparing two faces — and 5 seconds wasn't always enough on a busy machine (CI's end-to-end test had twice seen "the checker is busy" by 2 Nov; it wasn't the only cause, as a third failure on 3 Nov showed). Giving up still means "try again", never a pass.

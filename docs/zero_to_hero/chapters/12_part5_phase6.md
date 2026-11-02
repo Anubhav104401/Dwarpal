@@ -70,7 +70,7 @@ Testing a document check needs photos of documents, and real ones belong to real
 
 !walk libs/vision/tests/test_document.py
 
-The document check does more work than the face check, so since 2 November the API waits up to 20 seconds for it rather than 5 (`document_timeout_s`): CI's machines are shared and sometimes slow, and the end-to-end test had twice seen "the checker is busy" instead of a result.
+The document check does more work than the face check, so since 2 November the API waits up to 20 seconds for it rather than 5 (`document_timeout_s`): CI's machines are shared and sometimes slow, and the end-to-end test had twice seen "the checker is busy" instead of a result. That wasn't the whole story — it happened once more on 3 November — so the test now also says, when it fails, what the inference service makes of the passport at that moment.
 
 !walk services/api/tests/test_inference_client.py
 

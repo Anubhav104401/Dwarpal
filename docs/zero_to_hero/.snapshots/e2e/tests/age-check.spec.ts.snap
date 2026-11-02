@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { type APIRequestContext, expect, test } from "@playwright/test";
@@ -7,7 +8,36 @@ import { violations } from "./axe.js";
 const SHOP = "http://localhost:3100";
 const VERIFY = "http://localhost:3000";
 const API = "http://127.0.0.1:8000";
+const INFERENCE = "http://127.0.0.1:8001";
 const SPECIMEN = fileURLToPath(new URL("../.cache/specimen-passport.jpg", import.meta.url));
+
+/** What the inference service says, right now, about the specimen passport with its own face as the selfie: whether
+ * it answers, how fast, and whether the OCR read the zone. "The checker is busy" can mean any of these. */
+async function probeDocumentCheck(request: APIRequestContext): Promise<string> {
+  const specimen = readFileSync(SPECIMEN);
+  const started = Date.now();
+  try {
+    const response = await request.post(`${INFERENCE}/internal/v1/analyze/document`, {
+      multipart: {
+        meta: JSON.stringify({ frames: [{ index: 0, t_ms: 0 }] }),
+        frame_0: { name: "frame_0.jpg", mimeType: "image/jpeg", buffer: specimen },
+        document: { name: "document.jpg", mimeType: "image/jpeg", buffer: specimen },
+      },
+      timeout: 60_000,
+    });
+    const took = Date.now() - started;
+    if (!response.ok()) {
+      return `inference answered ${response.status()} after ${took} ms: ${(await response.text()).slice(0, 200)}`;
+    }
+    const body = await response.json();
+    return (
+      `inference answered after ${took} ms (its own time ${Math.round(body.duration_ms)} ms): ` +
+      `zone ${body.zone.length} lines, problem ${body.zone_problem}, document faces ${body.document_faces}`
+    );
+  } catch (error) {
+    return `inference didn't answer after ${Date.now() - started} ms: ${String(error).slice(0, 200)}`;
+  }
+}
 
 test("an adult passes the age check in a modal over the shop, and is let into the cellar", async ({
   page,
@@ -175,8 +205,9 @@ test("a person the face check can't decide confirms their age with a passport an
       headers: { Authorization: `Bearer ${process.env.E2E_API_KEY}` },
     });
     const { status, outcome } = await recorded.json();
+    const probe = await probeDocumentCheck(request);
     throw new Error(
-      `the check didn't finish: the page shows "${shown}"; the session is ${status}/${outcome}`,
+      `the check didn't finish: the page shows "${shown}"; the session is ${status}/${outcome}; ${probe}`,
       {
         cause: error,
       },
