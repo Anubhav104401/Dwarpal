@@ -21,7 +21,7 @@ Work that needs your answer — a download, a design choice, an account, or some
 - **CI flakes**: Lighthouse's home-page performance (87, under 90) is fixed — English pages no longer fetch the Devanagari font for the one Hindi word in the language switch. The passport test's "checker is busy" is **not** fixed: the document check now waits up to 20 s, which wasn't enough (it failed again on `d49c416`); the test now reports what the inference service says when it fails, so the next failure names the cause.
 - **A Hindi draft of the consent form** (`docs/data/consent-form.hi.md`), marked for native and legal review.
 - **`renders film`**: plays a rendered sequence full-screen and films it in step with the webcam (protocol step 5).
-- **CI**: `c3c4bb7` green; `d49c416` red on the passport test only (above).
+- **CI**: `c3c4bb7` green; `d49c416` red on the passport test only (above); `8cfd9e3` green (the flake didn't recur, so the probe has nothing to report yet).
 
 ## Morning summary — 2 Nov, 10 am (overnight work on Phases 8 and 9)
 
