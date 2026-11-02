@@ -26,3 +26,4 @@ Format: a lightweight version of [MADR](https://adr.github.io/madr/). Status val
 | [0018](0018-licence-policy.md) | Licence policy: only permissive components in the runtime path | Accepted |
 | [0019](0019-fully-specified-ed25519-alg.md) | Sign age tokens with the fully-specified JOSE algorithm `Ed25519` (RFC 9864) — refines 0008 | Accepted |
 | [0020](0020-boolean-age-over-claims.md) | State the age result as a boolean claim named after its age, `age_over_18: true` — refines 0008 | Accepted |
+| [0021](0021-render-detector-data.md) | The render detector's data: made by us; real faces only with written consent, never in the repository | Accepted |

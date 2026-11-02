@@ -114,3 +114,17 @@ The tables, the policies (their switch, in the API, the console's editor and its
     - **Passes live where they were saved.** Inside another website's frame, browsers keep a separate storage area for each website, so the verify page offers and saves passes only on its own tab. And a pass saved on one device or browser isn't on another.
     - **"Used once" relies on Valkey** remembering used passes until they expire. If that memory were lost, a holder could show one of their own passes twice — still only their own, and still only for its age line.
     - **The Hindi words are machine-drafted**, like the rest of the Hindi (D2): a native speaker's review is still needed.
+
+### 5.9.4 The render detector's data: made by us, with consent
+
+The fourth stretch item, a detector for **computer-rendered faces** (liveness level 6), needs examples, and none could be found that both shows rendered faces filmed by a camera and may be used in a service. On 2 November the owner chose to **make our own, and ask** (decision D22, [ADR-0021](../../adr/0021-render-detector-data.md)): made-up people rendered in Blender with MakeHuman's CC0 parts, and, for the real side, people who have signed a consent form. Meanwhile, two dataset authors are asked for terms (`docs/data/dataset-requests.md`).
+
+A training set is the one place in Dwarpal where faces are kept, so it has rules the service doesn't need: it lives only on the owner's machine (`.datasets/`, which git ignores), a real person is filed only as `person-NNN` and only under a consent that stands, and withdrawing a consent deletes their clips. The protocol (`docs/data/render-detector-protocol.md`) says what to film; this tool enforces the rules:
+
+!walk ml/src/dwarpal_ml/renders.py
+
+!walk ml/tests/test_renders.py
+
+!!! honest "Honest limitation"
+    Nothing is filmed or trained yet: the renders need Blender, the MPFB extension and MakeHuman's assets, which wait for the owner's approval to download (D23); the consent form waits for a lawyer's review. A first set will be small — 40 made-up people, a few cameras and rooms — and a real-time swap of a real person's face isn't covered at all.
+

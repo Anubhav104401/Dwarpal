@@ -26,12 +26,20 @@ Work that needs your answer — a download, a design choice, an account, or some
 - **CGI-render detector** (liveness level 6) — needs examples of computer-rendered faces to train and measure against, and none are licensed for this project. It waits for a dataset decision, which I will bring with options when the rest is done.
 - **Kubernetes deployment** — the Helm chart exists; trying it needs a local cluster tool (kind, a further download; Helm itself was approved 2 Nov, D19), and the Always Free server (O2b) is a single machine, where Compose is the better fit. Left optional, as the roadmap says.
 
-## Waiting for you (2 Nov, afternoon)
+## Waiting for you (3 Nov)
 
 | # | Question | Unblocks |
 | :-: | :-- | :-- |
-| D22 | **The render detector's data** — which route: research-only Microsoft renders, asking two dataset authors for terms, making our own with consent, or keep deferring? Details and links in [render-detector-datasets.md](render-detector-datasets.md); I suggest making our own, small, while asking | liveness level 6 |
+| D23 | **Downloads for making renders** (D22): Blender 5.2.3 LTS (`blender-5.2.3-windows-x64.zip`, 406 MB, download.blender.org, GPL — its output is ours), the MPFB extension 2.0.18 (43.8 MB, extensions.blender.org, GPL-3.0; assets CC0) and MakeHuman's system assets (`makehuman_system_assets_cc0.zip`, 267 MB, makehumancommunity.org, CC0). Desktop tools on your machine only, never in an image | the made-up people (protocol step 1) |
+| O11 | **Send the two requests** in [docs/data/dataset-requests.md](../data/dataset-requests.md) from your own address, after checking each contact on the dataset's page; record the answers there | other people's renders, if allowed |
+| O12 | **Have the [consent form](../data/consent-form.md) reviewed** (with O5), fill in your name, contact and the deletion date, then film yourself first | the real side of the render detector's data |
 | D1b | `@types/three` 0.186.0 (1.9 MB, npm, MIT) — **not approved** on 2 Nov; the hand-written types stay | — |
+
+## Decided on 3 Nov 2026
+
+| # | Decision |
+| :-: | :-- |
+| D22 | **Make our own, and ask** ([ADR-0021](../adr/0021-render-detector-data.md)). **Done:** the [protocol](../data/render-detector-protocol.md), the [consent form](../data/consent-form.md) (draft), the [requests to two dataset authors](../data/dataset-requests.md) (drafts), and `ml/src/dwarpal_ml/renders.py`, which files clips and refuses a real person's clip without a standing consent (§5.9.4). Next: D23, O11, O12 |
 
 ## Decided on 2 Nov 2026 (afternoon)
 

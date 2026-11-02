@@ -49,3 +49,6 @@ too, so making swaps ourselves with them isn't open either.
 
 My suggestion is **3, starting small**, plus **2** in parallel: it keeps every example ours, and it's the only route
 that ends with a model a launch could use.
+
+**Decided 3 Nov:** 3 and 2, as suggested — [ADR-0021](../adr/0021-render-detector-data.md), and the
+[protocol](../data/render-detector-protocol.md).

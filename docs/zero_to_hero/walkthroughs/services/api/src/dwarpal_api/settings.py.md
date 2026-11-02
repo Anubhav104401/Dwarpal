@@ -1,5 +1,5 @@
 ---
-fingerprint: db29d25bcaa3cb17
+fingerprint: 8660196132bcce7f
 ---
 The API's **settings**: every value that may differ between a laptop, the test suite and production — addresses, secrets, time limits — in one checked place. It follows the same pattern as the inference service's `settings.py` (§5.1.1), with two additions: a **secret** that must never leak into logs, and a **guard** that refuses unsafe values in production.
 
@@ -73,79 +73,82 @@ postgresql+asyncpg://dwarpal:dwarpal-local-only@127.0.0.1:5432/dwarpal
 @@ 25
 `inference_timeout_s` — give up on the inference service after 5 seconds. Phase 1 measured a whole burst at about 0.1 seconds (§5.1.1), so 5 seconds only ever runs out when something is wrong. The person then gets a "try again" instead of a page that hangs for ever.
 
-@@ 26
+@@ 29
 `master_key` — the 32-byte key that **seals** the private signing keys before they are stored in the database (§4.12, `signing.py`). It is a `SecretStr`, so it never appears in logs. The default is the development key; production must provide a real one (see the guard below).
 
-@@ 27
+@@ 30
 `issuer` — the API's own public address. It is written into every age token as the `iss` ("issuer") claim, and the address of the public keys is built from it.
 
-@@ 28
+@@ 31
 `verify_url` — the address of the hosted **verify page** (`apps/web`, port 3000 in development). The link a website sends its user to is built from it.
 
-@@ 29
+@@ 32
 `cors_origins` — the web pages that are allowed to call this API *from inside a browser* (CORS, §4.13). Only the verify page needs to. A list in an environment variable is written as JSON, for example `["https://verify.example.com"]`.
 
-@@ 30
+@@ 33
 `models_dir` — the folder holding model files. In containers it is set to a mounted, read-only folder.
 
-@@ 31
+@@ 34
 `age_manifest` — where, inside `models_dir`, the **manifest** of the active age model lives: the file that says which model versions are allowed and which thresholds they were calibrated for (`domain/policy.py`).
 
-@@ 32
+@@ 35
 `session_ttl_s` — a verification session must be finished within **1,800 seconds (30 minutes)** of being created. "TTL" means **time to live**.
 
-@@ 33
+@@ 36
 `flow_ttl_s` — a flow token (the browser's permission to work on one session) lasts **15 minutes**.
 
-@@ 34
+@@ 37
 `challenge_ttl_s` — a challenge must be used within **2 minutes**. Frames must be captured *fresh*, not prepared in advance (Stage 3 §5).
 
-@@ 35-36
+@@ 38-39
 The comment explains the two **per-device budgets** below: how many liveness challenges one device, and one network address, may take per project in an hour. A device is the random ID the verify page keeps (`apps/web/lib/device.ts`); many people can share one network, so its budget is larger.
 
-@@ 37-38
+@@ 40-41
 `device_challenges_per_hour = 30` and `address_challenges_per_hour = 120`.
 
-@@ 39-41
+@@ 42-44
 The rate limit for each API key (`http/deps.py`): 100 requests a second on average, with bursts of up to 200 at once — the figures of the implementation design (§3.7).
 
-@@ 42-45
+@@ 45-48
 Webhooks (Phase 4): `webhook_allow_private` lets webhooks go to private or local addresses — needed on a developer's laptop and in tests, and refused in production (below). How long to wait for a receiver's answer (10 s), and how often the idle worker looks for due deliveries (every 2 s).
 
-@@ 46-50
+@@ 49-53
 The console (Phase 4, step 2): `console_origins` — the addresses its pages are served from, checked against each change's `Origin` header (§5.4.5); how long a signed-in session lasts without use (12 hours); and whether its cookie may only travel over HTTPS. Only the tests, which talk plain HTTP inside one program, switch that off; production refuses to (below).
 
-@@ 54-56
+@@ 57-59
 Sign-in attempts, counted per account and per network address: up to 5 at once, then one more a minute — slow enough that guessing a password is hopeless, generous enough for someone who mistypes.
 
-@@ 57-58
+@@ 60-61
 **`otel_endpoint`** (Phase 7) — the address of an OpenTelemetry collector to send traces to (`DWARPAL_OTEL_ENDPOINT`). `None` by default: no traces are made at all unless someone asks for them.
 
-@@ 60-61
+@@ 63-64
 The **production guard**. `@model_validator(mode="after")` makes Pydantic call this method after all the fields are filled in. It receives the finished settings object as `self`, and must either return it or raise an error. If it raises, the API refuses to start.
 
-@@ 62-63
+@@ 65-66
 Outside production there is nothing more to check, so the settings are returned unchanged.
 
-@@ 64-65
+@@ 67-68
 **Refuse the development key in production.** It is published in this repository, so with it anyone could unseal the signing keys and forge age tokens. The error names the exact variable to set.
 
-@@ 66-67
+@@ 69-70
 Production must never send webhooks into private networks.
 
-@@ 68-69
+@@ 71-72
 And production's cookie must always demand HTTPS.
 
-@@ 70-72
+@@ 73-75
 **Refuse plain `http://` addresses in production.** Over `http://`, tokens and links travel unencrypted, and anyone on the network path could read or change them (§0.9).
 
 `getattr(self, name)` reads a field whose name is held in the variable `name`, so one loop checks both fields. `name.upper()` turns `issuer` into `ISSUER`, so the message names the exact variable: `DWARPAL_ISSUER`.
 
-@@ 73
+@@ 76
 All checks passed: return the settings.
 
 !!! try "Try it yourself"
     The tests in `services/api/tests/test_domain.py` create production settings with and without a real key. Read `test_production_refuses_development_values`, then run `uv run pytest services/api/tests/test_domain.py -k production` and watch it pass.
 
-@@ 51-53
+@@ 54-56
 `passkey_rp_id` (Phase 9) — the site name passkeys are bound to, WebAuthn's *relying party ID*: the console's host name in production. Empty means the host of the first console origin, `localhost` in development.
+
+@@ 26-28
+**How long the document check may take** before the API gives up on it: 20 seconds. It does more than the face check — the same face checks on the selfie, then reading the document's letters and comparing two faces — and 5 seconds wasn't always enough on a busy machine (CI's end-to-end test failed twice that way by 2 Nov). Giving up still means "try again", never a pass.

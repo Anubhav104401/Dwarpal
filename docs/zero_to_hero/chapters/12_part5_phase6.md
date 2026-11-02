@@ -70,6 +70,10 @@ Testing a document check needs photos of documents, and real ones belong to real
 
 !walk libs/vision/tests/test_document.py
 
+The document check does more work than the face check, so since 2 November the API waits up to 20 seconds for it rather than 5 (`document_timeout_s`): CI's machines are shared and sometimes slow, and the end-to-end test had twice seen "the checker is busy" instead of a result.
+
+!walk services/api/tests/test_inference_client.py
+
 The parser (`read_ocr`), the inference service's settings and endpoints, the API's flow endpoints, use cases, size limits and inference client, the contracts' list, the compose file (the OCR container), the model list (SFace), CI (Tesseract on GitHub's machines) and the tests of the parser, the API and the inference service changed too; each was re-explained.
 
 **What the tests prove**:

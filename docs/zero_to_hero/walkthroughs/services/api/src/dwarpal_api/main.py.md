@@ -1,5 +1,5 @@
 ---
-fingerprint: 7951ebbcc1af3daa
+fingerprint: 04471a970bfabf22
 ---
 The file that **assembles** the API. Every other module is a part; this one connects them in the right order when the program starts, and disconnects them when it stops. It follows the same pattern as the inference service's `main.py` (§5.1.1): an **app factory** called `create_app`.
 
@@ -61,7 +61,7 @@ Build the master key, then the key ring around it. `get_secret_value()` is the o
 Load the signing key, creating one if the database has none (`signing.py`, with its lock against two copies starting at once).
 
 @@ 60-69
-Fill the toolbox and store it on the app, where the `services` dependency finds it for every request. The model manifest is read from `models_dir`; a broken or missing manifest stops the start-up. The idempotency secret is derived from the master key once, here (`app/idempotency.py`), and the master key goes in too.
+Fill the toolbox and store it on the app (the inference client gets the document check's longer time limit), where the `services` dependency finds it for every request. The model manifest is read from `models_dir`; a broken or missing manifest stops the start-up. The idempotency secret is derived from the master key once, here (`app/idempotency.py`), and the master key goes in too.
 
 @@ 70-71
 `yield` hands control to the server: the app now serves requests until shutdown begins.

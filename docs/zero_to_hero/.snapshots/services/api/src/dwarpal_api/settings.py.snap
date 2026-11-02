@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     valkey_url: str = "redis://127.0.0.1:6379/0"
     inference_url: str = "http://127.0.0.1:8001"
     inference_timeout_s: float = 5.0
+    # The step-up's document check does more (the face checks, then OCR and a second face comparison), so it waits
+    # longer before giving up.
+    document_timeout_s: float = 20.0
     master_key: SecretStr = SecretStr(DEV_MASTER_KEY)
     issuer: str = "http://localhost:8000"
     verify_url: str = "http://localhost:3000"

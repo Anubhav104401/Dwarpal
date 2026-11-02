@@ -9,8 +9,9 @@ from dwarpal_contracts import DocumentAnalysis, FaceAnalysis, FaceRequestMeta
 
 
 class InferenceClient:
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(self, client: httpx.AsyncClient, document_timeout_s: float = 20.0) -> None:
         self._client = client
+        self._document_timeout_s = document_timeout_s
 
     async def analyze_face(self, meta: FaceRequestMeta, frames: list[bytes]) -> FaceAnalysis | None:
         files = {
@@ -41,7 +42,10 @@ class InferenceClient:
         files["document"] = ("document.jpg", document, "image/jpeg")
         try:
             response = await self._client.post(
-                "/internal/v1/analyze/document", data={"meta": meta.model_dump_json()}, files=files
+                "/internal/v1/analyze/document",
+                data={"meta": meta.model_dump_json()},
+                files=files,
+                timeout=self._document_timeout_s,
             )
         except httpx.HTTPError:
             return None

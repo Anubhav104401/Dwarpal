@@ -1,6 +1,6 @@
 # Phase 9 report — beyond the plan
 
-**Dates:** from 1 Nov 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Design:** [06_age_pass.md](../design/06_age_pass.md) (the Age Pass) · **Status:** 🟡 three of the four stretch items are built and tested — the Python SDK, passkeys for the console, and the Age Pass; the render detector waits for data; a Kubernetes deployment stays optional.
+**Dates:** from 1 Nov 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Design:** [06_age_pass.md](../design/06_age_pass.md) (the Age Pass) · **Status:** 🟡 three of the four stretch items are built and tested — the Python SDK, passkeys for the console, and the Age Pass; the render detector's data is being made (D22: the tools and paperwork are done, filming waits for D23); a Kubernetes deployment stays optional.
 
 **Goal (from the roadmap):** the stretch items, once Phases 0–8 stand: a reusable, unlinkable Age Pass; passkeys for console sign-in; a detector for computer-rendered faces (liveness level 6); a Python SDK; optionally, a Kubernetes deployment from the Helm chart.
 
@@ -25,7 +25,7 @@
 
 ## Open items
 
-1. **The render detector** (liveness level 6) needs examples of computer-rendered faces — attacks made with game engines and face-swap tools — under a licence that allows training. The owner asked for a search (2 Nov): [render-detector-datasets.md](render-detector-datasets.md) lists what exists — none both allows use in a service and shows renders filmed by a camera — and four options (D22).
+1. **The render detector** (liveness level 6) needs examples of computer-rendered faces — attacks made with game engines and face-swap tools — under a licence that allows training. The owner asked for a search (2 Nov): [render-detector-datasets.md](render-detector-datasets.md) lists what exists — none both allows use in a service and shows renders filmed by a camera — and four options (D22). **The owner chose (3 Nov) to make our own and ask** ([ADR-0021](../adr/0021-render-detector-data.md)): the protocol, consent form, requests and the data tool are done (§5.9.4); filming waits for the downloads (D23), the consent form's review and the requests' answers.
 2. **Kubernetes** stays optional: the chart is checked on every push but has never run on a cluster; the Always Free server (O2b) is one machine, where Compose fits better.
 3. **The Age Pass**: no fresh batch from a pass (after 20 uses, a new face check gives a new batch); used passes are remembered in Valkey, so losing that memory would let a holder reuse their own pass; passes are offered and saved only on the verify page's own tab (browsers partition storage inside other websites' frames); the Hindi words need a native speaker's review.
 4. **The SDKs stay unpublished until launch** (decided 2 Nov); [Integrating Dwarpal](../developers/README.md) shows how to install them from the repository meanwhile.
