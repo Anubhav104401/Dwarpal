@@ -34,12 +34,20 @@ appears in two splits.
 
 ## Steps
 
-1. **Software** (needs the owner's approval to download, decision D23): Blender 5.2 LTS, the MPFB extension
-   and MakeHuman's CC0 system assets.
-2. **Make the people.** In MPFB, start from a random human, vary it, and check that it doesn't look like anyone real.
-   Save it as `render-NNN.blend`.
-3. **Animate and render** the challenge's movements, 30 frames a second, 1280 × 720, as a PNG sequence per clip, into
-   `.datasets/render-detector/renders/render-NNN/<light>/`.
+1. **Software** (approved 4 Nov, D23): Blender 5.2 LTS, the MPFB extension and MakeHuman's CC0 system assets,
+   as a portable Blender in `.tools/` (fingerprints in the decisions log).
+2. **Make and render the people** with one command (`ml/blender/render_people.py`):
+
+   ```
+   .tools/blender/blender.exe --background --python ml/blender/render_people.py -- --first 1 --count 40
+   ```
+
+   Each person is drawn by MPFB from a seed (1000 + their number, so `render-007` can always be made again), adults
+   only, dressed, in front of a plain wall of a random colour. A camera circles the head through the challenge's
+   movements, under each of the three lights; every third frame of six seconds at 30 a second is saved as PNG in
+   `.datasets/render-detector/renders/render-NNN/<light>/`, with `person.json` (the seed and proportions) beside it.
+   About 4 minutes per person on the owner's laptop. Look through a few before using them: none may look like a
+   real, identifiable person. `--lights front-soft --frames 1,55,151` previews a person in seconds.
 4. **Import the injected clips:** `python -m dwarpal_ml.renders inject` copies every rendered sequence in as an
    `injected_render` clip.
 5. **Film the screen clips:** point a webcam at the screen (a monitor, or a phone mirroring the computer), then

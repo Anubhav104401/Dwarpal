@@ -127,6 +127,10 @@ A training set is the one place in Dwarpal where faces are kept, so it has rules
 
 The detector itself starts from a network the service already trusts: **MiniFASNet V2**, the anti-spoofing network of §5.3, which has learnt what a camera sees of a screen or a print. Its last layer is swapped for one with two answers — *real*, *rendered* — and the whole network is trained further on the clips' face crops. The threshold is chosen on the validation people so that at most 5 % of real faces are called rendered, and the test people then measure the two standard error rates: **APCER** (renders taken for real) and **BPCER** (real people taken for renders). Only a network that passes its release gates can be exported.
 
+The made-up people come from **Blender**, with the **MPFB** extension and MakeHuman's CC0 parts (downloads approved on 4 November, D23). A script builds each person at random from a seed — adults only — dresses them, puts a plain wall behind them, and moves a webcam-like camera around the head through the challenge's movements under three lights:
+
+!walk ml/blender/render_people.py
+
 !walk ml/src/dwarpal_ml/render_detector.py
 
 !walk ml/src/dwarpal_ml/minifasnet_v2_shapes.json
@@ -142,5 +146,5 @@ In the service it is **recorded only**, like the screen light (§5.3): the infer
 The contracts (`rendered_score` per frame, `rendered` per attempt), the vision package's list, the pipeline, the inference settings and start-up, the liveness report and their tests changed too; each was re-explained. The consent form has a Hindi draft (`docs/data/consent-form.hi.md`), machine-drafted like the rest of the Hindi.
 
 !!! honest "Honest limitation"
-    Nothing is filmed or trained yet: the renders need Blender, the MPFB extension and MakeHuman's assets, which wait for the owner's approval to download (D23); the consent form waits for a lawyer's review. The tests prove the machinery on fake pictures (speckle against smooth ramps), not that it can tell a real face from a good render: that needs the real clips. A first set will be small — 40 made-up people, a few cameras and rooms — and a real-time swap of a real person's face isn't covered at all.
+    The first made-up people are being rendered (4 Nov); nothing is trained yet, and the real side waits for the consent form's review. The renders are of one kind of scene — one wall, three lights, no other objects — and MakeHuman's people have a recognisable look; a detector trained on them alone may learn *MakeHuman* rather than *rendered*. The tests prove the machinery on fake pictures (speckle against smooth ramps), not that it can tell a real face from a good render: that needs the real clips. A first set will be small — 40 made-up people, a few cameras and rooms — and a real-time swap of a real person's face isn't covered at all.
 

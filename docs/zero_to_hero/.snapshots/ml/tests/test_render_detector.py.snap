@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 import torch
@@ -83,6 +84,14 @@ def test_crops_are_prepared_per_split_and_never_from_a_clip_that_may_not_be_kept
             rd.prepare(OneFace(), clips, every=1)
     finally:
         hidden.rename(broken)
+
+
+def test_a_large_rendered_png_is_cropped_like_any_frame(tmp_path: Path) -> None:
+    # Speckle doesn't compress: a 640 x 640 PNG of it is over a megabyte, twice the service's upload limit.
+    big = tmp_path / "0001.png"
+    cv2.imwrite(str(big), np.random.default_rng(2).integers(0, 256, (640, 640, 3), dtype=np.uint8))
+    assert big.stat().st_size > 1024 * 1024
+    assert [c.shape for c in rd.face_crops([big], OneFace(), every=1)] == [(80, 80, 3)]
 
 
 def test_the_network_starts_from_minifasnet_shapes_and_answers_two_chances() -> None:

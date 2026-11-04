@@ -53,3 +53,6 @@ id_ed25519*
 *.key
 SSH keys/
 infra/deploy/.env
+
+# Desktop tools for making the render detector's data (D23): Blender, MPFB, MakeHuman assets
+.tools/

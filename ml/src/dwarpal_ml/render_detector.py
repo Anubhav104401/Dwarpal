@@ -49,6 +49,8 @@ GATES = ROOT / "ml" / "render_gates.toml"
 # Real people the detector may wrongly call rendered, when its threshold is chosen: 5 %.
 BPCER_TARGET = 0.05
 TOLERANCE = 1e-4
+# Our own frames, not a stranger's upload: a rendered 1280 x 720 PNG is often over the service's 512 KB limit.
+FRAME_BYTES = 16 * 1024 * 1024
 
 type Pixels = NDArray[np.uint8]
 
@@ -95,7 +97,7 @@ def face_crops(frames: Sequence[Path], detector: Detector, every: int) -> list[P
     skipped."""
     crops = []
     for path in frames[::every]:
-        image = decode_image(path.read_bytes())
+        image = decode_image(path.read_bytes(), max_bytes=FRAME_BYTES)
         faces = detector.detect(image)
         if len(faces) == 1:
             crops.append(crop(image, faces[0].box, SCALE))

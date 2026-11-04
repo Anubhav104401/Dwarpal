@@ -1,5 +1,5 @@
 ---
-fingerprint: b0f8a50ad4e9bae9
+fingerprint: cd0b7fb6c92570e2
 ---
 `book.toml` holds the book's **settings**. Keeping settings in a separate file, rather than inside `build.py`, means you can add a chapter or change the title **without touching any program code**. "Separate the *what* from the *how*" is one of the oldest good habits in software.
 
@@ -86,7 +86,7 @@ Markdown (`.md`) is deliberately not included: it is prose, not code.
 - installed libraries (`.venv`, `node_modules`);
 - tool caches (`__pycache__`, `.mypy_cache`, `.ruff_cache`, `.pytest_cache`, and Hypothesis's `.hypothesis`);
 - build outputs (`.next`, `.turbo`, `dist`);
-- downloaded training data (`.datasets`);
+- downloaded training data (`.datasets`), and the desktop tools for making the render detector's data (`.tools`: a portable Blender with MPFB and MakeHuman's assets, 4 Nov) — whose thousands of Python files once made the book ask for walkthroughs of MPFB;
 - training runs and experiment logs (`.runs`, `mlruns`);
 - the builder's own snapshots (`.snapshots`) — copies of code, which would otherwise be counted twice;
 - local AI-assistant settings (`.claude`), which are not part of the project and are never committed (see `.gitignore`);

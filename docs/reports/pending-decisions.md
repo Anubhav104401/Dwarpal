@@ -49,10 +49,16 @@ Work that needs your answer — a download, a design choice, an account, or some
 
 | # | Question | Unblocks |
 | :-: | :-- | :-- |
-| D23 | **Downloads for making renders** (D22): Blender 5.2.3 LTS (`blender-5.2.3-windows-x64.zip`, 406 MB, download.blender.org, GPL — its output is ours), the MPFB extension 2.0.18 (43.8 MB, extensions.blender.org, GPL-3.0; assets CC0) and MakeHuman's system assets (`makehuman_system_assets_cc0.zip`, 267 MB, makehumancommunity.org, CC0). Desktop tools on your machine only, never in an image | the made-up people (protocol step 1) |
+| ~~D23~~ | **(approved 4 Nov)** **Downloads for making renders** (D22): Blender 5.2.3 LTS (`blender-5.2.3-windows-x64.zip`, 406 MB, download.blender.org, GPL — its output is ours), the MPFB extension 2.0.18 (43.8 MB, extensions.blender.org, GPL-3.0; assets CC0) and MakeHuman's system assets (`makehuman_system_assets_cc0.zip`, 267 MB, makehumancommunity.org, CC0). Desktop tools on your machine only, never in an image | the made-up people (protocol step 1) |
 | O11 | **Send the two requests** in [docs/data/dataset-requests.md](../data/dataset-requests.md) from your own address, after checking each contact on the dataset's page; record the answers there | other people's renders, if allowed |
 | O12 | **Have the [consent form](../data/consent-form.md) reviewed** (with O5), fill in your name, contact and the deletion date, then film yourself first | the real side of the render detector's data |
 | D1b | `@types/three` 0.186.0 (1.9 MB, npm, MIT) — **not approved** on 2 Nov; the hand-written types stay | — |
+
+## Decided on 4 Nov 2026
+
+| # | Decision |
+| :-: | :-- |
+| D23 | **Approved and done**: Blender 5.2.3 (`blender-5.2.3-windows-x64.zip`, 405,839,452 bytes, SHA-256 `723f08a4…5dc2fb` — matches download.blender.org's), MPFB 2.0.18 (45,956,992 bytes, SHA-256 `c075b3e9…2a2dad` — matches extensions.blender.org's), MakeHuman system assets (`makehuman_system_assets_cc0.zip`, 280,737,770 bytes, SHA-256 `b542127a…a0107`; no published fingerprint, every file passes the zip's own CRC check). Kept in `.tools/` (ignored by git), a portable Blender with MPFB's online access off. The first 40 made-up people are rendering (`ml/blender/render_people.py`) |
 
 ## Decided on 3 Nov 2026
 
