@@ -1,5 +1,5 @@
 ---
-fingerprint: 055b3891af2a2025
+fingerprint: 4f2ceac43e4613d4
 ---
 **The render detector** (liveness level 6, §5.9.4): MiniFASNet V2, retaught to tell a real face from a computer-rendered one on our own clips — preparing the crops, training, choosing a threshold, measuring against release gates, and exporting to ONNX.
 
@@ -150,140 +150,146 @@ every batch-normalisation layer forgets its averages and switches to a plain ave
 @@ 234-235
 **`train`**: train, keep the best epoch, record the run. `report` is where progress lines go (`print`, or a list in the tests).
 
-@@ 236-238
-A fixed random seed, the two splits it needs, and the network.
-
-@@ 239-240
+@@ 242-243
 Crops drawn with the balanced weights, as many draws as there are crops per epoch, in batches.
 
-@@ 241
+@@ 244
 **AdamW**, the usual optimiser, with weight decay.
 
-@@ 242-243
+@@ 245-246
 The step size falls from the full rate to zero along half a cosine wave over the whole training.
 
-@@ 244-246
+@@ 247-249
 A folder for this run, named by its start time; its history; the best error so far.
 
-@@ 247-249
+@@ 250-252
 Each epoch: training mode, a stopwatch, the losses.
 
-@@ 250-252
+@@ 253-255
 Each batch: the chances, and the **loss** — how surprised the network was by the right answers (the logarithm of the chance it gave them; `clamp_min` avoids the logarithm of 0).
 
-@@ 253-257
+@@ 256-260
 Learn from it: clear the old gradients, compute new ones, take a step, move the step size on, note the loss.
 
-@@ 258-260
+@@ 261-263
 After the epoch: settle the averages, measure the balanced error on the validation split, record both.
 
-@@ 261-262
+@@ 264-265
 One line of progress.
 
-@@ 263-265
+@@ 266-268
 The best epoch so far is saved (as safetensors); a later, worse one doesn't replace it.
 
-@@ 266-268
+@@ 269-271
 The settings, the history and the best error into `run.json`, and the run's folder returned.
 
-@@ 271-274
+@@ 274-277
 **`load_run`**: a run's best network, ready to answer. It is built from the shapes and then given every saved weight, so MiniFASNet's own file isn't needed.
 
-@@ 277
+@@ 280
 The fourth part: evaluation.
 
-@@ 280-281
+@@ 283-284
 **`threshold_for`**: the lowest threshold that calls at most `target` of the real crops rendered.
 
-@@ 282-284
+@@ 285-287
 The real crops' scores, in order (none: a neutral 0.5).
 
-@@ 285-286
+@@ 288-289
 How many may be called rendered, and the threshold just above the highest score that must stay real — so exactly those few top scores reach it (`nextafter`: the next number up).
 
-@@ 289-291
+@@ 292-294
 **`measure`**: the two standard error rates of presentation-attack detection (ISO/IEC 30107-3).
 
-@@ 292-293
+@@ 295-296
 Which crops are called rendered, and which really are.
 
-@@ 294-298
+@@ 297-301
 The threshold; **APCER**, the share of renders taken for real; **BPCER**, the share of real faces taken for renders; APCER separately for each kind of render (on a screen, or injected). Each comes with its 95 % interval, from `rate`.
 
-@@ 299-304
+@@ 302-307
 And how many different people, real and made-up, the numbers rest on.
 
-@@ 307-308
+@@ 310-311
 **`evaluate`**: the threshold is chosen on the validation split, and the rates measured on the test split — people the threshold never saw either.
 
-@@ 309-312
+@@ 312-315
 The run's network, both splits, the threshold, the measurement.
 
-@@ 313-315
+@@ 316-318
 The release gates checked against it (`render_gates.toml`); everything written to `evaluation.json`.
 
-@@ 318
+@@ 321
 The fifth part: export.
 
-@@ 321-322
+@@ 324-325
 **`export`**: the network as an ONNX file the inference service can run.
 
-@@ 323-326
+@@ 326-329
 Only after its evaluation passed every gate.
 
-@@ 327-330
+@@ 330-333
 The network, and a folder for this version in the model registry.
 
-@@ 331-341
+@@ 334-344
 The export: an example batch of 4 faces, named input and output, any number of faces from 1 to 64 at once, and the same ONNX version as the age model.
 
-@@ 342-344
+@@ 345-347
 The file saved whole (no separate weights file).
 
-@@ 345-347
+@@ 348-350
 Its answers compared with PyTorch's; a difference above the tolerance stops everything.
 
-@@ 348-356
+@@ 351-359
 The **manifest**: the file, what goes in and comes out, and the threshold chosen on validation…
 
-@@ 357-361
+@@ 360-364
 …where it came from: the run, the starting network and its licence, and the data's rules…
 
-@@ 362-364
+@@ 365-367
 …its test results, and its use: **recorded only** — it decides nothing until it is measured on real attempts.
 
-@@ 365-366
+@@ 368-369
 The manifest written beside the file, and the folder returned.
 
-@@ 369-374
+@@ 372-377
 **`parity`**: eight batches of random pixels through PyTorch and through ONNX Runtime, and the largest difference between their answers.
 
-@@ 377-378
+@@ 380-381
 **`main`**: the command line. Not run by the tests (`pragma: no cover`): it works on the owner's data.
 
-@@ 379-389
+@@ 382-392
 The four commands and their options: how often to take a frame; how many epochs, and whether to start without MiniFASNet's weights; which run to evaluate or export, and under which version.
 
-@@ 390-394
+@@ 393-397
 **prepare** with the real face finder.
 
-@@ 395-396
+@@ 398-399
 **train**, printing the run's folder.
 
-@@ 397-400
+@@ 400-403
 **evaluate**, printing the results; the exit code says whether every gate passed.
 
-@@ 401-402
+@@ 404-405
 **export**.
 
-@@ 403-406
+@@ 406-409
 A refusal (a clip that may not be kept, a gate that failed, a missing file) as one line, and failure.
 
-@@ 407
+@@ 410
 Success.
 
-@@ 409-410
+@@ 412-413
 Run as a program, `main`'s answer becomes the exit code.
 
 @@ 52-53
 **`FRAME_BYTES`**: how large a frame of our own may be — 16 MB. The service refuses uploads over 512 KB, which protects it from strangers; a rendered 1280 × 720 PNG is often larger, and found so when the first renders were cropped (4 Nov).
+
+@@ 236-237
+A fixed random seed, and the two splits it needs.
+
+@@ 238-240
+Both must hold real and rendered faces — otherwise there is nothing to tell apart, and the balanced weights would divide by zero. Until real people are filmed, training is refused with a message saying so.
+
+@@ 241
+The network.

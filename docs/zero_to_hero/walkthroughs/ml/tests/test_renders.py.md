@@ -1,5 +1,5 @@
 ---
-fingerprint: f9ba1d676be89c7a
+fingerprint: 70824e527dcc03a6
 ---
 **Tests for the render detector's own data** (decision D22, 2 Nov 2026).
 
@@ -36,47 +36,50 @@ A proper one is kept, and counts as rendered.
 @@ 51-56
 A rendered sequence of two frames, and a note that isn't an image.
 
-@@ 57-60
+@@ 58-61
 `inject` adds it once as an injected clip, under its light set-up's name…
 
-@@ 61
-…with both frames and without the note…
+@@ 62-65
+…with both frames, each the same file as the render (two names for it: `st_nlink` is 2), and without the note…
 
-@@ 62
+@@ 66
 …and running it again adds nothing.
 
-@@ 65-70
+@@ 69-74
 A person's clip and a render's. Withdrawing before the register says so is refused.
 
-@@ 71-72
+@@ 75-76
 The register now says withdrawn; `check` fails, because a clip filmed under it is still there.
 
-@@ 75-79
+@@ 79-83
 `withdraw` deletes that one clip and its folder, and the prepared crops with it; the render stays, and `check` passes again.
 
-@@ 82-86
+@@ 86-90
 A thousand IDs: each always lands in the same split, and the shares come out close to 70 / 15 / 15.
 
-@@ 73-74
+@@ 77-78
 Prepared crops on disk, as `render_detector.prepare` would leave them.
 
-@@ 89-93
+@@ 93-97
 A rendered sequence of four frames, each a different grey (0, 60, 120, 180).
 
-@@ 94-101
+@@ 98-105
 A fake screen that records what it was shown, and a fake camera that sees whatever is on the screen.
 
-@@ 103-105
+@@ 107-109
 Filming: the first frame is shown for the settling frames, then each frame once, in order; the clip is a `screen_render` of `render-007`, the sequence's person.
 
-@@ 106-107
+@@ 110-111
 And each kept frame is the camera's picture of the matching rendered frame (JPEG may shift a grey by a step or two).
 
-@@ 109-110
+@@ 113-114
 A folder whose parent isn't a made-up person's ID is refused…
 
-@@ 111-116
+@@ 115-120
 …and an empty sequence is refused without showing anything.
 
-@@ 117
+@@ 121
 Neither left a half-written clip folder behind.
+
+@@ 57
+And the render script's `person.json` beside the lights, which is no light.

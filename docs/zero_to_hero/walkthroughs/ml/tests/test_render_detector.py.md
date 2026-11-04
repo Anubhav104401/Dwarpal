@@ -1,5 +1,5 @@
 ---
-fingerprint: 60cfa21e5a30cd1d
+fingerprint: d95f55dab0499e2d
 ---
 **Tests for the render detector** (§5.9.4).
 
@@ -60,23 +60,26 @@ The threshold calls at most 5 % of the real ones rendered — and is as low as t
 @@ 121
 At that threshold the balanced error is small: every render caught, at most 5 % of the real refused.
 
-@@ 124-128
+@@ 137-141
 Train for 4 epochs from scratch, with progress lines collected: four lines, and a saved network.
 
-@@ 130-134
+@@ 143-147
 Evaluated against a gate it can't pass (50 real people): the test rests on 3 real and 3 made-up people, and both error rates are low — the network learnt.
 
-@@ 135-136
+@@ 148-149
 So the export is refused, naming the gate.
 
-@@ 138-143
+@@ 151-156
 With a gate it passes, the export writes the ONNX file and a manifest that says *recorded only*.
 
-@@ 145-152
+@@ 158-165
 The inference service's wrapper, running the exported file through OpenCV, gives the same chance as the trained PyTorch network, to within 1 in 10,000.
 
-@@ 153-154
+@@ 166-167
 And a missing file is refused when the wrapper is made, not at the first face.
 
 @@ 89-94
 A PNG of random speckle (which doesn't compress) 640 × 640 — over a megabyte, twice the service's upload limit — is cropped like any other frame. The first real renders were refused before this.
+
+@@ 124-134
+Splits of rendered faces only — as the data stands until real people are filmed — are refused, with a message saying why.

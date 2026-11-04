@@ -48,8 +48,8 @@ appears in two splits.
    `.datasets/render-detector/renders/render-NNN/<light>/`, with `person.json` (the seed and proportions) beside it.
    About 4 minutes per person on the owner's laptop. Look through a few before using them: none may look like a
    real, identifiable person. `--lights front-soft --frames 1,55,151` previews a person in seconds.
-4. **Import the injected clips:** `python -m dwarpal_ml.renders inject` copies every rendered sequence in as an
-   `injected_render` clip.
+4. **Import the injected clips:** `python -m dwarpal_ml.renders inject` adds every rendered sequence as an
+   `injected_render` clip, as hard links to the rendered frames (no second copy).
 5. **Film the screen clips:** point a webcam at the screen (a monitor, or a phone mirroring the computer), then
    `python -m dwarpal_ml.renders film .datasets/render-detector/renders/render-NNN/<light> --camera <name> --setting <screen-room-light>`.
    It shows the sequence full-screen and takes one camera frame per rendered frame, in step; the first frame stays up

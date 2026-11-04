@@ -171,6 +171,15 @@ def record(
     return clip
 
 
+def place(source: Path, target: Path) -> None:
+    """A rendered frame put into a clip: as a second name for the same file (a hard link), so 40 people's renders
+    don't take their gigabytes twice; copied where the disk can't link."""
+    try:
+        target.hardlink_to(source)
+    except OSError:
+        shutil.copyfile(source, target)
+
+
 def inject(folder: Path = DATA) -> list[Clip]:
     """Add each rendered sequence (renders/<identity>/<light>/) as an injected clip, as a virtual camera feeds it."""
     clips = read_clips(folder)
@@ -178,6 +187,8 @@ def inject(folder: Path = DATA) -> list[Clip]:
     added = []
     for sequence in sorted((folder / "renders").glob("*/*")):
         identity, light = sequence.parent.name, sequence.name
+        if not sequence.is_dir():
+            continue  # a person's own files beside their lights, such as person.json
         images = sorted(p for p in sequence.iterdir() if p.suffix.lower() in IMAGES)
         if not images or (identity, light) in done:
             continue
@@ -187,8 +198,14 @@ def inject(folder: Path = DATA) -> list[Clip]:
         clip = Clip(next_clip_id(clips, identity, "injected_render"), "injected_render", identity, "none", light)
         target = folder / "clips" / clip.clip_id
         target.mkdir(parents=True)
-        for index, image in enumerate(images, start=1):
-            shutil.copyfile(image, target / f"frame_{index:04d}{image.suffix.lower()}")
+        try:
+            for index, image in enumerate(images, start=1):
+                place(image, target / f"frame_{index:04d}{image.suffix.lower()}")
+        except BaseException:
+            # As in `record`: no half-made clip is left behind, and the clips added so far are kept.
+            shutil.rmtree(target, ignore_errors=True)
+            write_clips(clips, folder)
+            raise
         clips.append(clip)
         added.append(clip)
     write_clips(clips, folder)

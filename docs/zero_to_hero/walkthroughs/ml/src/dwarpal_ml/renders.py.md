@@ -1,5 +1,5 @@
 ---
-fingerprint: 04aa9c6a1c656f98
+fingerprint: dd731e6e6cf1e760
 ---
 **The render detector's own data** (decision D22, 2 Nov 2026; ADR-0021): a tool that films and files clips — of real people only under a standing written consent, and of made-up people we render — splits them by person, and deletes a person's clips when they withdraw.
 
@@ -96,73 +96,73 @@ The clip's ID and its own new folder (`mkdir` fails if it already exists, so not
 @@ 170-171
 The clip joins the list.
 
-@@ 174-175
+@@ 183-184
 **`inject`**: the *injected* attack. A virtual camera hands the browser a render's frames directly, so these clips are the rendered frames themselves, copied from `renders/<person>/<light>/`.
 
-@@ 176-178
+@@ 185-187
 Sequences already added are skipped, so `inject` can be run again after every new render.
 
-@@ 179-183
-Each sequence folder's images, in order; an empty folder, or one already done, is passed over.
+@@ 188-194
+Each sequence folder, in order. A person's own files beside their lights (the render script's `person.json`) are passed over — they were taken for a light at first (4 Nov); so are empty folders and sequences already added.
 
-@@ 184-186
+@@ 195-197
 The folder names must be a made-up person's ID and a short light name; anything else stops with its path.
 
-@@ 187-189
+@@ 198-200
 The clip (camera `none`: no camera was involved) and its folder.
 
-@@ 190-191
-The frames copied — not moved, so a render can be made again.
+@@ 201-208
+The frames placed — linked, or copied. If anything stops it, the half-made clip's folder is deleted and the clips added so far are written to the list before the error goes on — the first real run left two orphan folders behind that blocked the next one.
 
-@@ 192-195
+@@ 209-212
 Added to the list, which is written once at the end, and the new clips returned.
 
-@@ 198-199
+@@ 215-216
 **`withdraw`**: a person changed their mind, so their clips are deleted.
 
-@@ 200-202
+@@ 217-219
 Only once the register says the consent was withdrawn — the register stays the record of why.
 
-@@ 203-206
+@@ 220-223
 Every clip filmed under that consent: its folder deleted…
 
-@@ 207-210
+@@ 224-227
 …its line dropped from the list. The prepared crops (`render_detector.prepare`) hold faces too, and are gathered from every clip at once, so they are all deleted and must be prepared again. The number of clips deleted is returned.
 
-@@ 267-279
+@@ 284-296
 **`camera_frames`**: frames from a webcam, for the given number of seconds at the camera's own frame rate (30 if it doesn't say). `yield` hands each frame on as it arrives; `finally` releases the camera even if something fails. Not run by the tests (`pragma: no cover`): they have no webcam.
 
-@@ 282-284
+@@ 299-301
 **`main`**: the command line. Every command takes `--folder`, so the tests can work in a temporary one.
 
-@@ 285-288
+@@ 302-305
 Three short commands: `check`, `split` and `inject`.
 
-@@ 289-296
+@@ 306-313
 **`record`** and its options. `--consent` isn't required by the parser but by the rule, so a missing one gets the rule's own explanation.
 
-@@ 302-303
+@@ 319-320
 **`withdraw`**, with the consent's ID.
 
-@@ 304-305
+@@ 321-322
 The options read, and the folder.
 
-@@ 318-321
+@@ 335-338
 Injecting and withdrawing print how many clips changed.
 
-@@ 322-325
+@@ 339-342
 The split: how many clips of each kind each split holds.
 
-@@ 326-329
+@@ 343-346
 Otherwise, `check`: the problems, or the all-clear; exit code 1 if there are any.
 
-@@ 330-332
+@@ 347-349
 A refusal (a missing consent, a bad name) is printed as one line, without a traceback, and fails.
 
-@@ 333
+@@ 350
 Success.
 
-@@ 336-337
+@@ 353-354
 Run as a program, `main`'s answer becomes the exit code.
 
 @@ 39-40
@@ -171,46 +171,46 @@ Run as a program, `main`'s answer becomes the exit code.
 @@ 42-44
 Three names for types used below: a **frame** (a picture's bytes), **`Show`** (puts a frame on the screen) and **`Grab`** (takes one frame from the camera, or nothing when it has stopped).
 
-@@ 213-218
+@@ 230-235
 **`read_frame`**: one rendered frame. OpenCV answers *nothing* for a file it can't read; that is refused by name instead of failing later somewhere less clear.
 
-@@ 221-223
+@@ 238-240
 **`played`**: a rendered sequence shown on a screen and filmed **in step** — each rendered frame shown, then one camera frame taken of it, so every camera frame shows one known rendered frame. A function that `yield`s hands over each frame as it is taken: `record` writes it before the next is shown.
 
-@@ 224-226
+@@ 241-243
 The sequence's images in order; an empty folder is refused.
 
-@@ 227-230
+@@ 244-247
 The first frame is shown and the camera's frames are taken and dropped, `settle` times.
 
-@@ 231-236
+@@ 248-253
 Then each rendered frame in turn: shown, filmed, handed on. If the camera stops, so does the clip.
 
-@@ 239-241
+@@ 256-258
 **`film`**: a `screen_render` clip of the made-up person whose sequence it is (its folder's parent is the person's ID). It goes through `record`, so every rule applies — and because `played` is only started when `record` asks for its first frame, a refused clip never shows anything.
 
-@@ 244-245
+@@ 261-262
 **`full_screen`**: the real screen and webcam (not run by the tests: they have neither).
 
-@@ 246-248
+@@ 263-265
 The webcam, opened (or refused).
 
-@@ 249-250
+@@ 266-267
 A window filling the whole screen, so the camera sees only the render.
 
-@@ 252-254
+@@ 269-271
 **show**: the frame into the window; `waitKey(1)` lets the window draw it.
 
-@@ 256-258
+@@ 273-275
 **grab**: one frame from the webcam, or nothing if it has stopped.
 
-@@ 260-262
+@@ 277-279
 **close**: the webcam released and the window closed.
 
-@@ 264
+@@ 281
 The three handed back together.
 
-@@ 297-301
+@@ 314-318
 **`film`** and its options: the sequence's folder, the camera's name, the screen, room and light, and the webcam's number.
 
 @@ 160-165
@@ -219,8 +219,14 @@ Each frame written as a JPEG at quality 95, numbered from 1; no frames at all (a
 @@ 166-169
 Whatever stops the filming — no frames, an unreadable render, even Ctrl+C (`BaseException` catches that too) — the clip's folder is deleted before the error goes on, so no half-written clip is left behind to block the next one with the same ID.
 
-@@ 306-310
+@@ 323-327
 Filming a person: the webcam's frames go straight to `record`.
 
-@@ 311-317
+@@ 328-334
 Filming a render: the full-screen window and webcam, the clip, and both closed afterwards even if something fails (`finally`).
+
+@@ 174-176
+**`place`**: one rendered frame into a clip, as a **hard link** — a second name for the same file on the disk, so 40 people's renders (6.8 GB) don't take their space twice. Deleting either name leaves the other.
+
+@@ 177-180
+Where the disk can't link (another drive, or a file system without links), the frame is copied.

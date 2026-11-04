@@ -235,6 +235,9 @@ def train(config: Config, crops: Path = CROPS, runs: Path = RUNS, report: Callab
     """Train, keep the epoch with the lowest balanced error on the validation split, and record the run."""
     torch.manual_seed(config.seed)
     training, validation = load_split("train", crops), load_split("validation", crops)
+    for name, split in (("train", training), ("validation", validation)):
+        if set(split.labels.tolist()) != {0, RENDERED}:
+            raise ValueError(f"the {name} split needs both real and rendered faces: film real people first")
     model = RenderNet(base_state(config.pretrained), config.pretrained)
     sampler = WeightedRandomSampler(balanced_weights(training.labels), len(training.labels), replacement=True)
     loader = DataLoader(Crops(training, training=True, seed=config.seed), config.batch_size, sampler=sampler)

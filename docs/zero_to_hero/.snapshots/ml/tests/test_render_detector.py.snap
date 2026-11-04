@@ -121,6 +121,19 @@ def test_the_threshold_refuses_at_most_the_target_share_of_real_people() -> None
     assert rd.balanced_error(scores, labels, threshold) <= 0.025
 
 
+def test_training_without_real_faces_is_refused(tmp_path: Path) -> None:
+    rendered_only = {
+        "pixels": np.zeros((2, 80, 80, 3), np.uint8),
+        "labels": np.array([1, 1]),
+        "kinds": np.array(["injected_render"] * 2),
+        "people": np.array(["render-001"] * 2),
+    }
+    for name in ("train", "validation"):
+        np.savez_compressed(tmp_path / f"{name}.npz", **rendered_only)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="both real and rendered"):
+        rd.train(rd.Config(epochs=1, pretrained=False), tmp_path, tmp_path / "runs")
+
+
 def test_training_learns_evaluating_measures_and_exporting_needs_the_gates(clips: Path, tmp_path: Path) -> None:
     rd.prepare(OneFace(), clips, every=1)
     lines: list[str] = []

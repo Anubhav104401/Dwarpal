@@ -54,11 +54,15 @@ def test_rendered_sequences_are_added_once_as_injected_clips(tmp_path: Path) -> 
     for index in range(2):
         (sequence / f"{index:04d}.png").write_bytes(b"png")
     (sequence / "notes.txt").write_text("ignored", encoding="utf-8")
+    (sequence.parent / "person.json").write_text("{}", encoding="utf-8")  # the render script's record, not a light
     added = renders.inject(tmp_path)
     assert [(c.clip_id, c.kind, c.setting) for c in added] == [
         ("render-004-injected-render-001", "injected_render", "side-light")
     ]
-    assert len(list((tmp_path / "clips" / added[0].clip_id).iterdir())) == 2
+    kept = sorted((tmp_path / "clips" / added[0].clip_id).iterdir())
+    assert len(kept) == 2
+    assert kept[0].read_bytes() == b"png"
+    assert kept[0].stat().st_nlink == 2  # the same file under two names, not a copy
     assert renders.inject(tmp_path) == []
 
 

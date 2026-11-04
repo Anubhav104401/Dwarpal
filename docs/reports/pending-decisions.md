@@ -58,7 +58,7 @@ Work that needs your answer — a download, a design choice, an account, or some
 
 | # | Decision |
 | :-: | :-- |
-| D23 | **Approved and done**: Blender 5.2.3 (`blender-5.2.3-windows-x64.zip`, 405,839,452 bytes, SHA-256 `723f08a4…5dc2fb` — matches download.blender.org's), MPFB 2.0.18 (45,956,992 bytes, SHA-256 `c075b3e9…2a2dad` — matches extensions.blender.org's), MakeHuman system assets (`makehuman_system_assets_cc0.zip`, 280,737,770 bytes, SHA-256 `b542127a…a0107`; no published fingerprint, every file passes the zip's own CRC check). Kept in `.tools/` (ignored by git), a portable Blender with MPFB's online access off. The first 40 made-up people are rendering (`ml/blender/render_people.py`) |
+| D23 | **Approved and done**: Blender 5.2.3 (`blender-5.2.3-windows-x64.zip`, 405,839,452 bytes, SHA-256 `723f08a4…5dc2fb` — matches download.blender.org's), MPFB 2.0.18 (45,956,992 bytes, SHA-256 `c075b3e9…2a2dad` — matches extensions.blender.org's), MakeHuman system assets (`makehuman_system_assets_cc0.zip`, 280,737,770 bytes, SHA-256 `b542127a…a0107`; no published fingerprint, every file passes the zip's own CRC check). Kept in `.tools/` (ignored by git), a portable Blender with MPFB's online access off. The first 40 made-up people are rendered (`ml/blender/render_people.py`, 34 min) and filed as 120 injected clips. **Next is yours**: film yourself under consent `c-001` (O12) and film the renders on a screen (`renders film`) — then training can start |
 
 ## Decided on 3 Nov 2026
 
