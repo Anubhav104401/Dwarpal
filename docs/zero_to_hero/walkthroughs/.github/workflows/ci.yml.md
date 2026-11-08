@@ -1,5 +1,5 @@
 ---
-fingerprint: 33ecb124badbec2f
+fingerprint: d80d6f9deb743d81
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -241,3 +241,42 @@ If anything in the braces failed, `start.log` is printed and its end becomes an 
 
 @@ 214-215
 On success the log isn't printed, so a notice written inside the braces — the inference service's readiness answer — would never reach GitHub, which reads workflow commands only from the step's own output: pass those lines on (`|| true`: having none is fine).
+
+@@ 216-218
+**The rehearsal** (9 Nov): the API's image rehearses the server's first deploy, as far as one image can — with the real secrets generator, Compose file, migrations, backup script and restore drill. No test had ever run the API as the server does: in production mode, logged in as the restricted `dwarpal_api`.
+
+@@ 219-222
+Only in the API's run of the matrix, in bash, in `infra/deploy` — where the server's files sit side by side, as in `/opt/dwarpal`.
+
+@@ 223-224
+Everything the step prints also goes into `rehearsal.log` (`exec > >(tee …)` sends the script's own output through `tee` from here on), so a failure can be shown as an annotation by the next step.
+
+@@ 225-227
+Secrets made by the real generator, for a made-up domain; the image tag `ci`; and the image just built, given the name the Compose file asks for (`ghcr.io/<owner>/dwarpal-api:<tag>`), so nothing is pulled.
+
+@@ 228-229
+The one model file the API reads at start-up: the age model's manifest, copied where the server keeps it.
+
+@@ 230-231
+The two passwords the next commands need, read from `.env` as `deploy.sh` reads them.
+
+@@ 232-236
+As `deploy.sh` does: the databases from the production Compose file, then the real migrations, run by the API's image as the database's owner.
+
+@@ 237-242
+The services' own login, `dwarpal_api` — a member of the restricted role and nothing else — made exactly as `deploy.sh` makes it.
+
+@@ 243-244
+The API alone (`--no-deps`: its inference service isn't needed to be ready), in production mode, logged in as `dwarpal_api`: it must load its signing keys and pass its health check within 3 minutes.
+
+@@ 245-247
+Its readiness answer, kept in a variable first (so a failure stops the script), then shown as a notice.
+
+@@ 248-251
+restic's settings for the rehearsal: a repository inside its cache volume (`/cache`, which `backup.sh` mounts), instead of Object Storage, and a random password; then the real `backup.sh` — the database dump and the secrets file, encrypted.
+
+@@ 252-253
+The real restore drill: the latest backup restored into a throwaway database, its report shown as a notice — the record Phase 8's exit asks for, rehearsed on every push.
+
+@@ 254-258
+If the rehearsal failed, its last 3,000 characters become an error annotation, readable without a sign-in.

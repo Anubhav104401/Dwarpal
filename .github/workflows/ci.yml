@@ -213,3 +213,46 @@ jobs:
             || { cat start.log; echo "::error title=${{ matrix.name }} start::$(tail -c 3000 start.log | tr '\n' '|')"; exit 1; }
           # Notices written inside the braces went to the log: pass them on, so GitHub shows them.
           grep '^::notice' start.log || true
+      # The API's image rehearses the server's first deploy, as far as one image can: the production Compose file's
+      # databases, the real migrations, the services' restricted login, the API in production mode — then a backup and
+      # the restore drill, with restic keeping its repository in its cache volume instead of Object Storage.
+      - name: Rehearse the first deploy, a backup and the restore drill
+        if: matrix.name == 'api'
+        shell: bash
+        working-directory: infra/deploy
+        run: |
+          exec > >(tee rehearsal.log) 2>&1
+          python3 gen_secrets.py --domain dwarpal.example --email ci@example.org --ghcr-owner ci
+          sed -i 's/^DWARPAL_TAG=.*/DWARPAL_TAG=ci/' .env
+          docker tag dwarpal-api:ci ghcr.io/ci/dwarpal-api:ci
+          mkdir -p models/registry/age/stub
+          cp ../../models/registry/age/stub/manifest.json models/registry/age/stub/
+          owner="$(grep '^DWARPAL_DB_OWNER_PASSWORD=' .env | cut -d= -f2-)"
+          api="$(grep '^DWARPAL_DB_API_PASSWORD=' .env | cut -d= -f2-)"
+          # As deploy.sh does: the databases, the migrations as the database's owner, then the services' own login.
+          docker compose up -d --wait postgres valkey
+          docker compose run --rm --no-deps \
+            -e DWARPAL_DATABASE_URL="postgresql+asyncpg://dwarpal:${owner}@postgres:5432/dwarpal" \
+            api python -m dwarpal_api.cli migrate
+          docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U dwarpal -d dwarpal -v pw="$api" <<'SQL'
+          SELECT 'CREATE ROLE dwarpal_api LOGIN IN ROLE dwarpal_app'
+          WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dwarpal_api')
+          \gexec
+          ALTER ROLE dwarpal_api WITH LOGIN PASSWORD :'pw';
+          SQL
+          # The API alone (its inference service isn't needed to be ready), in production mode, as dwarpal_api.
+          docker compose up -d --no-deps --wait --wait-timeout 180 api
+          ready="$(docker compose exec -T api python -c \
+            "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/readyz').read().decode())")"
+          echo "::notice title=API in production mode::$ready"
+          # A backup into a repository kept in restic's cache volume, and the drill that restores it.
+          printf 'RESTIC_REPOSITORY=/cache/rehearsal\nRESTIC_PASSWORD=%s\n' "$(openssl rand -hex 24)" > backup.env
+          chmod 600 backup.env
+          ./backup.sh
+          report="$(./restore_drill.sh)"
+          echo "::notice title=restore drill::$(tr '\n' '|' <<<"$report")"
+      - name: The rehearsal's last lines, as an annotation
+        if: failure() && matrix.name == 'api'
+        shell: bash
+        working-directory: infra/deploy
+        run: '[ -f rehearsal.log ] && echo "::error title=rehearsal::$(tail -c 3000 rehearsal.log | tr "\n" "|")" || true'
