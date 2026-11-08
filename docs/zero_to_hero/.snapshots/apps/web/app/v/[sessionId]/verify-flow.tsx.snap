@@ -378,6 +378,8 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
   const tries = (count: number) => t("tries", { count });
 
   if (stage.kind === "intro") {
+    // A document-only check (D24) says what the document check does, and leads to it instead of the camera.
+    const steps = session.documentOnly ? DOCUMENT_STEPS : PROMISES;
     return (
       <Shell label={label}>
         <section className={card}>
@@ -385,10 +387,10 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
             {t("introTitle", { age: session.minAge })}
           </h1>
           <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">
-            {t("introLead", { project: session.projectName })}
+            {t(session.documentOnly ? "introLeadDocument" : "introLead", { project: session.projectName })}
           </p>
           <ol className="mt-6 space-y-3">
-            {PROMISES.map((promise, index) => (
+            {steps.map((promise, index) => (
               <li key={promise} className="flex gap-3 text-[15px] leading-relaxed">
                 <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-500/20 text-xs font-semibold text-brand-700 dark:text-brand-300">
                   {index + 1}
@@ -423,9 +425,15 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
           <button
             type="button"
             className={`${pass === null ? accentButton : quietButton} mt-8`}
-            onClick={() => setStage({ kind: "camera", session, tip: null })}
+            onClick={() =>
+              setStage(
+                session.documentOnly
+                  ? { kind: "document", session, tip: null }
+                  : { kind: "camera", session, tip: null },
+              )
+            }
           >
-            {t("startCamera")}
+            {t(session.documentOnly ? "useDocument" : "startCamera")}
           </button>
         </section>
       </Shell>

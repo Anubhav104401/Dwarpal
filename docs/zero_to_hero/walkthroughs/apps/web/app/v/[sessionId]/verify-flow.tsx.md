@@ -1,5 +1,5 @@
 ---
-fingerprint: d1df9a4fabed7a97
+fingerprint: 04a05b6f0debffde
 ---
 **The verify flow** — every screen a person sees during an age check, and the logic that moves between them. It is a **state machine** like the API's session (§5.1.2), but for the screen: at any moment the page is in exactly one **stage**, and each stage draws one screen.
 
@@ -167,37 +167,37 @@ If there was nowhere to go, or it failed, re-enable the button.
 @@ 376-378
 From here on, every stage has a session: take it out, and make the label for the top-right corner, such as "Amber Cellars (demo) · 18+", from its words; and `tries`, the attempts left in words ("2 tries left", "Last try" — next-intl picks the plural form each language needs).
 
-@@ 380-389
-**The intro**: the heading names the age; the paragraph names the website.
+@@ 380-391
+**The intro**: the heading names the age; the paragraph names the website. A document-only check (D24) has its own lead sentence, saying the website checks age with an ID document; `steps` is the list shown below it.
 
-@@ 390-399
-The three promises as a **numbered list** (`<ol>`). `PROMISES.map(…)` turns each text into a list item; React needs a stable **`key`** for every item of a list, to tell them apart between redraws — the text itself serves. Each number sits in a small saffron circle, in the darker `brand-700` so it is readable (§5.5.5).
+@@ 392-401
+The three promises as a **numbered list** (`<ol>`). `PROMISES.map(…)` turns each text into a list item; React needs a stable **`key`** for every item of a list, to tell them apart between redraws — the text itself serves. Each number sits in a small saffron circle, in the darker `brand-700` so it is readable (§5.5.5). In a document-only check the list is the document check's three steps instead (`steps`).
 
-@@ 423-429
-"Start the camera" moves to the camera stage, with no tip yet. The camera is only switched on *after* the person has read what will happen, and clicked. When an Age Pass is offered, this button becomes the quiet one: one loud button per screen.
+@@ 425-437
+"Start the camera" moves to the camera stage, with no tip yet. The camera is only switched on *after* the person has read what will happen, and clicked. When an Age Pass is offered, this button becomes the quiet one: one loud button per screen. In a document-only check (D24) the same button says "Use a passport or ID card" and opens the document check instead of the camera.
 
-@@ 430-433
+@@ 438-441
 The closing tags.
 
-@@ 435-444
+@@ 443-452
 **The camera stage**: the camera screen, given the tip, the way to fetch a challenge, a callback that adds the session to the captured attempt, and the error callback.
 
-@@ 445-451
+@@ 453-459
 Below it, the attempts left — "Last try" when one remains.
 
-@@ 513-527
+@@ 521-535
 **Checking**: a spinning ring (`animate-spin` on a circle whose top border alone is saffron; it holds still for reduced-motion visitors) and two lines of text. `role="status"` makes screen readers announce "Checking your photos…".
 
-@@ 529
+@@ 537
 **An ending** — the only stage left. Look its screen up in `ENDINGS`.
 
-@@ 530-535
+@@ 538-543
 The icon, in the ending's colours, drawing the ending's symbol with rounded line ends.
 
-@@ 536-539
+@@ 544-547
 The title and body text in the page's language (§5.5.11), with the website's name and the age filled in.
 
-@@ 592-595
+@@ 600-603
 The closing tags.
 
 @@ 232-243
@@ -215,22 +215,22 @@ A retry goes back to the document stage, with the reason turned into a tip. Anyt
 @@ 265-270
 Any error — the network, the API — becomes a problem screen, as everywhere on this page.
 
-@@ 453-465
+@@ 461-473
 **The document stage** (§5.6.3): the heading, and the tip after a retry — in amber, and marked `role="alert"` so screen readers announce it as soon as it appears.
 
-@@ 466-475
+@@ 474-483
 The three steps, as numbered circles, styled like the intro's promises.
 
-@@ 476-489
+@@ 484-497
 The photo button. On a phone, a file input with `capture="environment"` opens the **rear camera**; on a computer, it opens a file picker. The input itself is hidden visually (`sr-only`, still there for screen readers and the keyboard), and its `<label>` wears the button's look — clicking a label clicks its input. `has-focus-visible:` gives the label the focus ring whenever the hidden input has keyboard focus, as the comment says. Only JPEG, PNG and WebP pictures are offered.
 
-@@ 490
+@@ 498
 The tries left, or "Last try".
 
-@@ 496-511
+@@ 504-519
 **The selfie stage**: a line saying the document's photo is ready and why a selfie follows, then the very same camera screen as a face check — its challenge, poses and colours — whose capture goes to `onSelfieCaptured` with the document.
 
-@@ 491-494
+@@ 499-502
 The end of the document stage's card and page.
 
 @@ 4
@@ -302,23 +302,23 @@ Pair each pass with its key's private half, the lines, the expiry and the mode, 
 @@ 300-304
 Saved: show how many, and until when. Anything that went wrong: say saving failed — the check itself has passed either way.
 
-@@ 400-407
+@@ 402-409
 After a refused pass, a notice saying so, in a region screen readers announce.
 
-@@ 408-422
+@@ 410-424
 **The Age Pass's offer**, when a kept pass can answer this check: a panel with a title, what the pass will show — this website, this line, only that, no camera — and the loud button, **Use my Age Pass**.
 
-@@ 540-553
+@@ 548-561
 At the end: after a step-up, two choices — **"Use a passport or ID card"**, the loud one, which starts the document stage; and **"Not now — return to …"**, the quiet one, for someone who would rather not. "Returning…" while it works.
 
-@@ 554-556
+@@ 562-564
 **Saving passes** (Phase 9) is offered only after a pass earned just now, where the website takes passes, and on this page's own tab: a panel.
 
-@@ 557-563
+@@ 565-571
 Saved: how many uses, and until when, as a date written the page's way ("January 31, 2027"; in Hindi, the Hindi way), in a region screen readers announce.
 
-@@ 564-583
+@@ 572-591
 Not yet saved: the title, what an Age Pass is and isn't — no photo, name or date of birth; twenty uses in ninety days; nothing websites can recognise someone by — a failure message if saving failed, and the quiet **Save an Age Pass** button, which says "Saving…" while it works.
 
-@@ 584-591
+@@ 592-599
 Every ending but the step-up then has its one loud button, "Continue to …", and "Returning…" while it works.

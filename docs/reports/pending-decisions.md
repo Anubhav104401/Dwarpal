@@ -4,6 +4,43 @@ Work that needs your answer — a download, a design choice, an account, or some
 
 **Started:** 26 Oct 2026, overnight run. **Phase 4 is complete** (commits `450bfba`, `7d730ee`, `95f3e91`).
 
+## Decisions for the night of 8→9 Nov (recorded at its start, for your review at 10 am)
+
+The owner asked (8 Nov, evening) for every decision of the night to be recorded at once, at its start, and not to be
+disturbed until 10 am on 9 Nov — except when the deployment on Oracle needs them. These are the defaults taken; each can
+be reversed in the morning.
+
+| # | Decision | Default taken |
+| :-: | :-- | :-- |
+| **D24** | How a live check works while no age model is certified (asked and answered, 8 Nov) | **ID document only**: a live session skips the age estimate and is decided by the passport/ID check, whose own selfie and challenge still prove a live person. The age estimate comes back for live checks once a model is certified |
+| **D25** | Email from the app (password reset, invitations) (asked and answered, 8 Nov) | **Not now**: recovery stays with passkeys, one-time codes and recovery codes |
+| D26 | Age Passes in document-only sessions | Given out after a passed check and accepted as before: a pass is as strong as the check that issued it, and its token says `age_pass` |
+| D27 | Custom policies in document-only mode | Allowed whatever their risk budget: the age model's thresholds don't apply when it doesn't decide |
+| D28 | Creating projects in the console | Owners and admins; at most 20 projects per organisation; a name of 1–80 characters |
+| D29 | Allowed origins | Exact origins only (scheme, host and port; no paths, no wildcards); `https://` in production, `http://` also for `localhost` in development; at most 10 per project; changes are audited |
+| D30 | API keys in the console | Listed with their prefix, scopes, mode, creation and expiry — never the secret; revoking is immediate and audited; the same roles that create keys may revoke them |
+| D31 | Changing a password | Needs the current password (and a one-time code if switched on); ends every other console session of that person |
+| D32 | Deleting one's own account | Needs the password (and a one-time code if switched on). Refused while the person is the only owner of an organisation that has other members (hand ownership over first). An organisation where they are the only member is closed with them: its keys are revoked, and its records are purged by the usual retention. The person's email, password, one-time-code secret, passkeys and console sessions are erased; their ID stays in the audit chain, so the chain still verifies |
+| D33 | Watching the server from outside | A scheduled GitHub workflow every 15 minutes checks the API's `/readyz` and the web home page once `DWARPAL_PUBLIC_API_URL` is set; GitHub emails the owner when a run fails. No new account |
+| D34 | Fixable vulnerabilities found by tonight's scans | Package upgrades are downloads, so they are **not** applied: each is listed here, with file, source and size, for approval |
+| D35 | More made-up people | Render 40 more (render-041…080) with the tools already approved (D23), so the split by person is less lumpy; no download |
+| D36 | Hindi for new screens | Machine-drafted, as all the Hindi (D2), and flagged for the native review |
+| D37 | The public pages | The model page, the discovery document and the developers' guide say that live checks use an ID document until a model is certified; the practice statement's draft (still waiting for O5) says the same |
+| D38 | Commits | Pushed to `main` in checked batches (as authorised); CI watched through the public API |
+| D39 | When to disturb the owner | Only when the deployment on Oracle needs them (O2c, O10, O8, O9), once all else is done |
+
+**Asked and answered on 8 Nov, before the night** (the owner asked to be asked everything at once):
+
+| # | Decision | Answer |
+| :-: | :-- | :-- |
+| D40 | The domain for the deployment (O10) | **A free DuckDNS name** (stays Always Free), such as `dwarpal.duckdns.org` with `api.` and `shop.` under it; the owner creates the DuckDNS account at deploy time. The deploy files and README are adapted tonight |
+| D41 | How the age estimate becomes usable for live checks | **Keep document-only (D24) for now**; revisit after launch. No new data work |
+| D42 | `joserfc` 1.7.6 (`joserfc-1.7.6-py3-none-any.whl`, 71,588 bytes, pypi.org, BSD-3-Clause, released 18 Oct) for CVE-2026-119284 / GHSA-9pg5-8c7x-5hfx (memory exhaustion while parsing a compact JWS) | **Approved**: installed tonight |
+| D43 | A live document camera on computers | **Build it**: a framing guide over the webcam; the file chooser stays as a fallback |
+| D44 | Inviting people who haven't signed up | **Pending invitations**: no email is sent (D25); the person joins when they sign up with that address |
+| D32 | Deleting an account that is an organisation's only member | **Confirmed**: the organisation is closed with it (keys revoked at once, records purged by retention) |
+| D45 | The Kubernetes chart | **Keep it checked in CI, no cluster**; optional in the roadmap |
+
 ## Morning summary — 4 Nov (overnight work, 3→4 Nov)
 
 **Your answers still open**, in the order they unblock things:

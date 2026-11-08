@@ -110,7 +110,13 @@ describe("FlowClient", () => {
     const replies = [
       answer(200, {
         flow_token: "flow-token",
-        session: { id: SESSION, status: "in_progress", accept_age_pass: true, livemode: false },
+        session: {
+          id: SESSION,
+          status: "in_progress",
+          accept_age_pass: true,
+          livemode: true,
+          document_only: true,
+        },
       }),
       answer(200, { passes: ["a~b~"], lines: [13, 16, 18], expires_at: "2027-01-31T00:00:00+00:00" }),
       answer(200, { nonce: "nonce-1", audience: SESSION }),
@@ -127,7 +133,8 @@ describe("FlowClient", () => {
     const nonce = await client.agePassNonce("device-0123456789abcdef");
     await client.presentAgePass("a~b~kb");
 
-    expect([session.acceptAgePass, session.livemode]).toEqual([true, false]);
+    // A live check while no age model is certified (D24): document-only, and passes still work in it.
+    expect([session.acceptAgePass, session.livemode, session.documentOnly]).toEqual([true, true, true]);
     expect(issued).toEqual({ passes: ["a~b~"], lines: [13, 16, 18], expiresAt: "2027-01-31T00:00:00+00:00" });
     expect(nonce).toEqual({ nonce: "nonce-1", audience: SESSION });
     expect(seen.slice(1).map((request) => new URL(request.url).pathname)).toEqual([

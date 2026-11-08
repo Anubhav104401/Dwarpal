@@ -115,3 +115,15 @@ The verify page, its flow client and tips, the page frame (a quiet button), the 
 !!! honest "Honest limitation"
     - **Desktop users need a photo file.** On a computer, the button opens a file picker: they must already have a photo of their document. A live document camera on the page — with guidance to fill the frame and avoid glare, as the design describes — would serve them better, and would also stop someone choosing a photo of someone else's document taken earlier; the face match still guards against that.
     - **The Hindi version** of these screens waits for the Hindi work (decision D2).
+
+### 5.6.4 Live checks by ID document alone (decision D24)
+
+A live check — a real person on a real website — needs an age model that has been shown to meet the policy's risk budget (§5.2.6). None has been yet: the model trained in Phase 2 certifies 7.5 % at 18, not the 2 % the presets ask for, and its training data allows non-commercial research only. Until 8 November the API simply refused live sessions (`409 model_not_calibrated`), so a deployed Dwarpal could have done test checks only.
+
+The owner chose (decision D24) to let the document check of this phase carry live checks meanwhile. A live session whose age model isn't certified is **document-only**: the verify page opens on the passport check instead of the camera; a face attempt is refused (`409 document_required`); the document's date of birth decides, with the selfie — taken under the same random challenge as any face check — showing that a live person is there and that the document is theirs. The token says how: `methods` is `["document_mrz", "face_match"]`, and `model` is `null`. An Age Pass still answers the check where the website accepts one. Test sessions keep the face check, so websites can still try every outcome with a test key. Once a model is certified, the same code goes back to the age estimate first, with the document as its step-up.
+
+The test proves it end to end with real OCR and a real face match; only the anti-spoofing networks' verdict, which a live session requires and the test service can't give, is stood in for.
+
+!!! honest "Honest limitation"
+    A document check is slower and asks more of people than a camera estimate: they need a passport or an ID card with a machine-readable zone, and its reading is *basic* assurance (no chip, no forensic checks; §5.6.2). Some people will have neither at hand. That is the price of not letting an uncertified model decide.
+

@@ -10,8 +10,8 @@ Dwarpal checks whether a person meets a website's minimum age. The website sends
 
 | Method | What it shows | Indicator of confidence |
 | :-- | :-- | :-- |
-| **Facial age estimation** with liveness | that the person very probably meets the age line, with a stated error budget | *basic*, rising with the policy's risk budget |
-| **ID document (MRZ)** — step-up, in development | that a valid-looking document states an old-enough date of birth, matched to a live selfie | *basic* (no chip reading, no forensic checks) |
+| **Facial age estimation** with liveness — test checks only, until a model is certified | that the person very probably meets the age line, with a stated error budget | *basic*, rising with the policy's risk budget |
+| **ID document (MRZ)** — every live check until an age model is certified (D24), and the step-up from the age estimate | that a valid-looking document states an old-enough date of birth, matched to a live selfie | *basic* (no chip reading, no forensic checks) |
 | **Aadhaar Secure QR** — step-up, planned (India) | a UIDAI-signed date of birth, matched to a live selfie | *standard* for the date of birth (subject to review) |
 
 Every result says which method and policy version produced it (the token's `methods` and `policy` claims).
@@ -33,7 +33,7 @@ Every result says which method and policy version produced it (the token's `meth
 | Largest gap between groups | *pending* (release gate: ≤ 2 percentage points) |
 | Presentation-attack results | owner red team, Phase 3: 0 of 3 posed-photo and 0 of 4 video-replay attacks passed; virtual-camera and deepfake attacks not yet tested |
 
-The current served model is a **stand-in** until calibration passes the release gates; live checks are refused until then.
+The current served model is a **stand-in** until calibration passes the release gates. Until then, a live check is decided by an ID document — the date of birth read from its machine-readable zone, and the live selfie matched to its photo — and the age estimate decides test checks only (decision D24).
 
 ## 5. Privacy
 

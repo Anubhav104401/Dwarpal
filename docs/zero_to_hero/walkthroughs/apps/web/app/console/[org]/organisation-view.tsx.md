@@ -1,5 +1,5 @@
 ---
-fingerprint: 184b32de4027fd31
+fingerprint: 1581eaaf0b3e72f4
 ---
 The **organisation page** (Phase 5, §5.5.1): its members, its projects and API keys, and — for owners and admins — its audit log, with whether the chain is intact. Forms appear only for roles that may use them (`CAN`); the API refuses anyway if someone forces them.
 
@@ -141,32 +141,32 @@ For roles that may manage keys, and when there is a project: the form, starting 
 @@ 244-259
 The scopes, as tick-boxes in a `fieldset` whose `legend` names the group; the two session scopes start ticked.
 
-@@ 260-262
-Whether the key is live — useful only once the age model is calibrated, which the API also enforces.
+@@ 260-263
+Whether the key is live. Until an age model is certified, live checks are decided by an ID document (D24), and the label says so.
 
-@@ 263-267
+@@ 264-268
 The button, and the end of the form.
 
-@@ 268-269
+@@ 269-270
 End of the panel and of the two-column grid.
 
-@@ 271-276
+@@ 272-277
 **The audit log**, for owners and admins.
 
-@@ 277-279
+@@ 278-280
 The chain's verdict as a **badge** from the design system (§5.5.6): *Chain intact* in the success tone, or *Chain broken at entry N* in the danger tone — the console's view of `cli verify-audit`.
 
-@@ 280
+@@ 281
 End of the heading row.
 
-@@ 281-289
+@@ 282-290
 A table with four columns: the entry's number, when, what, and who.
 
-@@ 290-301
+@@ 291-302
 One row per entry, newest first; the time in the reader's own format and time zone (`toLocaleString`).
 
-@@ 302-304
+@@ 303-305
 End of the table, the section, and the condition.
 
-@@ 305-307
+@@ 306-308
 End of the frame and the component.

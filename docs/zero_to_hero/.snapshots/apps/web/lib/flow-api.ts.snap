@@ -20,6 +20,9 @@ export interface FlowSession {
   /** Whether the website's policy accepts Age Passes (Phase 9), and the mode — test or live — a pass must match. */
   acceptAgePass: boolean;
   livemode: boolean;
+  /** Decided by an ID document (or an Age Pass), never by the face check: a live check while no age model is
+   * certified (decision D24). */
+  documentOnly: boolean;
 }
 
 /** A batch of Age Passes: the passes, the age lines each states, and when they expire. */
@@ -86,6 +89,7 @@ export class FlowClient {
       returnOrigin: typeof session.return_origin === "string" ? session.return_origin : null,
       acceptAgePass: session.accept_age_pass === true,
       livemode: session.livemode === true,
+      documentOnly: session.document_only === true,
     };
   }
 

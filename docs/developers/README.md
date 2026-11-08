@@ -145,6 +145,17 @@ A policy names the age to check and the rules to follow. The presets:
 
 Each preset has a **risk budget** of 2 %: the share of minors just under the age line that the age model may let through. A model is allowed to decide live checks for a policy only once it is shown to meet that budget. Your project can add its own versions in the console's policy editor; a session keeps the version it started with.
 
+## Live checks today: an ID document
+
+No age model is yet certified for live checks, so **a live check is decided by an ID document** (decision D24): the person photographs their passport's photo page (or an ID card with a machine-readable zone) and takes a short selfie, turning their head as asked. Dwarpal reads the date of birth from the document, checks the selfie is a live person, and matches it to the document's photo. Nothing changes for your integration — you create sessions and verify tokens exactly as below — but:
+
+- the verify page opens on the document check instead of the camera's age estimate;
+- the token's `methods` claim is `["document_mrz", "face_match"]`, and its `model` claim is `null` (no age model decided);
+- an Age Pass, where your policy accepts them, still answers the check in place of the document;
+- `GET /.well-known/dwarpal-configuration` says `"live_checks": "document"` now, and `"face_estimation"` once a model is certified.
+
+Test sessions are unchanged: the face check's age estimate decides them, so you can try every outcome with a test key.
+
 ## Outcomes
 
 | Session status | Outcome | What it means | What to do |
@@ -152,7 +163,7 @@ Each preset has a **risk budget** of 2 %: the share of minors just under the age
 | `completed` | `pass` | old enough | verify the token, then let them in |
 | `completed` | `fail` | not shown to be old enough | refuse, kindly |
 | `completed` | `reject` | the check couldn't be trusted (a likely spoof) | refuse; don't say why |
-| `awaiting_step_up` | `step_up` | photos were too close to call | offer a stronger check (coming in a later phase) |
+| `awaiting_step_up` | `step_up` | photos were too close to call | nothing: the verify page offers the document check, and the session completes when it is done |
 | `expired` | — | not finished within 30 minutes | start a new check |
 
-`fail` and `reject` tokens are signed too, with `allowed: false`: they prove a check happened without letting anyone in.
+`fail` and `reject` tokens are signed too, with `age_over_18: false` (or your policy's age): they prove a check happened without letting anyone in.

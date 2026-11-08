@@ -38,4 +38,6 @@ async def configuration(svc: Annotated[Services, Depends(services)]) -> dict[str
         "policies": sorted(PRESETS),
         "age_model": svc.manifest.version,
         "age_model_calibrated": svc.manifest.calibrated,
+        # How a live check is decided (D24): by an ID document until an age model is certified for live use.
+        "live_checks": "face_estimation" if svc.manifest.calibrated else "document",
     }

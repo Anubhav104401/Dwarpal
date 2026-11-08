@@ -1,5 +1,5 @@
 ---
-fingerprint: b68a9af95b61beb6
+fingerprint: 0824b8cde43d35e4
 ---
 The public pages' words in **English** (decision D2, §5.5.11): the home page and the verify page, gathered from the code into one file per language. The code names each piece of text by a key, such as `Verify.introTitle`; next-intl fills in the parts in braces — `Confirm you are {age} or over` — and, in `tries`, picks the plural form the language needs.
 
@@ -50,26 +50,26 @@ The end of `Home`.
 @@ 149-161
 **`Accuracy`** — the live table's words: the message when the figures can't be loaded; the column headings; "not measured"; a share of an age band (`{share} of {ages}` — each language puts the parts in its own order); and the note under the table, with the model's version, dataset and photo count filled in.
 
-@@ 162-176
-**`Verify`** — the verify page: its tab title; loading; the problem screen's button and reference; the top-right label; the intro and its three promises; the camera button; the tries left; and "checking".
+@@ 162-177
+**`Verify`** — the verify page: its tab title; loading; the problem screen's button and reference; the top-right label; the intro and its three promises; the camera button; the tries left; and "checking". Since D24 (8 Nov), also the intro's lead for a document-only check (`introLeadDocument`).
 
-@@ 177-194
+@@ 178-195
 The four endings, each a title and a body; `{project}` and `{age}` are filled in.
 
-@@ 195-215
+@@ 196-216
 The step-up's choices and the leaving buttons, then the document check: its title, three steps, photo button, and the selfie's line. Since Phase 9, the **Age Pass**'s words: the offer before the camera (its title, what the pass shows and the button), the notice when a pass is refused, and after a passed check the offer to save passes, the button while saving, the confirmation with how many and until when, and the failure.
 
-@@ 216-228
+@@ 217-229
 **`Camera`** — the camera screen: the landmarker's guidance, the starting message, the progress and colour messages, and the button.
 
-@@ 229-234
+@@ 230-235
 The three pose instructions, by the pose's code.
 
-@@ 235-257
+@@ 236-258
 **`Tips`** — one tip per reason code the API can give (`advice.ts` chooses), plus the general one (`default`) and the unusable-file tip of the document check.
 
-@@ 258-295
+@@ 259-296
 **`Problems`** — one message per problem that stops the check, each a title and a detail, plus the general one.
 
-@@ 296
+@@ 297
 The end of the file.

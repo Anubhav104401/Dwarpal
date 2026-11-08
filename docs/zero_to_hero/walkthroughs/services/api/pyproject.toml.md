@@ -1,5 +1,5 @@
 ---
-fingerprint: cbe49b53b732232f
+fingerprint: f20ac9ab3c40c0cd
 ---
 The `pyproject.toml` of the **API service** package: its name, version, purpose, supported Python versions, libraries it needs, and how to build it. The other four packages follow exactly the same pattern, so this one is explained in the most detail.
 
@@ -32,7 +32,7 @@ The `pyproject.toml` of the **API service** package: its name, version, purpose,
 | `dwarpal-contracts` | — | our own shared message shapes; it has no version because it lives in this repository (see below) |
 | `fastapi` | 0.143.0 | the web framework: turns Python functions into HTTP endpoints (§4.8) |
 | `httpx` | 0.28.1 | an HTTP client, used to call the inference service |
-| `joserfc` | 1.7.5 | JOSE: signs age tokens (JWS/JWT) and publishes the public keys (JWK) (§4.12) |
+| `joserfc` | 1.7.6 | JOSE: signs age tokens (JWS/JWT) and publishes the public keys (JWK) (§4.12) |
 | `pydantic-settings` | 2.15.0 | reads the service's settings from environment variables, with type checks |
 | `python-multipart` | 0.0.32 | parses **multipart** uploads — the format a browser uses to send files such as camera frames |
 | `redis` | 8.1.0 | the client library for Valkey, which speaks the same language as Redis (§4.11) |
@@ -44,6 +44,8 @@ Only these direct dependencies are listed here. The libraries *they* need in tur
 Phase 4 added `argon2-cffi` 25.1.0 — **Argon2id**, the password-hashing function the console's sign-in uses (`adapters/passwords.py`, §5.4.5). It needs `argon2-cffi-bindings`, the compiled part, which the lockfile pins.
 
 Phase 7 added **OpenTelemetry** (decision D11, `adapters/telemetry.py`, §5.7.2): `opentelemetry-sdk` 1.45.1 (traces), `opentelemetry-exporter-otlp-proto-http` 1.45.1 (sends them to a collector), and `opentelemetry-instrumentation-fastapi` 0.66b1 (records each request). The last is a *beta* (`b1`): every version of it so far is.
+
+(`joserfc` moved from 1.7.5 to **1.7.6** on 8 Nov — a security fix approved by the owner, D42: the older version copied every part of a token before checking its size, so an attacker's oversized token could use up memory.)
 
 @@ 25-26
 `[tool.uv.sources]` tells uv *where* to get a dependency when that isn't the public package index (PyPI). `dwarpal-contracts = { workspace = true }` means "use the workspace member of that name" — the folder `libs/contracts` in this repository. The curly brackets are an **inline table**: TOML's way of writing a small table on one line.

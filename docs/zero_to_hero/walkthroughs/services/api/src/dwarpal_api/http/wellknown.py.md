@@ -1,5 +1,5 @@
 ---
-fingerprint: 3ad1535692a208f7
+fingerprint: 088fb4a055958886
 ---
 Two public addresses under `/.well-known/` — a path prefix reserved by an Internet standard (RFC 8615) for information about a site, at places everyone can predict:
 
@@ -46,7 +46,7 @@ Answer with the key set.
 @@ 32
 The issuer's own address, from the settings.
 
-@@ 33-41
+@@ 33-43
 The document:
 
 - `issuer` — exactly what tokens carry in their `iss` claim;
@@ -54,7 +54,7 @@ The document:
 - `token_type` — the `typ` every age token has in its header;
 - `token_signing_algorithms` — `["Ed25519"]`, the only algorithm a verifier should accept;
 - `policies` — the names of the preset policies, sorted;
-- `age_model` and `age_model_calibrated` — which age model decides, and whether it is calibrated. Anyone integrating can see at a glance that, today, only test sessions are possible.
+- `age_model` and `age_model_calibrated` — which age model decides, and whether it is calibrated. Anyone integrating can see at a glance that, today, only test sessions are possible. And since 8 Nov, `live_checks`: how a live check is decided — `document` (an ID document, decision D24) until an age model is certified, then `face_estimation`.
 
 @@ 21-29
 **`/.well-known/jwt-vc-issuer`** (Phase 9) — the SD-JWT VC standard asks an issuer of credentials to say, at this address, where its signing keys are. Anyone holding an Age Pass can check its signature with them; they are the same keys as the age tokens'.

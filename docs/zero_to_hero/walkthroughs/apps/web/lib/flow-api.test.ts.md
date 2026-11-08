@@ -1,5 +1,5 @@
 ---
-fingerprint: ab1e42a760a38dcd
+fingerprint: 6d38420298cb85a9
 ---
 Tests for the verify page's `FlowClient`. As in the SDK's tests, no network is involved — but this client uses the browser's built-in `fetch` directly, so the tests replace that global function itself, with Vitest's **`vi.stubGlobal`**, and put the real one back after each test.
 
@@ -75,23 +75,23 @@ The end of the test.
 @@ 97-106
 **Refusals become `FlowError`s.** The fake `fetch` answers `401` with problem details; starting must fail with a `FlowError` carrying the status, the code and the request ID.
 
-@@ 146-151
+@@ 153-158
 **A lost connection.** This fake `fetch` throws, as the real one does when there's no network at all. The client must turn that into a `FlowError` with the code `network_error`, which the screens explain as "You seem to be offline".
 
-@@ 152
+@@ 159
 The end of the group.
 
-@@ 108-122
-**Test — the Age Pass's three calls go to the session's own routes** (Phase 9): a start whose session takes passes, then a batch, a nonce and a presentation, each answered by the fake.
+@@ 108-128
+**Test — the Age Pass's three calls go to the session's own routes** (Phase 9): a start whose session takes passes, then a batch, a nonce and a presentation, each answered by the fake. Since 8 Nov the session is a live, document-only one (D24): passes work in it too.
 
-@@ 123-128
+@@ 129-134
 Start, ask for passes for one key, ask for a nonce with a device ID, and present.
 
-@@ 130-132
-The session's two new fields, the batch and the nonce are read as the API sent them.
+@@ 136-139
+The session's fields — passes accepted, live, document-only — the batch and the nonce are read as the API sent them.
 
-@@ 133-137
+@@ 140-144
 The three routes, in order.
 
-@@ 138-144
+@@ 145-151
 The key and the presentation are sent as JSON, the nonce request carries the device ID, and every call carries the flow token.

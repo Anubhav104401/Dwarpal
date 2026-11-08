@@ -258,7 +258,8 @@ export function OrganisationView({ org }: { org: string }) {
                 </div>
               </fieldset>
               <label className="flex items-center gap-1.5 text-sm">
-                <input type="checkbox" name="live" /> Live key (only once the age model is calibrated)
+                <input type="checkbox" name="live" /> Live key (live checks use an ID document until an age
+                model is certified)
               </label>
               <button type="submit" className={smallButton}>
                 Create key

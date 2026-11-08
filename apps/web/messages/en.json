@@ -167,6 +167,7 @@
     "label": "{project} · {age}+",
     "introTitle": "Confirm you are {age} or over",
     "introLead": "{project} asks for a quick age check before you continue.",
+    "introLeadDocument": "{project} checks your age with an ID document before you continue.",
     "promise1": "We take five quick photos with your camera.",
     "promise2": "An AI estimates whether you are old enough. It never works out who you are.",
     "promise3": "The photos are checked once, then deleted. Nothing is stored.",

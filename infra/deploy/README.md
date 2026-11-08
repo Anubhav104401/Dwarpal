@@ -38,8 +38,8 @@ the network's security list, the domain bought).
 
 4. **Models.** The services read their models from `/opt/dwarpal/models` (mounted read-only). Copy the face detector,
    face mesh, hand detector, anti-spoofing networks, SFace and the age model's manifest there — the files
-   `uv run infra/scripts/fetch_models.py` fetches, plus `models/registry/age/stub/manifest.json`. While the age model
-   isn't calibrated, live checks are refused and the service decides test checks only (§5.2).
+   `uv run infra/scripts/fetch_models.py` fetches, plus `models/registry/age/stub/manifest.json`. While no age model is
+   certified, live checks are decided by an ID document (decision D24) and the age estimate decides test checks only.
 5. **GitHub settings** (repository → Settings):
    - *Variables*: `DWARPAL_PUBLIC_API_URL` = `https://api.<domain>`, `DEPLOY_HOST` = the server's IP,
      `DEPLOY_KNOWN_HOSTS` = the output of `ssh-keyscan <ip>` (so the deploy knows it's talking to the real server);

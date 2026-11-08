@@ -483,18 +483,61 @@ async def test_oversized_and_unmeasured_bodies_are_refused_before_they_are_read(
 
 
 @pytest.mark.anyio
-async def test_sessions_refuse_foreign_return_urls_unknown_policies_and_live_mode_with_a_stub(
-    databases: tuple[str, str],
-) -> None:
+async def test_sessions_refuse_foreign_return_urls_and_unknown_policies(databases: tuple[str, str]) -> None:
     async with harness(databases) as h:
         foreign = await create(h, return_url="https://evil.example/collect")
         unknown = await create(h, policy="anything_goes")
-    async with harness(databases, livemode=True) as live:
-        live_attempt = await create(live)
     assert foreign.json()["code"] == "return_url_not_allowed"
     assert unknown.json()["code"] == "unknown_policy"
-    assert live_attempt.status_code == 409
-    assert live_attempt.json()["code"] == "model_not_calibrated"
+
+
+def anti_spoofing_verdict(transport: httpx.AsyncBaseTransport) -> httpx.AsyncBaseTransport:
+    """The real inference service, with one thing stood in for: the anti-spoofing networks' verdict on the selfie,
+    which a live session requires and the test service (trusting the frames' labels) can't give. The OCR, the face
+    match and every other check stay real."""
+
+    class WithVerdict(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+            response = await transport.handle_async_request(request)
+            if not request.url.path.endswith("/analyze/document"):
+                return response
+            body = json.loads(await response.aread())
+            body["face"]["liveness"].update({"evidence": "images", "presentation": 0.99})
+            return httpx.Response(response.status_code, json=body)
+
+    return WithVerdict()
+
+
+@pytest.mark.anyio
+async def test_until_a_model_is_certified_a_live_check_is_decided_by_an_id_document_alone(
+    databases: tuple[str, str],
+) -> None:
+    """Decision D24: with the stand-in age model, a live session is created, says it is document-only, refuses face
+    attempts, and is decided by the passport and the selfie alone; its token says so. Test sessions are unchanged."""
+    if TESSERACT is None:
+        pytest.skip("Tesseract isn't installed, and the OCR container isn't running")
+    async with harness(databases) as test:
+        tested = (await create(test)).json()
+        test_view = (await test.client.post(f"/v1/flow/sessions/{tested['id']}/start", json=secret(tested))).json()
+    async with harness(databases, livemode=True, inference_via=anti_spoofing_verdict) as live:
+        created = await create(live)
+        session_id = created.json()["id"]
+        started = (await live.client.post(f"/v1/flow/sessions/{session_id}/start", json=secret(created.json()))).json()
+        flow = {"Authorization": f"Bearer {started['flow_token']}"}
+        face = await attempt(live, session_id, flow, [PORTRAIT] * 6)
+        result = (await document_attempt(live, session_id, flow, specimen("900101"))).json()
+        auth = {"Authorization": f"Bearer {live.key}"}
+        session = (await live.client.get(f"/v1/verification-sessions/{session_id}", headers=auth)).json()
+        jwks = (await live.client.get("/.well-known/jwks.json")).json()
+    assert test_view["session"]["document_only"] is False
+    assert created.status_code == 201
+    assert (started["session"]["status"], started["session"]["document_only"]) == ("in_progress", True)
+    assert (face.status_code, face.json()["code"]) == (409, "document_required")
+    assert result["outcome"] == "pass", result
+    assert (session["status"], session["outcome"], session["livemode"]) == ("completed", "pass", True)
+    token = jwt.decode(session["age_token"], KeySet.import_key_set(jwks), algorithms=["Ed25519"])
+    assert token.claims["methods"] == ["document_mrz", "face_match"]
+    assert (token.claims["age_over_18"], token.claims["livemode"], token.claims["model"]) == (True, True, None)
 
 
 @pytest.mark.anyio
@@ -505,6 +548,7 @@ async def test_discovery_endpoints_and_readiness(databases: tuple[str, str]) -> 
         ready = await h.client.get("/readyz")
     assert configuration["token_signing_algorithms"] == ["Ed25519"]
     assert configuration["age_model_calibrated"] is False
+    assert configuration["live_checks"] == "document"  # D24: until a model is certified
     assert jwks.headers["cache-control"] == "public, max-age=300"
     assert all(key["kty"] == "OKP" and key["crv"] == "Ed25519" for key in jwks.json()["keys"])
     assert ready.json() == {"database": "ok", "valkey": "ok"}

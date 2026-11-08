@@ -145,18 +145,33 @@ async def record_face_stage(session: AsyncSession, row: VerificationSession, out
     await session.execute(count)
 
 
+def document_only(svc: Services, livemode: bool) -> bool:
+    """Decision D24: until an age model is certified for live use, a live check is decided by an ID document alone. The
+    age estimate is never used for it, so the face check is skipped: the document check's own selfie, with the same
+    challenge, still proves a live person is there and that the document is theirs."""
+    return livemode and not svc.manifest.calibrated
+
+
+def document_open(svc: Services, row: VerificationSession) -> bool:
+    """Whether the document check may be used now: after a face check sent the person there, or from the start in a
+    document-only session."""
+    return row.status == Status.AWAITING_STEP_UP or (
+        row.status == Status.IN_PROGRESS and document_only(svc, row.livemode)
+    )
+
+
 async def create_session(
     svc: Services, project: Project, livemode: bool, policy_id: str, return_url: str | None, external_ref: str | None
 ) -> tuple[VerificationSession, str]:
     async with tenant(svc.sessions, project.id) as session:
         # A preset, or the newest version of the project's own policy of that name, pinned for the session's life.
         policy = await latest(session, project.id, policy_id)
-        try:
-            svc.manifest.thresholds_for(policy)
-        except UncalibratedPolicyError as error:
-            raise ApiError(422, "policy_not_supported", str(error)) from None
-        if livemode and not svc.manifest.calibrated:
-            raise ApiError(409, "model_not_calibrated", "live sessions need a calibrated age model; use a test key")
+        if not document_only(svc, livemode):
+            # The age model will decide: it must have thresholds for this policy's age and budget.
+            try:
+                svc.manifest.thresholds_for(policy)
+            except UncalibratedPolicyError as error:
+                raise ApiError(422, "policy_not_supported", str(error)) from None
         if return_url is not None and origin_of(return_url) not in project.allowed_origins:
             raise ApiError(422, "return_url_not_allowed", "return_url must be on one of the project's allowed origins")
         now, session_id = svc.now(), svc.new_id()
@@ -211,6 +226,8 @@ async def start_flow(svc: Services, session_text: str, client_secret: str) -> di
         # For the Age Pass (Phase 9): whether the website accepts one, and the mode a pass must match.
         "accept_age_pass": policy.accept_age_pass,
         "livemode": row.livemode,
+        # D24: this check is decided by an ID document (or an Age Pass), never by the face check.
+        "document_only": document_only(svc, row.livemode),
     }
     return {"flow_token": token, "session": view}
 
@@ -285,8 +302,11 @@ async def submit_face_attempt(
     svc: Services, session_id: uuid.UUID, challenge_id: str, meta: FaceRequestMeta, frames: list[bytes]
 ) -> tuple[Decision, int]:
     async with session_tenant(svc.sessions, session_id) as session:
-        if (await load_session(session, session_id)).status != Status.IN_PROGRESS:
-            raise ApiError(409, "session_not_in_progress", "this session is not accepting attempts")
+        before = await load_session(session, session_id)
+    if before.status != Status.IN_PROGRESS:
+        raise ApiError(409, "session_not_in_progress", "this session is not accepting attempts")
+    if document_only(svc, before.livemode):
+        raise ApiError(409, "document_required", "this check is decided by an ID document: use the document check")
     challenge = await svc.store.take_challenge(challenge_id, session_id)
     if challenge is None:
         raise ApiError(409, "challenge_invalid", "the challenge is unknown, expired or already used")
@@ -378,9 +398,10 @@ async def submit_document_attempt(
     frames: list[bytes],
     document: bytes,
 ) -> tuple[DocumentDecision, int]:
-    """The step-up with an ID document (Phase 6): open only to a session the face check sent there."""
+    """The step-up with an ID document (Phase 6): open to a session the face check sent there, and to a document-only
+    session from the start (D24)."""
     async with session_tenant(svc.sessions, session_id) as session:
-        if (await load_session(session, session_id)).status != Status.AWAITING_STEP_UP:
+        if not document_open(svc, await load_session(session, session_id)):
             raise ApiError(409, "session_not_awaiting_step_up", "this session is not waiting for a step-up")
     challenge = await svc.store.take_challenge(challenge_id, session_id)
     if challenge is None:
@@ -391,7 +412,7 @@ async def submit_document_attempt(
         row = await load_session(session, session_id, lock=True)
         now = svc.now()
         await expire_if_due(svc, session, row, now)
-        if row.status != Status.AWAITING_STEP_UP:
+        if not document_open(svc, row):
             await session.commit()
             raise ApiError(409, "session_not_awaiting_step_up", f"this session is {row.status}")
         policy = await pinned(session, row)
@@ -416,7 +437,7 @@ async def submit_document_attempt(
             )
         )
         if decision.outcome != Outcome.RETRY:
-            row.status = move(Status.AWAITING_STEP_UP, Status.COMPLETED)
+            row.status = move(Status(row.status), Status.COMPLETED)
             row.outcome = decision.outcome
             row.completed_at = now
             await announce(svc, session, row, now)
@@ -445,7 +466,13 @@ async def methods_of(session: AsyncSession, row: VerificationSession) -> list[st
         )
     )
     if decided_by_document:
-        return ["face_estimation", "document_mrz", "face_match"]
+        # A document-only session (D24) never had its age estimated.
+        faced = await session.scalar(
+            select(func.count())
+            .select_from(VerificationAttempt)
+            .where(VerificationAttempt.session_id == row.id, VerificationAttempt.kind == "face")
+        )
+        return ["face_estimation", "document_mrz", "face_match"] if faced else ["document_mrz", "face_match"]
     return ["face_estimation"]
 
 
