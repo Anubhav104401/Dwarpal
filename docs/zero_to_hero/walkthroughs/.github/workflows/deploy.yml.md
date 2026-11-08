@@ -1,5 +1,5 @@
 ---
-fingerprint: 4635c79422b1350f
+fingerprint: dea15ed4d8b7d335
 ---
 **Building and deploying** (Phase 8, §5.8.2), on GitHub: the four images built on Arm machines, published to GitHub's container registry (GHCR), and deployed to the server over SSH. Started by hand only.
 
@@ -25,7 +25,7 @@ A **matrix**: the job runs four times side by side, once per image — the API, 
 Fetch the code, and set up uv at the project's version.
 
 @@ 39-41
-For the web app only, fetch the third-party models: its build copies the face landmarker for browsers.
+For the web app only, fetch the third-party models: its build copies the face landmarker for browsers. `--no-project` spares the Arm machine the whole workspace (PyTorch included); the fetcher's one dependency, httpx, is given with `--with`, at the lockfile's version. Without it the script stopped before fetching anything — found on 9 Nov by CI's `images` job, before any deploy had run.
 
 @@ 42-45
 Log in to GHCR with the token GitHub makes for this run alone, which expires when it ends. It is passed through an environment variable (never written into the command itself) and into `docker login` through its standard input, so it never appears in a command line or a log.

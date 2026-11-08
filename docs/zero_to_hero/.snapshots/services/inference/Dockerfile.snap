@@ -12,6 +12,7 @@ COPY services/inference/pyproject.toml services/inference/pyproject.toml
 COPY libs/contracts/pyproject.toml libs/contracts/pyproject.toml
 COPY libs/vision/pyproject.toml libs/vision/pyproject.toml
 COPY ml/pyproject.toml ml/pyproject.toml
+COPY packages/sdk-python/pyproject.toml packages/sdk-python/pyproject.toml
 # The inference service, and the two libraries it uses.
 COPY services/inference/src services/inference/src
 COPY libs/contracts/src libs/contracts/src

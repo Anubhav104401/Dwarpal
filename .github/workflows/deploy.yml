@@ -38,7 +38,7 @@ jobs:
           version: "0.13.1"
       # The web app's build copies the face landmarker for browsers (the only model file an image contains).
       - if: matrix.name == 'web'
-        run: uv run --no-project infra/scripts/fetch_models.py
+        run: uv run --no-project --with httpx==0.28.1 infra/scripts/fetch_models.py
       - name: Log in to GHCR with this run's own short-lived token
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}

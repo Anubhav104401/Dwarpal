@@ -8,6 +8,7 @@ import importlib.util
 import re
 import stat
 import sys
+import tomllib
 from pathlib import Path
 from types import ModuleType
 
@@ -164,6 +165,31 @@ def test_the_deploy_copies_every_file_compose_mounts() -> None:
     made_on_the_server = {"models", "alertmanager.yml", "smtp_password"}
     copied = {name.rsplit("/", 1)[-1] for name in re.findall(r"[\w./]+\.(?:yaml|sh|py)|Caddyfile", workflow)}
     assert mounted - made_on_the_server <= copied, sorted(mounted - made_on_the_server - copied)
+
+
+def test_both_python_images_copy_every_workspace_member_s_description() -> None:
+    """uv reads the whole workspace to use the lockfile, so each Python image copies every member's pyproject.toml —
+    one missing (the Python SDK, added after the images were written) fails the build. CI's first image builds found
+    it (9 Nov); this keeps it found."""
+    workspace = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
+    patterns = workspace["tool"]["uv"]["workspace"]["members"]
+    found = [path.parent for pattern in patterns for path in REPO.glob(f"{pattern}/pyproject.toml")]
+    members = sorted({member.relative_to(REPO).as_posix() for member in found})
+    assert "packages/sdk-python" in members
+    for image in ("services/api/Dockerfile", "services/inference/Dockerfile"):
+        copied = re.findall(r"^COPY (\S+)/pyproject\.toml ", (REPO / image).read_text(encoding="utf-8"), re.MULTILINE)
+        assert sorted(copied) == members, f"{image} copies {sorted(copied)}, the workspace has {members}"
+
+
+def test_the_model_fetcher_gets_its_one_dependency_wherever_it_runs_without_the_project() -> None:
+    """`fetch_models.py` imports httpx. Run without the project (`--no-project`), it must be given it — at the
+    lockfile's version — or it fails before fetching anything, as CI's first image builds showed (9 Nov)."""
+    locked = re.search(r'name = "httpx"\nversion = "([^"]+)"', (REPO / "uv.lock").read_text(encoding="utf-8"))
+    assert locked is not None, "uv.lock: no httpx"
+    for workflow in sorted((REPO / ".github" / "workflows").glob("*.yml")):
+        for line in workflow.read_text(encoding="utf-8").splitlines():
+            if "fetch_models.py" in line and "--no-project" in line:
+                assert f"--with httpx=={locked[1]}" in line, f"{workflow.name}: {line.strip()}"
 
 
 def test_the_uptime_check_runs_every_15_minutes_once_there_is_a_server() -> None:

@@ -14,6 +14,7 @@ COPY services/inference/pyproject.toml services/inference/pyproject.toml
 COPY libs/contracts/pyproject.toml libs/contracts/pyproject.toml
 COPY libs/vision/pyproject.toml libs/vision/pyproject.toml
 COPY ml/pyproject.toml ml/pyproject.toml
+COPY packages/sdk-python/pyproject.toml packages/sdk-python/pyproject.toml
 # Only the code the API needs: its own, and the shared contracts.
 COPY services/api/src services/api/src
 COPY libs/contracts/src libs/contracts/src

@@ -20,6 +20,9 @@ API
 Argument
 :   A value handed to a function or a command. In `python build.py --strict`, `--strict` is an argument. (Part X)
 
+Arm
+:   A family of processor designs, used in phones and in Oracle's free Ampere servers. A program built for one family (Arm, or the x86 of most laptops) doesn't run on the other without slow emulation, so Dwarpal's images are built on Arm machines. (§5.8.1)
+
 Audit log
 :   A permanent, ordered record of important events (who changed what, when). Ours is *tamper-evident*: each entry includes a fingerprint of the previous one. (§3.3)
 
@@ -34,6 +37,9 @@ Bit, byte
 
 Buffer / challenge age
 :   An extra margin above the legal age. For example, "pass only if the estimate is 25 or more, for a legal age of 18". (§1.8)
+
+Canvas
+:   A drawing surface a web page keeps in memory. Code can draw on it — a frame of video, say — and save the result as an image file. (§5.6.5)
 
 Certificate
 :   A digital document, signed by a trusted organisation, proving a server's identity for HTTPS. (§0.9)
@@ -62,6 +68,9 @@ Contract test
 Coverage
 :   In this book: the share of a file's non-blank lines that have an explanation. (Part X)
 
+Cron
+:   A notation for repeating schedules, named after the Unix tool that runs them: five fields — minute, hour, day of the month, month, day of the week — where `*` means "every". `7,22,37,52 * * * *` is 7, 22, 37 and 52 minutes past every hour. (§5.8.5)
+
 CSRF (cross-site request forgery)
 :   Tricking someone's browser into sending a request to a site they are signed in to, from another site. Prevented by a secret token the other site can't read, and by checking the request's origin. (§5.4.5)
 
@@ -88,6 +97,9 @@ Docker / image / volume
 
 Domain
 :   A human-friendly internet name, such as `dwarpal.example`. (§0.13)
+
+DuckDNS
+:   A free service, run by volunteers, that gives out names under `duckdns.org` — such as `dwarpal-age.duckdns.org` — and answers every name under one (`api.`, `shop.`) with the same address. (§5.8.2)
 
 Encoding
 :   The agreement that maps characters to numbers. We always use UTF-8. (§0.2)
@@ -131,6 +143,9 @@ HMAC
 Hosting
 :   Renting computers in a data centre to run your website. (§0.13)
 
+HSTS (HTTP Strict Transport Security)
+:   A header telling browsers to use only HTTPS for a site, for a stated time, even when a link says `http://`. (§5.8.2)
+
 HTML, CSS, JavaScript
 :   The skeleton, the clothes and the muscles of a web page. (§0.10)
 
@@ -155,6 +170,9 @@ IP address, port
 JSON
 :   A plain-text format for structured data, with six kinds of value. (§0.11)
 
+Let's Encrypt
+:   A free, automated certificate authority: it issues the certificates that make browsers trust a site's HTTPS, after checking that the site controls its name. Caddy asks it for them and renews them by itself. (§5.8.2)
+
 Library / package
 :   Code written by someone else that you can reuse. (§0.17)
 
@@ -173,6 +191,9 @@ Lockfile
 Markdown
 :   A simple way of writing formatted text with symbols like `#` for headings and `**` for bold. This book is written in it. (Part X)
 
+Media query
+:   A question a page asks the browser about the device — whether its main pointer is precise (`(pointer: fine)`: a mouse or a trackpad), say, or whether the screen should be dark. (§5.6.5)
+
 Method (HTTP)
 :   The kind of action an HTTP request asks for: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`. (§0.8)
 
@@ -182,8 +203,14 @@ Model (AI)
 Mojibake
 :   Garbled text caused by reading a file with the wrong encoding. (§0.2)
 
+Object URL
+:   An address beginning `blob:` for data held in a page's memory — a photo just taken, say — so that an `<img>` can show it. It exists only in that page, and is handed back when no longer needed, freeing the memory. (§5.6.5)
+
 OpenAPI
 :   A standard, machine-readable way to describe an HTTP API: its operations, inputs and possible answers. Dwarpal publishes its own as `docs/api/openapi.json`. (§5.4.6)
+
+Origin
+:   A website's scheme, host and port together, such as `https://shop.example`. Browsers keep origins apart (the same-origin policy), and a Dwarpal project lists the origins its websites run on. (§4.13)
 
 Outbox (transactional)
 :   A table of messages waiting to be sent, written in the same transaction as the change they announce, then sent by a separate worker. (§5.4.3)
@@ -214,6 +241,9 @@ Protocol
 
 Proxy (attack)
 :   An adult doing the age check on a child's behalf. (§1.10)
+
+Public Suffix List
+:   The list browsers use to tell where one site ends and the next begins. A name under a suffix on it — `duckdns.org` is one — counts as a site of its own, just like a bought domain. (§5.8.2)
 
 Rate limit
 :   A cap on how many requests a caller may make in a period of time; past it, the API answers `429` and says when to try again. (§5.4.2)
@@ -304,3 +334,6 @@ Waterfall
 
 Webhook
 :   A request a service sends to an address on your server when something happens, so you needn't keep asking. (§5.4.3)
+
+X-Forwarded-For
+:   A header that a reverse proxy such as Caddy adds to each request it passes on, saying which address the request really came from: the service behind the proxy sees only the proxy's own address. (§5.8.2)
