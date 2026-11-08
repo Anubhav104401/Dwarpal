@@ -1,5 +1,5 @@
 ---
-fingerprint: cd8be55f0628e83a
+fingerprint: f5b6eae3b2a156e1
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -200,41 +200,41 @@ A **matrix**, as in the deploy workflow: the job runs four times side by side, o
 @@ 169-173
 Its steps: fetch the code, and set up uv at the project's version.
 
-@@ 174-176
-For the web app only, fetch the third-party models, exactly as the deploy workflow does — with httpx given at the lockfile's version (`--with`), which this job's first run showed was missing.
+@@ 174-177
+For the web app and the inference service, fetch the third-party models, exactly as the deploy workflow does — with httpx given at the lockfile's version (`--with`), which this job's first run showed was missing. The web app's build copies the face landmarker for browsers; the inference service is started below with all the serving models mounted, as on the server.
 
-@@ 177
+@@ 178
 A failed build or start leaves its last lines as an annotation, as the comment says: anyone can read annotations, while a job's log needs a GitHub sign-in.
 
-@@ 178-182
+@@ 179-183
 **Build** the image: the API's public address the web app's code is built with (a made-up one, since the image is never used), and the image's own build argument if it has one…
 
-@@ 183-184
+@@ 184-185
 …named locally — `dwarpal-api:ci`, say — with everything Docker prints kept in `build.log`. If the build fails, its last 40 lines are printed and its last 3,000 characters become an error annotation (line ends turned into `|`, as an annotation is one line).
 
-@@ 185-186
+@@ 186-188
 Then **start** each one, as far as it can be started without the others, as the comment says.
 
-@@ 187-190
+@@ 189-192
 The step runs in bash, with the image's local name.
 
-@@ 191-192
+@@ 193-194
 Everything inside the braces writes to `start.log`; first, the choice of what to do for each image.
 
-@@ 193
+@@ 195
 The API's command line loads all of the API's code (`--help` prints the commands and stops): the image's Python and its packages fit together.
 
-@@ 194-196
-The inference service's code is loaded, and then — `&&`: only if that worked — Tesseract, which reads documents, answers with its version.
+@@ 196-203
+The inference service runs as on the server: read-only (`--read-only`), with an in-memory `/tmp` (`--tmpfs`) and the models mounted read-only. Its readiness answer (`/readyz`), asked until it comes, must say that both anti-spoofing networks are **loaded** and Tesseract is **ready** — `[[ … == *text* ]]` asks whether the answer contains each — or its last log lines are shown and the branch fails.
 
-@@ 197-201
+@@ 204-208
 The web app really runs: started in the background (`--detach`), then asked for a verify page until it answers (`--retry-connrefused`: also while it is still starting). If it never does, its last log lines are shown and the branch fails (`false`). Its proxy can't reach an API here, so the page simply allows no frame — the same safe answer as on a server whose API is down.
 
-@@ 202
+@@ 209
 The demo shop's image holds Next.js and a finished build (`BUILD_ID`, which `next build` writes last).
 
-@@ 203
+@@ 210
 End of the choice.
 
-@@ 204-205
+@@ 211-212
 If anything in the braces failed, `start.log` is printed and its end becomes an annotation. Each branch joins its commands with `&&` on purpose: before `||`, bash doesn't stop at a failed command inside braces, so a later success would otherwise hide an earlier failure.
