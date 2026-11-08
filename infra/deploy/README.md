@@ -76,7 +76,8 @@ the network's security list, and a name for it).
    `deploy.sh`. Every later deploy is a single run.
 7. **The demo shop's key.** Sign up on the console at `https://<domain>/console`, create a project whose allowed origin
    is `https://shop.<domain>`, and a **test** key. Put the project's ID and the key in `/opt/dwarpal/.env`
-   (`DWARPAL_SHOP_PROJECT_ID`, `DWARPAL_SHOP_API_KEY`), then `docker compose up -d shop`.
+   (`DWARPAL_SHOP_PROJECT_ID`, `DWARPAL_SHOP_API_KEY`), then `docker compose up -d shop`. (Until then `deploy.sh`
+   leaves the shop out: without its key it can't serve a page, and every deploy would wait for it in vain.)
 8. **Backups.** Create an Object Storage bucket `dwarpal-backups` and a *customer secret key* (Oracle's S3-style key),
    write `/opt/dwarpal/backup.env` as described at the top of `backup.sh` (mode 600), store the restic password
    offline as well, then schedule it daily:

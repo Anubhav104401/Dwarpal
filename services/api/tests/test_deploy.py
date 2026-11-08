@@ -5,8 +5,11 @@ from __future__ import annotations
 
 import base64
 import importlib.util
+import os
 import re
+import shutil
 import stat
+import subprocess
 import sys
 import tomllib
 from pathlib import Path
@@ -165,6 +168,59 @@ def test_the_deploy_copies_every_file_compose_mounts() -> None:
     made_on_the_server = {"models", "alertmanager.yml", "smtp_password"}
     copied = {name.rsplit("/", 1)[-1] for name in re.findall(r"[\w./]+\.(?:yaml|sh|py)|Caddyfile", workflow)}
     assert mounted - made_on_the_server <= copied, sorted(mounted - made_on_the_server - copied)
+
+
+# A stand-in for `docker`: notes each command, reads any input it is given, and — when asked — fails the first full
+# start, as a deploy that doesn't come up healthy would.
+FAKE_DOCKER = """#!/usr/bin/env bash
+echo "$*" >> "$DOCKER_CALLS"
+cat > /dev/null
+if [ -n "${FAIL_FIRST_START:-}" ] && [[ "$*" == *--wait-timeout* ]] && [ ! -e "$DOCKER_CALLS.failed" ]; then
+  touch "$DOCKER_CALLS.failed"
+  exit 1
+fi
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32" or shutil.which("bash") is None, reason="runs the script with bash")
+@pytest.mark.parametrize("unhealthy", [False, True])
+@pytest.mark.parametrize(("key", "left_out"), [("", True), ("dk_test_0123456789abcdefghij", False)])
+def test_deploys_leave_out_the_shop_until_it_has_its_key(
+    tmp_path: Path, key: str, left_out: bool, unhealthy: bool
+) -> None:
+    """The first deploy comes before the demo shop has a project and key (README, step 7): it can't serve a page
+    then, so a deploy that waited for it would fail and roll back every time. `deploy.sh` leaves it out until
+    the key is in .env — when deploying and when rolling back alike — and Caddy doesn't need it to start. The
+    script really runs here, with `docker` replaced by a stand-in that notes what it is asked."""
+    shutil.copy(DEPLOY / "deploy.sh", tmp_path / "deploy.sh")
+    settings = parse(generator().secrets_file("example.org", "a@example.org", "someone"))
+    settings["DWARPAL_SHOP_API_KEY"] = key
+    (tmp_path / ".env").write_text("".join(f"{name}={value}\n" for name, value in settings.items()), encoding="utf-8")
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    (tools / "docker").write_text(FAKE_DOCKER, encoding="utf-8")
+    (tools / "docker").chmod(0o755)
+    calls = tmp_path / "calls.log"
+    env = {**os.environ, "PATH": f"{tools}{os.pathsep}{os.environ['PATH']}", "DOCKER_CALLS": str(calls)}
+    if unhealthy:
+        env["FAIL_FIRST_START"] = "1"
+    bash = shutil.which("bash")
+    assert bash is not None
+    run = subprocess.run(  # noqa: S603 - the repository's own script, with test settings
+        [bash, str(tmp_path / "deploy.sh"), "abc123"],
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    starts = [line for line in calls.read_text(encoding="utf-8").splitlines() if "--wait-timeout" in line]
+    assert run.returncode == (1 if unhealthy else 0), run.stderr
+    assert len(starts) == (2 if unhealthy else 1)  # a failed start is followed by the rollback's
+    assert all(("--scale shop=0" in line) == left_out for line in starts), starts
+    compose = (DEPLOY / "compose.yaml").read_text(encoding="utf-8")
+    caddy = re.search(r"^  caddy:\n(?:(?:    .*)?\n)*?    depends_on: \[([^\]]*)\]", compose, re.MULTILINE)
+    assert caddy is not None and "shop" not in caddy[1]
 
 
 def test_both_python_images_copy_every_workspace_member_s_description() -> None:

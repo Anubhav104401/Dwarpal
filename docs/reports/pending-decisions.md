@@ -76,12 +76,12 @@ filming yourself), O5 (the legal review of the compliance map and practice state
 - **A document camera for computers** (D43, `4ed0d89`): the webcam with a passport-shaped guide, the photo looked at before it is
   used, the file chooser beside it; phones unchanged. Two new browser tests.
 - **The verify page's calls limited per address** (Phase 4, open item 5, `9b339be`): 10 a second, bursts of 300 — far above what people sharing a network need — so a flood from one address stops before the database; the page says to wait and reload.
-- **The production images are built in CI** on every push (`9b339be`, `5ea6b69`), on GitHub's Arm machines and never published (D17 allows exactly that), then started as far as each can be alone. **Its first run found two problems that would have stopped your first deploy**: the Python images didn't copy the Python SDK's `pyproject.toml`, and the deploy workflow ran the model fetcher without httpx. Both are fixed and guarded by tests; all four images now build and start.
+- **The production images are built in CI** on every push (`9b339be`, `5ea6b69`), on GitHub's Arm machines and never published (D17 allows exactly that), then started as far as each can be alone. **Its first run found two problems that would have stopped your first deploy**: the Python images didn't copy the Python SDK's `pyproject.toml`, and the deploy workflow ran the model fetcher without httpx. Both are fixed and guarded by tests; all four images now build and start. A third trap, found by reading `deploy.sh`: the first deploy would have waited for the demo shop, which can't start before step 7 gives it a key, and rolled back. The shop is now left out until its key is in `.env`.
 - **Browser tests**: the full suite passes in Chromium and WebKit (50 tests; the WebKit passkey test is skipped by design).
 - **Scans** (D34): `pip-audit` finds nothing; `pnpm audit` finds nothing in what ships — only the two old `extract-zip`
   advisories inside Lighthouse CI, a test tool, with no fixed version. Nothing to approve.
 - **Hindi** (D36): the new screens' words are machine-drafted, like all the Hindi, for the native review.
-- **The book**: every new and changed file explained (348 files, 31,098 lines at 100 %), with §5.6.5, §5.8.5 and eleven new glossary terms.
+- **The book**: every new and changed file explained (348 files, 31,155 lines at 100 %), with §5.6.5, §5.8.5 and eleven new glossary terms.
 
 ## Morning summary — 4 Nov (overnight work, 3→4 Nov)
 

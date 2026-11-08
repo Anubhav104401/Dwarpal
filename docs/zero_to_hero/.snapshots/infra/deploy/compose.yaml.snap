@@ -36,7 +36,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
-    depends_on: [web, api, shop]
+    # Not the shop: it runs only once it has its key (deploy.sh), and Caddy finds it whenever it is there.
+    depends_on: [web, api]
     restart: unless-stopped
 
   web:

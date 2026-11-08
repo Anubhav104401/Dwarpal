@@ -1,5 +1,5 @@
 ---
-fingerprint: bed539292ec1bddd
+fingerprint: f73d6550cb54cce0
 ---
 **Dwarpal in production** (Phase 8, §5.8.2): every service, on one server, as Docker Compose runs them. It differs from the development compose file (`infra/compose/compose.yaml`) in three ways: the services themselves run here as containers; nothing but Caddy can be reached from outside; and every secret comes from the server's `.env`, never from this file.
 
@@ -36,83 +36,83 @@ The domain and the e-mail address for Let's Encrypt, which the `Caddyfile` reads
 @@ 35-38
 Its settings file, mounted read-only, and two named volumes where it keeps its certificates and state between restarts.
 
-@@ 39-40
-Start after the services it passes requests to; and start again by itself after a crash or a reboot, unless someone stopped it (`unless-stopped`, on every service).
+@@ 39-41
+Start after the services it passes requests to — the web app and the API, but not the shop, which runs only once it has its key (`deploy.sh`); Caddy looks names up as requests arrive, so it finds the shop whenever it is there. And start again by itself after a crash or a reboot, unless someone stopped it (`unless-stopped`, on every service).
 
-@@ 42-46
+@@ 43-47
 **The web app** — home page, verify page, console. It reaches the API inside the server for the home page's figures, and links to the demo shop's public address.
 
-@@ 47-53
+@@ 48-54
 A **health check**: Docker asks the service every 15 seconds whether it is working (5 seconds to answer, 5 failures in a row before it counts as unhealthy, the first 20 seconds forgiven while it starts). `deploy.sh` waits for these to pass. Here Node fetches the home page and exits with 0 (healthy) only if it answers well.
 
-@@ 55-64
+@@ 56-65
 **The demo shop.** It reaches the API inside the server, but checks tokens against the API's public name, which tokens carry. Its project, test key and signing secret come from `.env`.
 
-@@ 65-71
+@@ 66-72
 A **health check**: Docker asks the service every 15 seconds whether it is working (5 seconds to answer, 5 failures in a row before it counts as unhealthy, the first 20 seconds forgiven while it starts). `deploy.sh` waits for these to pass.
 
-@@ 73-77
+@@ 74-78
 **The API**, with the shared settings and the models mounted read-only (`:ro`).
 
-@@ 78-81
+@@ 79-82
 It starts only once PostgreSQL, Valkey and the inference service are healthy.
 
-@@ 82-88
+@@ 83-89
 A **health check**: Docker asks the service every 15 seconds whether it is working (5 seconds to answer, 5 failures in a row before it counts as unhealthy, the first 20 seconds forgiven while it starts). `deploy.sh` waits for these to pass. Python fetches `/readyz`, which answers only when the API can reach its databases.
 
-@@ 90-99
+@@ 91-100
 **The webhook worker** (Phase 4) — the same image, running the `deliver-webhooks` command instead of the API, with the same settings, once the API is healthy.
 
-@@ 101-110
+@@ 102-111
 **Maintenance** — the same image again, running `cli maintain` (expire abandoned sessions, tidy the counts) once an hour, for ever: `sh -c` runs the little loop.
 
-@@ 112-116
+@@ 113-117
 **The inference service** — the stand-in age model unless `.env` chooses the ONNX model, and two workers: one per core of the Always Free server.
 
-@@ 117-121
+@@ 118-122
 Models read-only; and the whole container **read-only** except a small `/tmp` held in memory (`tmpfs`): frames can't be written to disk even by mistake.
 
-@@ 122-128
+@@ 123-129
 A **health check**: Docker asks the service every 15 seconds whether it is working (5 seconds to answer, 5 failures in a row before it counts as unhealthy, the first 20 seconds forgiven while it starts). `deploy.sh` waits for these to pass. The first 30 seconds are forgiven: loading the models takes a while.
 
-@@ 130-135
+@@ 131-136
 **PostgreSQL 18**, the same image as in development. Its owner, `dwarpal`, has its own password, used only for migrations (`deploy.sh`) and backups.
 
-@@ 136-143
+@@ 137-144
 Its data in a named volume, and its health check: `pg_isready` must answer.
 
-@@ 145-149
+@@ 146-150
 **Valkey**, keeping its data on disk (`--appendonly`) in a named volume, and asking every client for its password.
 
-@@ 150-157
+@@ 151-158
 Its health check pings it with the password, which it gets through its environment (`$$` writes a literal `$`, for the shell inside the container, not for Compose).
 
-@@ 197-201
+@@ 198-202
 The named volumes: Docker keeps them across restarts and upgrades. `pgdata` is what the backups copy.
 
 @@ 22-23
 Where the services send their metrics. Empty — nothing sent — until `alert_email.py` sets it to the collector; the empty default also keeps the deploy test's rule that every setting without a default is one `gen_secrets.py` writes.
 
-@@ 159-161
+@@ 160-162
 **Alerts by email** (§5.8.4): three services, each marked with the profile `alerts`, so Compose skips them until `.env` says `COMPOSE_PROFILES=alerts`. None publishes a port: only the other containers can reach them.
 
-@@ 162-168
+@@ 163-169
 The **collector**, the version the laptop already uses, with the server's own settings (`collector.yaml`).
 
-@@ 170-176
+@@ 171-177
 **Prometheus**, also the laptop's version. Its data lives in `/prometheus`, kept to 2 GB at most (and 15 days, its default), so it can't fill the disk.
 
-@@ 177-182
+@@ 178-183
 Its settings, the shared alert rules and its data volume; it starts after the collector and Alertmanager.
 
-@@ 184-188
+@@ 185-189
 **Alertmanager** v0.34.1 (approved 2 Nov). It runs as the user `alert_email.py` recorded — the owner of the password's file, which only that owner may read; without it, as *nobody*.
 
-@@ 189-192
+@@ 190-193
 Its settings file, and the password's file at the path the settings name.
 
-@@ 193-195
+@@ 194-196
 Its memory of silences and of mails already sent is kept in memory only (`tmpfs`): after a restart, an alert still firing may be mailed once more — better than a mail lost.
 
-@@ 202
+@@ 203
 The volume holding Prometheus's data.

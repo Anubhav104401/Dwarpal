@@ -35,8 +35,13 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dwarpal_api')
 ALTER ROLE dwarpal_api WITH LOGIN PASSWORD :'pw';
 SQL
 
+# The demo shop runs only once its project and key are in .env (README, step 7). Until then it can't serve a page,
+# so waiting for it would fail every deploy: it is left out, scaled to no containers at all.
+shop=()
+[ -n "$(env_value DWARPAL_SHOP_API_KEY)" ] || shop=(--scale shop=0)
+
 # Everything else, waiting until each service's health check passes (or 5 minutes go by).
-if docker compose up -d --wait --wait-timeout 300 --remove-orphans; then
+if docker compose up -d --wait --wait-timeout 300 --remove-orphans "${shop[@]}"; then
   echo "deployed $tag"
   docker image prune --force --filter "until=168h" >/dev/null
   exit 0
@@ -47,5 +52,5 @@ fi
 echo "$tag did not come up healthy; rolling back to $previous" >&2
 docker compose ps >&2
 set_tag "$previous"
-docker compose up -d --wait --wait-timeout 300 --remove-orphans
+docker compose up -d --wait --wait-timeout 300 --remove-orphans "${shop[@]}"
 exit 1
