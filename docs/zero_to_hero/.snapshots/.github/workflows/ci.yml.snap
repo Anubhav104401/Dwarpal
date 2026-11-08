@@ -211,3 +211,5 @@ jobs:
             esac
           } > start.log 2>&1 \
             || { cat start.log; echo "::error title=${{ matrix.name }} start::$(tail -c 3000 start.log | tr '\n' '|')"; exit 1; }
+          # Notices written inside the braces went to the log: pass them on, so GitHub shows them.
+          grep '^::notice' start.log || true

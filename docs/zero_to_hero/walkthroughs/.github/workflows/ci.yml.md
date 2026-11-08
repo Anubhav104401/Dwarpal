@@ -1,5 +1,5 @@
 ---
-fingerprint: 7e08665d6c176534
+fingerprint: 33ecb124badbec2f
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -238,3 +238,6 @@ End of the choice.
 
 @@ 212-213
 If anything in the braces failed, `start.log` is printed and its end becomes an annotation. Each branch joins its commands with `&&` on purpose: before `||`, bash doesn't stop at a failed command inside braces, so a later success would otherwise hide an earlier failure.
+
+@@ 214-215
+On success the log isn't printed, so a notice written inside the braces — the inference service's readiness answer — would never reach GitHub, which reads workflow commands only from the step's own output: pass those lines on (`|| true`: having none is fine).

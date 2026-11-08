@@ -81,7 +81,7 @@ filming yourself), O5 (the legal review of the compliance map and practice state
 - **Scans** (D34): `pip-audit` finds nothing; `pnpm audit` finds nothing in what ships — only the two old `extract-zip`
   advisories inside Lighthouse CI, a test tool, with no fixed version. Nothing to approve.
 - **Hindi** (D36): the new screens' words are machine-drafted, like all the Hindi, for the native review.
-- **The book**: every new and changed file explained (348 files, 31,199 lines at 100 %), with §5.6.5, §5.8.5 and eleven new glossary terms.
+- **The book**: every new and changed file explained (348 files, 31,201 lines at 100 %), with §5.6.5, §5.8.5 and eleven new glossary terms.
 
 ## Morning summary — 4 Nov (overnight work, 3→4 Nov)
 
