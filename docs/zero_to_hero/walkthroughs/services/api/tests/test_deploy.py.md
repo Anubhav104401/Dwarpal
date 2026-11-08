@@ -1,5 +1,5 @@
 ---
-fingerprint: 19975a26ffe0f8f9
+fingerprint: 2530a2f4762fd6b3
 ---
 Tests for the **deployment's files** (§5.8.2). Most of Phase 8 runs on a real server, where tests can't reach; these check what can be checked here: the secrets are random, private and never replaced, and the Compose file and the generator agree.
 
@@ -96,65 +96,80 @@ Eleven refusals, each naming `--domain`: a scheme, a path, a port, a wildcard, a
 @@ 87-91
 The command run with `https://` in front: it fails, says the domain must be a bare name, and writes no file.
 
-@@ 251-253
+@@ 282-284
 **Test — the outside check** (decision D33): every 15 minutes, never on the hour, with a token that may do nothing, only once the API's address is set, and asking `/readyz` — what the README promises.
 
-@@ 254-256
+@@ 285-287
 The workflow's text, and its schedule's minutes (the line `cron: "… * * * *"`); without one, the message says so.
 
-@@ 257-259
+@@ 288-290
 The minutes in order, and the gap after each — the last one's to the first of the next hour: four gaps of 15 minutes.
 
-@@ 260
+@@ 291
 None on the hour.
 
-@@ 261-263
+@@ 292-294
 A token that may do nothing, the condition on the address, and the readiness check.
 
-@@ 226-229
+@@ 257-260
 **Test — both Python images copy every workspace member's description** (9 Nov): uv reads the whole workspace to use the lockfile, so one missing `pyproject.toml` fails the build — as the Python SDK's did, found by CI's first image builds.
 
-@@ 230-233
+@@ 261-264
 The workspace's member patterns (`services/*`, `libs/*`, …), each expanded to the folders that have a `pyproject.toml`, written as paths from the repository's root.
 
-@@ 234
+@@ 265
 The SDK is among them — so the test can't pass by finding nothing.
 
-@@ 235-237
+@@ 266-268
 In each Python Dockerfile, the folders whose `pyproject.toml` it copies (each `COPY` line, read with a pattern) must be exactly the members; the message names both lists.
 
-@@ 240-242
+@@ 271-273
 **Test — the model fetcher gets its one dependency** (9 Nov): run without the project, `fetch_models.py` must be given httpx, at the lockfile's version.
 
-@@ 243-244
+@@ 274-275
 httpx's version in `uv.lock`: its `[[package]]` entry, a `name` line followed by a `version` line.
 
-@@ 245-248
+@@ 276-279
 Every workflow line that runs the fetcher without the project must give httpx at exactly that version.
 
-@@ 173-182
-**`FAKE_DOCKER`** — a stand-in for the `docker` command, as a small bash script: it writes each command it is given into the file named by `DOCKER_CALLS`, reads and drops any input (the SQL `deploy.sh` pipes in), and — when `FAIL_FIRST_START` is set — fails the first full start (a command with `--wait-timeout`), leaving a marker file so the next one succeeds: a deploy that doesn't come up healthy, then a rollback that does.
+@@ 173-183
+**`FAKE_DOCKER`** — a stand-in for the `docker` command, as a small bash script: it writes each command it is given into the file named by `DOCKER_CALLS`, reads and drops any input (the SQL `deploy.sh` pipes in), answers the inference service's readiness question with `READYZ`, and — when `FAIL_FIRST_START` is set — fails the first full start (a command with `--wait-timeout`), leaving a marker file so the next one succeeds: a deploy that doesn't come up healthy, then a rollback that does.
 
-@@ 185-190
-**Test — deploys leave out the shop until it has its key** (9 Nov), four times over: without a key and with one, each healthy and unhealthy. It runs the script with bash, so not on Windows.
+@@ 184-186
+**`NEEDS_BASH`** — these tests run `deploy.sh` in bash, so not on Windows (where `bash` may be another program) or without bash.
 
-@@ 191-194
-Why: the first deploy always comes before the shop has its key; waiting for it would fail every deploy.
+@@ 189-193
+**`deploy`** — run the real `deploy.sh` in a folder: what it needs, and what it gives back — the run's result, and every full start it asked for.
 
-@@ 195-198
-The script, beside a `.env` from the real generator, with the shop's key as this case has it.
+@@ 194-197
+The script, beside a `.env` from the real generator, with the shop's key as given.
 
-@@ 199-204
-The stand-in `docker`, made runnable, in a folder put first on `PATH`, so the script finds it instead of the real one; where it notes the commands.
+@@ 198-204
+The stand-in `docker`, made runnable, in a folder put first on `PATH`, so the script finds it instead of the real one; where it notes the commands; whether the first start fails, and the readiness answer to give.
 
-@@ 205-206
-In the unhealthy cases, the first full start fails.
-
-@@ 207-216
+@@ 205-214
 Run `deploy.sh` with a version tag, with no input, keeping what it prints; bash's full path is looked up first.
 
-@@ 217-220
-The full starts the script asked for: it succeeded or failed as the case should; an unhealthy start was followed by the rollback's; and each start left the shop out exactly when there was no key.
+@@ 215-216
+The full starts it asked for, and the run.
 
-@@ 221-223
+@@ 219-224
+**Test — deploys leave out the shop until it has its key** (9 Nov), four times over: without a key and with one, each healthy and unhealthy.
+
+@@ 225-228
+Why: the first deploy always comes before the shop has its key; waiting for it would fail every deploy.
+
+@@ 229-232
+The run succeeded or failed as the case should; an unhealthy start was followed by the rollback's; and each start left the shop out exactly when there was no key.
+
+@@ 233-235
 And Caddy doesn't wait for the shop: its `depends_on` doesn't name it.
+
+@@ 238-246
+**Test — a deploy says when the anti-spoofing networks are missing** (9 Nov), three times: loaded, missing, and no answer at all.
+
+@@ 247-250
+Why: the server starts without them but refuses every live check, as CI found when it first started the inference image as the server does.
+
+@@ 251-254
+Each deploy succeeds; it warns exactly when the networks aren't loaded; and it prints what the service answered.

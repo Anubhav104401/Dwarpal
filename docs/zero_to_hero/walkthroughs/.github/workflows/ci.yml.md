@@ -1,5 +1,5 @@
 ---
-fingerprint: f5b6eae3b2a156e1
+fingerprint: 7e08665d6c176534
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -212,29 +212,29 @@ A failed build or start leaves its last lines as an annotation, as the comment s
 @@ 184-185
 …named locally — `dwarpal-api:ci`, say — with everything Docker prints kept in `build.log`. If the build fails, its last 40 lines are printed and its last 3,000 characters become an error annotation (line ends turned into `|`, as an annotation is one line).
 
-@@ 186-188
-Then **start** each one, as far as it can be started without the others, as the comment says.
+@@ 186-189
+Then **start** each one, as far as it can be started without the others, as the comment says. The anti-spoofing networks are made from PyTorch weights on the owner's computer (`dwarpal_ml.antispoof`), so here they are missing — which is what the inference check reports, not what it requires.
 
-@@ 189-192
+@@ 190-193
 The step runs in bash, with the image's local name.
 
-@@ 193-194
+@@ 194-195
 Everything inside the braces writes to `start.log`; first, the choice of what to do for each image.
 
-@@ 195
+@@ 196
 The API's command line loads all of the API's code (`--help` prints the commands and stops): the image's Python and its packages fit together.
 
-@@ 196-203
-The inference service runs as on the server: read-only (`--read-only`), with an in-memory `/tmp` (`--tmpfs`) and the models mounted read-only. Its readiness answer (`/readyz`), asked until it comes, must say that both anti-spoofing networks are **loaded** and Tesseract is **ready** — `[[ … == *text* ]]` asks whether the answer contains each — or its last log lines are shown and the branch fails.
+@@ 197-204
+The inference service runs as on the server: read-only (`--read-only`), with an in-memory `/tmp` (`--tmpfs`) and the fetched models mounted read-only. Its readiness answer (`/readyz`), asked until it comes, is shown as a notice — anyone can read it — and must say the service and Tesseract are **ready** (`[[ … == *text* ]]` asks whether the answer contains each); otherwise its last log lines are shown and the branch fails. Its first run here found the server would start without anti-spoofing: README step 4 now names the files.
 
-@@ 204-208
+@@ 205-209
 The web app really runs: started in the background (`--detach`), then asked for a verify page until it answers (`--retry-connrefused`: also while it is still starting). If it never does, its last log lines are shown and the branch fails (`false`). Its proxy can't reach an API here, so the page simply allows no frame — the same safe answer as on a server whose API is down.
 
-@@ 209
+@@ 210
 The demo shop's image holds Next.js and a finished build (`BUILD_ID`, which `next build` writes last).
 
-@@ 210
+@@ 211
 End of the choice.
 
-@@ 211-212
+@@ 212-213
 If anything in the braces failed, `start.log` is printed and its end becomes an annotation. Each branch joins its commands with `&&` on purpose: before `||`, bash doesn't stop at a failed command inside braces, so a later success would otherwise hide an earlier failure.

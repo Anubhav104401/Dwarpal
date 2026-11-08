@@ -170,19 +170,53 @@ def test_the_deploy_copies_every_file_compose_mounts() -> None:
     assert mounted - made_on_the_server <= copied, sorted(mounted - made_on_the_server - copied)
 
 
-# A stand-in for `docker`: notes each command, reads any input it is given, and — when asked — fails the first full
-# start, as a deploy that doesn't come up healthy would.
+# A stand-in for `docker`: notes each command, reads any input it is given, answers the inference service's readiness
+# question with `READYZ`, and — when asked — fails the first full start, as a deploy that doesn't come up healthy would.
 FAKE_DOCKER = """#!/usr/bin/env bash
 echo "$*" >> "$DOCKER_CALLS"
 cat > /dev/null
+if [[ "$*" == *"exec -T inference"* ]]; then printf '%s' "${READYZ:-}"; fi
 if [ -n "${FAIL_FIRST_START:-}" ] && [[ "$*" == *--wait-timeout* ]] && [ ! -e "$DOCKER_CALLS.failed" ]; then
   touch "$DOCKER_CALLS.failed"
   exit 1
 fi
 """
+NEEDS_BASH = pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None, reason="runs deploy.sh in bash"
+)
 
 
-@pytest.mark.skipif(sys.platform == "win32" or shutil.which("bash") is None, reason="runs the script with bash")
+def deploy(
+    folder: Path, key: str = "", unhealthy: bool = False, readyz: str = ""
+) -> tuple[subprocess.CompletedProcess[str], list[str]]:
+    """Run the real `deploy.sh` in `folder`, beside a `.env` from the real generator with the shop's key as given, and
+    with the stand-in `docker` first on PATH. Its result, and every full start it asked for."""
+    shutil.copy(DEPLOY / "deploy.sh", folder / "deploy.sh")
+    settings = parse(generator().secrets_file("example.org", "a@example.org", "someone"))
+    settings["DWARPAL_SHOP_API_KEY"] = key
+    (folder / ".env").write_text("".join(f"{name}={value}\n" for name, value in settings.items()), encoding="utf-8")
+    tools = folder / "bin"
+    tools.mkdir()
+    (tools / "docker").write_text(FAKE_DOCKER, encoding="utf-8")
+    (tools / "docker").chmod(0o755)
+    calls = folder / "calls.log"
+    env = {**os.environ, "PATH": f"{tools}{os.pathsep}{os.environ['PATH']}", "DOCKER_CALLS": str(calls)}
+    env |= {"FAIL_FIRST_START": "1" if unhealthy else "", "READYZ": readyz}
+    bash = shutil.which("bash")
+    assert bash is not None
+    run = subprocess.run(  # noqa: S603 - the repository's own script, with test settings
+        [bash, str(folder / "deploy.sh"), "abc123"],
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    starts = [line for line in calls.read_text(encoding="utf-8").splitlines() if "--wait-timeout" in line]
+    return run, starts
+
+
+@NEEDS_BASH
 @pytest.mark.parametrize("unhealthy", [False, True])
 @pytest.mark.parametrize(("key", "left_out"), [("", True), ("dk_test_0123456789abcdefghij", False)])
 def test_deploys_leave_out_the_shop_until_it_has_its_key(
@@ -192,35 +226,32 @@ def test_deploys_leave_out_the_shop_until_it_has_its_key(
     then, so a deploy that waited for it would fail and roll back every time. `deploy.sh` leaves it out until
     the key is in .env — when deploying and when rolling back alike — and Caddy doesn't need it to start. The
     script really runs here, with `docker` replaced by a stand-in that notes what it is asked."""
-    shutil.copy(DEPLOY / "deploy.sh", tmp_path / "deploy.sh")
-    settings = parse(generator().secrets_file("example.org", "a@example.org", "someone"))
-    settings["DWARPAL_SHOP_API_KEY"] = key
-    (tmp_path / ".env").write_text("".join(f"{name}={value}\n" for name, value in settings.items()), encoding="utf-8")
-    tools = tmp_path / "bin"
-    tools.mkdir()
-    (tools / "docker").write_text(FAKE_DOCKER, encoding="utf-8")
-    (tools / "docker").chmod(0o755)
-    calls = tmp_path / "calls.log"
-    env = {**os.environ, "PATH": f"{tools}{os.pathsep}{os.environ['PATH']}", "DOCKER_CALLS": str(calls)}
-    if unhealthy:
-        env["FAIL_FIRST_START"] = "1"
-    bash = shutil.which("bash")
-    assert bash is not None
-    run = subprocess.run(  # noqa: S603 - the repository's own script, with test settings
-        [bash, str(tmp_path / "deploy.sh"), "abc123"],
-        env=env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    starts = [line for line in calls.read_text(encoding="utf-8").splitlines() if "--wait-timeout" in line]
+    run, starts = deploy(tmp_path, key=key, unhealthy=unhealthy)
     assert run.returncode == (1 if unhealthy else 0), run.stderr
     assert len(starts) == (2 if unhealthy else 1)  # a failed start is followed by the rollback's
     assert all(("--scale shop=0" in line) == left_out for line in starts), starts
     compose = (DEPLOY / "compose.yaml").read_text(encoding="utf-8")
     caddy = re.search(r"^  caddy:\n(?:(?:    .*)?\n)*?    depends_on: \[([^\]]*)\]", compose, re.MULTILINE)
     assert caddy is not None and "shop" not in caddy[1]
+
+
+@NEEDS_BASH
+@pytest.mark.parametrize(
+    ("readyz", "warned"),
+    [
+        ('{"status":"ready","age_model":"stub-age-30","antispoof":"loaded","ocr":"ready"}', False),
+        ('{"status":"ready","age_model":"stub-age-30","antispoof":"missing","ocr":"ready"}', True),
+        ("", True),  # no answer at all
+    ],
+)
+def test_a_deploy_says_when_the_anti_spoofing_networks_are_missing(tmp_path: Path, readyz: str, warned: bool) -> None:
+    """The server starts without the anti-spoofing networks, but then refuses every live check — as CI found when it
+    first started the inference image as the server does (9 Nov). So a deploy reports the inference service's readiness,
+    and warns unless the networks are loaded; it still succeeds, since test checks work without them."""
+    run, _ = deploy(tmp_path, readyz=readyz)
+    assert run.returncode == 0, run.stderr
+    assert ("anti-spoofing networks are missing" in run.stderr) == warned, run.stderr
+    assert f"inference: {readyz or 'no answer'}" in run.stdout
 
 
 def test_both_python_images_copy_every_workspace_member_s_description() -> None:

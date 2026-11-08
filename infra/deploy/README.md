@@ -58,10 +58,25 @@ the network's security list, and a name for it).
    The domain is the bare name, such as `dwarpal-age.duckdns.org` — no `https://` and no `/`; the script refuses
    anything else before writing a single secret.
 
-4. **Models.** The services read their models from `/opt/dwarpal/models` (mounted read-only). Copy the face detector,
-   face mesh, hand detector, anti-spoofing networks, SFace and the age model's manifest there — the files
-   `uv run infra/scripts/fetch_models.py` fetches, plus `models/registry/age/stub/manifest.json`. While no age model is
-   certified, live checks are decided by an ID document (decision D24) and the age estimate decides test checks only.
+4. **Models.** The services read their models from `/opt/dwarpal/models` (mounted read-only). On your computer,
+   `uv run infra/scripts/fetch_models.py` fetches them; the two **anti-spoofing networks** come as PyTorch weights and
+   are served as ONNX files, which `uv run --package dwarpal-ml python -m dwarpal_ml.antispoof` makes from them
+   (done on this computer on 20 Oct: the `.onnx` files are already in `models/third_party`). Then copy exactly these:
+
+   ```
+   ssh ubuntu@<ip> mkdir -p /opt/dwarpal/models/third_party /opt/dwarpal/models/registry/age/stub
+   cd models
+   scp third_party/face_detection_yunet_2023mar.onnx third_party/face_landmarker.task \
+     third_party/hand_landmarker.task third_party/face_recognition_sface_2021dec_int8.onnx \
+     third_party/minifasnet_v2_2.7.onnx third_party/minifasnet_v1se_4.0.onnx \
+     ubuntu@<ip>:/opt/dwarpal/models/third_party/
+   scp registry/age/stub/manifest.json ubuntu@<ip>:/opt/dwarpal/models/registry/age/stub/
+   ```
+
+   Without the two `minifasnet_*.onnx` files the server still starts, but **every live check is refused**: a live
+   session is never decided without the anti-spoofing verdict. `deploy.sh` says after each deploy whether they are
+   loaded. While no age model is certified, live checks are decided by an ID document (decision D24) and the age
+   estimate decides test checks only.
 5. **GitHub settings** (repository → Settings):
    - *Variables*: `DWARPAL_PUBLIC_API_URL` = `https://api.<domain>`, `DEPLOY_HOST` = the server's IP,
      `DEPLOY_KNOWN_HOSTS` = the output of `ssh-keyscan <ip>` (so the deploy knows it's talking to the real server);

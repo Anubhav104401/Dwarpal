@@ -184,8 +184,9 @@ jobs:
           docker build -f "${{ matrix.file }}" "${args[@]}" -t "dwarpal-${{ matrix.name }}:ci" . > build.log 2>&1 \
             || { tail -40 build.log; echo "::error title=${{ matrix.name }} build::$(tail -c 3000 build.log | tr '\n' '|')"; exit 1; }
       # Each image is started the way the server would, as far as it can be without the rest: the API loads all its
-      # code; the inference service runs read-only with the models mounted, and must say both anti-spoofing
-      # networks and Tesseract are ready; the web app serves a verify page.
+      # code; the inference service runs read-only with the fetched models mounted and must say Tesseract is ready
+      # (the anti-spoofing networks are made from PyTorch weights on the owner's computer, so here they are missing);
+      # the web app serves a verify page.
       - name: Start
         shell: bash
         run: |
@@ -198,8 +199,8 @@ jobs:
                   --publish 8001:8001 "$image" \
                   && ready=$(curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-all-errors \
                     --retry-delay 2 http://localhost:8001/readyz) \
-                  && echo "$ready" \
-                  && [[ "$ready" == *'"antispoof":"loaded"'* && "$ready" == *'"ocr":"ready"'* ]] \
+                  && echo "::notice title=inference readiness::$ready" \
+                  && [[ "$ready" == *'"status":"ready"'* && "$ready" == *'"ocr":"ready"'* ]] \
                   || { docker logs inference 2>&1 | tail -20; false; } ;;
               web)
                 docker run --detach --name web --publish 3000:3000 "$image" \

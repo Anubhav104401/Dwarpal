@@ -43,6 +43,15 @@ shop=()
 # Everything else, waiting until each service's health check passes (or 5 minutes go by).
 if docker compose up -d --wait --wait-timeout 300 --remove-orphans "${shop[@]}"; then
   echo "deployed $tag"
+  # Live checks need the anti-spoofing networks (README, step 4), and the server starts without them: say plainly
+  # whether they are there.
+  ready="$(docker compose exec -T inference python -c \
+    "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz').read().decode())" || true)"
+  echo "inference: ${ready:-no answer}"
+  case "$ready" in
+    *'"antispoof":"loaded"'*) ;;
+    *) echo "warning: the anti-spoofing networks are missing, so every live check will be refused (README, step 4)" >&2 ;;
+  esac
   docker image prune --force --filter "until=168h" >/dev/null
   exit 0
 fi

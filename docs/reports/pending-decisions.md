@@ -48,7 +48,7 @@ in order (details in [`infra/deploy/README.md`](../../infra/deploy/README.md)):
 
 | # | What | Unblocks |
 | :-: | :-- | :-- |
-| O2c | Create the Oracle instance with `infra/vm/cloud-init.yaml`, and open ports 80 and 443 in its security list | everything below |
+| O2c | Create the Oracle instance with `infra/vm/cloud-init.yaml`, and open ports 80 and 443 in its security list; then the README's steps 2–4 (files, secrets, and the models — **step 4's list includes the two `minifasnet_*.onnx` files**) | everything below |
 | O10 | **The DuckDNS name** (D40): sign in at duckdns.org, add a name and set it to the instance's public IP (README step 1). `dwarpal` itself is taken; `dwarpal-age` and `getdwarpal` were free at 2 am | HTTPS certificates |
 | O9 | GitHub settings (README step 5): the variables `DWARPAL_PUBLIC_API_URL`, `DEPLOY_HOST`, `DEPLOY_KNOWN_HOSTS`, the secret `DEPLOY_SSH_KEY`, and a `production` environment | the first deploy, and the outside uptime check (D33) |
 | O8 | An Object Storage bucket and a customer secret key for backups (README step 8) | backups and the restore drill — Phase 8's exit |
@@ -76,12 +76,12 @@ filming yourself), O5 (the legal review of the compliance map and practice state
 - **A document camera for computers** (D43, `4ed0d89`): the webcam with a passport-shaped guide, the photo looked at before it is
   used, the file chooser beside it; phones unchanged. Two new browser tests.
 - **The verify page's calls limited per address** (Phase 4, open item 5, `9b339be`): 10 a second, bursts of 300 — far above what people sharing a network need — so a flood from one address stops before the database; the page says to wait and reload.
-- **The production images are built in CI** on every push (`9b339be`, `5ea6b69`), on GitHub's Arm machines and never published (D17 allows exactly that), then started as far as each can be alone. **Its first run found two problems that would have stopped your first deploy**: the Python images didn't copy the Python SDK's `pyproject.toml`, and the deploy workflow ran the model fetcher without httpx. Both are fixed and guarded by tests; all four images now build and start. A third trap, found by reading `deploy.sh`: the first deploy would have waited for the demo shop, which can't start before step 7 gives it a key, and rolled back. The shop is now left out until its key is in `.env`.
+- **The production images are built in CI** on every push (`9b339be`, `5ea6b69`), on GitHub's Arm machines and never published (D17 allows exactly that), then started as far as each can be alone. **Its first run found two problems that would have stopped your first deploy**: the Python images didn't copy the Python SDK's `pyproject.toml`, and the deploy workflow ran the model fetcher without httpx. Both are fixed and guarded by tests; all four images now build and start. A third trap, found by reading `deploy.sh`: the first deploy would have waited for the demo shop, which can't start before step 7 gives it a key, and rolled back. The shop is now left out until its key is in `.env`. **And one that needs you to copy two more files**: the anti-spoofing networks are served as ONNX files that `dwarpal_ml.antispoof` made on your computer on 20 Oct, and the README's model step named only what the fetcher fetches — a server set up by it would have refused every live check. Step 4 now lists exactly which files to copy (the two `minifasnet_*.onnx` included), and every deploy says whether they are loaded.
 - **Browser tests**: the full suite passes in Chromium and WebKit (50 tests; the WebKit passkey test is skipped by design).
 - **Scans** (D34): `pip-audit` finds nothing; `pnpm audit` finds nothing in what ships — only the two old `extract-zip`
   advisories inside Lighthouse CI, a test tool, with no fixed version. Nothing to approve.
 - **Hindi** (D36): the new screens' words are machine-drafted, like all the Hindi, for the native review.
-- **The book**: every new and changed file explained (348 files, 31,155 lines at 100 %), with §5.6.5, §5.8.5 and eleven new glossary terms.
+- **The book**: every new and changed file explained (348 files, 31,199 lines at 100 %), with §5.6.5, §5.8.5 and eleven new glossary terms.
 
 ## Morning summary — 4 Nov (overnight work, 3→4 Nov)
 
