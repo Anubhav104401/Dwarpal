@@ -1,5 +1,5 @@
 ---
-fingerprint: 8c95b528873b1698
+fingerprint: 1f41d5b180993819
 ---
 Tests of the per-page content security policy (Phase 7): only scripts with this page's nonce may run, never inline ones; every page gets a fresh nonce; and only a session's own website may frame its verify page (decision D16).
 
@@ -57,8 +57,23 @@ The verify page may be framed by the shop; the console by no one.
 @@ 60-61
 The API was asked once — for the verify page's session, at the right address — and never for the console.
 
-@@ 63-74
+@@ 75-86
 **Test — no one, whenever in doubt.** `frameAncestorFor` gives `null` when the API names no website; when it answers with an error; when its answer is text that would add a rule of its own (`; script-src *`); when it is an address with a path rather than an origin; and when the API can't be reached at all (a stand-in whose promise fails, as `fetch` does).
 
-@@ 75
+@@ 87
 End of the group.
+
+@@ 63-64
+**Test — the lookup is asked as the visitor** (9 Nov): the API then counts it against the visitor's address, not this server's. `forwarded` collects what each lookup carried.
+
+@@ 65-68
+A stand-in for the API that notes the `X-Forwarded-For` of each request it receives.
+
+@@ 69-71
+A verify page asked for through Caddy, which set the visitor's address, and one asked for without it.
+
+@@ 72
+The first lookup carried the visitor's address; the second carried none.
+
+@@ 73
+End of the test.

@@ -1,5 +1,5 @@
 ---
-fingerprint: 8660196132bcce7f
+fingerprint: 065c6ace1fa32a1d
 ---
 The API's **settings**: every value that may differ between a laptop, the test suite and production — addresses, secrets, time limits — in one checked place. It follows the same pattern as the inference service's `settings.py` (§5.1.1), with two additions: a **secret** that must never leak into logs, and a **guard** that refuses unsafe values in production.
 
@@ -109,46 +109,49 @@ The comment explains the two **per-device budgets** below: how many liveness cha
 @@ 42-44
 The rate limit for each API key (`http/deps.py`): 100 requests a second on average, with bursts of up to 200 at once — the figures of the implementation design (§3.7).
 
-@@ 45-48
+@@ 49-52
 Webhooks (Phase 4): `webhook_allow_private` lets webhooks go to private or local addresses — needed on a developer's laptop and in tests, and refused in production (below). How long to wait for a receiver's answer (10 s), and how often the idle worker looks for due deliveries (every 2 s).
 
-@@ 49-53
+@@ 53-57
 The console (Phase 4, step 2): `console_origins` — the addresses its pages are served from, checked against each change's `Origin` header (§5.4.5); how long a signed-in session lasts without use (12 hours); and whether its cookie may only travel over HTTPS. Only the tests, which talk plain HTTP inside one program, switch that off; production refuses to (below).
 
-@@ 57-59
+@@ 61-63
 Sign-in attempts, counted per account and per network address: up to 5 at once, then one more a minute — slow enough that guessing a password is hopeless, generous enough for someone who mistypes.
 
-@@ 60-61
+@@ 64-65
 **`otel_endpoint`** (Phase 7) — the address of an OpenTelemetry collector to send traces to (`DWARPAL_OTEL_ENDPOINT`). `None` by default: no traces are made at all unless someone asks for them.
 
-@@ 63-64
+@@ 67-68
 The **production guard**. `@model_validator(mode="after")` makes Pydantic call this method after all the fields are filled in. It receives the finished settings object as `self`, and must either return it or raise an error. If it raises, the API refuses to start.
 
-@@ 65-66
+@@ 69-70
 Outside production there is nothing more to check, so the settings are returned unchanged.
 
-@@ 67-68
+@@ 71-72
 **Refuse the development key in production.** It is published in this repository, so with it anyone could unseal the signing keys and forge age tokens. The error names the exact variable to set.
 
-@@ 69-70
+@@ 73-74
 Production must never send webhooks into private networks.
 
-@@ 71-72
+@@ 75-76
 And production's cookie must always demand HTTPS.
 
-@@ 73-75
+@@ 77-79
 **Refuse plain `http://` addresses in production.** Over `http://`, tokens and links travel unencrypted, and anyone on the network path could read or change them (§0.9).
 
 `getattr(self, name)` reads a field whose name is held in the variable `name`, so one loop checks both fields. `name.upper()` turns `issuer` into `ISSUER`, so the message names the exact variable: `DWARPAL_ISSUER`.
 
-@@ 76
+@@ 80
 All checks passed: return the settings.
 
 !!! try "Try it yourself"
     The tests in `services/api/tests/test_domain.py` create production settings with and without a real key. Read `test_production_refuses_development_values`, then run `uv run pytest services/api/tests/test_domain.py -k production` and watch it pass.
 
-@@ 54-56
+@@ 58-60
 `passkey_rp_id` (Phase 9) — the site name passkeys are bound to, WebAuthn's *relying party ID*: the console's host name in production. Empty means the host of the first console origin, `localhost` in development.
 
 @@ 26-28
 **How long the document check may take** before the API gives up on it: 20 seconds. It does more than the face check — the same face checks on the selfie, then reading the document's letters and comparing two faces — and 5 seconds wasn't always enough on a busy machine (CI's end-to-end test had twice seen "the checker is busy" by 2 Nov; it wasn't the only cause, as a third failure on 3 Nov showed). Giving up still means "try again", never a pass.
+
+@@ 45-48
+**`flow_requests_per_second`**, **`flow_burst`** (9 Nov) — the verify page's calls from one network address: 10 a second, in bursts of up to 300. Plenty for many people sharing one address — a school, an office, a mobile network's shared address — while a flood from one address is refused before it reaches the database.

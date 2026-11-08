@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # Requests one API key may make: a steady rate per second, with bursts of up to `api_burst` at once.
     api_requests_per_second: float = 100.0
     api_burst: int = 200
+    # Calls of the verify page's API from one network address: a steady rate per second, with bursts of up to
+    # `flow_burst`. Plenty for many people sharing a network; a flood from one address stops before the database.
+    flow_requests_per_second: float = 10.0
+    flow_burst: int = 300
     # Webhooks: never to private or local addresses, except for local development and tests (refused in production).
     webhook_allow_private: bool = False
     webhook_timeout_s: float = 10.0

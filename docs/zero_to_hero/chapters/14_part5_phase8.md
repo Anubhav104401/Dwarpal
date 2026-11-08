@@ -61,8 +61,10 @@ While the owner creates the server, everything that will run on it can be writte
 
 The `.gitignore` gained rules for private keys and secrets, and a `.dockerignore` keeps installed packages, builds, secrets and data out of every image's build.
 
+!walk .dockerignore
+
 !!! honest "Honest limitation"
-    - **Nothing here has run on a server yet.** The Compose file is validated, the secrets generator and the scripts' safety settings are tested, and the shell scripts parse; but the images haven't been built (pulling their base images needs approval, D17), nothing is published (D18), and the deploy, the backups and the drill run only once the server, the domain and a storage bucket exist (O2, O8).
+    - **Nothing here has run on a server yet.** The Compose file is validated, the secrets generator and the scripts' safety settings are tested, and the shell scripts parse; and since 9 November CI builds all four images on GitHub's Arm machines on every push — the base images were approved for those machines (D17) — and starts each as far as it can alone (the `images` job). But nothing is published yet (D18), and the deploy, the backups and the drill run only once the server, the domain and a storage bucket exist (O2, O8).
     - **Each web image is built for one domain**: Next.js writes the API's public address into the code it builds.
     - **Rolling back doesn't undo migrations.** That is safe only if every migration works with the code before it too — a rule the runbook states and reviews must keep.
 

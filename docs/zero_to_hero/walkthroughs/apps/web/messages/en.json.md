@@ -1,5 +1,5 @@
 ---
-fingerprint: f4b03f10a83bdb43
+fingerprint: 9d9ad0cd547bb225
 ---
 The public pages' words in **English** (decision D2, §5.5.11): the home page and the verify page, gathered from the code into one file per language. The code names each piece of text by a key, such as `Verify.introTitle`; next-intl fills in the parts in braces — `Confirm you are {age} or over` — and, in `tries`, picks the plural form the language needs.
 
@@ -65,10 +65,10 @@ The step-up's choices and the leaving buttons, then the document check: its titl
 @@ 250-273
 **`Tips`** — one tip per reason code the API can give (`advice.ts` chooses), plus the general one (`default`) and the unusable-file tip of the document check. Since 9 Nov also a camera that couldn't be opened for the document.
 
-@@ 274-311
-**`Problems`** — one message per problem that stops the check, each a title and a detail, plus the general one.
+@@ 274-315
+**`Problems`** — one message per problem that stops the check, each a title and a detail, plus the general one. Since 9 Nov also `rate_limited`: too many requests from one network, so wait a minute and reload.
 
-@@ 312
+@@ 316
 The end of the file.
 
 @@ 232-237

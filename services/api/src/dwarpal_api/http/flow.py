@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 import uuid
 from typing import Annotated, Any, Literal
@@ -17,7 +18,22 @@ from dwarpal_api.errors import ApiError
 from dwarpal_api.http.deps import flow_session, services
 from dwarpal_contracts import MAX_DOCUMENT_BYTES, MAX_FRAME_BYTES, MAX_FRAMES, FaceRequestMeta
 
-router = APIRouter(prefix="/v1/flow/sessions/{session_text}", tags=["capture flow"])
+
+async def per_address(request: Request, svc: Annotated[Services, Depends(services)]) -> None:
+    """Every call of the verify page counts against its network address, before its session is even looked up: plenty
+    for many people sharing one network, while a flood from one address is refused before it reaches the database.
+    The address is kept only hashed, as the bucket's name (`take_token`)."""
+    address = request.client.host if request.client else "unknown"
+    settings = svc.settings
+    wait_ms = await svc.store.take_token(f"flow:{address}", settings.flow_requests_per_second, settings.flow_burst)
+    if wait_ms:
+        retry = {"Retry-After": str(math.ceil(wait_ms / 1000))}
+        raise ApiError(429, "rate_limited", "too many requests from this network; wait a moment and try again", retry)
+
+
+router = APIRouter(
+    prefix="/v1/flow/sessions/{session_text}", tags=["capture flow"], dependencies=[Depends(per_address)]
+)
 CHALLENGE_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 # The verify page's random device ID (a UUID). Anything else is ignored, as if no ID had been sent.
 DEVICE_ID = re.compile(r"^[A-Za-z0-9-]{16,64}$")

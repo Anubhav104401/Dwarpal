@@ -1,5 +1,5 @@
 ---
-fingerprint: cd0b7fb6c92570e2
+fingerprint: 2b357d7c9eb52ec1
 ---
 `book.toml` holds the book's **settings**. Keeping settings in a separate file, rather than inside `build.py`, means you can add a chapter or change the title **without touching any program code**. "Separate the *what* from the *how*" is one of the oldest good habits in software.
 
@@ -63,7 +63,7 @@ And `11_part5_phase5.md` (front-end excellence, §5.5), in the place kept for it
 - database scripts (`.sql`) and shell scripts (`.sh`, `.ps1`);
 - text lists (`.txt`);
 - special files without extensions: `Dockerfile`, `Caddyfile`, `.env.example`;
-- four "dotfiles" that change how tools treat the whole project — `.gitignore`, `.gitattributes`, `.editorconfig`, `.python-version` (added in Phase 0);
+- "dotfiles" that change how tools treat the whole project — `.gitignore`, `.gitattributes`, `.editorconfig`, `.python-version` (added in Phase 0), and `.dockerignore` (added on 9 Nov 2026, when it gained a line: it had been left out until then);
 - **Mako templates** (`.mako`, added in Phase 1). Alembic uses one as the blueprint for every new database migration (§4.10). A file that shapes other code is code too, so it gets explained.
 
 Markdown (`.md`) is deliberately not included: it is prose, not code.

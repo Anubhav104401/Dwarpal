@@ -1,5 +1,5 @@
 ---
-fingerprint: 42018c21dec2f016
+fingerprint: 3fe1065708e177f5
 ---
 The public pages' words in **Hindi** (decision D2, §5.5.11), with exactly the keys of the English file — a test (`advice.test.ts`) checks that no key is missing in either.
 
@@ -68,10 +68,10 @@ The step-up's choices and the leaving buttons, then the document check: its titl
 @@ 250-273
 **`Tips`** — one tip per reason code the API can give (`advice.ts` chooses), plus the general one (`default`) and the unusable-file tip of the document check. Since 9 Nov also a camera that couldn't be opened for the document.
 
-@@ 274-311
-**`Problems`** — one message per problem that stops the check, each a title and a detail, plus the general one.
+@@ 274-315
+**`Problems`** — one message per problem that stops the check, each a title and a detail, plus the general one. Since 9 Nov also `rate_limited`: too many requests from one network, so wait a minute and reload.
 
-@@ 312
+@@ 316
 The end of the file.
 
 @@ 232-237

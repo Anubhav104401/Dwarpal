@@ -19,6 +19,7 @@ describe("tipFor", () => {
 describe("problemFor", () => {
   it("names known problems and never passes a raw code on", () => {
     expect(problemFor("session_not_open")).toBe("session_not_open");
+    expect(problemFor("rate_limited")).toBe("rate_limited");
     expect(problemFor("internal_error")).toBe(DEFAULT);
   });
 });

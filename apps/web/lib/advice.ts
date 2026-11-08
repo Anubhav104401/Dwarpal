@@ -32,6 +32,7 @@ const PROBLEMS = new Set([
   "session_not_open",
   "too_many_attempts",
   "too_many_challenges",
+  "rate_limited",
   "camera_blocked",
   "camera_missing",
   "network_error",

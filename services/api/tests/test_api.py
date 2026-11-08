@@ -160,7 +160,10 @@ async def harness(
         api = create_api(settings, inference_http=inference_http)
         async with api.router.lifespan_context(api):
             project, key = await seed_dev(settings, livemode=livemode, scopes=scopes)
-            transport = httpx.ASGITransport(app=api)
+            # Each test is its own visitor at its own address (a documentation one, RFC 5737), as it has its own
+            # key: limits per address then count one test's requests, not the whole run's.
+            visitor = (f"198.51.100.{uuid.uuid4().int % 254 + 1}", 4000)
+            transport = httpx.ASGITransport(app=api, client=visitor)
             async with httpx.AsyncClient(transport=transport, base_url="http://api") as client:
                 yield Harness(client, key, project, transport)
 
@@ -803,6 +806,22 @@ async def test_each_api_key_may_make_only_so_many_requests_at_once(databases: tu
     assert [a.status_code for a in answers] == [200, 200, 429]
     assert answers[2].json()["code"] == "rate_limited"
     assert int(answers[2].headers["retry-after"]) >= 1
+
+
+@pytest.mark.anyio
+async def test_the_verify_page_s_calls_are_limited_per_network_address(databases: tuple[str, str]) -> None:
+    """Every call of the verify page counts against its network address (Phase 4, open item 5): a flood from one
+    address is refused before it reaches the database, while another address carries on."""
+    async with harness(databases, flow_requests_per_second=0.01, flow_burst=3) as h:
+        session = (await create(h)).json()["id"]
+        flood = [await h.client.get(f"/v1/flow/sessions/{session}/frame-ancestor") for _ in range(4)]
+        transport = httpx.ASGITransport(app=h.transport.app, client=("203.0.113.9", 4000))
+        async with httpx.AsyncClient(transport=transport, base_url="http://api") as elsewhere:
+            other = await elsewhere.get(f"/v1/flow/sessions/{session}/frame-ancestor")
+    assert [answer.status_code for answer in flood] == [200, 200, 200, 429]
+    assert flood[3].json()["code"] == "rate_limited"
+    assert int(flood[3].headers["retry-after"]) >= 1
+    assert other.status_code == 200
 
 
 @pytest.mark.anyio
@@ -1738,6 +1757,7 @@ def live_api(databases: tuple[str, str]) -> Iterator[tuple[str, str]]:
         webhook_allow_private=True,  # fuzzed webhook addresses are never looked up on the internet
         console_cookie_secure=False,
         api_burst=1_000_000,  # the fuzzer's thousands of requests shouldn't all end in 429
+        flow_burst=1_000_000,
         login_burst=1_000_000,
     )
     _, key = asyncio.run(seed_dev(config))

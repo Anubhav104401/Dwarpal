@@ -129,7 +129,7 @@ The rest of the step changed existing files, each re-explained in its walkthroug
 
 !!! honest "Honest limitation"
     - **A weak idempotency key weakens the seal.** The seal is only as hard to guess as the key the website chose *plus* the master key. Someone holding both a copy of Valkey and the master key could try guessable keys such as `order-1`. Without the master key, the sealed replies are unreadable.
-    - **Rate limits are per key only.** The design also asks for per-session and per-address limits on the flow endpoints. Liveness challenges already have per-session, per-device and per-address budgets (§5.3.4), but the other flow endpoints don't yet.
+    - ~~**Rate limits are per key only.**~~ The design also asks for per-session and per-address limits on the flow endpoints. Liveness challenges already had per-session, per-device and per-address budgets (§5.3.4). **Since 9 November every flow endpoint also counts against the caller's network address** (`per_address` in `http/flow.py`): the same token bucket, 10 calls a second with bursts of 300 — plenty for many people sharing an address, while a flood from one is refused before it reaches the database. The verify page then says to wait a minute and reload.
     - **No console yet.** Keys are rotated and revoked from the command line, and policies are added through the API. The console of Phase 5 will put both on a page, and step 2 (people and roles) decides who may press those buttons.
 
 ### 5.4.3 Telling websites what happened: events and webhooks

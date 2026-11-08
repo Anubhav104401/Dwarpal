@@ -60,6 +60,18 @@ describe("framing (decision D16)", () => {
     expect(asked).toEqual([`http://localhost:8000/v1/flow/sessions/${SESSION}/frame-ancestor`]);
   });
 
+  it("asks as the visitor, so the API counts the lookup against their address, not this server's", async () => {
+    const forwarded: Array<string | null> = [];
+    const ask: typeof fetch = async (_, init) => {
+      forwarded.push(new Headers(init?.headers).get("x-forwarded-for"));
+      return new Response(JSON.stringify({ origin: null }), { status: 200 });
+    };
+    const behindCaddy = { headers: { "x-forwarded-for": "203.0.113.7" } };
+    await secure(new NextRequest(`http://localhost:3000/v/${SESSION}`, behindCaddy), ask);
+    await secure(new NextRequest(`http://localhost:3000/v/${SESSION}`), ask);
+    expect(forwarded).toEqual(["203.0.113.7", null]);
+  });
+
   it.each([
     ["no website for the session", api(200, { origin: null })],
     ["an API error", api(503, { origin: "https://shop.example" })],

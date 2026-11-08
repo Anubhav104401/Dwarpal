@@ -19,8 +19,14 @@ const ORIGIN = /^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?$/;
 /**
  * Which website may show this verify page inside a frame (decision D16): the one its session will send the person
  * back to, as the API says. Any doubt — another page, an API that is slow or down, a strange answer — means none.
+ * `forwardedFor` is the visitor's address as Caddy gave it: the API limits the verify page's calls per address, so
+ * the lookup is counted against the visitor, not against this server, which asks for every visitor.
  */
-export async function frameAncestorFor(path: string, ask: typeof fetch): Promise<string | null> {
+export async function frameAncestorFor(
+  path: string,
+  ask: typeof fetch,
+  forwardedFor: string | null = null,
+): Promise<string | null> {
   const session = VERIFY_PAGE.exec(path)?.[1];
   if (session === undefined) {
     return null;
@@ -29,6 +35,7 @@ export async function frameAncestorFor(path: string, ask: typeof fetch): Promise
     const answer = await ask(`${internalApiUrl}/v1/flow/sessions/${session}/frame-ancestor`, {
       signal: AbortSignal.timeout(1500),
       cache: "no-store",
+      headers: forwardedFor === null ? {} : { "X-Forwarded-For": forwardedFor },
     });
     const origin: unknown = answer.ok ? ((await answer.json()) as { origin?: unknown }).origin : null;
     return typeof origin === "string" && ORIGIN.test(origin) ? origin : null;
@@ -63,7 +70,8 @@ export function proxy(request: NextRequest): Promise<NextResponse> {
 /** The page's answer with its policy; `ask` is how the API is asked (a stand-in, in tests). */
 export async function secure(request: NextRequest, ask: typeof fetch): Promise<NextResponse> {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-  const header = policy(nonce, await frameAncestorFor(request.nextUrl.pathname, ask));
+  const visitor = request.headers.get("x-forwarded-for");
+  const header = policy(nonce, await frameAncestorFor(request.nextUrl.pathname, ask, visitor));
   // Next.js reads the policy from the request to find the nonce; the browser reads it from the response.
   const headers = new Headers(request.headers);
   headers.set("Content-Security-Policy", header);

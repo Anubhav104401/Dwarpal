@@ -151,3 +151,50 @@ jobs:
       - if: always()
         shell: bash
         run: '[ -f helm.log ] && echo "::notice title=helm::$(tail -c 2500 helm.log | tr "\n" "|")" || true'
+
+  images:
+    name: Images - the four production images build and start (Arm, never published)
+    # Built exactly as the deploy workflow builds them — on GitHub's Arm machines, from the base images approved for
+    # them (D17) — but kept here, never published: a broken image shows up on any push, not on the day of a deploy.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: api, file: services/api/Dockerfile, args: "" }
+          - { name: inference, file: services/inference/Dockerfile, args: "" }
+          - { name: web, file: apps/Dockerfile, args: "APP=web" }
+          - { name: demo-shop, file: apps/Dockerfile, args: "APP=demo-shop" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.1"
+      # The web app's build copies the face landmarker for browsers (the only model file an image contains).
+      - if: matrix.name == 'web'
+        run: uv run --no-project infra/scripts/fetch_models.py
+      - name: Build
+        shell: bash
+        run: |
+          args=(--build-arg "NEXT_PUBLIC_DWARPAL_API_URL=https://api.dwarpal.example")
+          if [ -n "${{ matrix.args }}" ]; then args+=(--build-arg "${{ matrix.args }}"); fi
+          docker build -f "${{ matrix.file }}" "${args[@]}" -t "dwarpal-${{ matrix.name }}:ci" .
+      # Each image is started the way the server would, as far as it can be without the rest: the Python services
+      # load all their code (and the inference service finds Tesseract); the web app serves a verify page.
+      - name: Start
+        shell: bash
+        run: |
+          image="dwarpal-${{ matrix.name }}:ci"
+          case "${{ matrix.name }}" in
+            api) docker run --rm "$image" python -m dwarpal_api.cli --help > /dev/null ;;
+            inference)
+              docker run --rm "$image" python -c "import dwarpal_inference.main"
+              docker run --rm "$image" tesseract --version ;;
+            web)
+              docker run --detach --name web --publish 3000:3000 "$image"
+              curl --fail --silent --show-error --retry 20 --retry-connrefused --retry-all-errors --retry-delay 1 \
+                --output /dev/null http://localhost:3000/v/vs_01M51KF05CE4GSBH7F0G43G01V \
+                || { docker logs web 2>&1 | tail -20; exit 1; } ;;
+            demo-shop) docker run --rm "$image" node -e "require.resolve('next'); require('fs').accessSync('.next/BUILD_ID')" ;;
+          esac

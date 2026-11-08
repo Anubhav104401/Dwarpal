@@ -16,9 +16,9 @@
 | 4 | Platform — tenancy, auth, policies, webhooks, audit | ✅ complete — [report](../reports/phase-4.md) |
 | 5 | Front-end excellence — design system, site, flow, console, SDKs | ✅ exit met on CI (Lighthouse ≥ 90, axe, Chromium/Firefox/WebKit) — [report](../reports/phase-5.md); open: Hindi and legal reviews |
 | 6 | Step-up verifiers — MRZ, then Aadhaar Secure QR | 🟡 MRZ done end to end — [report](../reports/phase-6.md); Aadhaar deferred by the owner (D8, O7) |
-| 7 | Hardening — security, observability, load, privacy docs | 🟡 nearly all done — [report](../reports/phase-7.md); open: SLOs measured on the real server, alert delivery |
+| 7 | Hardening — security, observability, load, privacy docs | 🟡 nearly all done — [report](../reports/phase-7.md); open: SLOs measured on the real server; alerts by email built (2 Nov) and an outside uptime check (9 Nov), both waiting for the server |
 | 8 | Deployment — VM, TLS, CI/CD, backups, runbooks, Helm | 🟡 everything written and checked — [report](../reports/phase-8.md); the domain is a free DuckDNS name (D40) and an outside uptime check is ready (D33); waits on the owner's server, the name's creation and backups storage |
-| 9 | Stretch — Age Pass credential, passkeys, render detector, Python SDK | 🟡 SDK, passkeys, Age Pass built — [report](../reports/phase-9.md); render detector's code built, its data being made (D22; filming waits for D23) |
+| 9 | Stretch — Age Pass credential, passkeys, render detector, Python SDK | 🟡 SDK, passkeys, Age Pass built — [report](../reports/phase-9.md); render detector's code built and 80 made-up people filed (D22, D23, D35); training waits for real people filmed under consent (O12) |
 
 Each phase ends with a **phase report** in `docs/reports/`: what was built, what was measured, what changed from the plan and why, and the known limitations. The book's changelog links to it.
 

@@ -29,7 +29,7 @@ include = [
   "**/*.py", "**/*.ts", "**/*.tsx", "**/*.js", "**/*.mjs", "**/*.css", "**/*.html",
   "**/*.toml", "**/*.yaml", "**/*.yml", "**/*.json", "**/*.sql", "**/*.sh", "**/*.ps1",
   "**/*.txt", "**/Dockerfile", "**/Caddyfile", "**/.env.example",
-  "**/.gitignore", "**/.gitattributes", "**/.editorconfig", "**/.python-version", "**/*.mako",
+  "**/.gitignore", "**/.dockerignore", "**/.gitattributes", "**/.editorconfig", "**/.python-version", "**/*.mako",
 ]
 exclude = ["docs/zero_to_hero/zero_to_hero.html", "docs/api/openapi.json", "**/pnpm-lock.yaml", "**/package-lock.json", "**/uv.lock", "**/next-env.d.ts", "apps/web/public/mediapipe/**"]
 prune = [

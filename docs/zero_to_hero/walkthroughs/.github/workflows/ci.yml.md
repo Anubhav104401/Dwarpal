@@ -1,5 +1,5 @@
 ---
-fingerprint: a8511b39598c546f
+fingerprint: faa399f5746a7128
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -187,3 +187,42 @@ First, Alertmanager's settings exactly as `alert_email.py` writes them, for made
 
 @@ 125-128
 **`amtool check-config`**: Alertmanager's own check, with the password's file where the settings say it is.
+
+@@ 155-158
+**The `images` job** (9 Nov): the four production images, built exactly as the deploy workflow builds them — on GitHub's own **Arm** machines, from the base images approved for them (D17) — but never published. A broken Dockerfile then shows up on any push, not on the day of a deploy.
+
+@@ 159-160
+On an Arm machine (`ubuntu-24.04-arm`), for 45 minutes at most.
+
+@@ 161-168
+A **matrix**, as in the deploy workflow: the job runs four times side by side, one per image, each with its Dockerfile and build argument. `fail-fast: false` lets the other three finish when one fails, so one push shows every broken image at once.
+
+@@ 169-173
+Its steps: fetch the code, and set up uv at the project's version.
+
+@@ 174-176
+For the web app only, fetch the third-party models: its build copies the face landmarker for browsers.
+
+@@ 177-182
+**Build** the image, with the API's public address that the web app's code is built with (a made-up one here, since the image is never used), the image's own build argument if it has one, and a local name such as `dwarpal-api:ci`.
+
+@@ 183-184
+Then **start** each one, as far as it can be started without the others, as the comment says.
+
+@@ 185-189
+The step runs in bash; the image's name, and what to do for each image.
+
+@@ 190
+The API's command line loads all of the API's code (`--help` prints the commands and stops): the image's Python and its packages fit together.
+
+@@ 191-193
+The inference service's code is loaded, and Tesseract — which reads documents — answers with its version.
+
+@@ 194-198
+The web app really runs: started in the background (`--detach`), then asked for a verify page until it answers (`--retry-connrefused`: also while it is still starting). If it never does, its last log lines are shown before the job fails. Its proxy can't reach an API here, so the page simply allows no frame — the same safe answer as on a server whose API is down.
+
+@@ 199
+The demo shop's image holds Next.js and a finished build (`BUILD_ID`, which `next build` writes last).
+
+@@ 200
+End of the choice.

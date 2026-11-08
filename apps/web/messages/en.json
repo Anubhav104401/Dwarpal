@@ -296,6 +296,10 @@
       "title": "Too many tries",
       "detail": "This age check can't take any more photos. Go back to the website and start a new one."
     },
+    "rate_limited": {
+      "title": "Too many requests",
+      "detail": "This network has sent a lot of requests in a short time. Please wait a minute, then reload the page."
+    },
     "camera_blocked": {
       "title": "We need your camera",
       "detail": "Allow camera access for this page in your browser's settings, then reload the page."

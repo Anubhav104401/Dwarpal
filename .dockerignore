@@ -11,6 +11,8 @@
 .git
 .claude
 .datasets
+# Desktop tools for making render data (D23), such as a portable Blender: over a gigabyte.
+.tools
 .runs
 mlruns
 .scan
