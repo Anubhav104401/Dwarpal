@@ -9,6 +9,7 @@ import {
   CAN,
   ConsoleClient,
   type PolicyVersion,
+  type Project,
   type Role,
   type SessionPage,
   type SessionSearch,
@@ -19,7 +20,9 @@ import { everyDay, OUTCOME_ORDER } from "@/lib/daily";
 import { bandText, MEDIAN_TARGET_S, share, withinTarget } from "@/lib/figures";
 
 import { DailyChart } from "./daily-chart";
+import { KeysPanel } from "./keys-panel";
 import { PolicyEditor } from "./policy-editor";
+import { SettingsPanel } from "./settings-panel";
 import { WebhooksPanel } from "./webhooks-panel";
 
 const client = new ConsoleClient();
@@ -27,6 +30,8 @@ const client = new ConsoleClient();
 type Loaded = {
   role: Role;
   projectName: string;
+  /** The project's own record: its name and allowed origins (null if the list didn't include it). */
+  info: Project | null;
   analytics: Analytics;
   page: SessionPage;
   policies: PolicyVersion[];
@@ -112,8 +117,8 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
       client.sessions(org, project, livemode, undefined, search),
       client.policies(org, project),
     ]);
-    const projectName = projects.find((p) => p.id === project)?.name ?? project;
-    setState({ role: membership.role, projectName, analytics, page, policies });
+    const info = projects.find((p) => p.id === project) ?? null;
+    setState({ role: membership.role, projectName: info?.name ?? project, info, analytics, page, policies });
   }, [org, project, livemode, search]);
 
   useEffect(() => {
@@ -158,7 +163,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
     );
   }
 
-  const { role, projectName, analytics, page, policies } = state;
+  const { role, projectName, info, analytics, page, policies } = state;
   // In the chart's order, so each total sits where its colour does in the legend; any outcome it doesn't know goes last.
   const rank = (outcome: string) => {
     const place = (OUTCOME_ORDER as readonly string[]).indexOf(outcome);
@@ -360,6 +365,18 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
       {CAN.manageWebhooks(role) ? (
         <WebhooksPanel client={client} org={org} project={project} livemode={livemode} />
       ) : null}
+
+      {CAN.manageKeys(role) ? <KeysPanel client={client} org={org} project={project} /> : null}
+
+      {info === null ? null : (
+        <SettingsPanel
+          client={client}
+          org={org}
+          project={info}
+          canChange={CAN.manageProjects(role)}
+          onSaved={load}
+        />
+      )}
     </ConsoleShell>
   );
 }

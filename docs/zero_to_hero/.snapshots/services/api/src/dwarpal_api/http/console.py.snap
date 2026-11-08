@@ -105,6 +105,25 @@ class Reauthentication(BaseModel):
     code: Annotated[str, Field(pattern=r"^[0-9]{6}$")]
 
 
+class PasswordChange(BaseModel):
+    """The current password, the new one, and a current code if one-time codes are on (decision D31)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    password: Annotated[str, Field(max_length=256)]
+    new_password: Annotated[str, Field(max_length=256)]
+    code: Annotated[str | None, Field(pattern=r"^[0-9]{6}$")] = None
+
+
+class AccountDeletion(BaseModel):
+    """The password, and a current code if one-time codes are on: deleting an account can't be undone (D32)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    password: Annotated[str, Field(max_length=256)]
+    code: Annotated[str | None, Field(pattern=r"^[0-9]{6}$")] = None
+
+
 Base64Url = Annotated[str, Field(min_length=1, max_length=4096, pattern=r"^[A-Za-z0-9_-]+$")]
 
 
@@ -151,6 +170,25 @@ class NewKey(BaseModel):
 
     scopes: Annotated[list[str], Field(min_length=1, max_length=8)]
     livemode: bool = False
+
+
+Origin = Annotated[str, Field(min_length=1, max_length=300)]
+
+
+class NewProject(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: Annotated[str, Field(min_length=1, max_length=80)]
+    allowed_origins: Annotated[list[Origin], Field(max_length=10)] = []
+
+
+class ProjectChange(BaseModel):
+    """A new name, a new list of allowed origins (replacing the old one), or both."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Annotated[str | None, Field(min_length=1, max_length=80)] = None
+    allowed_origins: Annotated[list[Origin] | None, Field(max_length=10)] = None
 
 
 @router.post("/signup", status_code=201)
@@ -232,6 +270,26 @@ async def totp_disable(body: Reauthentication, request: Request, current: Change
     return Response(status_code=204)
 
 
+@router.post("/password")
+async def change_password(
+    body: PasswordChange, request: Request, response: Response, current: Changer, svc: Toolbox
+) -> dict[str, Any]:
+    """A new password: every other session ends, and this browser gets a new cookie and CSRF token."""
+    address = request.client.host if request.client else "unknown"
+    token, renewed = await console.change_password(svc, current, body.password, body.new_password, body.code, address)
+    give_cookie(response, svc, token)
+    return await console.me(svc, renewed)
+
+
+@router.post("/account/delete", status_code=204)
+async def delete_account(body: AccountDeletion, request: Request, current: Changer, svc: Toolbox) -> Response:
+    address = request.client.host if request.client else "unknown"
+    await console.delete_account(svc, current, body.password, body.code, address)
+    response = Response(status_code=204)
+    response.delete_cookie(cookie_name(svc), path="/", secure=svc.settings.console_cookie_secure, httponly=True)
+    return response
+
+
 @router.get("/passkeys")
 async def list_passkeys(current: Reader, svc: Toolbox) -> dict[str, Any]:
     return await passkeys.list_passkeys(svc, current)
@@ -268,7 +326,19 @@ async def list_projects(org_text: str, current: Reader, svc: Toolbox) -> dict[st
 
 @router.post("/orgs/{org_text}/members", status_code=201)
 async def add_member(org_text: str, body: NewMember, current: Changer, svc: Toolbox) -> dict[str, Any]:
+    """Add an account; an address without one is invited instead (`"pending": true`, decision D44)."""
     return await console.add_member(svc, current, org_text, body.email, body.role)
+
+
+@router.get("/orgs/{org_text}/invitations")
+async def list_invitations(org_text: str, current: Reader, svc: Toolbox) -> dict[str, Any]:
+    return await console.list_invitations(svc, current, org_text)
+
+
+@router.delete("/orgs/{org_text}/invitations/{invitation_text}", status_code=204)
+async def cancel_invitation(org_text: str, invitation_text: str, current: Changer, svc: Toolbox) -> Response:
+    await console.cancel_invitation(svc, current, org_text, invitation_text)
+    return Response(status_code=204)
 
 
 @router.patch("/orgs/{org_text}/members/{user_text}")
@@ -284,9 +354,32 @@ async def remove_member(org_text: str, user_text: str, current: Changer, svc: To
     return Response(status_code=204)
 
 
+@router.post("/orgs/{org_text}/projects", status_code=201)
+async def create_project(org_text: str, body: NewProject, current: Changer, svc: Toolbox) -> dict[str, Any]:
+    return await console.create_project(svc, current, org_text, body.name, body.allowed_origins)
+
+
+@router.patch("/orgs/{org_text}/projects/{project_text}")
+async def update_project(
+    org_text: str, project_text: str, body: ProjectChange, current: Changer, svc: Toolbox
+) -> dict[str, Any]:
+    return await console.update_project(svc, current, org_text, project_text, body.name, body.allowed_origins)
+
+
 @router.post("/orgs/{org_text}/projects/{project_text}/keys", status_code=201)
 async def create_key(org_text: str, project_text: str, body: NewKey, current: Changer, svc: Toolbox) -> dict[str, Any]:
     return await console.create_key(svc, current, org_text, project_text, body.scopes, body.livemode)
+
+
+@router.get("/orgs/{org_text}/projects/{project_text}/keys")
+async def project_keys(org_text: str, project_text: str, current: Reader, svc: Toolbox) -> dict[str, Any]:
+    return await console.project_keys(svc, current, org_text, project_text)
+
+
+@router.delete("/orgs/{org_text}/projects/{project_text}/keys/{key_text}", status_code=204)
+async def revoke_key(org_text: str, project_text: str, key_text: str, current: Changer, svc: Toolbox) -> Response:
+    await console.revoke_key(svc, current, org_text, project_text, key_text)
+    return Response(status_code=204)
 
 
 @router.get("/orgs/{org_text}/audit")

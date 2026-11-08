@@ -1,5 +1,5 @@
 ---
-fingerprint: 43ea1e0a49e73625
+fingerprint: 1bce4226ff2f6c5c
 ---
 The **integration tests**: the whole API, end to end, against the *real* things it depends on —
 
@@ -846,490 +846,487 @@ The owner's audit log, oldest first: the organisation's creation, two members ad
 @@ 1471
 The analyst may not read the audit log.
 
-@@ 1474-1476
-**Test — sign-in limits.** At most 2 attempts at once, then one every two minutes.
-
-@@ 1477-1479
+@@ 1718-1720
 A browser at an address of its own. `ASGITransport(…, client=…)` sets the address the API sees the request coming from; `192.0.2.x` is a range reserved for documentation and tests. Without it, every other test's sign-ins would already have used up this address's allowance.
 
-@@ 1480-1485
+@@ 1721-1726
 Sign up, then try a wrong password three times.
 
-@@ 1486-1487
+@@ 1727-1728
 Two ordinary refusals, then `429 too_many_sign_ins`, with a `Retry-After` of at least a second.
 
-@@ 1490-1492
+@@ 1731-1733
 **The contract test (Phase 4, step 6).** `live_api` — Schemathesis sends real HTTP, so the API runs as a real server for these tests. `scope="module"` starts it once for the whole file rather than once per test.
 
-@@ 1493-1501
+@@ 1734-1742
 Its settings: the test databases; webhook addresses never looked up (the fuzzer invents host names); a cookie allowed over plain HTTP; and limits so high that the fuzzer's many requests aren't simply refused with `429`.
 
-@@ 1502
+@@ 1743
 Seed a project and a key for it.
 
-@@ 1503
+@@ 1744
 A uvicorn server for the API, on `127.0.0.1` and **port 0**, which asks the operating system for any free port, so the test never collides with something already running.
 
-@@ 1504-1505
+@@ 1745-1746
 Run it in a background **thread**: `daemon=True` means the thread won't keep Python alive if the tests end without stopping it.
 
-@@ 1506-1507
+@@ 1747-1748
 Wait, a twentieth of a second at a time, until the server says it has started.
 
-@@ 1508
+@@ 1749
 Read which port it was given.
 
-@@ 1509
+@@ 1750
 Hand the tests the server's address and the key.
 
-@@ 1510-1511
+@@ 1751-1752
 Afterwards, ask the server to stop, and wait up to ten seconds for its thread to finish.
 
-@@ 1514-1516
+@@ 1755-1757
 **`live_document`** — Schemathesis reads the API's document from the running server, exactly as a website's developer would.
 
-@@ 1519
+@@ 1760
 `contract` — tells Schemathesis to take the document from that fixture. A document known only once the server runs can't be read while pytest is still collecting tests, so it is fetched lazily, from the fixture.
 
-@@ 1522-1523
+@@ 1763-1764
 `@contract.parametrize()` turns the test into one sub-test per operation in the document: 31 of them. `@settings` gives each 25 generated requests, no time limit per request (`deadline=None`), and turns off Hypothesis's health checks, which would complain that each example is slow (it is a real HTTP request).
 
-@@ 1524-1525
+@@ 1765-1766
 **Test — the contract.** For each generated request (`case`):
 
-@@ 1526-1528
+@@ 1767-1769
 Every check but one. `positive_data_acceptance` insists that a request the document allows must succeed. But some of the API's rules depend on data, not just shape: whether the age model is calibrated for an age, whether an address is among the project's allowed origins. Refusing such a request with `422` is correct.
 
-@@ 1529
+@@ 1770
 Send it to the server with the website's key, and check the answer: never a server error, a status code the document lists for this operation, a content type it lists, a body that matches the schema for that status, and the headers HTTP requires (such as `Allow` on a `405`). Any failure prints the exact request, as a `curl` command to reproduce it.
 
-@@ 1532-1534
+@@ 1773-1775
 **Test — no drift.** `docs/api/openapi.json` is what websites read; the docstring says how to refresh it.
 
-@@ 1535
+@@ 1776
 The file must equal, byte for byte, what the code produces now. A change to the API without refreshing the document fails here.
 
-@@ 1538-1540
+@@ 1779-1781
 **Fail-closed tests (Phase 7).** Valkey unreachable. "Gone" is simulated by an address where nothing listens: port 1 on this computer.
 
-@@ 1541-1544
+@@ 1782-1785
 Settings with that Valkey and the real database; a key; and an API started with them (its inference client is never reached).
 
-@@ 1545-1548
+@@ 1786-1789
 Try to create a session — the API key's rate limit needs Valkey — and ask whether the API is ready.
 
-@@ 1549-1551
+@@ 1790-1792
 The session request gets `503 service_unavailable` with `Retry-After: 5` (not a crash, not a pass), and readiness reports exactly what is wrong: the database is fine, Valkey isn't.
 
-@@ 1554-1555
+@@ 1795-1796
 **`unreachable`** — an inference service that is down: every request fails to connect.
 
-@@ 1558-1559
+@@ 1799-1800
 **`broken`** — an inference service that answers, but with nonsense: valid JSON that isn't an analysis.
 
-@@ 1562-1567
+@@ 1803-1808
 **Fail closed when inference fails.** The test runs twice, once with each broken service (`parametrize`).
 
-@@ 1568-1574
+@@ 1809-1815
 An API whose inference client sends every request to the broken service, and a harness around it.
 
-@@ 1575-1578
+@@ 1816-1819
 Create a session, start it, and make two attempts with a real face.
 
-@@ 1579-1580
+@@ 1820-1821
 Neither attempt passes — the face would have passed with a working service — and the first is a `retry`: the person may try again, but nobody is let in on a failure.
 
-@@ 1583
+@@ 1824
 **Chaos tests** (Phase 7). The roadmap asks for *fail-closed chaos tests*: services killed in the middle of a check. They were first done by hand, stopping containers during a load test (§5.7.6); these tests do it on every run, so a change can't quietly break it. Each asks two questions: while a service is down, does anything pass? And once it is back, can a person finish their check?
 
-@@ 1586-1589
+@@ 1827-1830
 **`Cutter`** — a small **TCP relay**: the API connects to it instead of to the real PostgreSQL or Valkey, and it passes the bytes on both ways. *Cutting* it drops every open connection at once and hangs up on new ones — to the API, exactly as if the service had died. *Restoring* lets connections through again, as after a restart. The containers themselves are never touched, so the other tests sharing them are safe.
 
-@@ 1591-1595
+@@ 1832-1836
 Where to relay to; not cut yet; the open connections (both ends of each), so they can all be dropped; and the listening server, once started.
 
-@@ 1597-1599
+@@ 1838-1840
 Entering the `async with`: listen on a free port on this computer (port `0` asks the system to choose one); each new connection runs `relay`.
 
-@@ 1601-1604
+@@ 1842-1845
 Leaving it: drop everything, and stop listening.
 
-@@ 1606-1609
+@@ 1847-1850
 **`port`** — the port the system chose. `@property` lets it be read like a field (`cutter.port`) though it is worked out each time.
 
-@@ 1611-1614
+@@ 1852-1855
 **`relay`** — one connection from the API. While cut, hang up at once: `abort` closes the connection without the usual polite goodbye, as a dead service would.
 
-@@ 1615-1617
+@@ 1856-1858
 Otherwise, connect to the real service, and remember both ends.
 
-@@ 1618-1619
+@@ 1859-1860
 Copy both ways at the same time (`gather` runs the two copies together) until the connection ends; then forget it.
 
-@@ 1621-1624
+@@ 1862-1865
 **`cut`** — from now on, refuse; and drop every open connection. `list(…)` takes a copy first, because dropping them changes the set.
 
-@@ 1626-1627
+@@ 1867-1868
 **`restore`** — let connections through again.
 
-@@ 1630-1631
+@@ 1871-1872
 **`pipe`** — copy one direction of a connection.
 
-@@ 1632-1635
+@@ 1873-1876
 Read up to 64 KB at a time and pass it on, until the source ends (an empty read). `:=` (the "walrus") reads and tests in one go. `drain` waits while the other side is slow. A connection that is cut raises a connection error — expected here, so `suppress` ignores it.
 
-@@ 1636
+@@ 1877
 When one direction ends, drop the other side too, so neither half is left hanging.
 
-@@ 1639-1641
+@@ 1880-1882
 **`chaos`** — the test databases, reached through two cutters: it hands back the new addresses (to give to the harness), and the cutters for PostgreSQL and Valkey.
 
-@@ 1642-1644
+@@ 1883-1885
 Take both addresses apart, and check they have a host and a port.
 
-@@ 1645-1648
+@@ 1886-1889
 Start one cutter for each service.
 
-@@ 1649-1650
+@@ 1890-1891
 Build the addresses that lead through them — the same database, but on this computer at the cutter's port — and hand everything to the test. `hide_password=False`: the address must keep the (throwaway) password to work.
 
-@@ 1653-1654
+@@ 1894-1895
 **`Switch`** — the same idea for the inference service, which the tests reach through httpx rather than a socket: a **transport** (what httpx sends requests through) put in front of the real one.
 
-@@ 1656-1659
+@@ 1897-1900
 The real transport, set later; not down; and `on_call`, something to do on every call — nothing by default (`lambda: None` is a function that does nothing).
 
-@@ 1661-1663
+@@ 1902-1904
 **`around`** — the function given to the harness as `inference_via`: keep the real transport, and use the switch in its place.
 
-@@ 1665-1669
+@@ 1906-1910
 Every call: first run `on_call`; then, if the switch is down, fail exactly as an unreachable service does (`ConnectError`); otherwise pass the request on.
 
-@@ 1672-1673
+@@ 1913-1914
 **`unavailable`** — the three things a "try again shortly" answer must have: status `503`, the code `service_unavailable`, and `Retry-After`.
 
-@@ 1676-1678
+@@ 1917-1919
 **`outcome_of`** — what the website would see: the session's status and outcome, read with its API key.
 
-@@ 1681-1685
+@@ 1922-1926
 **Valkey dies in the middle of a check.** Everything goes through the cutters. A session is created and started, and a challenge fetched while all is well.
 
-@@ 1686-1689
+@@ 1927-1930
 Valkey dies. The person sends their frames; then the readiness check is asked.
 
-@@ 1690-1692
+@@ 1931-1933
 Valkey comes back. The person tries again, and the website reads the result.
 
-@@ 1693-1695
+@@ 1934-1936
 While Valkey was down: "try again shortly", and readiness names Valkey. Afterwards: the same connection pool recovered on its own, the face passes, and the session is complete — passed once.
 
-@@ 1698-1705
+@@ 1939-1946
 **The database dies between two steps** — the same story with PostgreSQL.
 
-@@ 1706-1711
+@@ 1947-1952
 The database dies before the frames arrive; readiness is asked; the database comes back; the person tries again.
 
-@@ 1712-1714
+@@ 1953-1955
 While it was down, nothing was decided ("try again shortly", readiness names the database); afterwards the pool's *pre-ping* (`db.py`) noticed the dropped connections and made new ones, and the check passed.
 
-@@ 1717-1721
+@@ 1958-1962
 **The database dies while a face is being analysed** — the hardest moment: after the attempt was accepted and its challenge used up, before the decision is written. The switch in front of inference makes that moment happen.
 
-@@ 1722-1725
+@@ 1963-1966
 On the inference call, cut the database (`on_call`).
 
-@@ 1726-1728
+@@ 1967-1969
 The attempt; then the switch is cleared, and the database comes back.
 
-@@ 1729-1731
+@@ 1970-1972
 What the website sees now; a new attempt; and what it sees after.
 
-@@ 1732-1734
+@@ 1973-1975
 The attempt answered "try again shortly" — the analysis is thrown away, never half-recorded. The session was untouched (still `in_progress`, no outcome), and the next attempt passed.
 
-@@ 1737-1740
+@@ 1978-1981
 **Inference dies and comes back.** (The fail-closed test above has it dead throughout.)
 
-@@ 1741-1747
+@@ 1982-1988
 Inference goes down; an attempt; it comes back; another attempt; the result.
 
-@@ 1748-1749
+@@ 1989-1990
 While down: a `retry`, with 2 tries left — the person loses one try but isn't let in. Afterwards: a pass.
 
-@@ 1752-1757
+@@ 1993-1998
 **Security headers (Phase 7).** A refusal (no key), the public key set, and the interactive documentation.
 
-@@ 1758-1763
+@@ 1999-2004
 Every answer carries `nosniff`, the strict content policy, `no-referrer` and (since Phase 7) `Cross-Origin-Resource-Policy: same-origin`. HSTS isn't sent outside production: over plain HTTP it would mean nothing.
 
-@@ 1764-1766
+@@ 2005-2007
 Answers are `no-store` unless their route says otherwise: the key set keeps its own five-minute public caching. The documentation page has no content policy, which would stop its scripts.
 
-@@ 1769-1777
+@@ 2010-2018
 **Production.** Settings a production deployment would accept: a real-looking master key and HTTPS addresses. The app isn't started, because `/livez` needs no database.
 
-@@ 1778-1781
+@@ 2019-2022
 Ask for `/livez`, the documentation page and the API document.
 
-@@ 1782-1783
+@@ 2023-2024
 HSTS is sent (two years); the interactive documentation doesn't exist (`404`); the API document is still published.
 
-@@ 1786-1792
+@@ 2027-2033
 **Test — the console's project pages (Phase 5).** An owner and an analyst, each with their own browser.
 
-@@ 1793-1798
+@@ 2034-2039
 The owner signs up; the analyst signs up; the owner adds the analyst to the organisation.
 
-@@ 1799-1802
+@@ 2040-2043
 The owner finds the organisation's project and creates a key for it in the console.
 
-@@ 1803
+@@ 2044
 A website using that key: the harness, copied with the key changed (`replace`).
 
-@@ 1804-1806
+@@ 2045-2047
 The website creates a session — without a return address, because this new project hasn't allowed any yet — and a person passes it.
 
-@@ 1808-1810
+@@ 2049-2051
 The analyst reads the project's sessions, the passed session's trace, and the last week's counts.
 
-@@ 1811-1814
+@@ 2052-2055
 The analyst and then the owner try to add a policy version; the analyst lists the policies.
 
-@@ 1815
+@@ 2056
 The analyst tries the harness's own project — which belongs to another organisation — under this organisation's address.
 
-@@ 1816-1817
+@@ 2057-2058
 The one session is listed; its trace has one attempt, and it passed.
 
-@@ 1818-1819
+@@ 2059-2060
 The attempt carries its numbers: the age probability, the line it met, and the liveness evidence.
 
-@@ 1820
+@@ 2061
 Reading a trace made no token.
 
-@@ 1821
+@@ 2062
 The counts show one pass.
 
-@@ 1822-1824
+@@ 2063-2065
 An analyst may not add a policy version; the owner may, and it is listed as `console_18@1`.
 
-@@ 1825
+@@ 2066
 Another organisation's project, named under this organisation, is not found — the check that the project belongs to the organisation in the address.
 
-@@ 1828-1831
+@@ 2069-2072
 **Test — the console's webhooks (Phase 5).** An owner and an analyst. Private addresses are allowed, so the endpoint can point at this computer (`localhost:9`, where nothing listens — nothing is sent in this test).
 
-@@ 1832-1838
+@@ 2073-2079
 The owner signs up, the analyst signs up and is added, and the owner finds the project.
 
-@@ 1839-1840
+@@ 2080-2081
 The project's webhook address, and an endpoint for finished sessions.
 
-@@ 1842-1845
+@@ 2083-2086
 The analyst tries to add it; the owner adds it; the analyst tries to list them; the owner lists the live ones.
 
-@@ 1846-1850
+@@ 2087-2091
 The owner sends a test event, reads the endpoint's deliveries, and replays the first.
 
-@@ 1851-1854
+@@ 2092-2095
 The owner tries to delete it as a live endpoint, then deletes it as the test one it is; lists again; and reads the audit log.
 
-@@ 1855
+@@ 2096
 An analyst may not add one.
 
-@@ 1856
+@@ 2097
 The owner's new endpoint came with its secret, and is a test endpoint.
 
-@@ 1857
+@@ 2098
 An analyst may not even list them; and the live mode has none — modes never mix.
 
-@@ 1858-1859
+@@ 2099-2100
 The test event is waiting to be delivered (no worker runs here); the replay is accepted.
 
-@@ 1860
+@@ 2101
 The wrong mode is "not found"; the deletion worked, and the list is empty.
 
-@@ 1861-1862
+@@ 2102-2103
 The audit log names a person (`user:…`), not a key, for both the creation and the deletion.
 
-@@ 1865-1872
+@@ 2106-2113
 **Test — the owner rules for members (Phase 5).** Three people, each with their own browser: an owner, an admin, and one more.
 
-@@ 1873-1877
+@@ 2114-2118
 All three sign up.
 
-@@ 1878-1880
+@@ 2119-2121
 The owner adds the admin as an admin, and the third person as an analyst.
 
-@@ 1881-1882
+@@ 2122-2123
 Everyone's IDs: the third person's from the answer, the owner's from `/me`, the admin's from the member list.
 
-@@ 1884-1886
+@@ 2125-2127
 The admin promotes the analyst to developer, then tries to make them an owner; the only owner tries to step down to admin.
 
-@@ 1887-1888
+@@ 2128-2129
 The owner makes the third person an owner, and then steps down — allowed now, since there are two.
 
-@@ 1889-1891
+@@ 2130-2132
 The admin tries to remove the new owner; the new owner removes the admin; and tries to remove an ID that isn't anyone's.
 
-@@ 1892-1893
+@@ 2133-2134
 What remains, and the audit log.
 
-@@ 1894
+@@ 2135
 An admin may change a member who isn't an owner.
 
-@@ 1895
+@@ 2136
 An admin may not make an owner.
 
-@@ 1896
+@@ 2137
 The last owner may not step down.
 
-@@ 1897
+@@ 2138
 With two owners, one may.
 
-@@ 1898
+@@ 2139
 An admin may not remove an owner; an owner may remove an admin; an unknown member is not found.
 
-@@ 1899
+@@ 2140
 Left: the first owner (now an admin) and the new owner.
 
-@@ 1900-1901
+@@ 2141-2142
 The audit log holds exactly the four changes that happened — refusals leave no trace.
 
-@@ 1904-1909
+@@ 2145-2150
 **Test — unstorable text is refused (Phase 5).** Sign in with an address containing NUL — the kind of input the contract tests found: `422 invalid_text`, not a server error.
 
-@@ 1912-1915
+@@ 2153-2156
 **Test — the model page** (§5.5.2): anyone signed in can read which model is deciding and how it was made, and nothing about its build.
 
-@@ 1916-1917
+@@ 2157-2158
 Run the API with the trained model's manifest — the one with sources and measured bounds — rather than the stub.
 
-@@ 1918-1920
+@@ 2159-2161
 Ask before signing in, then sign up and ask again.
 
-@@ 1921
+@@ 2162
 Signed out, the answer is the usual 401.
 
-@@ 1922-1924
+@@ 2163-2165
 Signed in: the version, that it isn't calibrated for live use, its permitted use, the faces it learnt from and the number it was calibrated on.
 
-@@ 1925-1926
+@@ 2166-2167
 The line for 18: its 7.5 % risk budget, and a measured worst case for minors within it.
 
-@@ 1927-1928
+@@ 2168-2169
 And the line's adult outcomes: the youngest band, 18 to 20, measured on 330 faces — most of whom, as the comment says, a line this careful sends to a stronger check.
 
-@@ 1929-1930
+@@ 2170-2171
 And none of the internal details of the file — the checksum, the build's commit, the file's name or the note that it was built from uncommitted code — is in the answer.
 
-@@ 1933-1937
+@@ 2174-2178
 **Test — the model's performance is published to anyone, without its scores** (§5.5.9). With the trained model, ask `/v1/model` with no key and no sign-in…
 
-@@ 1938-1940
+@@ 2179-2181
 …and it answers, cacheable for five minutes, with the model's version and the fact that it isn't calibrated.
 
-@@ 1941-1942
+@@ 2182-2183
 The 18+ line carries its bounds (the minors' under its budget) and its adults' outcomes, starting with 18 to 20.
 
-@@ 1943
+@@ 2184
 But neither of each line's two scores: they would only help someone tuning an attack.
 
-@@ 1946-1950
+@@ 2187-2191
 **Test — the production session cookie (Phase 5).** The browser tests now run with a plain cookie (WebKit drops `Secure` ones on plain HTTP), so this test checks the real one: with the production setting, sign up and read the `Set-Cookie` header.
 
-@@ 1951-1952
+@@ 2192-2193
 Sign up.
 
-@@ 1953-1954
+@@ 2194-2195
 The cookie's name starts with `__Host-`, so browsers insist it is `Secure`, for path `/`, with no `Domain`: no other site can set or read it.
 
-@@ 1955-1956
+@@ 2196-2197
 Its attributes include `HttpOnly` (no script can read it), `Secure` (HTTPS only), `Path=/` and `SameSite=Lax`.
 
-@@ 1957
+@@ 2198
 And no `Domain`, which would share it with other hosts.
 
-@@ 1960-1966
+@@ 2201-2207
 **Test — switching an endpoint off and on** (Phase 5). A website registers an endpoint.
 
-@@ 1967-1969
+@@ 2208-2210
 Switch it off, send a test event, and read its deliveries.
 
-@@ 1970-1972
+@@ 2211-2213
 Switch it back on, and do the same.
 
-@@ 1973
+@@ 2214
 And try to switch an endpoint that doesn't exist.
 
-@@ 1974
+@@ 2215
 The answers said off, then on.
 
-@@ 1975
+@@ 2216
 While off, nothing was queued for it.
 
-@@ 1976
+@@ 2217
 Back on, the test event waits to be delivered.
 
-@@ 1977
+@@ 2218
 An unknown endpoint is not found.
 
-@@ 1980-1982
+@@ 2221-2223
 **Test — listing sessions by outcome and by reference** (Phase 5).
 
-@@ 1983-1985
+@@ 2224-2226
 A session with the website's reference `order-1`, which a person passes.
 
-@@ 1986
+@@ 2227
 Another, `order-2`, not yet started.
 
-@@ 1987-1991
+@@ 2228-2232
 List the passed ones; the one for `order-2`; one for a reference nobody used; and ask for an outcome that doesn't exist.
 
-@@ 1992-1994
+@@ 2233-2235
 Exactly the passed session; exactly `order-2`'s; and nothing.
 
-@@ 1995
+@@ 2236
 An unknown outcome is refused, not silently ignored.
 
-@@ 1998-2003
+@@ 2239-2244
 **Test — recovery codes, and switching codes off** (Phase 5).
 
-@@ 2004-2008
+@@ 2245-2249
 Sign up, ask for a secret, and confirm the current code: the answer holds the recovery codes.
 
-@@ 2009-2012
+@@ 2250-2253
 Sign in with the first recovery code, typed as someone might copy it from paper — capitals, a space instead of the dash. Keep the new session's CSRF token.
 
-@@ 2013
+@@ 2254
 Try the same recovery code again.
 
-@@ 2014-2015
+@@ 2255-2256
 Ask for a fresh set, then try one of the old set.
 
-@@ 2016-2022
+@@ 2257-2263
 Try to switch codes off with a wrong password, then with the right password and the next code.
 
-@@ 2023
+@@ 2264
 Sign in with the password alone.
 
-@@ 2024
+@@ 2265
 Ten different codes, each of the shape `abcde-fghij`.
 
-@@ 2025
+@@ 2266
 The recovery code signed in, and nine are left.
 
-@@ 2026
+@@ 2267
 Each works once.
 
-@@ 2027
+@@ 2268
 The fresh set shares nothing with the old, and the old no longer works.
 
-@@ 2028
+@@ 2269
 A wrong password is refused.
 
-@@ 2029-2030
+@@ 2270-2271
 With the right password and code, codes are off — and the password alone signs in again.
 
 @@ 403-404
@@ -1499,3 +1496,174 @@ The token's `methods` are the document and the face match only — no `face_esti
 
 @@ 543-554
 **Discovery and readiness.** The configuration document names Ed25519 and admits the model is uncalibrated; the key set may be cached for 5 minutes and holds only Ed25519 keys; and `/readyz` reports both databases as `ok`. And it says live checks are decided by a document (`live_checks`, D24).
+
+@@ 1474-1479
+**Test — a project made in the console** (decisions D28, D29, and deploy step 7): an owner makes a project with its website's origin, a key for it, and a session that returns there; origins are checked and written one way; changes are audited; developers can't make projects.
+
+@@ 1480-1486
+An owner signs up; a second person signs up and is added as a developer.
+
+@@ 1487-1492
+A project with two spellings of the same origin…
+
+@@ 1493-1496
+…four origins that aren't allowed: a path, `http` for another computer, a wildcard, another scheme…
+
+@@ 1497-1499
+…and a project the developer tries to make.
+
+@@ 1500-1505
+The owner renames the project and replaces its origins, adding this computer's demo shop.
+
+@@ 1506-1508
+A key for the project.
+
+@@ 1509-1518
+A session returning to the shop's origin — written in capitals, with a path and a query — and one returning to another website.
+
+@@ 1519
+The audit log.
+
+@@ 1520-1522
+The project was made, its origins written one way with the duplicate dropped; the four others were refused.
+
+@@ 1523-1525
+The developer was refused; the rename and the new origins took.
+
+@@ 1526-1527
+The session was accepted — only the origin counts — and the other website's refused.
+
+@@ 1528-1531
+The audit log ends with the project made, changed and given a key; the change records the name from and to.
+
+@@ 1534-1535
+**Test — at most 20 projects** (decision D28).
+
+@@ 1536-1541
+An owner makes 20 more projects, one after another.
+
+@@ 1542-1543
+Nineteen are made — the one made at sign-up counts too — and the twentieth is refused with `too_many_projects`.
+
+@@ 1546-1550
+**Test — keys listed and stopped** (decision D30): the console lists a project's keys, never their secrets, and stops one at once.
+
+@@ 1551-1559
+An owner, and an analyst added to the organisation; the default project's keys address.
+
+@@ 1560-1562
+Two keys; the first works.
+
+@@ 1563-1564
+The owner lists the keys; the analyst tries to.
+
+@@ 1565-1567
+The first key is stopped, then stopped again, and an unknown key is stopped.
+
+@@ 1568-1571
+Both keys are tried, the states listed, and the audit log read.
+
+@@ 1572-1575
+The first key worked before; the list is newest first and holds no secret; the analyst was refused.
+
+@@ 1576-1577
+Stopping twice is fine both times; an unknown key isn't found.
+
+@@ 1578-1580
+The stopped key is refused at once, the other still works, and the states say so.
+
+@@ 1581
+Stopping twice is recorded once.
+
+@@ 1584-1587
+**Test — invitations** (decision D44): no e-mail is sent; the invitation waits, can be cancelled, and is taken when that address signs up.
+
+@@ 1588-1592
+An address without an account; an owner and their organisation's members address.
+
+@@ 1593-1594
+The address is invited as a developer — in capitals — and then again.
+
+@@ 1595-1597
+The waiting invitation is listed, cancelled, and the list is empty.
+
+@@ 1598-1601
+Invited again, as an analyst; the person signs up; the list and the audit log are read.
+
+@@ 1602-1606
+The first invitation was pending, written in lower case; the second was refused; the list showed the developer invitation, and cancelling emptied it.
+
+@@ 1607-1609
+The new person belongs to their own organisation and to the one that invited them, as an analyst; the invitation was taken.
+
+@@ 1610-1613
+The audit log tells the story in order, never names the address, and its chain is intact.
+
+@@ 1616-1619
+**Test — a new password** (decision D31): every other session ends; this browser carries on with a new cookie.
+
+@@ 1620-1625
+A person signs up in one browser and signs in from another.
+
+@@ 1626-1631
+A change with a wrong current password, and one with too short a new password…
+
+@@ 1632-1634
+…and a proper change.
+
+@@ 1635-1639
+Both browsers try again; the old and the new password are tried; the audit log is read.
+
+@@ 1640-1642
+The other browser had signed in; the wrong password and the weak one were refused.
+
+@@ 1643-1645
+The change gave a new CSRF token; this browser is still signed in, the other is not.
+
+@@ 1646-1647
+The old password no longer works, the new one does, and the change is in the audit log.
+
+@@ 1650-1655
+**Test — deleting an account** (decision D32): an organisation of one closes, a shared one loses a member, an only owner with others must hand over first, and the address is free again.
+
+@@ 1656-1663
+Four people, each in their own browser.
+
+@@ 1664-1671
+The leaving person signs up — their organisation of one — and makes a key.
+
+@@ 1672-1678
+Another person's organisation adds them as a developer.
+
+@@ 1679-1680
+A deletion with a wrong password, then a proper one.
+
+@@ 1681-1684
+Afterwards: their browser, their key, the shared organisation's members and its audit log.
+
+@@ 1685
+The same address signs up again.
+
+@@ 1687-1693
+An owner whose organisation has another member tries to delete their account…
+
+@@ 1694-1700
+…makes the other member an owner, and tries again.
+
+@@ 1701
+The organisation's members afterwards.
+
+@@ 1702-1705
+The wrong password was refused; the deletion worked; the browser is signed out; the organisation of one was closed, so its key stopped at once.
+
+@@ 1706-1708
+The shared organisation lost the member, recorded it with an intact chain — and the audit log never names the address.
+
+@@ 1709
+Nothing of the address was kept: it signed up again.
+
+@@ 1710-1712
+The only owner was refused until ownership was handed over; then the organisation stayed, with the other person as its owner.
+
+@@ 1715-1717
+**Test — sign-in limits.** At most 2 attempts at once, then one every two minutes.

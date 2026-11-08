@@ -1472,6 +1472,247 @@ async def test_roles_decide_what_each_member_may_do_and_outsiders_see_nothing(da
 
 
 @pytest.mark.anyio
+async def test_a_project_made_in_the_console_takes_checks_that_return_to_its_own_origins(
+    databases: tuple[str, str],
+) -> None:
+    """Decisions D28 and D29, and deploy step 7: an owner makes a project with its website's origin, a key for it, and
+    a session that returns there; origins are checked and written one way; changes are audited; developers can't."""
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as owner, person(h) as developer:
+        me = await sign_up(owner, unique("projects"))
+        org, token = me["organisations"][0]["id"], {"X-CSRF-Token": me["csrf_token"]}
+        dev = await sign_up(developer, unique("projdev"), "Their own Ltd")
+        await owner.post(
+            f"{CONSOLE}/orgs/{org}/members", json={"email": dev["email"], "role": "developer"}, headers=token
+        )
+        projects = f"{CONSOLE}/orgs/{org}/projects"
+        made = await owner.post(
+            projects,
+            json={"name": "Shop", "allowed_origins": ["HTTPS://Shop.Example:443/", "https://shop.example"]},
+            headers=token,
+        )
+        bad = [
+            await owner.post(projects, json={"name": "X", "allowed_origins": [origin]}, headers=token)
+            for origin in ("https://shop.example/cellar", "http://shop.example", "https://*.example", "ftp://x.example")
+        ]
+        by_developer = await developer.post(
+            projects, json={"name": "Mine"}, headers={"X-CSRF-Token": dev["csrf_token"]}
+        )
+        project = made.json()["id"]
+        renamed = await owner.patch(
+            f"{projects}/{project}",
+            json={"name": "Cellar shop", "allowed_origins": ["https://shop.example", "http://localhost:3100"]},
+            headers=token,
+        )
+        key = (
+            await owner.post(f"{projects}/{project}/keys", json={"scopes": ["sessions:write"]}, headers=token)
+        ).json()
+        session = await h.client.post(
+            "/v1/verification-sessions",
+            json={"policy": "uk_osa_18", "return_url": "https://SHOP.example/age-check/done?x=1"},
+            headers=bearer_of(key["key"]),
+        )
+        foreign = await h.client.post(
+            "/v1/verification-sessions",
+            json={"policy": "uk_osa_18", "return_url": "https://elsewhere.example/done"},
+            headers=bearer_of(key["key"]),
+        )
+        log = (await owner.get(f"{CONSOLE}/orgs/{org}/audit")).json()
+    assert made.status_code == 201, made.text
+    assert made.json()["allowed_origins"] == ["https://shop.example"]  # written one way, duplicates dropped
+    assert [b.json()["code"] for b in bad] == ["invalid_origin"] * 4
+    assert (by_developer.status_code, by_developer.json()["code"]) == (403, "forbidden_for_role")
+    assert renamed.json()["name"] == "Cellar shop"
+    assert renamed.json()["allowed_origins"] == ["https://shop.example", "http://localhost:3100"]
+    assert session.status_code == 201, session.text  # any capitals or path: the origin is what counts
+    assert foreign.json()["code"] == "return_url_not_allowed"
+    actions = [entry["action"] for entry in reversed(log["data"])]
+    assert actions[-3:] == ["project.created", "project.updated", "api_key.created"]
+    updated = next(entry for entry in log["data"] if entry["action"] == "project.updated")
+    assert updated["data"]["name"] == {"from": "Shop", "to": "Cellar shop"}
+
+
+@pytest.mark.anyio
+async def test_an_organisation_may_have_at_most_twenty_projects(databases: tuple[str, str]) -> None:
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as owner:
+        me = await sign_up(owner, unique("many"))
+        org, token = me["organisations"][0]["id"], {"X-CSRF-Token": me["csrf_token"]}
+        made = [
+            await owner.post(f"{CONSOLE}/orgs/{org}/projects", json={"name": f"P{i}"}, headers=token) for i in range(20)
+        ]
+    assert [m.status_code for m in made] == [201] * 19 + [409]  # the sign-up's own project counts too
+    assert made[-1].json()["code"] == "too_many_projects"
+
+
+@pytest.mark.anyio
+async def test_keys_are_listed_without_their_secrets_and_a_revoked_key_stops_at_once(
+    databases: tuple[str, str],
+) -> None:
+    """Decision D30: the console lists a project's keys — never their secrets — and revokes one at once."""
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as owner, person(h) as analyst:
+        me = await sign_up(owner, unique("keys"))
+        org, token = me["organisations"][0]["id"], {"X-CSRF-Token": me["csrf_token"]}
+        reader = await sign_up(analyst, unique("keyreader"), "Their own Ltd")
+        await owner.post(
+            f"{CONSOLE}/orgs/{org}/members", json={"email": reader["email"], "role": "analyst"}, headers=token
+        )
+        project = (await owner.get(f"{CONSOLE}/orgs/{org}/projects")).json()["data"][0]["id"]
+        keys = f"{CONSOLE}/orgs/{org}/projects/{project}/keys"
+        first = (await owner.post(keys, json={"scopes": ["sessions:read"]}, headers=token)).json()
+        second = (await owner.post(keys, json={"scopes": ["sessions:read"]}, headers=token)).json()
+        before = await h.client.get("/v1/verification-sessions", headers=bearer_of(first["key"]))
+        listed = await owner.get(keys)
+        not_for_analysts = await analyst.get(keys)
+        revoked = await owner.delete(f"{keys}/{first['id']}", headers=token)
+        again = await owner.delete(f"{keys}/{first['id']}", headers=token)
+        unknown = await owner.delete(f"{keys}/dk_nothing_here", headers=token)
+        after = await h.client.get("/v1/verification-sessions", headers=bearer_of(first["key"]))
+        other = await h.client.get("/v1/verification-sessions", headers=bearer_of(second["key"]))
+        states = {k["id"]: k["state"] for k in (await owner.get(keys)).json()["data"]}
+        log = (await owner.get(f"{CONSOLE}/orgs/{org}/audit")).json()
+    assert before.status_code == 200
+    assert [k["id"] for k in listed.json()["data"]] == [second["id"], first["id"]]  # newest first
+    assert first["key"] not in listed.text and second["key"] not in listed.text
+    assert (not_for_analysts.status_code, not_for_analysts.json()["code"]) == (403, "forbidden_for_role")
+    assert (revoked.status_code, again.status_code) == (204, 204)
+    assert (unknown.status_code, unknown.json()["code"]) == (404, "key_not_found")
+    assert after.status_code == 401  # stopped at once
+    assert other.status_code == 200  # and only that key
+    assert states == {first["id"]: "revoked", second["id"]: "active"}
+    assert [e["action"] for e in log["data"]].count("api_key.revoked") == 1  # revoking twice is recorded once
+
+
+@pytest.mark.anyio
+async def test_an_address_without_an_account_is_invited_and_joins_on_signing_up(databases: tuple[str, str]) -> None:
+    """Decision D44: no e-mail is sent; the invitation waits, can be cancelled, and is taken when that address signs
+    up — the new person joins with the role it named."""
+    newcomer = unique("newcomer")
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as owner, person(h) as them:
+        me = await sign_up(owner, unique("inviter"))
+        org, token = me["organisations"][0]["id"], {"X-CSRF-Token": me["csrf_token"]}
+        members = f"{CONSOLE}/orgs/{org}/members"
+        invited = await owner.post(members, json={"email": newcomer.upper(), "role": "developer"}, headers=token)
+        twice = await owner.post(members, json={"email": newcomer, "role": "analyst"}, headers=token)
+        waiting = (await owner.get(f"{CONSOLE}/orgs/{org}/invitations")).json()["data"]
+        cancelled = await owner.delete(f"{CONSOLE}/orgs/{org}/invitations/{waiting[0]['id']}", headers=token)
+        after_cancel = (await owner.get(f"{CONSOLE}/orgs/{org}/invitations")).json()["data"]
+        await owner.post(members, json={"email": newcomer, "role": "analyst"}, headers=token)
+        joined = await sign_up(them, newcomer, "Their own Ltd")
+        left_waiting = (await owner.get(f"{CONSOLE}/orgs/{org}/invitations")).json()["data"]
+        log = (await owner.get(f"{CONSOLE}/orgs/{org}/audit")).json()
+    assert invited.status_code == 201 and invited.json()["pending"] is True
+    assert invited.json()["email"] == newcomer  # written in lower case
+    assert (twice.status_code, twice.json()["code"]) == (409, "already_a_member")
+    assert [(w["email"], w["role"]) for w in waiting] == [(newcomer, "developer")]
+    assert (cancelled.status_code, after_cancel) == (204, [])
+    roles = {o["id"]: o["role"] for o in joined["organisations"]}
+    assert roles[org] == "analyst" and len(roles) == 2  # their own organisation, and the one that invited them
+    assert left_waiting == []  # taken on signing up
+    actions = [e["action"] for e in reversed(log["data"])]
+    assert actions[-4:] == ["member.invited", "member.invitation_cancelled", "member.invited", "member.joined"]
+    assert newcomer not in json.dumps(log)  # the audit names invitations by ID, not by address
+    assert log["chain"]["intact"] is True
+
+
+@pytest.mark.anyio
+async def test_a_new_password_ends_every_other_session(databases: tuple[str, str]) -> None:
+    """Decision D31: the old password (and a code, if switched on) changes it; every other session ends at once, and
+    this browser carries on with a new cookie."""
+    email, new = unique("newpass"), "an entirely different long passphrase"
+    async with harness(databases, **CONSOLE_SETTINGS) as h, person(h) as here, person(h) as elsewhere:
+        me = await sign_up(here, email)
+        other = (await elsewhere.post(f"{CONSOLE}/login", json={"email": email, "password": PASSWORD})).json()
+        assert (await elsewhere.get(f"{CONSOLE}/me")).status_code == 200
+        token = {"X-CSRF-Token": me["csrf_token"]}
+        wrong = await here.post(
+            f"{CONSOLE}/password", json={"password": "not the password!", "new_password": new}, headers=token
+        )
+        weak = await here.post(
+            f"{CONSOLE}/password", json={"password": PASSWORD, "new_password": "short"}, headers=token
+        )
+        changed = await here.post(
+            f"{CONSOLE}/password", json={"password": PASSWORD, "new_password": new}, headers=token
+        )
+        still_here = await here.get(f"{CONSOLE}/me")
+        gone = await elsewhere.get(f"{CONSOLE}/me")
+        old = await elsewhere.post(f"{CONSOLE}/login", json={"email": email, "password": PASSWORD})
+        fresh = await elsewhere.post(f"{CONSOLE}/login", json={"email": email, "password": new})
+        log = await here.get(f"{CONSOLE}/orgs/{me['organisations'][0]['id']}/audit")
+    assert other["csrf_token"]
+    assert (wrong.status_code, wrong.json()["code"]) == (403, "reauthentication_failed")
+    assert (weak.status_code, weak.json()["code"]) == (422, "weak_password")
+    assert changed.status_code == 200 and changed.json()["csrf_token"] != me["csrf_token"]
+    assert still_here.status_code == 200  # this browser was given a new session
+    assert (gone.status_code, gone.json()["code"]) == (401, "not_signed_in")  # the other one ended at once
+    assert (old.status_code, fresh.status_code) == (401, 200)
+    assert "user.password_changed" in [e["action"] for e in log.json()["data"]]
+
+
+@pytest.mark.anyio
+async def test_deleting_an_account_erases_the_person_and_closes_only_what_was_theirs_alone(
+    databases: tuple[str, str],
+) -> None:
+    """Decision D32: the account's organisation of one is closed (its keys stop at once); a shared organisation loses
+    a member; an only owner with others must hand over first; the e-mail address is free again."""
+    leaving, staying, sole_owner, helper = unique("leaving"), unique("staying"), unique("sole"), unique("helper")
+    async with (
+        harness(databases, **CONSOLE_SETTINGS) as h,
+        person(h) as them,
+        person(h) as other,
+        person(h) as owner,
+        person(h) as member,
+    ):
+        mine = await sign_up(them, leaving, "Alone Ltd")
+        own_org, token = mine["organisations"][0]["id"], {"X-CSRF-Token": mine["csrf_token"]}
+        project = (await them.get(f"{CONSOLE}/orgs/{own_org}/projects")).json()["data"][0]["id"]
+        key = (
+            await them.post(
+                f"{CONSOLE}/orgs/{own_org}/projects/{project}/keys", json={"scopes": ["sessions:read"]}, headers=token
+            )
+        ).json()["key"]
+        theirs = await sign_up(other, staying, "Shared Ltd")
+        shared = theirs["organisations"][0]["id"]
+        await other.post(
+            f"{CONSOLE}/orgs/{shared}/members",
+            json={"email": leaving, "role": "developer"},
+            headers={"X-CSRF-Token": theirs["csrf_token"]},
+        )
+        wrong = await them.post(f"{CONSOLE}/account/delete", json={"password": "not the password!"}, headers=token)
+        deleted = await them.post(f"{CONSOLE}/account/delete", json={"password": PASSWORD}, headers=token)
+        after = await them.get(f"{CONSOLE}/me")
+        stopped = await h.client.get("/v1/verification-sessions", headers=bearer_of(key))
+        members = (await other.get(f"{CONSOLE}/orgs/{shared}/members")).json()["data"]
+        shared_log = (await other.get(f"{CONSOLE}/orgs/{shared}/audit")).json()
+        again = await sign_up(them, leaving, "Back again Ltd")  # the address is free: nothing of it was kept
+
+        boss = await sign_up(owner, sole_owner, "Two of us Ltd")
+        boss_org, boss_token = boss["organisations"][0]["id"], {"X-CSRF-Token": boss["csrf_token"]}
+        await sign_up(member, helper, "Helper Ltd")
+        await owner.post(
+            f"{CONSOLE}/orgs/{boss_org}/members", json={"email": helper, "role": "developer"}, headers=boss_token
+        )
+        refused = await owner.post(f"{CONSOLE}/account/delete", json={"password": PASSWORD}, headers=boss_token)
+        helper_id = next(
+            m["user"]
+            for m in (await owner.get(f"{CONSOLE}/orgs/{boss_org}/members")).json()["data"]
+            if m["email"] == helper
+        )
+        await owner.patch(f"{CONSOLE}/orgs/{boss_org}/members/{helper_id}", json={"role": "owner"}, headers=boss_token)
+        handed_over = await owner.post(f"{CONSOLE}/account/delete", json={"password": PASSWORD}, headers=boss_token)
+        remaining = (await member.get(f"{CONSOLE}/orgs/{boss_org}/members")).json()["data"]
+    assert (wrong.status_code, wrong.json()["code"]) == (403, "reauthentication_failed")
+    assert deleted.status_code == 204
+    assert (after.status_code, after.json()["code"]) == (401, "not_signed_in")
+    assert stopped.status_code == 401  # the organisation of one was closed: its keys stopped at once
+    assert [m["email"] for m in members] == [staying]
+    assert "user.deleted" in [e["action"] for e in shared_log["data"]] and shared_log["chain"]["intact"] is True
+    assert leaving not in json.dumps(shared_log)  # the audit names the person by ID only
+    assert again["email"] == leaving
+    assert (refused.status_code, refused.json()["code"]) == (409, "hand_over_ownership")
+    assert handed_over.status_code == 204
+    assert [(m["email"], m["role"]) for m in remaining] == [(helper, "owner")]
+
+
+@pytest.mark.anyio
 async def test_sign_in_attempts_are_limited(databases: tuple[str, str]) -> None:
     async with harness(databases, console_cookie_secure=False, login_burst=2, login_per_minute=0.5) as h:
         # A browser at an address of its own, so that no other test's sign-ins count against it.

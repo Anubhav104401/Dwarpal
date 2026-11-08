@@ -31,6 +31,7 @@ export function AccountView() {
   const [error, setError] = useState<string | null>(null);
   const [keys, setKeys] = useState<PasskeyInfo[]>([]);
   const [supported, setSupported] = useState(false);
+  const [passwordChanged, setPasswordChanged] = useState(false);
 
   const load = useCallback(async () => {
     const who = await client.me();
@@ -111,6 +112,31 @@ export function AccountView() {
       await client.removePasskey(id);
       await load();
     });
+
+  /** A new password (decision D31): the API ends every other session and gives this browser a new one. */
+  async function changePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const code = String(data.get("code") ?? "").replace(/\s/g, "");
+    setPasswordChanged(false);
+    await attempt(async () => {
+      await client.changePassword(String(data.get("password")), String(data.get("new-password")), code);
+      form.reset();
+      setPasswordChanged(true);
+    });
+  }
+
+  /** Erase this account (decision D32), then leave for the console's front page, signed out. */
+  async function deleteAccount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const code = String(data.get("code") ?? "").replace(/\s/g, "");
+    await attempt(async () => {
+      await client.deleteAccount(String(data.get("password")), code);
+      window.location.assign("/console");
+    });
+  }
 
   if (me === null || me === "signed-out") {
     return (
@@ -332,6 +358,106 @@ export function AccountView() {
         ) : (
           <p className="mt-4 text-sm text-ink-500">This browser can't make passkeys.</p>
         )}
+      </section>
+
+      <section className={`${panel} mt-6 max-w-xl`} aria-labelledby="password">
+        <h2 id="password" className="text-lg font-semibold">
+          Password
+        </h2>
+        <p className="mt-1 text-sm text-ink-500">
+          Changing it signs you out everywhere else; this browser stays signed in.
+        </p>
+        {passwordChanged ? (
+          <p className="mt-3 text-sm font-medium" role="status">
+            Password changed. Every other browser has been signed out.
+          </p>
+        ) : null}
+        <form className="mt-4 grid gap-3" onSubmit={changePassword}>
+          <Field label="Current password" id="password-current">
+            <input
+              id="password-current"
+              className={input}
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </Field>
+          <Field label="New password (at least 12 characters)" id="password-new">
+            <input
+              id="password-new"
+              className={input}
+              name="new-password"
+              type="password"
+              autoComplete="new-password"
+              minLength={12}
+              maxLength={256}
+              required
+            />
+          </Field>
+          {me.totpEnabled ? (
+            <Field label="One-time code, to confirm it's you" id="password-code">
+              <input
+                id="password-code"
+                className={input}
+                name="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\s*(\d\s*){6}"
+                required
+              />
+            </Field>
+          ) : null}
+          <button type="submit" className={`${smallButton} justify-self-start`}>
+            Change password
+          </button>
+        </form>
+      </section>
+
+      <section className={`${panel} mt-6 max-w-xl`} aria-labelledby="delete-account">
+        <h2 id="delete-account" className="text-lg font-semibold">
+          Delete your account
+        </h2>
+        <p className="mt-1 text-sm text-ink-500">
+          Your e-mail address, password, one-time codes and passkeys are erased, and you are signed out
+          everywhere. An organisation where you are the only member is closed with you: its keys stop at once.
+          If you are the only owner of an organisation with other members, make one of them an owner first.
+        </p>
+        <form className="mt-4 grid gap-3" onSubmit={deleteAccount}>
+          <Field label="Password, to confirm it's you" id="delete-password">
+            <input
+              id="delete-password"
+              className={input}
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </Field>
+          {me.totpEnabled ? (
+            <Field label="One-time code, to confirm it's you" id="delete-code">
+              <input
+                id="delete-code"
+                className={input}
+                name="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\s*(\d\s*){6}"
+                required
+              />
+            </Field>
+          ) : null}
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="understood" required className="mt-1" />I understand this can't be
+            undone.
+          </label>
+          <button
+            type="submit"
+            className="justify-self-start rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+          >
+            Delete my account
+          </button>
+        </form>
       </section>
     </ConsoleShell>
   );

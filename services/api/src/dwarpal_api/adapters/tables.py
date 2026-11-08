@@ -288,6 +288,24 @@ class Membership(Base):
     created_at: Mapped[datetime] = mapped_column(Timestamp)
 
 
+class Invitation(Base):
+    """Someone without an account yet, invited to an organisation by e-mail address (decision D44): they join, with
+    this role, when they sign up with that address. No e-mail is sent (D25)."""
+
+    __tablename__ = "invitations"
+    __table_args__ = (
+        CheckConstraint("role IN ('owner', 'admin', 'developer', 'analyst')", name="ck_invitations_role"),
+        UniqueConstraint("org_id", "email", name="uq_invitations_org_id_email"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    email: Mapped[str] = mapped_column(String(254), index=True)  # stored in lower case
+    role: Mapped[str] = mapped_column(String(16))
+    invited_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(Timestamp)
+
+
 class Passkey(Base):
     """A console user's passkey (WebAuthn): only its public key — the private key stays on the person's device."""
 

@@ -1,5 +1,5 @@
 ---
-fingerprint: 0dfa7cf21c7d5711
+fingerprint: d7fb645ec802001c
 ---
 The *Security* page (Phase 5, §5.5.4): whether one-time codes are on, and, if not, setting them up — show a new secret, then confirm a code from the person's authenticator app. Until a code is confirmed, nothing changes: a secret typed in wrongly can't lock anyone out.
 
@@ -30,107 +30,170 @@ One client for the page.
 @@ 28-31
 Its state: who is signed in (or `"signed-out"`, or `null` while loading), a secret on offer with its picture, recovery codes to show, and an error.
 
-@@ 47-54
+@@ 48-55
 **`attempt`** — run one piece of work, showing the API's words if it is refused.
 
-@@ 56-60
+@@ 57-61
 **`start`** — ask for a new secret, then draw its `otpauth://` address as a QR code: a PNG image, 200 pixels square, as a `data:` URL. It is drawn **in the browser**, so the secret never goes to any other service.
 
-@@ 62-64
+@@ 63-65
 **`confirm`** — the form was sent: read the code, without any spaces the person typed between the digits.
 
-@@ 65-87
+@@ 66-88
 Confirm it; on success, show the recovery codes, hide the secret and reload — the page now says "On". **`replaceCodes`** — ask for a fresh set and show it. **`turnOff`** — the turn-off form was sent: read the password and the code (spaces removed), and switch codes off; hide any codes shown.
 
-@@ 115-132
+@@ 141-158
 Loading, a failure, or nobody signed in — with a way back to the console.
 
-@@ 134-142
+@@ 160-168
 The page, framed by the console with its sidebar (`signedIn`), and a link back to the organisations.
 
-@@ 143-149
+@@ 169-175
 The heading, the person's address, and the error, if any.
 
-@@ 151-154
+@@ 177-180
 **One-time codes** — a panel.
 
-@@ 155-170
+@@ 181-196
 **The recovery codes**, when there are some to show — just after switching codes on, or after asking for a fresh set: announced (`role="status"`), with what they are for and a warning that they won't be shown again, in two columns of fixed-width type so each letter is easy to copy.
 
-@@ 171-206
+@@ 197-232
 **Already on**: say so, announced, with how many recovery codes are left. A button for a fresh set. And the **turn-off form**: the password (`autoComplete="current-password"`, so a password manager can fill it) and a code from the app, then *Turn off*.
 
-@@ 207-216
+@@ 233-242
 Off, and nothing on offer: what one-time codes are for, and a button to set them up.
 
-@@ 217-220
+@@ 243-246
 **Step 1** — scan the QR code with the authenticator app,
 
-@@ 221-228
+@@ 247-254
 the picture itself. Next.js prefers its `<Image>`, which resizes and caches images from a server; a picture made in the browser gains nothing from that, so a plain `<img>` is used and the lint rule is told why (`biome-ignore`). Its `alt` text tells a screen-reader user what it is.
 
-@@ 229
+@@ 255
 Or type the key in by hand:
 
-@@ 230-235
+@@ 256-261
 shown in groups of four;
 
-@@ 236-239
+@@ 262-265
 or, on a phone with an authenticator app, a link that opens it there (`otpauth://`). A QR code would need a new library (a download), so it waits.
 
-@@ 240-251
+@@ 266-277
 **Step 2** — the code the app shows: a numeric keyboard on phones (`inputMode`), filled in by the phone itself where it can (`autoComplete="one-time-code"`), and six digits, spaces allowed (`pattern`).
 
-@@ 252-257
+@@ 278-283
 The button, and the end of the steps.
 
 @@ 32-33
 Since Phase 9 also the person's passkeys, and whether this browser can make them.
 
-@@ 35-39
+@@ 36-40
 **`load`** — who is signed in, and, if anyone is, their passkeys.
 
-@@ 41
+@@ 42
 Whether the browser supports passkeys is asked once the page is in the browser. Asking while the server draws the page would give a different answer there than in the browser, and React would complain that the two don't match.
 
-@@ 43-45
+@@ 44-46
 Load on arrival, with a message if it fails.
 
-@@ 89-94
+@@ 90-95
 **`addPasskey`** (Phase 9) — the form was sent: read its fields, with spaces taken out of the code.
 
-@@ 95-102
+@@ 96-103
 Get the options; ask the browser to make a passkey, which asks the device to verify the person; if one was made, send its answer with the name and the password (and code); then clear the form and load the list again.
 
-@@ 103-107
+@@ 104-108
 The person closing the prompt isn't an error; anything else is shown.
 
-@@ 109-113
+@@ 110-114
 **`removePasskey`** — remove one, then load the list again.
 
-@@ 258
+@@ 284
 End of the one-time codes panel.
 
-@@ 260-267
+@@ 286-293
 **Passkeys** — a panel, with a sentence saying what a passkey is and why it can't be phished.
 
-@@ 268-292
+@@ 294-318
 The passkeys, if any: each with its name, when it was added, and when it was last used — and a **Remove** button whose accessible name says which passkey it removes.
 
-@@ 293-304
+@@ 319-330
 Where the browser can make passkeys: a form, first with a name for the new one.
 
-@@ 305-314
+@@ 331-340
 The password, to confirm it's the person. The label differs from the one-time-codes panel's, so each field has a name of its own.
 
-@@ 315-327
+@@ 341-353
 A code, only when one-time codes are on.
 
-@@ 328-331
+@@ 354-357
 **Add a passkey**.
 
-@@ 332-334
+@@ 358-360
 Where the browser can't: a sentence saying so.
 
-@@ 335-338
-End of the panel, the page and `AccountView`.
+@@ 34
+**`passwordChanged`** — whether to say that the password was changed.
+
+@@ 116-117
+**`changePassword`** (decision D31) — the form's three fields go to the API, which ends every other session and gives this browser a new one (the client keeps its new CSRF token).
+
+@@ 118-122
+The form, its fields, the code without spaces, and any earlier notice cleared.
+
+@@ 123-128
+On success the form is emptied and the notice shown; a refusal (a wrong password, a weak new one) is shown by `attempt`.
+
+@@ 130-131
+**`deleteAccount`** (decision D32) — erase the account, then leave for the console's front page.
+
+@@ 132-134
+The form's password, and the code without spaces.
+
+@@ 135-139
+On success the page moves to `/console`, now signed out; a refusal (a wrong password, or an only owner with others in the organisation) is shown instead.
+
+@@ 361
+End of the passkeys panel.
+
+@@ 363-369
+**The password panel** (decision D31): what changing it does, said first.
+
+@@ 370-374
+After a change, the notice — `role="status"` makes screen readers announce it.
+
+@@ 375-385
+The form: the current password (`current-password` lets a password manager fill it in)…
+
+@@ 386-397
+…the new one — at least 12 characters, as the API requires (the browser checks too) — which a password manager may offer to make (`new-password`)…
+
+@@ 398-410
+…and a one-time code when codes are on: six digits, spaces allowed.
+
+@@ 411-414
+The button, and the form's end.
+
+@@ 415
+End of the panel.
+
+@@ 417-425
+**Deleting the account** (decision D32): what it does is said before anything is asked — what is erased, what happens to an organisation where they are alone, and what to do first if they are an only owner.
+
+@@ 426-436
+The form: the password…
+
+@@ 437-449
+…a code when codes are on…
+
+@@ 450-453
+…and a tick that they understand it can't be undone: `required`, so the browser won't send the form without it.
+
+@@ 454-459
+A red button: the one thing on this page that can't be reversed.
+
+@@ 460-461
+The form's end, and the panel's.
+
+@@ 462-464
+The end of the page, and of `AccountView`.

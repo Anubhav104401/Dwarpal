@@ -1,5 +1,5 @@
 ---
-fingerprint: 3a7023d7428a034b
+fingerprint: eb0fbf5a59122bcb
 ---
 The **console API** (Phase 4, §5.4.5), under `/console/v1`: what Dwarpal's own web console calls for a signed-in person. Unlike the website API, which uses API keys, it uses a **cookie**, because people sign in with a browser.
 
@@ -84,125 +84,167 @@ Short names for the two kinds of caller, used in every endpoint below.
 @@ 93-105
 **`Code`** — a body holding just a six-digit code. **`Reauthentication`** (Phase 5) — the password and a current six-digit code, for turning one-time codes off. Recovery codes aren't accepted there: they are for signing in when the phone is lost, not for removing the protection.
 
-@@ 136-140
+@@ 155-159
 **`NewMember`** — an address and a role.
 
-@@ 143-146
+@@ 162-165
 **`RoleChange`** — the body of a role change: just the new role.
 
-@@ 149-153
+@@ 168-172
 **`NewKey`** — one to eight scopes, and whether the key is live (test by default).
 
-@@ 156-161
+@@ 194-199
 **`sign_up`** — check the origin, create the account, give the cookie, and answer with who is now signed in.
 
-@@ 190-195
+@@ 228-233
 **`sign_out`** — a change (so it needs the CSRF token); the `_` parameter runs that check, and its value isn't needed.
 
-@@ 196-199
+@@ 234-237
 End the session, and tell the browser to delete the cookie.
 
-@@ 202-204
+@@ 240-242
 **`me`** — who is signed in.
 
-@@ 207-210
+@@ 245-248
 **`model`** — `GET /console/v1/model`: the age model's details. `current` isn't used inside, but asking for it makes the route refuse anyone not signed in.
 
-@@ 213-215
+@@ 251-253
 **`totp_enrol`** — start switching on one-time codes.
 
-@@ 259-261
+@@ 317-319
 **`list_members`**.
 
-@@ 264-266
+@@ 322-324
 **`list_projects`** — `GET /orgs/{org}/projects`, for any signed-in member.
 
-@@ 269-271
-**`add_member`** — `201 Created`.
+@@ 327-330
+**`add_member`** — `201 Created`, for a membership or, for an address without an account, an invitation (`"pending": true`).
 
-@@ 274-278
+@@ 344-348
 **`change_role`** — `PATCH …/members/{user}`. `PATCH` is the HTTP method for changing part of something: here, one field of a membership.
 
-@@ 281-284
+@@ 351-354
 **`remove_member`** — `DELETE …/members/{user}`: `204`.
 
-@@ 287-289
+@@ 369-371
 **`create_key`** — `201 Created`, with the key shown once.
 
-@@ 292-296
+@@ 385-389
 **`audit_log`** — up to 500 entries (100 if not asked).
 
-@@ 299-300
+@@ 392-393
 The path every project route starts with, written once; and `Live`, the `livemode` query parameter (`?livemode=true`), which chooses test or live data.
 
-@@ 303-316
+@@ 396-409
 **`project_sessions`** — `GET …/sessions`: test sessions unless asked for live, 20 a page (at most 100), after the given cursor — and, like the website API, optionally only one outcome or one reference.
 
-@@ 319-323
+@@ 412-416
 **`session_trace`** — `GET …/sessions/{id}`: one session's decision trace.
 
-@@ 326-335
+@@ 419-428
 **`project_analytics`** — `GET …/analytics`: the last 30 days (1 to 365), test or live.
 
-@@ 338-340
+@@ 431-433
 **`project_policies`** — `GET …/policies`.
 
-@@ 343-355
+@@ 436-448
 **`add_policy_version`** — `POST …/policies`, a change (so it needs the CSRF token): build the draft from the body — the Age Pass switch included — and add it.
 
-@@ 358-361
+@@ 451-454
 **`ConsoleEndpoint`** — that body plus `livemode` (test unless asked). A website's key is already test or live; a person in the console chooses.
 
-@@ 364-368
+@@ 457-461
 **`project_webhooks`** — `GET …/webhooks`: the endpoints, test or live.
 
-@@ 371-375
+@@ 464-468
 **`add_webhook`** — `POST …/webhooks`, a change: `201`, with the secret.
 
-@@ 378-383
+@@ 471-476
 **`remove_webhook`** — `DELETE …/webhooks/{id}`: `204`. The mode comes in the address (`?livemode=true`), like every other webhook route here.
 
-@@ 386-396
+@@ 479-489
 **`switch_webhook`** — `PATCH …/webhooks/{id}`, a change: on or off, in the mode the address names.
 
-@@ 399-403
+@@ 492-496
 **`send_test_event`** — `POST …/webhooks/{id}/test`: `202 Accepted` — queued, not yet sent.
 
-@@ 406-410
+@@ 499-503
 **`webhook_deliveries`** — `GET …/webhooks/{id}/deliveries`.
 
-@@ 413-417
+@@ 506-510
 **`replay_delivery`** — `POST …/webhook-deliveries/{id}/replay`: `202`.
 
-@@ 108
+@@ 127
 **`Base64Url`** (Phase 9) — a field holding base64url text: only its letters, digits, `-` and `_`, and at most 4 KB, so nothing odd or huge reaches the checks.
 
-@@ 111-121
+@@ 130-140
 **`NewPasskey`** — a device's answer to `navigator.credentials.create`, with a name for the passkey, the password, and a code if one-time codes are on.
 
-@@ 124-133
+@@ 143-152
 **`PasskeySignIn`** — a device's answer to `navigator.credentials.get`: the passkey's ID, the client data, the device's data, the signature, and the account's handle when the device gives one.
 
-@@ 164-170
+@@ 202-208
 **`sign_in`** — the same, with the network address the request came from, for the sign-in limit.
 
-@@ 173-176
+@@ 211-214
 **`passkey_sign_in_options`** — `POST /passkey-login/options`: a challenge for signing in with a passkey. Nobody is signed in yet, so only the origin is checked.
 
-@@ 179-187
+@@ 217-225
 **`passkey_sign_in`** — `POST /passkey-login`: check the device's answer, give the session cookie, and answer with who is now signed in, as a password sign-in does.
 
-@@ 218-232
+@@ 256-270
 **`totp_confirm`** — finish it with a code; the answer holds the recovery codes. **`replace_recovery_codes`** — `POST /totp/recovery-codes`: a fresh set. **`totp_disable`** — `POST /totp/disable`, with the network address for the sign-in limits: `204` when codes are off.
 
-@@ 235-237
+@@ 293-295
 **`list_passkeys`** — `GET /passkeys`: the person's own passkeys.
 
-@@ 240-242
+@@ 298-300
 **`passkey_options`** — `POST /passkeys/options`: the options for adding one. A change, so it needs the CSRF token.
 
-@@ 245-250
+@@ 303-308
 **`add_passkey`** — `POST /passkeys`: check the device's answer and the password, and keep the passkey (`201`).
 
-@@ 253-256
+@@ 311-314
 **`remove_passkey`** — `DELETE /passkeys/{id}`: `204`.
+
+@@ 108-115
+**`PasswordChange`** — the body of a password change (decision D31): the current password, the new one, and a 6-digit code when one-time codes are on.
+
+@@ 118-124
+**`AccountDeletion`** — the body of an account deletion (decision D32): the password, and a code when codes are on.
+
+@@ 175
+**`Origin`** — one allowed origin as sent: up to 300 characters (the rule itself is checked in `domain/origins.py`).
+
+@@ 178-182
+**`NewProject`** — a new project's name (1 to 80 characters) and up to 10 allowed origins.
+
+@@ 185-191
+**`ProjectChange`** — a new name, a new list of origins, or both; a field left out is not changed.
+
+@@ 273-277
+**`POST /password`** — change the password.
+
+@@ 278-281
+The client's address for the sign-in limits; the change; then the new session's cookie, and the person as `/me` shows them — with the new CSRF token the page must use from now on.
+
+@@ 284-290
+**`POST /account/delete`** — delete the account (`204`), and the cookie is removed from this browser. (A `POST`, not a `DELETE`, because it carries the password in its body.)
+
+@@ 333-335
+**`GET …/invitations`** — the invitations still waiting.
+
+@@ 338-341
+**`DELETE …/invitations/{id}`** — cancel one; `204`.
+
+@@ 357-359
+**`POST …/projects`** — a new project; `201`.
+
+@@ 362-366
+**`PATCH …/projects/{id}`** — rename it, or replace its allowed origins.
+
+@@ 374-376
+**`GET …/keys`** — a project's keys, without their secrets.
+
+@@ 379-382
+**`DELETE …/keys/{id}`** — stop a key at once; `204`.

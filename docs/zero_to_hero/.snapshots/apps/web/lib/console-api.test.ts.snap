@@ -282,6 +282,116 @@ describe("ConsoleClient, policies", () => {
   });
 });
 
+describe("ConsoleClient, projects and keys", () => {
+  it("makes and changes projects, lists keys without secrets and stops one (D28-D30)", async () => {
+    const seen: Array<[string, string, string | null]> = [];
+    const project = {
+      id: "prj_2",
+      name: "Shop",
+      allowed_origins: ["https://shop.example"],
+      retention_days: 90,
+    };
+    const replies = [
+      answer(200, { csrf_token: "c1", organisations: [] }),
+      answer(201, project),
+      answer(200, { ...project, name: "Cellar shop" }),
+      answer(200, {
+        object: "list",
+        data: [
+          { id: "dk_b", livemode: false, scopes: ["sessions:read"], created_at: "2026-11-08T20:00:00+00:00" },
+          {
+            id: "dk_a",
+            livemode: true,
+            scopes: [],
+            state: "revoked",
+            revoked_at: "2026-11-08T21:00:00+00:00",
+          },
+        ],
+      }),
+      answer(204, {}),
+    ];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      seen.push([init.method ?? "GET", url, typeof init.body === "string" ? init.body : null]);
+      return replies.shift();
+    });
+    const client = new ConsoleClient();
+    await client.me();
+    const made = await client.createProject("org_1", "Shop", ["https://shop.example"]);
+    const renamed = await client.updateProject("org_1", "prj_2", { name: "Cellar shop" });
+    const keys = await client.keys("org_1", "prj_2");
+    await client.revokeKey("org_1", "prj_2", "dk_b");
+
+    expect(seen.slice(1).map(([method, url, body]) => `${method} ${url} ${body ?? ""}`.trim())).toEqual([
+      'POST /console-api/orgs/org_1/projects {"name":"Shop","allowed_origins":["https://shop.example"]}',
+      'PATCH /console-api/orgs/org_1/projects/prj_2 {"name":"Cellar shop"}', // only what changes is sent
+      "GET /console-api/orgs/org_1/projects/prj_2/keys",
+      "DELETE /console-api/orgs/org_1/projects/prj_2/keys/dk_b",
+    ]);
+    expect(made).toEqual({
+      id: "prj_2",
+      name: "Shop",
+      allowedOrigins: ["https://shop.example"],
+      retentionDays: 90,
+    });
+    expect(renamed.name).toBe("Cellar shop");
+    expect(keys.map((k) => [k.id, k.state, k.livemode, k.revokedAt])).toEqual([
+      ["dk_b", "active", false, null], // a state the API didn't send reads as active
+      ["dk_a", "revoked", true, "2026-11-08T21:00:00+00:00"],
+    ]);
+  });
+});
+
+describe("ConsoleClient, invitations and the account", () => {
+  it("invites, lists and cancels; changes the password with a new CSRF token; deletes the account (D31, D32, D44)", async () => {
+    const seen: Array<[string, string | null, string | null]> = [];
+    const replies = [
+      answer(200, { csrf_token: "c1", organisations: [] }),
+      answer(201, { invitation: "inv_1", email: "new@shop.example", role: "developer", pending: true }),
+      answer(200, {
+        data: [
+          { id: "inv_1", email: "new@shop.example", role: "developer", created_at: "2026-11-08T22:00:00Z" },
+        ],
+      }),
+      answer(204, {}),
+      answer(200, { csrf_token: "c2", organisations: [] }),
+      answer(204, {}),
+    ];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      const headers = new Headers(init.headers);
+      seen.push([
+        `${init.method ?? "GET"} ${url}`,
+        typeof init.body === "string" ? init.body : null,
+        headers.get("X-CSRF-Token"),
+      ]);
+      return replies.shift();
+    });
+    const client = new ConsoleClient();
+    await client.me();
+    const added = await client.addMember("org_1", "new@shop.example", "developer");
+    const waiting = await client.invitations("org_1");
+    await client.cancelInvitation("org_1", "inv_1");
+    await client.changePassword("old password!", "a new long passphrase", "123456");
+    await client.deleteAccount("a new long passphrase");
+
+    expect(added).toEqual({ pending: true });
+    expect(waiting).toEqual([
+      { id: "inv_1", email: "new@shop.example", role: "developer", createdAt: "2026-11-08T22:00:00Z" },
+    ]);
+    expect(seen.slice(1).map(([call]) => call)).toEqual([
+      "POST /console-api/orgs/org_1/members",
+      "GET /console-api/orgs/org_1/invitations",
+      "DELETE /console-api/orgs/org_1/invitations/inv_1",
+      "POST /console-api/password",
+      "POST /console-api/account/delete",
+    ]);
+    expect(seen[4]?.[1]).toBe(
+      '{"password":"old password!","new_password":"a new long passphrase","code":"123456"}',
+    );
+    expect(seen[5]?.[2]).toBe("c2"); // the new session's token, from the password change
+    expect(seen[5]?.[1]).toBe('{"password":"a new long passphrase"}'); // no code when none is given
+  });
+});
+
 describe("CAN", () => {
   it("mirrors the API's role matrix for what the pages offer", () => {
     expect(["owner", "admin", "developer", "analyst"].map((r) => CAN.manageKeys(r as never))).toEqual([
@@ -292,6 +402,12 @@ describe("CAN", () => {
     ]);
     expect(CAN.manageMembers("developer")).toBe(false);
     expect(CAN.readAudit("admin")).toBe(true);
+    expect(["owner", "admin", "developer", "analyst"].map((r) => CAN.manageProjects(r as never))).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
   });
 });
 

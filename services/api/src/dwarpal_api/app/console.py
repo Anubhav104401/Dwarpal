@@ -11,26 +11,29 @@ import re
 import secrets
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dwarpal_api.adapters.db import FIND_USER, tenant
+from dwarpal_api.adapters.db import FIND_USER, TAKE_INVITATIONS, name_tenant, tenant
 from dwarpal_api.adapters.passwords import hash_password, verify_password
 from dwarpal_api.adapters.tables import (
     ApiKey,
     AuditEntry,
+    Invitation,
     Membership,
     Organization,
+    Passkey,
     Project,
     User,
     VerificationAttempt,
     VerificationSession,
 )
 from dwarpal_api.app import analytics, audit, policies, verification, webhooks
-from dwarpal_api.domain import ids, totp
+from dwarpal_api.domain import ids, origins, totp
 from dwarpal_api.domain.keys import SCOPES, generate_api_key
 from dwarpal_api.domain.policy import Policy
 from dwarpal_api.domain.roles import Action, Role, can
@@ -42,6 +45,8 @@ if TYPE_CHECKING:
 
 EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,189}\.[^@\s.]{2,}$")
 PASSWORD_LENGTHS = (12, 256)
+MAX_PROJECTS = 20
+PROJECT_NAME_LENGTHS = (1, 80)
 SIGN_IN_REFUSED = ApiError(401, "invalid_credentials", "the e-mail address or the password is wrong")
 
 
@@ -65,10 +70,17 @@ def _master(svc: Services) -> MasterKey:
     return svc.master
 
 
+def _generation(user_id: uuid.UUID) -> str:
+    """The key of a person's session generation: every session remembers the one it began in, and changing the
+    password or deleting the account moves it on, which ends all the sessions begun before (decisions D31, D32)."""
+    return f"console:generation:{user_id}"
+
+
 async def open_session(svc: Services, user_id: uuid.UUID) -> tuple[str, ConsoleSession]:
     """A new signed-in session: an unguessable token for the cookie, and a separate token against CSRF."""
     token, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
-    record = json.dumps({"user": str(user_id), "csrf": csrf}).encode()
+    generation = await svc.store.counter(_generation(user_id))
+    record = json.dumps({"user": str(user_id), "csrf": csrf, "generation": generation}).encode()
     await svc.store.put(_slot(token), record, svc.settings.console_session_ttl_s)
     return token, ConsoleSession(user_id, csrf)
 
@@ -78,7 +90,16 @@ async def session_of(svc: Services, token: str) -> ConsoleSession | None:
     if stored is None:
         return None
     record = json.loads(stored)
-    return ConsoleSession(uuid.UUID(record["user"]), record["csrf"])
+    user_id = uuid.UUID(record["user"])
+    if record.get("generation", 0) != await svc.store.counter(_generation(user_id)):
+        await svc.store.drop(_slot(token))  # begun before a password change or the account's deletion
+        return None
+    return ConsoleSession(user_id, record["csrf"])
+
+
+async def end_sessions(svc: Services, user_id: uuid.UUID) -> None:
+    """End every console session of this person, everywhere."""
+    await svc.store.bump(_generation(user_id))
 
 
 async def close_session(svc: Services, token: str) -> None:
@@ -120,10 +141,21 @@ async def sign_up(svc: Services, email: str, password: str, organisation: str) -
             await audit.record(
                 session, org_id, actor_of(user_id), "organisation.created", ids.encode("org", org_id), facts, now
             )
+            await _join_invited(session, user_id, email, now)
             await session.commit()
     except IntegrityError:  # the same address signed up at the same moment
         raise ApiError(409, "email_taken", "an account with this e-mail address already exists") from None
     return await open_session(svc, user_id)
+
+
+async def _join_invited(session: AsyncSession, user_id: uuid.UUID, email: str, now: datetime) -> None:
+    """A new account joins every organisation that invited its address (decision D44), with the role each named. The
+    invitations are taken — deleted — in the same transaction, so none is used twice."""
+    for org_id, role, invited_by in (await session.execute(TAKE_INVITATIONS, {"email": email})).all():
+        await name_tenant(session, org_id=org_id, user_id=user_id)
+        session.add(Membership(org_id=org_id, user_id=user_id, role=role, created_at=now))
+        facts = {"role": role, "invited_by": ids.encode("usr", invited_by)}
+        await audit.record(session, org_id, actor_of(user_id), "member.joined", ids.encode("usr", user_id), facts, now)
 
 
 async def _spend_sign_in(svc: Services, email: str, address: str) -> None:
@@ -287,6 +319,88 @@ async def totp_disable(svc: Services, current: ConsoleSession, password: str, co
         await session.commit()
 
 
+async def _reauthenticate(svc: Services, user: User, password: str, code: str | None, now: datetime) -> None:
+    """The person, not just their signed-in browser: the password, and a current code if one-time codes are on."""
+    password_ok = await verify_password(user.password_hash, password)
+    if user.totp_secret_sealed is not None:
+        secret = _master(svc).open(user.totp_secret_sealed, user.id.bytes).decode()
+        step = totp.accepted_step(secret, code or "", now.timestamp(), user.totp_last_step)
+        if not password_ok or step is None:
+            raise ApiError(403, "reauthentication_failed", "that password or code is wrong")
+        user.totp_last_step = step
+    elif not password_ok:
+        raise ApiError(403, "reauthentication_failed", "that password is wrong")
+
+
+async def change_password(
+    svc: Services, current: ConsoleSession, password: str, new_password: str, code: str | None, address: str
+) -> tuple[str, ConsoleSession]:
+    """A new password (decision D31), with the old one (and a current code, if one-time codes are on). Every console
+    session of the person ends, everywhere; this browser gets a fresh one."""
+    now = svc.now()
+    async with tenant(svc.sessions, user_id=current.user_id) as session:
+        user = await session.get(User, current.user_id, with_for_update=True)
+        if user is None:
+            raise ApiError(401, "not_signed_in", "sign in again")
+        await _spend_sign_in(svc, user.email, address)
+        await _reauthenticate(svc, user, password, code, now)
+        check_password(new_password, user.email)
+        user.password_hash = await hash_password(new_password)
+        await _record_for_all(session, user, "user.password_changed", {}, now)
+        await session.commit()
+    await end_sessions(svc, current.user_id)
+    return await open_session(svc, current.user_id)
+
+
+async def delete_account(svc: Services, current: ConsoleSession, password: str, code: str | None, address: str) -> None:
+    """Erase the person's account (decision D32), with their password (and a current code, if one-time codes are on).
+
+    Refused while they are the only owner of an organisation that has other members: ownership must be handed over
+    first. An organisation where they are the only member is closed with them: its keys stop at once, and its records
+    are purged by the usual retention. Their e-mail address, password, one-time-code secret, recovery codes and passkeys
+    are erased, and every session ends; their ID stays in the audit chains, which therefore still verify."""
+    now = svc.now()
+    async with tenant(svc.sessions, user_id=current.user_id) as session:
+        user = await session.get(User, current.user_id, with_for_update=True)
+        if user is None:
+            raise ApiError(401, "not_signed_in", "sign in again")
+        await _spend_sign_in(svc, user.email, address)
+        await _reauthenticate(svc, user, password, code, now)
+        memberships = list(await session.scalars(select(Membership).where(Membership.user_id == user.id)))
+        closing: dict[uuid.UUID, bool] = {}
+        for membership in memberships:
+            # Each organisation in turn is named as the tenant, within this one transaction: all or nothing.
+            await name_tenant(session, org_id=membership.org_id, user_id=user.id)
+            others_query = select(Membership).where(
+                Membership.org_id == membership.org_id, Membership.user_id != user.id
+            )
+            others = list(await session.scalars(others_query.with_for_update()))
+            if others and membership.role == Role.OWNER and all(o.role != Role.OWNER for o in others):
+                name = await session.scalar(select(Organization.name).where(Organization.id == membership.org_id))
+                raise ApiError(409, "hand_over_ownership", f"make someone else an owner of {name} first")
+            closing[membership.org_id] = not others
+        target = ids.encode("usr", user.id)
+        for membership in memberships:
+            org_id = membership.org_id
+            await name_tenant(session, org_id=org_id, user_id=user.id)
+            if closing[org_id]:
+                projects = select(Project.id).where(Project.org_id == org_id)
+                stop = update(ApiKey).where(ApiKey.project_id.in_(projects), ApiKey.revoked_at.is_(None))
+                await session.execute(stop.values(revoked_at=now))
+                org_text = ids.encode("org", org_id)
+                await audit.record(session, org_id, actor_of(user.id), "organisation.closed", org_text, {}, now)
+            await audit.record(session, org_id, actor_of(user.id), "user.deleted", target, {}, now)
+            await session.delete(membership)
+        await name_tenant(session, user_id=user.id)
+        user.email = f"deleted-{user.id.hex}@deleted.invalid"  # unique, and no one's address
+        user.password_hash = "!"  # not an Argon2 hash: no password can ever match it  # noqa: S105
+        user.totp_secret_sealed, user.totp_pending_sealed, user.totp_last_step = None, None, None
+        user.recovery_digests, user.last_login_at = [], None
+        await session.execute(delete(Passkey).where(Passkey.user_id == user.id))
+        await session.commit()
+    await end_sessions(svc, current.user_id)
+
+
 async def authorise(svc: Services, current: ConsoleSession, org_text: str, action: Action) -> tuple[uuid.UUID, str]:
     """The organisation, if the person is a member whose role allows `action`; else 404 (not a member) or 403."""
     try:
@@ -319,44 +433,160 @@ async def list_members(svc: Services, current: ConsoleSession, org_text: str) ->
     return {"object": "list", "data": members}
 
 
+def project_view(project: Project) -> dict[str, Any]:
+    return {
+        "id": ids.encode("prj", project.id),
+        "name": project.name,
+        "allowed_origins": project.allowed_origins,
+        "retention_days": project.retention_days,
+    }
+
+
 async def list_projects(svc: Services, current: ConsoleSession, org_text: str) -> dict[str, Any]:
     """The organisation's projects, oldest first, for any member."""
     org_id, _ = await authorise(svc, current, org_text, Action.READ_SESSIONS)
     async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
         query = select(Project).where(Project.org_id == org_id).order_by(Project.created_at)
         projects = list(await session.scalars(query))
-    data = [
-        {
-            "id": ids.encode("prj", p.id),
-            "name": p.name,
-            "allowed_origins": p.allowed_origins,
-            "retention_days": p.retention_days,
-        }
-        for p in projects
-    ]
-    return {"object": "list", "data": data}
+    return {"object": "list", "data": [project_view(p) for p in projects]}
+
+
+def _project_name(name: str) -> str:
+    name, (shortest, longest) = name.strip(), PROJECT_NAME_LENGTHS
+    if not shortest <= len(name) <= longest:
+        raise ApiError(422, "invalid_project_name", f"a project's name is {shortest} to {longest} characters")
+    return name
+
+
+def _allowed_origins(svc: Services, texts: list[str]) -> list[str]:
+    try:
+        return origins.allowed_origins(texts, production=svc.settings.environment == "production")
+    except origins.InvalidOriginError as error:
+        raise ApiError(422, "invalid_origin", str(error)) from None
+
+
+async def create_project(
+    svc: Services, current: ConsoleSession, org_text: str, name: str, allowed_origins: list[str]
+) -> dict[str, Any]:
+    """A new project in the organisation, with the origins its websites run on (decisions D28, D29)."""
+    org_id, _ = await authorise(svc, current, org_text, Action.MANAGE_PROJECTS)
+    name, chosen, now = _project_name(name), _allowed_origins(svc, allowed_origins), svc.now()
+    async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
+        # The organisation's row is locked, so two new projects at once can't both slip under the limit.
+        await session.get(Organization, org_id, with_for_update=True)
+        count = await session.scalar(select(func.count()).select_from(Project).where(Project.org_id == org_id))
+        if (count or 0) >= MAX_PROJECTS:
+            raise ApiError(409, "too_many_projects", f"an organisation may have at most {MAX_PROJECTS} projects")
+        project = Project(
+            id=svc.new_id(), org_id=org_id, name=name, allowed_origins=chosen, retention_days=90, created_at=now
+        )
+        session.add(project)
+        target, facts = ids.encode("prj", project.id), {"name": name, "allowed_origins": chosen}
+        await audit.record(session, org_id, actor_of(current.user_id), "project.created", target, facts, now)
+        await session.commit()
+    return project_view(project)
+
+
+async def update_project(
+    svc: Services,
+    current: ConsoleSession,
+    org_text: str,
+    project_text: str,
+    name: str | None,
+    allowed_origins: list[str] | None,
+) -> dict[str, Any]:
+    """Rename a project, or replace the list of origins it allows; what changed is recorded, from and to."""
+    if name is None and allowed_origins is None:
+        raise ApiError(422, "nothing_to_change", "send a new name, new allowed origins, or both")
+    org_id, project_id = await project_in(svc, current, org_text, project_text, Action.MANAGE_PROJECTS)
+    new_name = None if name is None else _project_name(name)
+    chosen = None if allowed_origins is None else _allowed_origins(svc, allowed_origins)
+    now = svc.now()
+    async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
+        project = await session.get(Project, project_id, with_for_update=True)
+        if project is None:
+            raise ApiError(404, "project_not_found", "no such project")
+        changes: dict[str, Any] = {}
+        if new_name is not None and new_name != project.name:
+            changes["name"] = {"from": project.name, "to": new_name}
+            project.name = new_name
+        if chosen is not None and chosen != project.allowed_origins:
+            changes["allowed_origins"] = {"from": project.allowed_origins, "to": chosen}
+            project.allowed_origins = chosen
+        if changes:
+            target = ids.encode("prj", project_id)
+            await audit.record(session, org_id, actor_of(current.user_id), "project.updated", target, changes, now)
+        await session.commit()
+    return project_view(project)
 
 
 async def add_member(svc: Services, current: ConsoleSession, org_text: str, email: str, role: str) -> dict[str, Any]:
-    """Give an existing account a role in the organisation. Only an owner may make another owner."""
+    """Give an account a role in the organisation; an address without an account yet is invited instead, and joins on
+    signing up (decision D44). Only an owner may make — or invite — another owner."""
     org_id, own_role = await authorise(svc, current, org_text, Action.MANAGE_MEMBERS)
     if role not in set(Role):
         raise ApiError(422, "unknown_role", f"choose a role from {', '.join(Role)}")
     if role == Role.OWNER and own_role != Role.OWNER:
         raise ApiError(403, "forbidden_for_role", "only an owner can make someone an owner")
     email, now = normalise_email(email), svc.now()
+    actor = actor_of(current.user_id)
     try:
         async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
             found = (await session.execute(FIND_USER, {"email": email})).first()
             if found is None:
-                raise ApiError(404, "user_not_found", "there is no account with that e-mail address yet")
+                invitation = Invitation(
+                    id=svc.new_id(), org_id=org_id, email=email, role=role, invited_by=current.user_id, created_at=now
+                )
+                session.add(invitation)
+                # The audit names the invitation, not the address: the chain can't be edited later.
+                target = ids.encode("inv", invitation.id)
+                await audit.record(session, org_id, actor, "member.invited", target, {"role": role}, now)
+                await session.commit()
+                return {"invitation": target, "email": email, "role": role, "pending": True}
             session.add(Membership(org_id=org_id, user_id=found.id, role=role, created_at=now))
             target = ids.encode("usr", found.id)
-            await audit.record(session, org_id, actor_of(current.user_id), "member.added", target, {"role": role}, now)
+            await audit.record(session, org_id, actor, "member.added", target, {"role": role}, now)
             await session.commit()
     except IntegrityError:
-        raise ApiError(409, "already_a_member", "that person is already a member") from None
-    return {"user": ids.encode("usr", found.id), "email": email, "role": role}
+        raise ApiError(409, "already_a_member", "that person is already a member, or already invited") from None
+    return {"user": ids.encode("usr", found.id), "email": email, "role": role, "pending": False}
+
+
+async def list_invitations(svc: Services, current: ConsoleSession, org_text: str) -> dict[str, Any]:
+    """The organisation's invitations still waiting for someone to sign up, oldest first."""
+    org_id, _ = await authorise(svc, current, org_text, Action.MANAGE_MEMBERS)
+    async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
+        query = select(Invitation).where(Invitation.org_id == org_id).order_by(Invitation.created_at)
+        waiting = list(await session.scalars(query))
+    data = [
+        {
+            "id": ids.encode("inv", i.id),
+            "email": i.email,
+            "role": i.role,
+            "created_at": i.created_at.isoformat(),
+        }
+        for i in waiting
+    ]
+    return {"object": "list", "data": data}
+
+
+async def cancel_invitation(svc: Services, current: ConsoleSession, org_text: str, invitation_text: str) -> None:
+    org_id, _ = await authorise(svc, current, org_text, Action.MANAGE_MEMBERS)
+    try:
+        invitation_id = ids.decode("inv", invitation_text)
+    except ids.InvalidIdError:
+        raise ApiError(404, "invitation_not_found", "no such invitation") from None
+    async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
+        # No lock: an invitation is never changed, only made and deleted (the app may not update one).
+        invitation = await session.get(Invitation, invitation_id)
+        if invitation is None or invitation.org_id != org_id:
+            raise ApiError(404, "invitation_not_found", "no such invitation")
+        facts = {"role": invitation.role}
+        await audit.record(
+            session, org_id, actor_of(current.user_id), "member.invitation_cancelled", invitation_text, facts, svc.now()
+        )
+        await session.delete(invitation)
+        await session.commit()
 
 
 def _member_id(user_text: str) -> uuid.UUID:
@@ -446,6 +676,48 @@ async def create_key(
         await session.commit()
     # Shown once, now; Dwarpal keeps only its digest.
     return {"id": key.lookup, "object": "api_key", "key": key.plaintext, "scopes": row.scopes, "livemode": livemode}
+
+
+def key_view(key: ApiKey, now: datetime) -> dict[str, Any]:
+    """What the console shows of a key (decision D30): never its secret, which Dwarpal doesn't have."""
+    expired = key.expires_at is not None and key.expires_at <= now
+    return {
+        "id": key.lookup,
+        "object": "api_key",
+        "livemode": key.livemode,
+        "scopes": key.scopes,
+        "created_at": key.created_at.isoformat(),
+        "expires_at": key.expires_at.isoformat() if key.expires_at else None,
+        "revoked_at": key.revoked_at.isoformat() if key.revoked_at else None,
+        "state": "revoked" if key.revoked_at else "expired" if expired else "active",
+    }
+
+
+async def project_keys(svc: Services, current: ConsoleSession, org_text: str, project_text: str) -> dict[str, Any]:
+    """A project's keys, newest first, for the roles that may create and revoke them."""
+    org_id, project_id = await project_in(svc, current, org_text, project_text, Action.MANAGE_KEYS)
+    async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
+        query = select(ApiKey).where(ApiKey.project_id == project_id).order_by(ApiKey.created_at.desc())
+        keys = list(await session.scalars(query))
+    now = svc.now()
+    return {"object": "list", "data": [key_view(key, now) for key in keys]}
+
+
+async def revoke_key(svc: Services, current: ConsoleSession, org_text: str, project_text: str, key_text: str) -> None:
+    """Stop a key at once — every request looks its key up afresh, so the next one with it is refused. Revoking a key
+    twice changes nothing."""
+    org_id, project_id = await project_in(svc, current, org_text, project_text, Action.MANAGE_KEYS)
+    now = svc.now()
+    async with tenant(svc.sessions, org_id=org_id, user_id=current.user_id) as session:
+        query = select(ApiKey).where(ApiKey.project_id == project_id, ApiKey.lookup == key_text)
+        key = await session.scalar(query.with_for_update())
+        if key is None:
+            raise ApiError(404, "key_not_found", "no such key in this project")
+        if key.revoked_at is None:
+            key.revoked_at = now
+            facts = {"project": ids.encode("prj", project_id)}
+            await audit.record(session, org_id, actor_of(current.user_id), "api_key.revoked", key.lookup, facts, now)
+        await session.commit()
 
 
 async def audit_log(svc: Services, current: ConsoleSession, org_text: str, limit: int) -> dict[str, Any]:

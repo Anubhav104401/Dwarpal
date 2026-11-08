@@ -2,6 +2,8 @@ import { createHmac } from "node:crypto";
 
 import { expect, type Page, test } from "@playwright/test";
 
+import { violations } from "./axe.js";
+
 const CONSOLE = "http://localhost:3000/console";
 const API = "http://localhost:8000";
 
@@ -227,6 +229,143 @@ test("an owner adds a member, changes their role, and removes them", async ({ pa
 
   await page.getByRole("button", { name: `Remove ${colleague}` }).click();
   await expect(members).not.toContainText(colleague);
+});
+
+test("an owner makes a project for their website, gives it a key, stops the key, and renames it", async ({
+  page,
+  request,
+}, info) => {
+  await signUp(page, `projects-${Date.now()}@shop.example`, "Projects Ltd");
+  await page.getByRole("link", { name: /Projects Ltd/ }).click();
+
+  // Decisions D28, D29: a project with its website's origins, written the standard way.
+  await page.getByText("New project").click();
+  await page.getByLabel("Name", { exact: true }).fill("Cellar shop");
+  await page.getByLabel("Allowed origins, one per line").fill("HTTPS://Shop.Example/\nhttp://localhost:3100");
+  await page.getByRole("button", { name: "Create project" }).click();
+  const projects = page.getByRole("region", { name: "Projects and API keys" });
+  await expect(projects).toContainText("https://shop.example · http://localhost:3100");
+
+  // A key for it; a website using the key may return checks only to those origins.
+  await page.getByLabel("Project", { exact: true }).selectOption({ label: "Cellar shop" });
+  await page.getByRole("button", { name: "Create key" }).click();
+  const key = (await page.getByTestId("new-key").textContent()) ?? "";
+  const session = (returnUrl: string) =>
+    request.post(`${API}/v1/verification-sessions`, {
+      headers: { Authorization: `Bearer ${key}` },
+      data: { policy: "uk_osa_18", return_url: returnUrl },
+    });
+  expect((await session("http://localhost:3100/age-check/complete")).status()).toBe(201);
+  expect((await session("https://elsewhere.example/done")).status()).toBe(422);
+
+  // D30: the project's page lists the key without its secret, and stops it at once.
+  await page.getByRole("link", { name: "Cellar shop" }).click();
+  const keys = page.getByRole("region", { name: "API keys" });
+  await expect(keys).not.toContainText(key);
+  page.once("dialog", (dialog) => dialog.accept());
+  await keys.getByRole("button", { name: /^Stop key/ }).click();
+  await expect(keys.getByText("Stopped")).toBeVisible();
+  expect((await session("http://localhost:3100/age-check/complete")).status()).toBe(401);
+
+  // Renamed in its settings; the heading follows.
+  const settings = page.getByRole("region", { name: "Settings" });
+  await settings.getByLabel("Name").fill("Amber Cellars shop");
+  await settings.getByRole("button", { name: "Save" }).click();
+  await expect(settings.getByText("Saved.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Amber Cellars shop" })).toBeVisible();
+  expect(await violations(page)).toEqual([]);
+  await page.screenshot({ path: info.outputPath("project.png"), fullPage: true, animations: "disabled" });
+});
+
+test("an owner invites someone without an account, who joins on signing up", async ({ page, browser }) => {
+  const newcomer = `newcomer-${Date.now()}@shop.example`;
+  await signUp(page, `inviter-${Date.now()}@shop.example`, "Inviting Ltd");
+  await page.getByRole("link", { name: /Inviting Ltd/ }).click();
+  const members = page.getByRole("region", { name: "Members" });
+
+  // Decision D44: no account yet, so an invitation waits (no e-mail is sent).
+  await page.getByLabel("Add by e-mail").fill(newcomer);
+  await page.getByLabel("Role", { exact: true }).selectOption("developer");
+  await members.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(members.getByRole("status")).toContainText("has no account yet, so they are invited");
+  await expect(members).toContainText("Invited, not signed up yet");
+
+  const theirs = await browser.newContext();
+  const theirPage = await theirs.newPage();
+  await signUp(theirPage, newcomer, "Newcomer Ltd");
+  await expect(theirPage.getByRole("link", { name: /Inviting Ltd/ })).toBeVisible(); // they joined on signing up
+  await theirs.close();
+
+  await page.reload();
+  await expect(page.getByLabel(`Role of ${newcomer}`)).toHaveValue("developer");
+  await expect(members).not.toContainText("Invited, not signed up yet");
+});
+
+test("a new password signs every other browser out, and an account can be deleted", async ({
+  page,
+  browser,
+}) => {
+  const email = `account-${Date.now()}@shop.example`;
+  const password = "a long and unguessable test passphrase";
+  const changed = "a different and equally long test passphrase";
+  await signUp(page, email, "Account Ltd");
+  const other = await browser.newContext();
+  const otherPage = await other.newPage();
+  await otherPage.goto(CONSOLE);
+  await otherPage.getByLabel("E-mail address").fill(email);
+  await otherPage.getByLabel("Password").fill(password);
+  await otherPage.getByRole("button", { name: "Sign in" }).click();
+  await expect(otherPage.getByRole("heading", { name: "Your organisations" })).toBeVisible();
+
+  // Decision D31: the old password, a new one; this browser stays signed in, the other is signed out.
+  await page.goto(`${CONSOLE}/account`);
+  const section = page.getByRole("region", { name: "Password" });
+  await section.getByLabel("Current password").fill(password);
+  await section.getByLabel("New password (at least 12 characters)").fill(changed);
+  await section.getByRole("button", { name: "Change password" }).click();
+  await expect(section.getByRole("status")).toHaveText(
+    "Password changed. Every other browser has been signed out.",
+  );
+  await otherPage.reload();
+  await expect(otherPage.getByRole("button", { name: "Sign in" })).toBeVisible();
+  await other.close();
+
+  // Decision D32: deleting the account needs the password and a tick; then it is gone, and signed out.
+  const deletion = page.getByRole("region", { name: "Delete your account" });
+  await deletion.getByLabel("Password, to confirm it's you").fill(changed);
+  await deletion.getByLabel("I understand this can't be undone.").check();
+  await deletion.getByRole("button", { name: "Delete my account" }).click();
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+  await page.getByLabel("E-mail address").fill(email);
+  await page.getByLabel("Password").fill(changed);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  // (By its text: after a navigation, Next.js's own route announcer is an alert too.)
+  await expect(page.getByText("That e-mail address or password is wrong.")).toBeVisible();
+});
+
+test("a live check opens on the document check while no age model is certified (D24)", async ({
+  page,
+  request,
+}) => {
+  await signUp(page, `live-${Date.now()}@shop.example`, "Live Ltd");
+  await page.getByRole("link", { name: /Live Ltd/ }).click();
+  await page.getByLabel(/Live key/).check();
+  await page.getByRole("button", { name: "Create key" }).click();
+  const key = (await page.getByTestId("new-key").textContent()) ?? "";
+  expect(key).toMatch(/^dk_live_/);
+
+  const created = await request.post(`${API}/v1/verification-sessions`, {
+    headers: { Authorization: `Bearer ${key}` },
+    data: { policy: "uk_osa_18" },
+  });
+  expect(created.status()).toBe(201);
+  const { id, client_secret: secret } = await created.json();
+  await page.goto(`http://localhost:3000/v/${id}#cs=${secret}`);
+  await expect(page.getByRole("heading", { name: "Confirm you are 18 or over" })).toBeVisible();
+  await expect(page.getByText("checks your age with an ID document")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start the camera" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Use a passport or ID card" }).click();
+  await expect(page.getByRole("heading", { name: "Confirm your age with an ID document" })).toBeVisible();
 });
 
 test("every page load gets its own script nonce, and inline scripts aren't allowed", async ({ request }) => {

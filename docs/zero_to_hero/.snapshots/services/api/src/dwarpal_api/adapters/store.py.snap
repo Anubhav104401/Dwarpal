@@ -98,6 +98,15 @@ class FlowStore:
         value = await self._client.getdel(key)
         return value if isinstance(value, bytes) else None
 
+    async def counter(self, key: str) -> int:
+        """A counter's value, 0 if it was never bumped."""
+        value = await self._client.get(key)
+        return int(value) if value is not None else 0
+
+    async def bump(self, key: str) -> int:
+        """Add one to a counter and return the new value. Counters never expire: one small number per key."""
+        return int(await self._client.incr(key))
+
     async def fetch(self, key: str, ttl_s: int) -> bytes | None:
         """Read a value and restart its time to live: a sliding expiry, for sessions that last while they are used."""
         value = await self._client.getex(key, ex=ttl_s)

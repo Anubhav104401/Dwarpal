@@ -27,7 +27,7 @@ from dwarpal_api.adapters.tables import (
 )
 from dwarpal_api.app import webhooks
 from dwarpal_api.app.policies import latest, pinned
-from dwarpal_api.domain import ids
+from dwarpal_api.domain import ids, origins
 from dwarpal_api.domain.challenges import new_challenge
 from dwarpal_api.domain.decision import Decision, Outcome, decide
 from dwarpal_api.domain.keys import generate_client_secret, matches
@@ -70,8 +70,12 @@ class Services:
 
 
 def origin_of(url: str) -> str:
-    parts = urlsplit(url)
-    return f"{parts.scheme}://{parts.netloc}"
+    """The origin of a return address, written the standard way (domain/origins.py), so it compares with a project's
+    allowed origins as plain text; empty — matching none of them — for an address without a proper origin."""
+    try:
+        return origins.origin_of(url)
+    except origins.InvalidOriginError:
+        return ""
 
 
 def public_id(row: VerificationSession) -> str:

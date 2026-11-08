@@ -1,5 +1,5 @@
 ---
-fingerprint: a1ce496ae8d6f552
+fingerprint: a26fcb897d31888c
 ---
 The **database tables**, described as Python classes. Each class is one table; each `Mapped[...]` line inside it is one **column**. SQLAlchemy's **ORM** (Object-Relational Mapper, §4.10) translates between the two worlds: code works with ordinary Python objects such as `row.status`, and SQLAlchemy writes the SQL.
 
@@ -365,7 +365,7 @@ The key is the pair: the organisation and the user (each deleted with its parent
 @@ 287-288
 The role, and when it was given.
 
-@@ 306
+@@ 324
 `METADATA` — a short public name for the catalogue of all these tables. The migration tool and the tests import it from here, which makes sure every table class above has been loaded first.
 
 @@ 247-249
@@ -377,7 +377,7 @@ The table's name.
 @@ 253-258
 Its key — the project, test or live, the day, the decision and the band (a small integer) — and the count.
 
-@@ 291-303
+@@ 309-321
 **`Passkey`** (Phase 9, migration `0010`) — a console user's passkey: its ID, its owner, the device's ID for it (unique), the public key as the device sent it, the device's signature counter, the person's name for it, and when it was added and last used. Never a private key: that stays on the device.
 
 @@ 98-100
@@ -385,3 +385,12 @@ Its key — the project, test or live, the day, the decision and the band (a sma
 
 @@ 116-119
 `accept_age_pass` (Phase 9, migration `0011`) — whether sessions under this version accept Age Passes, and give them out after a pass. `server_default=false()` fills it in the database itself for versions made before the column existed; `default=False` for new rows made in Python.
+
+@@ 291-293
+**`Invitation`** (decision D44) — someone without an account yet, invited to an organisation by e-mail address: they join, with this role, when they sign up with that address. No e-mail is sent (D25).
+
+@@ 295-299
+Its table, with the same check on roles as memberships, and one invitation per address in an organisation.
+
+@@ 301-306
+Its ID, organisation, the address (in lower case, and indexed: sign-up looks it up), the role, who invited, and when.

@@ -1,5 +1,5 @@
 ---
-fingerprint: 7d0d80a264a39f0f
+fingerprint: 9e255b3373a402e8
 ---
 **Roles** in the console (Phase 4, §5.4.5): who may do what in an organisation. The design's matrix (§3.7) is written here once, as data, and every console action asks it. The tests check every cell (`test_console_rules.py`).
 
@@ -24,20 +24,20 @@ The project-wide type-hint setting.
 @@ 8-12
 **`Role`** — the four roles.
 
-@@ 15-23
-**`Action`** — the eight kinds of thing a member might do.
-
-@@ 26
-`READ_ONLY` — what an analyst may do: look at sessions and analytics.
+@@ 15-24
+**`Action`** — the nine kinds of thing a member might do. Making projects and changing their names and allowed origins (`projects.manage`, decision D28) joined on 8 Nov: owners and admins.
 
 @@ 27
+`READ_ONLY` — what an analyst may do: look at sessions and analytics.
+
+@@ 28
 `BUILDING` — what a developer may do: everything read-only, plus manage keys, webhooks and policies. `|` joins two sets.
 
-@@ 28-33
+@@ 29-34
 **`ALLOWED`** — the matrix. An owner may do every action (`frozenset(Action)` is the set of all of them); an admin every action but deleting the organisation (`-` removes from a set); a developer the building set; an analyst the read-only set.
 
-@@ 36-37
+@@ 37-38
 **`can`** — may a member with this role do this action?
 
-@@ 38-41
+@@ 39-42
 Look the role up and ask whether the action is in its set. A role that isn't one of the four (`Role(role)` raises `ValueError`) may do nothing: an unexpected value denies rather than allows — **failing closed**.

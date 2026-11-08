@@ -1,5 +1,5 @@
 ---
-fingerprint: bfe6195b240e9916
+fingerprint: 5c91127dd10fa8aa
 ---
 Unit tests of the console's client (Phase 5), with the network replaced by a stand-in `fetch` that records each request and hands back prepared answers.
 
@@ -171,34 +171,34 @@ And the recovery codes came back as sent.
 @@ 245-246
 End of the test and the group.
 
-@@ 287-292
+@@ 397-402
 Every role but an analyst may manage keys. (`as never` lets a plain text stand in for the `Role` type in this table.)
 
-@@ 293-294
+@@ 403-404
 A developer may not manage members; an admin may read the audit log.
 
-@@ 295-296
+@@ 411-412
 End of the test and the group.
 
-@@ 298-299
+@@ 414-415
 **The model page's client.**
 
-@@ 300-324
+@@ 416-440
 Two prepared answers: a model's details, with a training dataset that records no number of faces and one line whose adult bound is missing but whose adults were measured (one band); then a 401.
 
-@@ 325-326
+@@ 441-442
 Every request gets the next answer; a fresh client.
 
-@@ 328
+@@ 444
 Ask for the model.
 
-@@ 330-345
+@@ 446-461
 The training faces are read with their number of faces unknown (`null`), the calibration's number is kept, and the line arrives with every field renamed, the missing bound as `null`, and its adult band read whole (`step_up` as `stepUp`).
 
-@@ 346
+@@ 462
 Signed out, the client answers `null` rather than failing.
 
-@@ 347-348
+@@ 463-464
 End of the test and the group.
 
 @@ 117-121
@@ -207,5 +207,62 @@ And the face checks' figures, read whole: five decided, four passes and a step-u
 @@ 248-283
 **Policies** (Phase 9): the list says which version accepts Age Passes (a version without the field doesn't), and adding a version sends the switch with the other rules.
 
-@@ 285-286
+@@ 395-396
 **The page's role checks** match the API's matrix where the pages use them.
+
+@@ 285-287
+**Test — projects and keys** (decisions D28–D30): the client's four new calls, and what it reads back.
+
+@@ 288-293
+A project as the API would answer it.
+
+@@ 294-312
+The answers, in order: who is signed in; the new project; the renamed one; two keys — one without a state, one stopped; and the stop itself.
+
+@@ 313-316
+A stand-in `fetch` notes each request's method, address and body.
+
+@@ 317-322
+Make a project, rename it, list the keys, stop one.
+
+@@ 324-329
+Each request went where it should, and the rename sent only the name.
+
+@@ 330-336
+The project and the renamed one were read back in the page's own terms.
+
+@@ 337-341
+The keys too: a key without a state reads as active; the stopped one keeps its time.
+
+@@ 342
+End of the test.
+
+@@ 344-345
+**Test — invitations and the account** (decisions D31, D32, D44).
+
+@@ 346-358
+The answers, in order: who is signed in; an invitation (pending); the list; the cancellation; the password change with a new CSRF token; the deletion.
+
+@@ 359-367
+A stand-in `fetch` notes each request, its body and the CSRF token it carried.
+
+@@ 368-374
+Invite, list, cancel, change the password (with a code), delete the account.
+
+@@ 376-379
+The invitation was pending, and the list read back.
+
+@@ 380-386
+Each request went where it should.
+
+@@ 387-389
+The password change sent both passwords and the code.
+
+@@ 390-391
+The deletion carried the **new** session's CSRF token — the client kept it from the password change — and no code, since none was given.
+
+@@ 392-393
+End of the test.
+
+@@ 405-410
+And who may make projects: owners and admins only.

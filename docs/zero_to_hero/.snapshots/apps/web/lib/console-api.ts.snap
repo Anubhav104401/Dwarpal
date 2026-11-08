@@ -55,6 +55,31 @@ export interface NewKey {
   livemode: boolean;
 }
 
+/** A key as the console lists it (decision D30): never its secret, which Dwarpal doesn't keep. */
+export interface ApiKeyInfo {
+  id: string;
+  livemode: boolean;
+  scopes: string[];
+  createdAt: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  state: "active" | "expired" | "revoked";
+}
+
+/** Someone invited by e-mail address who hasn't signed up yet (decision D44). */
+export interface Invitation {
+  id: string;
+  email: string;
+  role: Role;
+  createdAt: string;
+}
+
+/** A project's new name, or the full new list of its allowed origins, or both. */
+export interface ProjectChange {
+  name?: string;
+  allowedOrigins?: string[];
+}
+
 export interface AuditEntry {
   seq: number;
   actor: string;
@@ -197,6 +222,7 @@ export interface Delivery {
 /** What each role may do, as the API decides it (domain/roles.py); the pages only use it to hide what would fail. */
 export const CAN = {
   manageMembers: (role: Role) => role === "owner" || role === "admin",
+  manageProjects: (role: Role) => role === "owner" || role === "admin",
   readAudit: (role: Role) => role === "owner" || role === "admin",
   manageKeys: (role: Role) => role !== "analyst",
   managePolicies: (role: Role) => role !== "analyst",
@@ -260,6 +286,27 @@ function asEndpoint(e: Json): WebhookEndpoint {
 
 const asRole = (value: unknown): Role =>
   value === "owner" || value === "admin" || value === "developer" ? value : "analyst";
+
+function asProject(p: Json): Project {
+  return {
+    id: asText(p.id),
+    name: asText(p.name),
+    allowedOrigins: asTexts(p.allowed_origins),
+    retentionDays: asCount(p.retention_days),
+  };
+}
+
+function asKey(k: Json): ApiKeyInfo {
+  return {
+    id: asText(k.id),
+    livemode: k.livemode === true,
+    scopes: asTexts(k.scopes),
+    createdAt: asText(k.created_at),
+    expiresAt: orNull(k.expires_at),
+    revokedAt: orNull(k.revoked_at),
+    state: k.state === "revoked" || k.state === "expired" ? k.state : "active",
+  };
+}
 
 export class ConsoleClient {
   readonly #base: string;
@@ -340,8 +387,40 @@ export class ConsoleClient {
     }));
   }
 
-  async addMember(org: string, email: string, role: Role): Promise<void> {
-    await this.#call("POST", `/orgs/${encodeURIComponent(org)}/members`, { email, role });
+  /** Add an account; an address without one is invited instead and joins on signing up (`pending`, decision D44). */
+  async addMember(org: string, email: string, role: Role): Promise<{ pending: boolean }> {
+    const data = await this.#call("POST", `/orgs/${encodeURIComponent(org)}/members`, { email, role });
+    return { pending: data.pending === true };
+  }
+
+  async invitations(org: string): Promise<Invitation[]> {
+    const data = await this.#call("GET", `/orgs/${encodeURIComponent(org)}/invitations`);
+    return asList(data.data).map((i) => ({
+      id: asText(i.id),
+      email: asText(i.email),
+      role: asRole(i.role),
+      createdAt: asText(i.created_at),
+    }));
+  }
+
+  async cancelInvitation(org: string, invitation: string): Promise<void> {
+    const path = `/orgs/${encodeURIComponent(org)}/invitations/${encodeURIComponent(invitation)}`;
+    await this.#call("DELETE", path);
+  }
+
+  /** A new password (decision D31): every other session ends; this one carries on, with a new CSRF token. */
+  async changePassword(password: string, newPassword: string, code?: string): Promise<Me> {
+    const body: Json = { password, new_password: newPassword };
+    if (code) body.code = code;
+    return this.#remember(await this.#call("POST", "/password", body));
+  }
+
+  /** Erase this account (decision D32); signed out afterwards. */
+  async deleteAccount(password: string, code?: string): Promise<void> {
+    const body: Json = { password };
+    if (code) body.code = code;
+    await this.#call("POST", "/account/delete", body);
+    this.#csrf = "";
   }
 
   async changeRole(org: string, user: string, role: Role): Promise<void> {
@@ -416,12 +495,32 @@ export class ConsoleClient {
 
   async projects(org: string): Promise<Project[]> {
     const data = await this.#call("GET", `/orgs/${encodeURIComponent(org)}/projects`);
-    return asList(data.data).map((p) => ({
-      id: asText(p.id),
-      name: asText(p.name),
-      allowedOrigins: Array.isArray(p.allowed_origins) ? p.allowed_origins.map(asText) : [],
-      retentionDays: typeof p.retention_days === "number" ? p.retention_days : 0,
-    }));
+    return asList(data.data).map(asProject);
+  }
+
+  /** A new project, with the origins its websites run on (decisions D28, D29). */
+  async createProject(org: string, name: string, allowedOrigins: string[]): Promise<Project> {
+    const path = `/orgs/${encodeURIComponent(org)}/projects`;
+    return asProject(await this.#call("POST", path, { name, allowed_origins: allowedOrigins }));
+  }
+
+  async updateProject(org: string, project: string, change: ProjectChange): Promise<Project> {
+    const body: Json = {};
+    if (change.name !== undefined) body.name = change.name;
+    if (change.allowedOrigins !== undefined) body.allowed_origins = change.allowedOrigins;
+    const path = `/orgs/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}`;
+    return asProject(await this.#call("PATCH", path, body));
+  }
+
+  async keys(org: string, project: string): Promise<ApiKeyInfo[]> {
+    const path = `/orgs/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}/keys`;
+    return asList((await this.#call("GET", path)).data).map(asKey);
+  }
+
+  /** Stop a key at once (decision D30). */
+  async revokeKey(org: string, project: string, key: string): Promise<void> {
+    const base = `/orgs/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}`;
+    await this.#call("DELETE", `${base}/keys/${encodeURIComponent(key)}`);
   }
 
   async createKey(org: string, project: string, scopes: string[], livemode: boolean): Promise<NewKey> {

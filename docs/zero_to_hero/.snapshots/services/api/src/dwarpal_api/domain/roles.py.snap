@@ -15,6 +15,7 @@ class Role(StrEnum):
 class Action(StrEnum):
     DELETE_ORGANISATION = "organisation.delete"
     MANAGE_MEMBERS = "members.manage"
+    MANAGE_PROJECTS = "projects.manage"
     READ_AUDIT = "audit.read"
     MANAGE_KEYS = "keys.manage"
     MANAGE_WEBHOOKS = "webhooks.manage"

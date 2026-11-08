@@ -27,6 +27,8 @@ NAME_SESSION_TENANT = text(
 FIND_USER = text("SELECT id, password_hash, totp_secret_sealed FROM dwarpal_find_user(:email)")
 # A passkey signs in before anyone is named too: it is found by the ID its device gives.
 FIND_PASSKEY = text("SELECT id, user_id, public_key, sign_count FROM dwarpal_find_passkey(:credential_id)")
+# Signing up takes the invitations waiting for the new address (decision D44), before any organisation is named.
+TAKE_INVITATIONS = text("SELECT org_id, role, invited_by FROM dwarpal_take_invitations(:email)")
 # An API key is checked before its tenant is known, so it is read through a function that the policies don't bind.
 FIND_API_KEY = text(
     "SELECT id, project_id, livemode, secret_digest, revoked_at, scopes, expires_at FROM dwarpal_find_api_key(:lookup)"

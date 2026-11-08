@@ -431,5 +431,44 @@ The home page, its accuracy table, the verify page and its camera screen, the ti
 
 !!! honest "Honest limitation"
     - **The Hindi is machine-drafted** — by the AI that wrote this code — and needs a native speaker's review before real visitors read it, above all the compliance map and the privacy promises.
-    - **No Devanagari typeface is bundled.** Geist has no Devanagari letters, so Hindi text uses the visitor's system font (Nirmala UI on Windows, Noto Sans Devanagari on Android). A bundled font, such as Noto Sans Devanagari, would be another download (D2b).
+    - **The Devanagari typeface**: until 2 November Hindi text used the visitor's system font; since then the site serves Noto Sans Devanagari (decision D2b) — on Hindi pages only since 3 November, so English pages don't fetch it for the one Hindi word in the language switch.
     - **Inside a website's frame the choice may not stick**: browsers often withhold a framed page's cookies, so there the language follows the browser's settings.
+
+### 5.5.12 The console, ready for a launch: projects, keys, accounts and invitations
+
+Looking at what a real customer would need on day one (8 November), four things were missing from the console — and the first made the deployment's own step 7 impossible:
+
+- **Projects and their allowed origins** (decisions D28, D29). Signing up makes a *Default project* with no allowed origins, and nothing could add one; yet a session may only return to an allowed origin, and only that origin may show the verify page in a frame (§5.5.7). Owners and admins can now make projects (at most 20) and set their origins. An origin is written one way — lower case, without the usual port — so `HTTPS://Shop.Example:443/` and `https://shop.example` are the same; `http://` is allowed only for `localhost` while developing.
+- **Keys** (D30): a project's keys are listed — never their secrets, which Dwarpal doesn't keep — and can be stopped at once.
+- **The account** (D31, D32): a new password ends every other session at once; deleting the account erases the person's address, password, codes and passkeys, closes an organisation where they were alone, and is refused while they are the only owner of one with other members.
+- **Invitations** (D44): an address without an account is invited instead of refused; no e-mail is sent (D25), and the person joins when they sign up with that address.
+
+Ending "every other session" needs a trick, because a console session lives in Valkey under the hash of its cookie, with no list of a person's sessions. Each session remembers a **generation** number when it begins; changing the password (or deleting the account) adds one to the person's number, and a session whose number is older stops counting at its next request.
+
+The rule for origins:
+
+!walk services/api/src/dwarpal_api/domain/origins.py
+
+!walk services/api/tests/test_origins.py
+
+The invitations' table, and the function sign-up takes them through:
+
+!walk services/api/src/dwarpal_api/migrations/versions/v0012_invitations.py
+
+On the project's page, the settings and the keys, each in its own panel; and the helper both pages use for the origins box:
+
+!walk apps/web/app/console/[org]/[project]/settings-panel.tsx
+
+!walk apps/web/app/console/[org]/[project]/keys-panel.tsx
+
+!walk apps/web/lib/origins.ts
+
+!walk apps/web/lib/origins.test.ts
+
+The console's use cases and routes, its tables, the Valkey store (a counter that never expires), the role table, the console client and its tests, the organisation's, project's and account's pages, the browser tests, and the API document changed too; each was re-explained.
+
+!!! honest "Honest limitations"
+    - **Without e-mail, a forgotten password can't be reset by the person.** Passkeys and one-time codes with their recovery codes remain the ways back in (decision D25); otherwise the operator must help.
+    - **Invitations don't expire**, and an invitation is only as private as the address it names: whoever signs up first with that address joins.
+    - **Deleting an account leaves its ID in the audit chains** — by design, so they still verify — and a closed organisation's records go only when the usual retention reaches them.
+

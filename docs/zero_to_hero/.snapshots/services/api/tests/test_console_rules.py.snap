@@ -15,6 +15,7 @@ from dwarpal_api.domain.roles import Action, Role, can
 MATRIX = {
     Action.DELETE_ORGANISATION: (True, False, False, False),
     Action.MANAGE_MEMBERS: (True, True, False, False),
+    Action.MANAGE_PROJECTS: (True, True, False, False),
     Action.READ_AUDIT: (True, True, False, False),
     Action.MANAGE_KEYS: (True, True, True, False),
     Action.MANAGE_WEBHOOKS: (True, True, True, False),
