@@ -41,6 +41,48 @@ be reversed in the morning.
 | D32 | Deleting an account that is an organisation's only member | **Confirmed**: the organisation is closed with it (keys revoked at once, records purged by retention) |
 | D45 | The Kubernetes chart | **Keep it checked in CI, no cluster**; optional in the roadmap |
 
+## Morning summary — 9 Nov (overnight work, 8→9 Nov)
+
+**Only the deployment is left for you.** Everything that doesn't need the server is built, tested and pushed. The steps,
+in order (details in [`infra/deploy/README.md`](../../infra/deploy/README.md)):
+
+| # | What | Unblocks |
+| :-: | :-- | :-- |
+| O2c | Create the Oracle instance with `infra/vm/cloud-init.yaml`, and open ports 80 and 443 in its security list | everything below |
+| O10 | **The DuckDNS name** (D40): sign in at duckdns.org, add a name and set it to the instance's public IP (README step 1). `dwarpal` itself is taken; `dwarpal-age` and `getdwarpal` were free at 2 am | HTTPS certificates |
+| O9 | GitHub settings (README step 5): the variables `DWARPAL_PUBLIC_API_URL`, `DEPLOY_HOST`, `DEPLOY_KNOWN_HOSTS`, the secret `DEPLOY_SSH_KEY`, and a `production` environment | the first deploy, and the outside uptime check (D33) |
+| O8 | An Object Storage bucket and a customer secret key for backups (README step 8) | backups and the restore drill — Phase 8's exit |
+
+Still open from before, not blocking the deploy: O11 (the two dataset requests), O12 (the consent form's review, then
+filming yourself), O5 (the legal review of the compliance map and practice statement).
+
+**Done overnight** (no decision needed; all pushed, CI green on `5ea6b69`):
+
+- **Live checks by ID document** (D24, `3ac4b3a`): while no age model is certified, a live session opens on the passport
+  check; the token's methods say `document_mrz` and `face_match`. Test sessions are unchanged. **`joserfc` 1.7.6**
+  installed (D42).
+- **The console, ready for a launch** (`ff53957`): projects and their allowed origins (D28, D29) — which deploy step 7
+  needs — keys listed and stopped (D30), a password change (D31), account deletion (D32), and invitations for people
+  without an account (D44). Migration 0012.
+- **40 more made-up people** (D35): 80 in all, filed as 240 injected clips (59 people for training, 11 for validation,
+  10 for testing); 98.5 % of sampled frames give exactly one face. Training still waits for real people (O12).
+- **The deployment takes a DuckDNS name** (D40, `4ed0d89`): checked first that DuckDNS answers every name under one (`api.`,
+  `shop.`) and that duckdns.org is on the Public Suffix List, so the console's sign-in and Let's Encrypt work as with a
+  bought domain. `gen_secrets.py` refuses anything but a bare name.
+- **Watching from outside** (D33, `4ed0d89`): the `uptime` workflow checks the API, the home page and both certificates every 15
+  minutes once `DWARPAL_PUBLIC_API_URL` is set; a failure makes GitHub email you.
+- **Safe retries** (`4ed0d89`): the developers guide tells websites to use a fresh random idempotency key per session (Phase 4 open
+  item 6), and both SDKs take one.
+- **A document camera for computers** (D43, `4ed0d89`): the webcam with a passport-shaped guide, the photo looked at before it is
+  used, the file chooser beside it; phones unchanged. Two new browser tests.
+- **The verify page's calls limited per address** (Phase 4, open item 5, `9b339be`): 10 a second, bursts of 300 — far above what people sharing a network need — so a flood from one address stops before the database; the page says to wait and reload.
+- **The production images are built in CI** on every push (`9b339be`, `5ea6b69`), on GitHub's Arm machines and never published (D17 allows exactly that), then started as far as each can be alone. **Its first run found two problems that would have stopped your first deploy**: the Python images didn't copy the Python SDK's `pyproject.toml`, and the deploy workflow ran the model fetcher without httpx. Both are fixed and guarded by tests; all four images now build and start.
+- **Browser tests**: the full suite passes in Chromium and WebKit (50 tests; the WebKit passkey test is skipped by design).
+- **Scans** (D34): `pip-audit` finds nothing; `pnpm audit` finds nothing in what ships — only the two old `extract-zip`
+  advisories inside Lighthouse CI, a test tool, with no fixed version. Nothing to approve.
+- **Hindi** (D36): the new screens' words are machine-drafted, like all the Hindi, for the native review.
+- **The book**: every new and changed file explained (348 files, 31,098 lines at 100 %), with §5.6.5, §5.8.5 and eleven new glossary terms.
+
 ## Morning summary — 4 Nov (overnight work, 3→4 Nov)
 
 **Your answers still open**, in the order they unblock things:
