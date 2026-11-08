@@ -19,7 +19,9 @@ trap cleanup EXIT
 # A fresh, empty PostgreSQL, of the same version as the live one, with no ports open.
 docker run -d --name "$drill" -e POSTGRES_PASSWORD="$password" -e POSTGRES_DB=dwarpal -e POSTGRES_USER=dwarpal \
   postgres:18.6-alpine3.24 >/dev/null
-until docker exec "$drill" pg_isready -U dwarpal -d dwarpal >/dev/null 2>&1; do sleep 1; done
+# Ready over TCP, not just the socket: on first start the image runs a temporary server, on the socket only, to set the
+# database up, then stops it — a command sent then fails with "the database system is shutting down".
+until docker exec "$drill" pg_isready -h 127.0.0.1 -U dwarpal -d dwarpal >/dev/null 2>&1; do sleep 1; done
 # The restricted role the dump's grants refer to.
 docker exec "$drill" psql -q -U dwarpal -d dwarpal -c "CREATE ROLE dwarpal_app NOLOGIN; CREATE ROLE dwarpal_api LOGIN"
 
