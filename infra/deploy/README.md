@@ -14,14 +14,33 @@ One server (Oracle Cloud's Always Free Ampere machine, decision O2b), Docker Com
 | [`backup.sh`](backup.sh) / [`restore_drill.sh`](restore_drill.sh) | Encrypted off-site backups, and the proof they restore |
 | [`alert_email.py`](alert_email.py), [`collector.yaml`](collector.yaml), [`prometheus.yaml`](prometheus.yaml) | Alerts by email: the mail settings, and what carries the metrics to the alert rules ([`../observability/alerts.yaml`](../observability/alerts.yaml)) |
 | [`../../.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) | Builds the images on GitHub, publishes them to GHCR, deploys |
+| [`../../.github/workflows/uptime.yml`](../../.github/workflows/uptime.yml) | Checks the live server from outside every 15 minutes; GitHub emails you when a check fails |
 
 ## First-time setup
 
 Done once, after the server exists (the owner's steps: account, instance with `cloud-init.yaml`, ports 80/443 open in
-the network's security list, the domain bought).
+the network's security list, and a name for it).
 
-1. **DNS.** At the domain's registrar, point four names at the server's public IP address — four `A` records:
-   `@` (the domain itself), `www`, `api` and `shop`. Caddy can't get certificates until these resolve.
+1. **A name for the server** — the *domain* in the steps below. Either:
+   - **A free DuckDNS name** (decision D40). Sign in at [duckdns.org](https://www.duckdns.org) with an account you
+     already have (GitHub, Google and others), add a name, type the server's public IP address into its *current ip*
+     box and press *update ip*. The domain is then `<name>.duckdns.org`. `dwarpal` itself is taken; `dwarpal-age`
+     and `getdwarpal` were free on 9 Nov 2026. Nothing else to add: DuckDNS answers every name under yours —
+     `www.`, `api.`, `shop.` — with the same address. Oracle keeps an instance's public address while it is
+     stopped and releases it only when the instance is deleted, so this is done once; a new instance means typing
+     its address there again.
+   - **A domain you own.** At its registrar, point four names at the server's public IP address — four `A` records:
+     `@` (the domain itself), `www`, `api` and `shop`.
+
+   Caddy can't get certificates until the names resolve: `nslookup api.<domain>` should answer with the server's
+   address. A DuckDNS name works like a bought one: duckdns.org is on the
+   [Public Suffix List](https://publicsuffix.org/), so browsers and Let's Encrypt treat `<name>.duckdns.org` as a site
+   of its own — the console's sign-in works between `<domain>` and `api.<domain>`, and certificate limits aren't
+   shared with other DuckDNS names. DuckDNS is free and run by volunteers, so a bought domain is the sturdier choice
+   once real websites depend on Dwarpal. Moving to one later means a new `DWARPAL_DOMAIN` in `.env`, a new
+   `DWARPAL_PUBLIC_API_URL` on GitHub (the web image is built with the API's address), the demo shop's allowed origin
+   changed in the console, and a deploy; tokens issued before then name the old address as their issuer.
+
 2. **Files.** From a checkout of the repository, on your computer:
 
    ```
@@ -35,6 +54,9 @@ the network's security list, the domain bought).
    ssh ubuntu@<ip>
    cd /opt/dwarpal && python3 gen_secrets.py --domain <domain> --email <your email> --ghcr-owner <github account>
    ```
+
+   The domain is the bare name, such as `dwarpal-age.duckdns.org` — no `https://` and no `/`; the script refuses
+   anything else before writing a single secret.
 
 4. **Models.** The services read their models from `/opt/dwarpal/models` (mounted read-only). Copy the face detector,
    face mesh, hand detector, anti-spoofing networks, SFace and the age model's manifest there — the files
@@ -96,5 +118,14 @@ the network's security list, the domain bought).
     `alertmanager.yml`, and adds `COMPOSE_PROFILES=alerts` to `.env`, so Compose starts the collector, Prometheus
     (`prom/prometheus:v3.13.4`) and Alertmanager (`prom/alertmanager:v0.34.1`, 38 MB). You get a mail when server
     errors spend the month's allowance too fast, when face checks are slow, or when the metrics stop arriving — and
-    another when each is over. They watch from inside the server, so if the whole server stops, no mail comes: a free
-    outside uptime check of `https://api.<domain>/readyz` covers that.
+    another when each is over. They watch from inside the server, so if the whole server stops, no mail comes: the
+    outside check covers that (step 11).
+
+11. **The outside check** (decision D33) needs nothing more: once `DWARPAL_PUBLIC_API_URL` is set (step 5), the
+    [`uptime`](../../.github/workflows/uptime.yml) workflow asks `https://api.<domain>/readyz` and the home page every
+    15 minutes, and checks that both certificates last another week. When a check fails, GitHub emails whoever last
+    changed the workflow's schedule — the repository's owner — as long as your account's notification settings
+    (*Settings → Notifications*, under *Actions*) email you about failed workflows, as they do unless changed. Two
+    things to know: GitHub may run a schedule a few minutes late, and it switches off schedules in a public repository
+    after 60 days without activity such as a commit — *Actions → uptime → Enable workflow* turns it back on. To try it
+    at once: *Actions → uptime → Run workflow*.

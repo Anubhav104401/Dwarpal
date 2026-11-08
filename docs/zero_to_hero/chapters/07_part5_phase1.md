@@ -297,6 +297,8 @@ Three parts, in the order they are walked through:
 
 !walk packages/sdk-node/src/client.ts
 
+Since 9 November `createSession` (and the Python SDK's `create_session`) also takes an optional **idempotency key**. If a session's answer is lost on the way — a timeout, a dropped connection — the website sends the same request again with the same key, and Dwarpal answers with the first session instead of making a second one (§5.4.2). The key must be random and new for each session: the developers guide says why.
+
 !walk packages/sdk-node/src/token.ts
 
 !walk packages/sdk-node/src/index.ts

@@ -1,5 +1,5 @@
 ---
-fingerprint: 46192508a7c99fa6
+fingerprint: e3a960073e2889c2
 ---
 Tests for the **Python SDK** (§5.9.1), mirroring the Node SDK's. A further test in the API's suite runs the SDK against the real API.
 
@@ -21,50 +21,65 @@ An API address, a test key, a session ID, a project ID, and the API's answer to 
 @@ 47-58
 **Test — a session is created with the key, and only the fields given**: the request carries the key, and a body without the fields left out; the answer is read into a `CreatedSession`.
 
-@@ 61-68
+@@ 79-86
 **Test — a refusal carries the API's stable code and request ID.**
 
-@@ 71-75
+@@ 89-93
 **Test — bad keys and session IDs are refused before anything is sent** — including a "session ID" that tries to climb the address (`../admin`).
 
-@@ 78-81
+@@ 96-99
 **Test — a malformed answer is reported, not trusted**: a status Dwarpal never gives.
 
-@@ 84-95
+@@ 102-113
 **Test — the async client reads a completed session.** (`# fmt: skip` keeps the long answer on few lines.)
 
-@@ 98-100
+@@ 116-118
 **Age tokens.** A signing key made for the tests, with key ID `k1`.
 
-@@ 103-110
+@@ 121-128
 **`token`** — a signed age token, valid unless a test overrides a claim, the type or the key.
 
-@@ 113-123
+@@ 131-141
 **`keys`** — an issuer's keys served by a fake address that counts its calls, with no refresh limit.
 
-@@ 126-127
+@@ 144-145
 **`check`** — verify a token for an 18+ door.
 
-@@ 130-133
+@@ 148-151
 **Test — a genuine pass allows entry at its age only**: at 18 yes; at 21, which the token doesn't state, no.
 
-@@ 136-149
+@@ 154-167
 **Test — forged, foreign, expired or odd tokens are refused**: another issuer, another project, expired, the wrong type, an unknown outcome — and a forgery signed with a different key that claims the real key's ID.
 
-@@ 152-154
+@@ 170-172
 **Test — a token for another session is refused.**
 
-@@ 157-162
+@@ 175-180
 **Test — a new signing key is fetched once when a token needs it**: the keys kept predate a rotation; a token signed with the new key still verifies, after exactly one fetch.
 
-@@ 165-169
+@@ 183-187
 **Webhooks.** A test secret, and an event's body.
 
-@@ 171-174
+@@ 189-192
 **`signed`** — a `Dwarpal-Signature` header for a body, at a time, with a secret — as Dwarpal makes them.
 
-@@ 177-178
+@@ 195-196
 **Test — a genuine webhook gives its event.**
 
-@@ 181-193
+@@ 199-211
 **Test — missing, forged, stale or mismatched webhooks are refused**: no header, a garbled one, the wrong secret, an hour old, and a signature for a different body.
+
+@@ 61-66
+**Test — idempotency keys** (9 Nov): a stand-in API notes each request and answers with a new session.
+
+@@ 68-70
+A session created with a key, then one without.
+
+@@ 71-72
+The first request carried the `Idempotency-Key` header, the second none; and the key isn't in the body.
+
+@@ 73-75
+Four malformed keys — too short, with spaces, too long, and one ending in a line break — are each refused with a `ValueError` naming `idempotency_key`…
+
+@@ 76
+…and nothing more was sent.

@@ -27,6 +27,12 @@ export interface CreateSessionParams {
   policy?: string;
   returnUrl?: string;
   externalRef?: string;
+  /**
+   * Makes a retry safe: repeat this request with the same key after its answer was lost, and the first session comes
+   * back instead of a second one. Make a fresh random key for each new session (`crypto.randomUUID()`) — never an
+   * order number or anything another request could share. 8 to 255 printable characters, without spaces.
+   */
+  idempotencyKey?: string;
 }
 
 export interface CreatedSession {
@@ -57,6 +63,7 @@ type Json = Record<string, unknown>;
 
 const API_KEY = /^dk_(test|live)_[A-Za-z0-9_-]{20,}$/;
 const SESSION_ID = /^vs_[0-9A-Za-z]{26}$/;
+const IDEMPOTENCY_KEY = /^[\x21-\x7e]{8,255}$/;
 
 function field<T>(data: Json, key: string, accept: (value: unknown) => value is T): T {
   const value = data[key];
@@ -101,7 +108,14 @@ export class DwarpalClient {
     if (params.policy !== undefined) body.policy = params.policy;
     if (params.returnUrl !== undefined) body.return_url = params.returnUrl;
     if (params.externalRef !== undefined) body.external_ref = params.externalRef;
-    const data = await this.#request("POST", "/v1/verification-sessions", body);
+    const headers: Record<string, string> = {};
+    if (params.idempotencyKey !== undefined) {
+      if (!IDEMPOTENCY_KEY.test(params.idempotencyKey)) {
+        throw new TypeError("idempotencyKey must be 8 to 255 printable characters, without spaces");
+      }
+      headers["Idempotency-Key"] = params.idempotencyKey;
+    }
+    const data = await this.#request("POST", "/v1/verification-sessions", body, headers);
     return {
       id: field(data, "id", isText),
       status: field(data, "status", oneOf(STATUSES)),
@@ -132,8 +146,14 @@ export class DwarpalClient {
     };
   }
 
-  async #request(method: "GET" | "POST", path: string, body?: Json): Promise<Json> {
+  async #request(
+    method: "GET" | "POST",
+    path: string,
+    body?: Json,
+    extra: Record<string, string> = {},
+  ): Promise<Json> {
     const headers: Record<string, string> = {
+      ...extra,
       Authorization: `Bearer ${this.#apiKey}`,
       Accept: "application/json",
     };

@@ -1,5 +1,5 @@
 ---
-fingerprint: 0824b8cde43d35e4
+fingerprint: f4b03f10a83bdb43
 ---
 The public pages' words in **English** (decision D2, §5.5.11): the home page and the verify page, gathered from the code into one file per language. The code names each piece of text by a key, such as `Verify.introTitle`; next-intl fills in the parts in braces — `Confirm you are {age} or over` — and, in `tries`, picks the plural form the language needs.
 
@@ -56,20 +56,23 @@ The end of `Home`.
 @@ 178-195
 The four endings, each a title and a body; `{project}` and `{age}` are filled in.
 
-@@ 196-216
-The step-up's choices and the leaving buttons, then the document check: its title, three steps, photo button, and the selfie's line. Since Phase 9, the **Age Pass**'s words: the offer before the camera (its title, what the pass shows and the button), the notice when a pass is refused, and after a passed check the offer to save passes, the button while saving, the confirmation with how many and until when, and the failure.
+@@ 196-218
+The step-up's choices and the leaving buttons, then the document check: its title, three steps, photo button, and the selfie's line. Since Phase 9, the **Age Pass**'s words: the offer before the camera (its title, what the pass shows and the button), the notice when a pass is refused, and after a passed check the offer to save passes, the button while saving, the confirmation with how many and until when, and the failure. Since 9 Nov (decision D43), on a computer: the button for its webcam, and the file chooser's words beside it.
 
-@@ 217-229
+@@ 219-231
 **`Camera`** — the camera screen: the landmarker's guidance, the starting message, the progress and colour messages, and the button.
 
-@@ 230-235
-The three pose instructions, by the pose's code.
+@@ 250-273
+**`Tips`** — one tip per reason code the API can give (`advice.ts` chooses), plus the general one (`default`) and the unusable-file tip of the document check. Since 9 Nov also a camera that couldn't be opened for the document.
 
-@@ 236-258
-**`Tips`** — one tip per reason code the API can give (`advice.ts` chooses), plus the general one (`default`) and the unusable-file tip of the document check.
-
-@@ 259-296
+@@ 274-311
 **`Problems`** — one message per problem that stops the check, each a title and a detail, plus the general one.
 
-@@ 297
+@@ 312
 The end of the file.
+
+@@ 232-237
+The three pose instructions, by the pose's code.
+
+@@ 238-249
+**`DocumentCamera`** (decision D43, 9 Nov) — the document camera's words: starting; the picture's name for screen readers; where to hold the document; that the picture isn't mirrored; the button that takes the photo; the question to ask of it; its description; and the buttons to use it, take it again, or choose a file instead.

@@ -1,0 +1,67 @@
+name: uptime
+
+# Dwarpal watched from outside (decision D33): every 15 minutes GitHub asks the live API whether it is ready and the web
+# app for its home page, and checks that both certificates are renewed in time. A failed check fails the run, and GitHub
+# emails the repository's owner — the alert that still comes when the whole server is down, which the server's own
+# alerts can't send. Until the server exists (no DWARPAL_PUBLIC_API_URL variable yet, README step 5), runs are skipped.
+on:
+  schedule:
+    # At 7, 22, 37 and 52 minutes past each hour: GitHub delays schedules most at the start of an hour.
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+# The checks need nothing from the repository, so this run's token may do nothing at all.
+permissions: {}
+
+# A check still running when the next one starts is cancelled: only the newest answer matters.
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    name: Uptime - API ready, home page up, certificates fresh
+    if: vars.DWARPAL_PUBLIC_API_URL != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Work out the addresses
+        id: where
+        env:
+          API_URL: ${{ vars.DWARPAL_PUBLIC_API_URL }}
+        run: |
+          api="${API_URL%/}"
+          # The API lives at https://api.<domain>, and the home page at https://<domain>.
+          case "$api" in
+            https://api.*) web="https://${api#https://api.}" ;;
+            *) echo "::error::DWARPAL_PUBLIC_API_URL should be https://api.<domain>, not $API_URL"; exit 1 ;;
+          esac
+          printf 'API=%s\nWEB=%s\n' "$api" "$web" >> "$GITHUB_ENV"
+      # Each check tries three times, 15 seconds apart, so a single lost answer doesn't send an email.
+      - name: The API is ready (its database and Valkey answer)
+        run: |
+          curl --fail --silent --show-error --max-time 20 --retry 2 --retry-delay 15 --retry-all-errors \
+            "$API/readyz"
+      # The next two run even if a check before them failed, so a failed run shows every check's answer.
+      - name: The home page loads
+        if: ${{ !cancelled() && steps.where.outcome == 'success' }}
+        run: |
+          curl --fail --silent --show-error --max-time 20 --retry 2 --retry-delay 15 --retry-all-errors \
+            --output /dev/null "$WEB/"
+      - name: The certificates last another week
+        if: ${{ !cancelled() && steps.where.outcome == 'success' }}
+        run: |
+          for host in "${API#https://}" "${WEB#https://}"; do
+            cert=$(openssl s_client -connect "$host:443" -servername "$host" </dev/null 2>/dev/null | openssl x509) \
+              || { echo "::error::Couldn't read the certificate of $host"; exit 1; }
+            echo "$host: $(openssl x509 -noout -enddate <<<"$cert")"
+            # Caddy renews a certificate when a third of its life is left, so one ending within 7 days wasn't renewed.
+            if ! openssl x509 -noout -checkend 604800 <<<"$cert" >/dev/null; then
+              echo "::error::The certificate for $host ends within 7 days: Caddy should have renewed it (see its logs)."
+              exit 1
+            fi
+          done

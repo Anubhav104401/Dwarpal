@@ -20,6 +20,7 @@ STATUSES = frozenset({"created", "in_progress", "awaiting_step_up", "completed",
 OUTCOMES = frozenset({"pass", "fail", "reject", "step_up"})
 API_KEY = re.compile(r"^dk_(test|live)_[A-Za-z0-9_-]{20,}$")
 SESSION_ID = re.compile(r"^vs_[0-9A-Za-z]{26}$")
+IDEMPOTENCY_KEY = re.compile(r"^[\x21-\x7e]{8,255}$")  # 8 to 255 printable characters, no spaces
 
 
 @dataclass(frozen=True)
@@ -98,6 +99,18 @@ def _session_body(policy: str | None, return_url: str | None, external_ref: str 
     return {name: value for name, value in body.items() if value is not None}
 
 
+def _idempotency(key: str | None) -> dict[str, str]:
+    """The `Idempotency-Key` header, when a key is given. It makes a retry safe: the same request sent again with the
+    same key, after its answer was lost, gets the first session back instead of a second one. Use a fresh random key
+    for each new session (`secrets.token_urlsafe(16)`), never an order number or anything another request could
+    share."""
+    if key is None:
+        return {}
+    if not IDEMPOTENCY_KEY.fullmatch(key):  # not `match`: `$` would let a final line break through
+        raise ValueError("idempotency_key must be 8 to 255 printable characters, without spaces")
+    return {"Idempotency-Key": key}
+
+
 def _session_path(session_id: str) -> str:
     if not SESSION_ID.match(session_id):
         raise ValueError("session_id must be a Dwarpal session ID: vs_ followed by 26 characters")
@@ -138,11 +151,15 @@ class Client:
         self._http.headers.update(_headers(api_key))
 
     def create_session(
-        self, policy: str | None = None, return_url: str | None = None, external_ref: str | None = None
+        self,
+        policy: str | None = None,
+        return_url: str | None = None,
+        external_ref: str | None = None,
+        idempotency_key: str | None = None,
     ) -> CreatedSession:
         """Create a verification session, and get the link to send the person to."""
-        body = _session_body(policy, return_url, external_ref)
-        return _created(_answer(self._http.post("/v1/verification-sessions", json=body)))
+        body, headers = _session_body(policy, return_url, external_ref), _idempotency(idempotency_key)
+        return _created(_answer(self._http.post("/v1/verification-sessions", json=body, headers=headers)))
 
     def retrieve_session(self, session_id: str) -> SessionResult:
         """Read a session's result. A completed session comes with a freshly signed age token."""
@@ -168,10 +185,14 @@ class AsyncClient:
         self._http.headers.update(_headers(api_key))
 
     async def create_session(
-        self, policy: str | None = None, return_url: str | None = None, external_ref: str | None = None
+        self,
+        policy: str | None = None,
+        return_url: str | None = None,
+        external_ref: str | None = None,
+        idempotency_key: str | None = None,
     ) -> CreatedSession:
-        body = _session_body(policy, return_url, external_ref)
-        return _created(_answer(await self._http.post("/v1/verification-sessions", json=body)))
+        body, headers = _session_body(policy, return_url, external_ref), _idempotency(idempotency_key)
+        return _created(_answer(await self._http.post("/v1/verification-sessions", json=body, headers=headers)))
 
     async def retrieve_session(self, session_id: str) -> SessionResult:
         return _result(_answer(await self._http.get(_session_path(session_id))))

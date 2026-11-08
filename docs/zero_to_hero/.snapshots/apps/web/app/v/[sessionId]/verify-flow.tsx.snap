@@ -17,10 +17,12 @@ import {
   usable,
 } from "@/lib/age-pass";
 import type { Challenge } from "@/lib/challenge";
+import { canFilmDocument } from "@/lib/document-camera";
 import { DocumentPhotoError, prepareDocument } from "@/lib/document-photo";
 import { type CapturedAttempt, FlowClient, FlowError, type FlowSession } from "@/lib/flow-api";
 
 import { CameraView } from "./camera-view";
+import { DocumentCamera } from "./document-camera";
 
 type Ending = "pass" | "fail" | "step_up" | "reject";
 
@@ -32,6 +34,8 @@ type Stage =
   | { kind: "camera"; session: FlowSession; tip: string | null }
   | { kind: "checking"; session: FlowSession }
   | { kind: "document"; session: FlowSession; tip: string | null }
+  // A computer's webcam, photographing the document inside a guide (D43).
+  | { kind: "documentCamera"; session: FlowSession }
   | { kind: "selfie"; session: FlowSession; document: Blob }
   // `earned`: passed just now by a face or document check, so this browser may save Age Passes (never after a
   // pass decided by an Age Pass, nor on a reload).
@@ -125,6 +129,8 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
   const [leaving, setLeaving] = useState(false);
   const [framedBy, setFramedBy] = useState<string | null>(null);
   const [documentTries, setDocumentTries] = useState(DOCUMENT_TRIES);
+  // Whether the document can be photographed with this computer's webcam: known only in the browser.
+  const [computer, setComputer] = useState(false);
   const [pass, setPass] = useState<Usable | null>(null);
   const [saving, setSaving] = useState<Saving>({ state: "idle" });
   const t = useTranslations("Verify");
@@ -229,8 +235,11 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     }
   }, []);
 
-  /** The document check: the chosen photo, prepared for sending (scaled, re-encoded, under the size limit). */
-  const onDocumentChosen = useCallback(async (session: FlowSession, file: File | undefined) => {
+  useEffect(() => setComputer(canFilmDocument()), []);
+
+  /** The document check: the chosen or taken photo, prepared for sending (scaled, re-encoded, under the size
+   * limit). */
+  const onDocumentChosen = useCallback(async (session: FlowSession, file: Blob | undefined) => {
     if (file === undefined) {
       return;
     }
@@ -240,6 +249,15 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
       const tip = error instanceof DocumentPhotoError ? "document_unusable" : null;
       setStage({ kind: "document", session, tip });
     }
+  }, []);
+
+  /** The webcam couldn't be opened for the document: back to the choice, with a note to choose a file instead. */
+  const onDocumentCameraUnavailable = useCallback(() => {
+    setStage((current) =>
+      current.kind === "documentCamera"
+        ? { kind: "document", session: current.session, tip: "camera_unavailable" }
+        : current,
+    );
   }, []);
 
   const onSelfieCaptured = useCallback(
@@ -481,12 +499,22 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
               </li>
             ))}
           </ol>
+          {/* On a computer, its webcam first (D43); the file chooser stays, as the way for everyone else. */}
+          {computer ? (
+            <button
+              type="button"
+              className={`${accentButton} mt-8`}
+              onClick={() => setStage({ kind: "documentCamera", session })}
+            >
+              {t("documentCameraButton")}
+            </button>
+          ) : null}
           {/* The real control is the hidden file input inside; the label wears the button's look, and its focus ring
               when the input has keyboard focus. */}
           <label
-            className={`${accentButton} mt-8 cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-brand-500`}
+            className={`${computer ? `${quietButton} mt-3` : `${accentButton} mt-8`} cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-brand-500`}
           >
-            {t("documentButton")}
+            {t(computer ? "documentFileButton" : "documentButton")}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
@@ -495,6 +523,24 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
               onChange={(event) => onDocumentChosen(session, event.target.files?.[0])}
             />
           </label>
+          <p className="mt-4 text-center text-xs text-ink-600 dark:text-ink-400">{tries(documentTries)}</p>
+        </section>
+      </Shell>
+    );
+  }
+
+  if (stage.kind === "documentCamera") {
+    return (
+      <Shell label={label}>
+        <section className={card}>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("documentTitle")}</h1>
+          <div className="mt-6">
+            <DocumentCamera
+              onTaken={(photo) => onDocumentChosen(session, photo)}
+              onChooseFile={() => setStage({ kind: "document", session, tip: null })}
+              onUnavailable={onDocumentCameraUnavailable}
+            />
+          </div>
           <p className="mt-4 text-center text-xs text-ink-600 dark:text-ink-400">{tries(documentTries)}</p>
         </section>
       </Shell>

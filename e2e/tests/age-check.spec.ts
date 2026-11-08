@@ -184,7 +184,9 @@ test("a person the face check can't decide confirms their age with a passport an
   await expect(page.getByText("Your name and document number are never kept")).toBeVisible();
   expect(await violations(page)).toEqual([]);
   await page.screenshot({ path: info.outputPath("1-document.png"), animations: "disabled" });
-  await page.getByLabel("Take or choose a photo of your document").setInputFiles(SPECIMEN);
+  // On a computer the webcam comes first (D43); the file chooser is still there, under its own words.
+  await expect(page.getByRole("button", { name: "Use this computer's camera" })).toBeVisible();
+  await page.getByLabel("Choose a photo file instead").setInputFiles(SPECIMEN);
 
   // Then a selfie, with the same challenge as a face check: the fake camera plays the passport's face.
   await expect(page.getByText("Now a short selfie")).toBeVisible();
@@ -223,6 +225,45 @@ test("a person the face check can't decide confirms their age with a passport an
   expect([session.status, session.outcome]).toEqual(["completed", "pass"]);
   const claims = JSON.parse(Buffer.from(session.age_token.split(".")[1], "base64url").toString());
   expect(claims.methods).toEqual(["face_estimation", "document_mrz", "face_match"]);
+});
+
+test("on a computer, the document is photographed with the webcam, looked at, then used (D43)", async ({
+  page,
+  request,
+}, info) => {
+  const { id, secret } = await steppedUp(request);
+  await page.goto(`${VERIFY}/v/${id}#cs=${secret}`);
+  await page.getByRole("button", { name: "Use a passport or ID card" }).click();
+  await page.getByRole("button", { name: "Use this computer's camera" }).click();
+
+  // The camera's picture with the guide, and what to do, said first.
+  const take = page.getByRole("button", { name: "Take the photo" });
+  await expect(take).toBeEnabled({ timeout: 15_000 });
+  await expect(page.getByText("inside the frame")).toBeVisible();
+  expect(await violations(page)).toEqual([]);
+  await page.screenshot({ path: info.outputPath("1-document-camera.png"), animations: "disabled" });
+
+  // A photo is shown before it is used; taking it again goes back to the camera.
+  await take.click();
+  await expect(page.getByRole("img", { name: "The photo of your document" })).toBeVisible();
+  await expect(page.getByText("Can you read the lines at the bottom?")).toBeVisible();
+  await page.getByRole("button", { name: "Take it again" }).click();
+  await expect(take).toBeEnabled({ timeout: 15_000 });
+  await take.click();
+  await page.getByRole("button", { name: "Use this photo" }).click();
+
+  // The photo goes on to the selfie, as a chosen file would.
+  await expect(page.getByText("Now a short selfie")).toBeVisible();
+});
+
+test("the document camera can be left for the file chooser (D43)", async ({ page, request }) => {
+  const { id, secret } = await steppedUp(request);
+  await page.goto(`${VERIFY}/v/${id}#cs=${secret}`);
+  await page.getByRole("button", { name: "Use a passport or ID card" }).click();
+  await page.getByRole("button", { name: "Use this computer's camera" }).click();
+  await page.getByRole("button", { name: "Choose a file instead" }).click();
+  await expect(page.getByLabel("Choose a photo file instead")).toBeAttached();
+  await expect(page.getByRole("button", { name: "Use this computer's camera" })).toBeVisible();
 });
 
 test("an Age Pass saved after one check answers the next check, with no camera", async ({

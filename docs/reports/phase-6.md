@@ -33,9 +33,9 @@
 
 ## Open items
 
-1. ~~The verify page's screens~~ — **done 1 Nov** (§5.6.3): consent before capture, the photo prepared in the browser, the selfie with the face check's challenge; a browser test drives it from step-up to token. Left: a live document camera with framing guidance (desktop users must choose a file today).
+1. ~~The verify page's screens~~ — **done 1 Nov** (§5.6.3): consent before capture, the photo prepared in the browser, the selfie with the face check's challenge; a browser test drives it from step-up to token. ~~Left: a live document camera~~ — **done 9 Nov** (D43, §5.6.5): on a computer the webcam comes first, inside a passport-shaped guide with a box for the machine-readable lines, and the photo is looked at before it is used; the file chooser stays beside it, and phones are unchanged. Whether a typical laptop camera reads the lines reliably is not measured yet (the browser tests' fake camera shows a portrait).
 2. **ID cards (TD1)** read poorly with Tesseract's English model; an OCR-B model would have to be trained (no licensed one exists, D6c).
 3. **Real-world accuracy** is unmeasured: the specimens are drawn in an ordinary font and photographed by a program. The face-match threshold (OpenCV's 0.363) isn't measured for printed photos against webcams.
 4. **SFace's training data** was collected without consent (accepted, D7b; recorded in `models/third_party.json`).
 5. **Aadhaar Secure QR** — deferred by the owner (1 Nov) until UIDAI's specification and certificate are found and OVSE registration is clear (D8, O7).
-6. **Production image**: the inference service's image must include Tesseract (Phase 8); the `ocr` container is for development.
+6. ~~Production image~~ — **done in Phase 8** (§5.8.2): the inference service's image installs Tesseract and its English data; the `ocr` container is for development only.

@@ -29,6 +29,11 @@ if verdict.allowed:
 
 For `async` code, `AsyncClient` has the same methods (`await dwarpal.create_session(…)`).
 
+To retry a `create_session` whose answer was lost — a timeout, a dropped connection — pass the same
+`idempotency_key` both times: Dwarpal answers the repeat with the first session instead of making a second one.
+Make the key random and new for each session (`secrets.token_urlsafe(16)`), never an order number or anything
+another request could share — see *Retrying safely* in the [developers guide](../../docs/developers/README.md).
+
 **Webhooks** — check each one before acting on it, with the body exactly as it arrived:
 
 ```python

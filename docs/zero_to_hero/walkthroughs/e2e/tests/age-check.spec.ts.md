@@ -1,5 +1,5 @@
 ---
-fingerprint: f70a7ddb84a55188
+fingerprint: a7ec7339fdbc6d93
 ---
 **The end-to-end tests**: short stories, acted out by **Playwright** in a real Chromium browser (§4.20). The first one is the whole slice working together — the shop, the SDKs, the verify page in its modal, the camera, the API, the inference service, the decision engine, the signed token and the shop's pass:
 
@@ -126,46 +126,43 @@ Post each attempt; after the third, the outcome must be `step_up`. Return the se
 @@ 179-180
 The step-up ending, and its new button.
 
-@@ 182-187
-The document stage says what will happen — including that the name and document number are never kept — before anything is chosen; it breaks no accessibility rule; and then the specimen passport is chosen, as a person would choose a photo (`setInputFiles` fills the hidden file input).
+@@ 182-189
+The document stage says what will happen — including that the name and document number are never kept — before anything is chosen, and breaks no accessibility rule. On a computer its webcam is offered first (D43); the specimen passport is chosen through the file chooser beside it, as a person would choose a photo (`setInputFiles` fills the hidden file input).
 
-@@ 218-222
+@@ 220-224
 The website's view, with the same test key: the session…
 
-@@ 223-226
-…is completed with a pass, and its token's claims (the middle part of the JWT, decoded) say how: a face estimate, the document's MRZ and a face match.
-
-@@ 189-194
+@@ 191-196
 The selfie stage: the same camera screen as a face check, playing the fake camera's portrait — the same face as on the specimen. Its result, within two minutes: "You're all set".
 
-@@ 216
+@@ 218
 A screenshot of the result.
 
-@@ 228-232
+@@ 269-273
 **Test — an Age Pass saved after one check answers the next, with no camera** (Phase 9, §5.9.3). Three minutes: it runs two checks.
 
-@@ 233-239
+@@ 274-280
 A policy of the website's own that accepts passes — no preset does.
 
-@@ 240-247
+@@ 281-288
 **`session`** — a new session under that policy, and its verify link.
 
-@@ 249-253
+@@ 290-294
 The first check: no pass is offered yet.
 
-@@ 254-257
+@@ 295-298
 The camera, as in the first test.
 
-@@ 258-260
+@@ 299-301
 After the pass, **Save an Age Pass**: twenty uses, until a date.
 
-@@ 262-267
+@@ 303-308
 The next check, in the same browser: the pass is offered, and the page is still accessible (axe).
 
-@@ 268-271
+@@ 309-312
 **Use my Age Pass**: passed, with no camera — and no offer to save passes, since a pass can't renew itself.
 
-@@ 273-280
+@@ 314-321
 The website's view: completed, passed, and the token's `methods` say `age_pass`.
 
 @@ 1
@@ -189,8 +186,32 @@ Otherwise, what it found: the time it took (and its own measure of it), how many
 @@ 37-40
 No answer at all — refused, or over a minute — is reported too, with how long it waited.
 
-@@ 208-215
+@@ 210-217
 And what the inference service says about the passport right now (the probe above), all in the one message; the original error stays attached as its cause.
 
-@@ 195-207
+@@ 197-209
 If that heading never comes, the test fails with a message saying **what the page showed instead** and **what the API recorded** for the session (its status and outcome). The test once failed on GitHub, where only signed-in people can read the full log; a failing test's message, though, anyone can read.
+
+@@ 225-228
+…is completed with a pass, and its token's claims (the middle part of the JWT, decoded) say how: a face estimate, the document's MRZ and a face match.
+
+@@ 230-237
+**Test — the document camera** (decision D43): a session sent to the stronger check, opened, and the computer's camera chosen.
+
+@@ 239-244
+The *Take the photo* button works once the fake camera's picture shows (`take` names it once, for reuse), what to do is said, no accessibility rule is broken, and a screenshot is kept.
+
+@@ 246-249
+Taking the photo shows it, with the question to ask of it…
+
+@@ 250-253
+…taking it again turns the camera back on; then a photo is taken and used.
+
+@@ 255-257
+The verify flow goes on to the selfie, as it does with a chosen file. (The fake camera shows a portrait, not a passport, so the check itself isn't tried: the passport test above does that with a file.)
+
+@@ 259-263
+**Test — leaving the document camera** (D43): from the camera…
+
+@@ 264-267
+…*Choose a file instead* goes back to the document stage, with its file chooser and the camera's button.

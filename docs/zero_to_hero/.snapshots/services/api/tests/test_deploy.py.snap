@@ -59,6 +59,34 @@ def test_the_secrets_file_is_private_and_never_replaced(tmp_path: Path) -> None:
     assert out.read_text(encoding="utf-8") == before
 
 
+def test_the_domain_is_a_bare_name(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A free DuckDNS name or one's own (decision D40), in lower case; anything that would break the names made from
+    it (`api.<domain>`) is refused before a single secret is written."""
+    gen = generator()
+    assert gen.domain_of(" Dwarpal-Age.DuckDNS.org ") == "dwarpal-age.duckdns.org"
+    assert gen.domain_of("example.org") == "example.org"
+    for bad in (
+        "https://dwarpal-age.duckdns.org",  # a scheme
+        "dwarpal-age.duckdns.org/",  # a path
+        "dwarpal-age.duckdns.org:443",  # a port
+        "*.duckdns.org",  # a wildcard
+        "localhost",  # a single part
+        "-dwarpal.duckdns.org",  # a hyphen at the start of a part
+        "dwarpal..duckdns.org",  # an empty part
+        "dwarpal.duckdns.org.",  # a trailing dot
+        "203.0.113.7",  # an IP address
+        "a" * 63 + "." + "b" * 63 + "." + "c" * 63 + "." + "d" * 55 + ".org",  # 251 characters: shop.<it> is too long
+        "",
+    ):
+        with pytest.raises(ValueError, match="--domain"):
+            gen.domain_of(bad)
+    out = tmp_path / ".env"
+    args = ["--domain", "https://example.org", "--email", "a@example.org", "--ghcr-owner", "someone"]
+    assert gen.main([*args, "--out", str(out)]) == 1
+    assert "bare name" in capsys.readouterr().err
+    assert not out.exists()
+
+
 def test_compose_asks_only_for_settings_the_generator_writes() -> None:
     """Every `${NAME}` in the production Compose file is either written by the generator or has a default
     (`${NAME:-…}`), so a server set up by the README starts without a missing setting."""
@@ -136,3 +164,18 @@ def test_the_deploy_copies_every_file_compose_mounts() -> None:
     made_on_the_server = {"models", "alertmanager.yml", "smtp_password"}
     copied = {name.rsplit("/", 1)[-1] for name in re.findall(r"[\w./]+\.(?:yaml|sh|py)|Caddyfile", workflow)}
     assert mounted - made_on_the_server <= copied, sorted(mounted - made_on_the_server - copied)
+
+
+def test_the_uptime_check_runs_every_15_minutes_once_there_is_a_server() -> None:
+    """Decision D33: the outside check runs every 15 minutes, never on the hour (when GitHub delays schedules most),
+    with a token that may do nothing, and only once the API's public address is set; it asks the API's `/readyz`."""
+    workflow = (REPO / ".github" / "workflows" / "uptime.yml").read_text(encoding="utf-8")
+    cron = re.search(r'cron: "([\d,]+) \* \* \* \*"', workflow)
+    assert cron is not None, "uptime.yml: no hourly cron line found"
+    minutes = sorted(int(minute) for minute in cron[1].split(","))
+    gaps = [b - a for a, b in zip(minutes, [*minutes[1:], minutes[0] + 60], strict=True)]
+    assert gaps == [15, 15, 15, 15], f"uptime.yml runs at minutes {minutes}, not every 15 minutes"
+    assert 0 not in minutes
+    assert "permissions: {}" in workflow
+    assert "if: vars.DWARPAL_PUBLIC_API_URL != ''" in workflow
+    assert '"$API/readyz"' in workflow

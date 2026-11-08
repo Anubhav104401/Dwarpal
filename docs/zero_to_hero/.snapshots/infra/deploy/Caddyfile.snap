@@ -1,6 +1,7 @@
 # Caddy, the only service the internet reaches (Phase 8, ADR-0015). It gets and renews HTTPS certificates from
 # Let's Encrypt by itself, and passes each address's requests to its service on the server's private network.
-# The domain comes from DWARPAL_DOMAIN (set in .env), so this file is the same for any domain.
+# The domain comes from DWARPAL_DOMAIN (set in .env), so this file is the same for any domain — a free DuckDNS name
+# such as dwarpal-age.duckdns.org too (decision D40): DuckDNS answers for every name under it, www., api. and shop.
 
 {
 	# Let's Encrypt writes here about certificates that are about to expire.

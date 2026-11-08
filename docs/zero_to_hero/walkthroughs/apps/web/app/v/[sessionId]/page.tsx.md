@@ -1,5 +1,5 @@
 ---
-fingerprint: 2b14b23fe4c42b6b
+fingerprint: 60154858ed6c31de
 ---
 The page at **`/v/<session ID>`** — the address in every verify link. In Next.js's App Router, a folder name in square brackets is a **dynamic segment**: `app/v/[sessionId]/page.tsx` answers `/v/vs_01JA8XQ2…`, and Next.js hands the actual ID to the page as `sessionId`.
 
@@ -39,7 +39,7 @@ From next-intl: the **provider** that hands words to components running in the b
 The tab's title for this page, in the person's language: "Confirm your age · Dwarpal", or its Hindi.
 
 @@ 12-13
-**`IN_BROWSER`** — the groups of words (`messages/`) the verify page uses in the browser: its own, the camera's, the tips and problems, the page frame's and the language switch's. Only these travel with the page.
+**`IN_BROWSER`** — the groups of words (`messages/`) the verify page uses in the browser: its own, the camera's, since 9 Nov the document camera's, the tips and problems, the page frame's and the language switch's. Only these travel with the page.
 
 @@ 22-23
 All of the request's words, kept to those groups. `Object.fromEntries(Object.entries(…).filter(…))` takes an object apart into name–value pairs, keeps some, and puts it back together.

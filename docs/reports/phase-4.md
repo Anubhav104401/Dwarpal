@@ -161,10 +161,10 @@
 3. **Policy cost at scale.** Attempts and tokens are checked through sessions, which are checked through projects. If one project reaches millions of sessions, consider a denormalised `project_id` on attempts.
 4. ~~Remote CI~~ — **done**: CI green on GitHub since 2 Nov (`03f3f5b`).
 5. **Flow-endpoint rate limits.** Per-key limits cover websites; the design's per-session and per-address limits for the verify page exist only for challenges (Phase 3 budgets), not yet for `start` and `finish`.
-6. **Guessable idempotency keys** weaken the seal for someone who also holds the master key; the docs should tell websites to use random keys (Phase 5 developer docs).
-7. ~~Step 2 needs approval~~ — **approved and built 26 Oct.** Still missing from the console: invitations, password reset and account deletion (all need outgoing e-mail), TOTP recovery codes, and the design's growing lock-out back-off (a steady rate limit is in place).
+6. ~~Guessable idempotency keys~~ — **documented 9 Nov**: the developers guide (*Retrying safely*) tells websites to make a fresh random key for each session and to reuse it only to repeat that request, and why; both SDKs take an optional key, checked before anything is sent.
+7. ~~Step 2 needs approval~~ — **approved and built 26 Oct.** Since then: recovery codes (Phase 5); invitations (pending until the address signs up, D44), a password change and account deletion (D31, D32), all without e-mail, on 8 Nov. Still missing: a password *reset*, which needs outgoing e-mail (D25: not now), and the design's growing lock-out back-off (a steady rate limit is in place).
 8. **Webhooks are at-least-once**: a worker dying between sending and recording resends after its lease; receivers must de-duplicate by `Dwarpal-Event-Id` (documented in §5.4.3).
 9. **DNS rebinding window** between the address check and the connection; the production backstop is egress filtering on the worker (Phase 7).
 10. ~~Lazy expiry~~ — **resolved by step 5**: `cli maintain` sweeps and announces abandoned sessions. The webhook worker and the maintenance jobs aren't yet started by the local stack or the e2e run; production scheduling belongs to Phase 7.
 11. **Audit anchoring and retention**: the chain detects edits but not a consistent rewrite of a whole chain by someone controlling the database; publishing daily head hashes outside the database would. Audit entries aren't purged yet (the design keeps one year), which needs an anchor for verification to start from.
-12. **Console pages** arrive in Phase 5; until then the console API is exercised by tests only.
+12. ~~Console pages~~ — **built in Phase 5**, and made ready for a launch on 8 Nov (projects, origins, keys, password, account deletion, invitations).

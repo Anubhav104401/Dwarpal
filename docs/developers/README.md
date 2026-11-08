@@ -130,6 +130,43 @@ if (verdict.allowed) {
 }
 ```
 
+## Retrying safely: idempotency keys
+
+If creating a session times out, or the connection drops before the answer arrives, you can't tell whether the
+session was made. Send the request again **with the same `Idempotency-Key` header**, and Dwarpal answers with the
+first session instead of making a second one (the answer then carries `Idempotent-Replayed: true`):
+
+```ts
+import { randomUUID } from "node:crypto";
+import { type CreateSessionParams, DwarpalApiError } from "@dwarpal/node";
+
+async function createSessionWithRetry(params: CreateSessionParams) {
+  const once = { ...params, idempotencyKey: randomUUID() }; // a fresh random key for this one session
+  try {
+    return await dwarpal.createSession(once);
+  } catch (error) {
+    // Dwarpal answered with a refusal: the same request would be refused again.
+    if (error instanceof DwarpalApiError && error.status < 500) throw error;
+    // No answer arrived (a timeout, a dropped connection) or the server failed: the same request, the same key.
+    return await dwarpal.createSession(once);
+  }
+}
+```
+
+In Python: `dwarpal.create_session(…, idempotency_key=secrets.token_urlsafe(16))`. The rules:
+
+- **Make the key random, and new for each session**: `crypto.randomUUID()` or `secrets.token_urlsafe(16)`. Never an
+  order number, a user ID or anything another request could share or someone could guess. The answer it unlocks
+  holds the session's one-time link: a key two browsers' requests shared would hand both the same session. Dwarpal
+  also seals each kept answer with a key made from yours and its own master key, so with a random key, not even
+  someone holding both Dwarpal's storage and its master key could open it.
+- **Reuse it only to repeat the same request.** The same key with a different body is refused (`422
+  idempotency_key_reused`); a repeat while the first is still running gets `409 idempotency_in_progress` — wait a
+  second and send it again.
+- **8 to 255 printable characters**, without spaces (`422 invalid_idempotency_key` otherwise). Keys are kept for 30
+  minutes, a session's lifetime, and only for your project and mode: another website's keys never meet yours.
+- **A failed request releases its key**: if the first attempt was refused, the same key may be used again.
+
 ## Policies
 
 A policy names the age to check and the rules to follow. The presets:

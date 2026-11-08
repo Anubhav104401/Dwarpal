@@ -25,6 +25,7 @@ const session = await dwarpal.createSession({
   policy: "uk_osa_18", // the default
   returnUrl: "https://shop.example/age-check/complete",
   externalRef: "order-1234", // optional: your own reference, up to 200 characters
+  idempotencyKey: randomUUID(), // optional: makes a retry safe; random and new for each session
 });
 // session.id        "vs_…"
 // session.url       the verify link — hand it to your page; never log or store it

@@ -212,7 +212,9 @@
     "agePassSave": "Save an Age Pass",
     "agePassSaving": "Saving…",
     "agePassSaved": "Saved in this browser: {count} uses, until {date}.",
-    "agePassSaveFailed": "The Age Pass couldn't be saved. You can still continue."
+    "agePassSaveFailed": "The Age Pass couldn't be saved. You can still continue.",
+    "documentCameraButton": "Use this computer's camera",
+    "documentFileButton": "Choose a photo file instead"
   },
   "Camera": {
     "noFace": "We can't see your face yet. Look at the camera.",
@@ -232,6 +234,18 @@
       "turn_right": "Turn your head to your right, eyes on the screen",
       "look_up": "Lift your chin up, eyes on the screen"
     }
+  },
+  "DocumentCamera": {
+    "starting": "Starting the camera…",
+    "preview": "What the camera sees",
+    "hint": "Hold your passport's photo page, or your ID card, inside the frame, with the lines of '<<<' in the dashed box. Keep it still and avoid glare.",
+    "notMirrored": "The picture isn't mirrored, so the writing reads the right way round.",
+    "take": "Take the photo",
+    "check": "Can you read the lines at the bottom? If not, take it again.",
+    "photoAlt": "The photo of your document",
+    "use": "Use this photo",
+    "retake": "Take it again",
+    "file": "Choose a file instead"
   },
   "Tips": {
     "default": "The photos didn't work out. Please try again in good, even light.",
@@ -254,7 +268,8 @@
     "document_face_not_found": "We couldn't see the photo on your document. Show the whole photo page.",
     "face_not_found": "We couldn't see your face in the selfie. Look straight into the camera.",
     "face_mismatch": "Your selfie didn't match the photo on the document. Use your own document, in good light.",
-    "document_unusable": "That file couldn't be used. Take a photo instead."
+    "document_unusable": "That file couldn't be used. Take a photo instead.",
+    "camera_unavailable": "The camera couldn't be opened. Choose a photo of your document instead."
   },
   "Problems": {
     "default": {

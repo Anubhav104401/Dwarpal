@@ -29,9 +29,9 @@
 
 ## Open items
 
-1. **The server, domain and first deploy** — owner's steps (instance with cloud-init, security list, DNS, GitHub settings: O9) and approvals (base images D17, publishing D18).
+1. **The server, domain and first deploy** — owner's steps (instance with cloud-init, security list, DNS, GitHub settings: O9) and approvals (base images D17, publishing D18). **The domain is decided**: a free DuckDNS name (D40, 8 Nov). On 9 Nov the README's step 1 was rewritten for it (`dwarpal` itself is taken; `dwarpal-age` and `getdwarpal` were free), after checking that DuckDNS answers every name under one and that duckdns.org is on the Public Suffix List; `gen_secrets.py` now refuses anything but a bare domain.
 2. **Backups and the restore drill** — need the storage bucket and key (O8); the drill's report is Phase 8's exit criterion.
 3. **Capacity on 2 cores** — re-run the load test against the server (NFR-05 was met on 4 cores).
-4. ~~Alert delivery~~ — **built 2 Nov**: by email (the owner's choice) — the collector, Prometheus and Alertmanager in the production Compose file under the `alerts` profile, switched on by `alert_email.py` (README step 10); their settings are checked in CI. Not yet sent a real mail (needs the server), and nothing watches from outside the server.
+4. ~~Alert delivery~~ — **built 2 Nov**: by email (the owner's choice) — the collector, Prometheus and Alertmanager in the production Compose file under the `alerts` profile, switched on by `alert_email.py` (README step 10); their settings are checked in CI. Not yet sent a real mail (needs the server). **From outside** (D33, 9 Nov), the scheduled `uptime` workflow asks the API's `/readyz` and the home page every 15 minutes and checks that both certificates last another week; GitHub emails the owner when a check fails. It is skipped until `DWARPAL_PUBLIC_API_URL` is set (README step 11).
 5. ~~Helm chart's check~~ — **done 2 Nov** (D19): CI downloads Helm 4.3.1, checks its SHA-256, lints the chart with `--strict` and renders its 14 objects on every push. The chart has never been installed on a real cluster.
 6. **Static INT8 and per-domain web builds** — the web image carries the API's address; a domain change means a rebuild.

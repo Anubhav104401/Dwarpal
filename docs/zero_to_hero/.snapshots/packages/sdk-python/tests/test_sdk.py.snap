@@ -58,6 +58,24 @@ def test_a_session_is_created_with_the_key_and_only_the_fields_given() -> None:
     assert session.expires_at == datetime(2026, 11, 2, 10, tzinfo=UTC)
 
 
+def test_an_idempotency_key_is_sent_only_when_given_and_checked_first() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(201, json=CREATED)
+
+    client = Client(KEY, API, http=api(handler))
+    client.create_session(idempotency_key="Zr3uQ0d9Hq1sV6tY")
+    client.create_session()
+    assert [request.headers.get("idempotency-key") for request in seen] == ["Zr3uQ0d9Hq1sV6tY", None]
+    assert json.loads(seen[0].content) == {}  # a header, never part of the body
+    for bad in ("short", "has a space in it", "x" * 256, "abcdefgh\n"):
+        with pytest.raises(ValueError, match="idempotency_key"):
+            client.create_session(idempotency_key=bad)
+    assert len(seen) == 2  # nothing was sent for the malformed keys
+
+
 def test_a_refusal_carries_the_api_s_stable_code_and_request_id() -> None:
     def handler(_: httpx.Request) -> httpx.Response:
         body = {"code": "policy_not_supported", "detail": "no such policy"}

@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** The groups of words (`messages/`) the verify page uses in the browser: only these travel with it (decision D2). */
-const IN_BROWSER = new Set(["Verify", "Camera", "Tips", "Problems", "Shell", "Language"]);
+const IN_BROWSER = new Set(["Verify", "Camera", "DocumentCamera", "Tips", "Problems", "Shell", "Language"]);
 
 const SESSION_ID = /^vs_[0-9A-Za-z]{26}$/;
 

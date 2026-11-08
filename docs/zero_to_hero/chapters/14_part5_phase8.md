@@ -43,6 +43,8 @@ While the owner creates the server, everything that will run on it can be writte
 
 !walk infra/deploy/compose.yaml
 
+**The name.** Caddy needs a name to get certificates for, and the sites live under it: `<domain>`, `api.<domain>`, `shop.<domain>`. On 8 November the owner chose a **free DuckDNS name** (decision D40) — such as `dwarpal-age.duckdns.org` — so the whole deployment stays free. Two things were checked before relying on it, on 9 November. DuckDNS answers *every* name under one with the same address (asked of three names: `api.`, `shop.www.` and a random one all answered), so nothing needs adding for `api.` and `shop.`. And `duckdns.org` is on the **Public Suffix List** — the list browsers use to tell where one site ends and the next begins — so `dwarpal-age.duckdns.org` is a site of its own: the console's sign-in cookie works between it and its `api.` exactly as with a bought domain, and Let's Encrypt's limits aren't shared with every other DuckDNS user. `dwarpal.duckdns.org` itself turned out to be taken.
+
 !walk infra/deploy/Caddyfile
 
 !walk infra/deploy/gen_secrets.py
@@ -107,5 +109,18 @@ Three more programs do it, all on the server and none reachable from outside it.
 The rules themselves are the laptop's (`infra/observability/alerts.yaml`, §5.7), with one more: if Prometheus can't reach the collector for five minutes, that is an alert too — otherwise a broken pipe would look like a quiet, healthy service.
 
 !!! honest "Honest limitation"
-    Everything that watches runs on the server it watches. If the whole server stops, no mail comes: an outside uptime check (several are free) of `https://api.<domain>/readyz` covers that, and isn't set up yet. The checks that the settings are valid run in CI, but no mail has been sent yet: that waits for the server.
+    Everything here runs on the server it watches. If the whole server stops, no mail comes: the outside check (§5.8.5) covers that. The checks that the settings are valid run in CI, but no mail has been sent yet: that waits for the server.
+
+### 5.8.5 Watching from outside
+
+An alarm inside a house can't report that the house burned down. For that, the owner chose (decision D33) a check from somewhere else that costs nothing and needs no new account: a **scheduled GitHub workflow**. Every 15 minutes GitHub asks the API whether it is ready, loads the home page, and reads both HTTPS certificates. When any of that fails, the run fails — and GitHub emails the repository's owner about failed runs by itself.
+
+!walk .github/workflows/uptime.yml
+
+The certificate check looks a week ahead. Caddy renews a certificate when a third of its life is left (a month, for Let's Encrypt's 90-day certificates), so one with under a week left means renewal has been failing for weeks — and the check says so while there is still time, instead of on the day browsers start refusing the site.
+
+!!! honest "Honest limitation"
+    - **GitHub's schedules are best effort**: a run may start a few minutes late, or — at GitHub's busiest — be skipped. An outage is reported within about 15 to 30 minutes, not to the second.
+    - **GitHub switches off schedules** in a public repository after 60 days without activity; the README says how to switch it back on.
+    - **It sees what a visitor sees**, from GitHub's machines far from the server: it can't tell a broken server from a broken network between them, and doesn't run a face check (that needs a camera).
 

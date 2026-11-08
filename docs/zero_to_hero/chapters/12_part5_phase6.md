@@ -113,7 +113,7 @@ The browser test drives it all: it makes a session that the face check sends to 
 The verify page, its flow client and tips, the page frame (a quiet button), the browser tests' configuration (the specimen, the test key, Tesseract for the inference service), the age-check test and the accessibility test changed too; each was re-explained.
 
 !!! honest "Honest limitation"
-    - **Desktop users need a photo file.** On a computer, the button opens a file picker: they must already have a photo of their document. A live document camera on the page — with guidance to fill the frame and avoid glare, as the design describes — would serve them better, and would also stop someone choosing a photo of someone else's document taken earlier; the face match still guards against that.
+    - ~~**Desktop users need a photo file.**~~ On a computer, the button opened a file picker: they had to have a photo of their document already. **Since 9 November a live document camera serves them (§5.6.5)**; the file chooser stays beside it, so someone could still choose a photo of someone else's document taken earlier — the face match guards against that.
     - **The Hindi version** of these screens waits for the Hindi work (decision D2).
 
 ### 5.6.4 Live checks by ID document alone (decision D24)
@@ -127,3 +127,18 @@ The test proves it end to end with real OCR and a real face match; only the anti
 !!! honest "Honest limitation"
     A document check is slower and asks more of people than a camera estimate: they need a passport or an ID card with a machine-readable zone, and its reading is *basic* assurance (no chip, no forensic checks; §5.6.2). Some people will have neither at hand. That is the price of not letting an uncertified model decide.
 
+### 5.6.5 A document camera for computers (decision D43)
+
+Until 9 November, the document check's button opened a file picker on a computer: people needed a photo of their passport on that computer already. The owner chose (decision D43) a **live document camera**. On a computer the page now offers its webcam first, with a guide shaped like a passport's photo page and a dashed box where the lines with `<<<` go. The person holds the page up to the camera, takes the photo, looks at it — can the lines be read? — and uses it or takes it again. The file chooser stays beside it, for anyone without a webcam or who would rather choose a file. Phones are unchanged: the file chooser opens their own camera app, whose photos of small print are sharper than a video stream's.
+
+!walk apps/web/lib/document-camera.ts
+
+!walk apps/web/lib/document-camera.test.ts
+
+!walk apps/web/app/v/[sessionId]/document-camera.tsx
+
+The verify flow (one more stage, `documentCamera`), the page's list of words that travel to the browser, the English and Hindi words, and the age-check test changed too; each was re-explained. Two more browser tests use the fake camera: one takes a photo, takes it again, uses it and reaches the selfie; the other leaves the camera for the file chooser.
+
+!!! honest "Honest limitation"
+    - **Webcams are poor document cameras.** Most have a fixed focus, made for a face an arm's length away: a passport held close may blur, and held far, its lines may be too small to read. Whether a typical laptop's camera reads the machine-readable zone reliably isn't measured yet — the browser tests' fake camera shows a portrait, not a passport, so they prove the steps, not the reading.
+    - **The file chooser is still there**, so a photo of a document taken earlier can still be chosen. The face match against a live selfie remains the guard (§5.6.2).
