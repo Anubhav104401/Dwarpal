@@ -10,8 +10,12 @@ is in [infra/deploy/README.md](../../infra/deploy/README.md).
 2. GitHub → Actions → **deploy** → *Run workflow* on `main`. It builds the images (tagged with the commit's first 12
    characters), copies the deploy files, and runs `deploy.sh <tag>` on the server.
 3. `deploy.sh` waits until every service's health check passes. If one doesn't within 5 minutes, it **rolls back by
-   itself** to the version that was running, and the workflow fails — read its log, then section 5.
-4. Check by hand: `https://<domain>` loads, `https://api.<domain>/readyz` answers `ready`, and the demo shop's age check
+   itself** to the version that was running, and the workflow fails — read its log, then section 5. (The demo shop is
+   left out until its project and key are in `.env`: without them it can't serve a page.)
+4. Read the end of the deploy's log: `inference: {…}` should say `"antispoof":"loaded"`. A **warning** that the
+   anti-spoofing networks are missing means every live check will be refused until the two `minifasnet_*.onnx` files
+   are in `models/third_party` (README, step 4); copy them, then `docker compose restart inference`.
+5. Check by hand: `https://<domain>` loads, `https://api.<domain>/readyz` answers `ready`, and the demo shop's age check
    works.
 
 **Rule for migrations:** the database is never migrated backwards. Every migration must work with the code before it
