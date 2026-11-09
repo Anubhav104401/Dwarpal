@@ -61,6 +61,12 @@ class Settings(BaseSettings):
     # Sign-in attempts: per account and per network address, a few at once, then one every so often.
     login_burst: int = 5
     login_per_minute: float = 1.0
+    # The lock-out back-off: after this many wrong passwords or codes in a row for one account from one network address,
+    # that address must wait before trying the account again — a minute at first, twice as long after each further
+    # wrong one, at most an hour. Other addresses aren't locked, so a stranger's guessing can't lock the owner out.
+    login_free_failures: int = 5
+    login_first_lock_s: int = 60
+    login_longest_lock_s: int = 3600
     # Where to send traces (an OpenTelemetry collector's address, such as http://127.0.0.1:4318); none means no traces.
     otel_endpoint: str | None = None
 

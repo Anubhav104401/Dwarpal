@@ -12,7 +12,7 @@ import {
   quietButton,
   smallButton,
 } from "@/components/console-shell";
-import { ConsoleClient, ConsoleError, type Me } from "@/lib/console-api";
+import { ConsoleClient, ConsoleError, type Me, waitInWords } from "@/lib/console-api";
 import { cancelled, passkeysSupported, requestOptions, signInAnswer } from "@/lib/passkeys";
 
 const client = new ConsoleClient();
@@ -26,7 +26,8 @@ function explain(error: unknown): string {
     invalid_credentials: "That e-mail address or password is wrong.",
     totp_required: "Enter the 6-digit code from your authenticator app.",
     invalid_totp: "That code is wrong or has already been used.",
-    too_many_sign_ins: "Too many attempts. Wait a minute, then try again.",
+    // A lock grows after each wrong try, up to an hour: say how long this one lasts.
+    too_many_sign_ins: `Too many attempts. Try again ${waitInWords(error.retryAfter)}.`,
     email_taken: "An account with this e-mail address already exists. Sign in instead.",
     weak_password: "Use a password of at least 12 characters.",
     invalid_email: "That doesn't look like an e-mail address.",

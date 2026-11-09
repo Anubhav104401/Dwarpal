@@ -1,6 +1,7 @@
-/** The dashboard's headline figures about face checks, as words: how long the median took, and shares of outcomes. */
+/** The dashboard's headline figures, as words: how long the face checks' median took, shares of their outcomes, and
+ * how the ID-document checks after them went. */
 
-import type { FaceStage } from "./console-api";
+import type { DocumentStage, FaceStage } from "./console-api";
 
 /** The design's target for the median time to a decision, in seconds (NFR-02). */
 export const MEDIAN_TARGET_S = 15;
@@ -18,11 +19,27 @@ export function bandText(band: { from: number; to: number | null }): string {
 export const withinTarget = (band: { from: number; to: number | null }): boolean =>
   band.to !== null && band.to <= MEDIAN_TARGET_S;
 
-/** One outcome's share of the decided face checks, as a whole percentage ("12 %"), or "—" when nothing has been
- * decided. A share that rounds to 0 but isn't nothing reads "under 1 %", so a rare outcome isn't hidden. */
-export function share(stage: FaceStage, outcome: string): string {
-  if (stage.decided === 0) return "—";
-  const count = stage.outcomes[outcome] ?? 0;
-  const percent = Math.round((count / stage.decided) * 100);
-  return count > 0 && percent === 0 ? "under 1 %" : `${percent} %`;
+/** `count` as a whole percentage of `whole` ("12 %"), or "—" when the whole is nothing. A share that rounds to 0 but
+ * isn't nothing reads "under 1 %", so a rare outcome isn't hidden; and none reads over 100 % — a check opened before
+ * the days shown can end within them. */
+export function percent(count: number, whole: number): string {
+  if (whole <= 0) return "—";
+  const rounded = Math.min(Math.round((count / whole) * 100), 100);
+  return count > 0 && rounded === 0 ? "under 1 %" : `${rounded} %`;
+}
+
+/** One outcome's share of the decided face checks. */
+export const share = (stage: FaceStage, outcome: string): string =>
+  percent(stage.outcomes[outcome] ?? 0, stage.decided);
+
+/** The ID-document checks: of those reached, the share that ended — the design's step-up conversion — the share that
+ * passed (by the document, or by an Age Pass in a check that starts there), and the share that left or is still on it. */
+export function documentFigures(stage: DocumentStage): { finished: string; passed: string; left: string } {
+  const ended = Object.values(stage.outcomes).reduce((sum, count) => sum + count, 0);
+  const passed = (stage.outcomes.pass ?? 0) + (stage.outcomes.age_pass ?? 0);
+  return {
+    finished: percent(ended, stage.opened),
+    passed: percent(passed, stage.opened),
+    left: percent(Math.max(stage.opened - ended, 0), stage.opened),
+  };
 }

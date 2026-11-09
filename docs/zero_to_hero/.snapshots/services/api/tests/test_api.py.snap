@@ -358,6 +358,7 @@ async def test_after_a_step_up_a_document_decides_and_only_its_birth_month_is_ke
         auth = {"Authorization": f"Bearer {h.key}"}
         session = (await h.client.get(f"/v1/verification-sessions/{created['id']}", headers=auth)).json()
         jwks = (await h.client.get("/.well-known/jwks.json")).json()
+        counts = (await h.client.get("/v1/analytics/sessions", headers=auth)).json()
         engine = make_engine(databases[0])
         async with tenant(make_sessions(engine), ids.decode("prj", h.project)) as db:
             kept = await db.scalar(
@@ -377,6 +378,8 @@ async def test_after_a_step_up_a_document_decides_and_only_its_birth_month_is_ke
     assert token.claims["assurance"] == "basic"
     assert kept is not None and kept["document"]["birth_year_month"] == month
     assert "ERIKSSON" not in json.dumps(kept) and "L898902C3" not in json.dumps(kept)
+    # Sent to the ID-document check by the face check, and ended there: the dashboard's step-up conversion.
+    assert counts["document_stage"] == {"opened": 1, "outcomes": {outcome: 1}}, counts["document_stage"]
 
 
 @pytest.mark.anyio
@@ -405,6 +408,8 @@ async def test_poor_frames_get_a_retry_and_then_a_step_up(databases: tuple[str, 
     assert session["age_token"] is None
     # Not finished, so not in the totals; but its face check has decided, once, after its retries.
     assert (counts["totals"], counts["face_stage"]["outcomes"]) == ({}, {"step_up": 1})
+    # It reached the ID-document check, and hasn't ended it (yet): the dashboard's step-up conversion counts it so.
+    assert counts["document_stage"] == {"opened": 1, "outcomes": {}}, counts["document_stage"]
 
 
 @pytest.mark.anyio
@@ -532,6 +537,7 @@ async def test_until_a_model_is_certified_a_live_check_is_decided_by_an_id_docum
         auth = {"Authorization": f"Bearer {live.key}"}
         session = (await live.client.get(f"/v1/verification-sessions/{session_id}", headers=auth)).json()
         jwks = (await live.client.get("/.well-known/jwks.json")).json()
+        counts = (await live.client.get("/v1/analytics/sessions", headers=auth)).json()
     assert test_view["session"]["document_only"] is False
     assert created.status_code == 201
     assert (started["session"]["status"], started["session"]["document_only"]) == ("in_progress", True)
@@ -541,6 +547,36 @@ async def test_until_a_model_is_certified_a_live_check_is_decided_by_an_id_docum
     token = jwt.decode(session["age_token"], KeySet.import_key_set(jwks), algorithms=["Ed25519"])
     assert token.claims["methods"] == ["document_mrz", "face_match"]
     assert (token.claims["age_over_18"], token.claims["livemode"], token.claims["model"]) == (True, True, None)
+    # It started at the ID-document check (counted when the page opened) and ended there, in the live counts.
+    assert counts["document_stage"] == {"opened": 1, "outcomes": {"pass": 1}}, counts["document_stage"]
+    assert counts["face_stage"]["decided"] == 0, counts["face_stage"]
+
+
+@pytest.mark.anyio
+async def test_a_live_check_that_starts_at_the_document_can_end_with_an_age_pass_and_is_counted_so(
+    databases: tuple[str, str],
+) -> None:
+    """D24 and D26: a live check passed by its passport gives out Age Passes; the next live check, which starts at the
+    ID document too, is ended by a pass instead — and the dashboard counts that check as ended, not left."""
+    if TESSERACT is None:
+        pytest.skip("Tesseract isn't installed, and the OCR container isn't running")
+    holder = Holder(2)
+    async with harness(databases, livemode=True, inference_via=anti_spoofing_verdict) as live:
+        auth = bearer_of(live.key)
+        policy = {"name": "pass_18", "min_age": 18, "accept_age_pass": True}
+        assert (await live.client.post("/v1/policies", json=policy, headers=auth)).status_code == 201
+        first = (await create(live, policy="pass_18")).json()
+        flow = await start(live, first)
+        passed = (await document_attempt(live, first["id"], flow, specimen("900101"))).json()
+        issued = await live.client.post(
+            f"/v1/flow/sessions/{first['id']}/age-pass", json={"keys": holder.public_keys()}, headers=flow
+        )
+        holder.keep(issued.json()["passes"])
+        _, accepted = await present_age_pass(live, 0, holder, "pass_18")
+        counts = (await live.client.get("/v1/analytics/sessions", headers=auth)).json()
+    assert passed["outcome"] == "pass", passed
+    assert (accepted.status_code, accepted.json()["outcome"]) == (200, "pass"), accepted.text
+    assert counts["document_stage"] == {"opened": 2, "outcomes": {"age_pass": 1, "pass": 1}}, counts["document_stage"]
 
 
 @pytest.mark.anyio
@@ -1745,6 +1781,40 @@ async def test_sign_in_attempts_are_limited(databases: tuple[str, str]) -> None:
             ]
     assert [t.status_code for t in tries] == [401, 401, 429]
     assert tries[2].json()["code"] == "too_many_sign_ins" and int(tries[2].headers["retry-after"]) >= 1
+
+
+@pytest.mark.anyio
+async def test_wrong_passwords_lock_the_account_to_that_address_and_nowhere_else(databases: tuple[str, str]) -> None:
+    """The lock-out back-off: past the free wrong tries, each locks the account to the address it came from (for
+    longer each time: tested without a database, beside the role matrix); while locked, even the right password is
+    refused there, but not from elsewhere. A right password before that starts the count afresh, and an account that
+    doesn't exist locks the same way, so a lock gives nothing away."""
+    settings = {**CONSOLE_SETTINGS, "login_free_failures": 2, "login_first_lock_s": 60}
+    async with harness(databases, **settings) as h:
+
+        def browser_at(address: str) -> httpx.AsyncClient:
+            transport = httpx.ASGITransport(app=h.transport.app, client=(address, 4000))
+            return httpx.AsyncClient(transport=transport, base_url="http://api")
+
+        here, elsewhere = (f"192.0.2.{uuid.uuid4().int % 250}", f"203.0.113.{uuid.uuid4().int % 250}")
+        async with browser_at(here) as browser, browser_at(elsewhere) as other:
+            email, nobody = unique("locked"), unique("nobody")
+            await sign_up(browser, email)
+
+            async def login(who: str, password: str, at: httpx.AsyncClient = browser) -> httpx.Response:
+                return await at.post(f"{CONSOLE}/login", json={"email": who, "password": password})
+
+            afresh = [await login(email, "wrong password!"), await login(email, PASSWORD)]
+            tries = [await login(email, "wrong password!") for _ in range(3)]  # two free, then the third locks
+            locked = await login(email, PASSWORD)
+            from_elsewhere = await login(email, PASSWORD, other)
+            strangers = [await login(nobody, "wrong password!") for _ in range(4)]
+    assert [r.status_code for r in afresh] == [401, 200], [r.text for r in afresh]
+    assert [r.status_code for r in tries] == [401, 401, 401], [r.text for r in tries]
+    assert (locked.status_code, locked.json()["code"]) == (429, "too_many_sign_ins"), locked.text
+    assert 55 <= int(locked.headers["retry-after"]) <= 60, locked.headers
+    assert from_elsewhere.status_code == 200, from_elsewhere.text
+    assert [r.status_code for r in strangers] == [401, 401, 401, 429], [r.text for r in strangers]
 
 
 @pytest.fixture(scope="module")

@@ -258,6 +258,20 @@ class FaceStageStat(Base):
     sessions: Mapped[int]
 
 
+class DocumentStageStat(Base):
+    """How many of one project's sessions reached the ID-document check on one day (`step` "opened"), and how many of
+    those checks ended each way ("pass", "fail", "reject"; "age_pass" when a pass decided a check that starts there).
+    Kept after the purge."""
+
+    __tablename__ = "document_stage_stats"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
+    livemode: Mapped[bool] = mapped_column(primary_key=True)
+    day: Mapped[date] = mapped_column(primary_key=True)
+    step: Mapped[str] = mapped_column(String(16), primary_key=True)
+    sessions: Mapped[int]
+
+
 class User(Base):
     """A person at one of Dwarpal's customers, who signs in to the console. Never someone whose age is checked."""
 

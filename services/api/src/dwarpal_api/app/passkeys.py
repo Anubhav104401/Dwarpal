@@ -55,6 +55,7 @@ async def _reauthenticate(svc: Services, user: User, password: str, code: str | 
         if step is not None:
             user.totp_last_step = step
     if not good:
+        await console._wrong(svc, user.email, address)  # towards the same lock as signing in
         raise ApiError(403, "reauthentication_failed", "that password or code is wrong")
 
 

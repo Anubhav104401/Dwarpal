@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { CAN, ConsoleClient, ConsoleError } from "./console-api";
+import { CAN, ConsoleClient, ConsoleError, waitInWords } from "./console-api";
 
 function answer(status: number, body: unknown): Response {
   return new Response(status === 204 ? null : JSON.stringify(body), {
@@ -57,6 +57,34 @@ describe("ConsoleClient", () => {
     await expect(refused).rejects.toMatchObject({ status: 403, code: "forbidden_for_role" });
   });
 
+  it("keeps how long a locked sign-in must wait, from Retry-After, and says it in words", async () => {
+    const locked = new Response(JSON.stringify({ code: "too_many_sign_ins", detail: "wait" }), {
+      status: 429,
+      headers: { "content-type": "application/json", "retry-after": "240" },
+    });
+    const dated = new Response("{}", {
+      status: 503,
+      headers: { "retry-after": "Wed, 21 Oct 2026 07:28:00 GMT" },
+    });
+    const replies = [locked, dated];
+    vi.stubGlobal("fetch", async () => replies.shift());
+    const client = new ConsoleClient();
+    await expect(client.signIn("ana@shop.example", "wrong")).rejects.toMatchObject({ retryAfter: 240 });
+    await expect(client.signIn("ana@shop.example", "wrong")).rejects.toMatchObject({ retryAfter: null });
+    expect([null, 0, 1, 45, 60, 61, 240, 3599, 3600, 7200].map(waitInWords)).toEqual([
+      "in a moment",
+      "in a moment",
+      "in 1 second",
+      "in 45 seconds",
+      "in 1 minute",
+      "in 2 minutes",
+      "in 4 minutes",
+      "in an hour",
+      "in an hour",
+      "in 2 hours",
+    ]);
+  });
+
   it("reads the audit log and its chain verdict", async () => {
     vi.stubGlobal("fetch", async () =>
       answer(200, {
@@ -96,6 +124,7 @@ describe("ConsoleClient, a project's pages", () => {
           outcomes: { pass: 4, step_up: 1 },
           median_seconds: { from: 300, to: null },
         },
+        document_stage: { opened: 4, outcomes: { pass: 2, fail: 1 } },
       }),
     ];
     vi.stubGlobal("fetch", async (url: string) => {
@@ -119,6 +148,7 @@ describe("ConsoleClient, a project's pages", () => {
       outcomes: { pass: 4, step_up: 1 },
       median: { from: 300, to: null },
     });
+    expect(counts.documentStage).toEqual({ opened: 4, outcomes: { pass: 2, fail: 1 } });
   });
 });
 

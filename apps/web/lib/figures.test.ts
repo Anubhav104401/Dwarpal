@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bandText, share, withinTarget } from "./figures";
+import { bandText, documentFigures, share, withinTarget } from "./figures";
 
 describe("bandText", () => {
   it("says seconds up to a minute, minutes after, and 'or more' for the last band", () => {
@@ -33,5 +33,19 @@ describe("share", () => {
       share(stage, "fail"),
     ]).toEqual(["75 %", "25 %", "under 1 %", "0 %"]);
     expect(share({ decided: 0, outcomes: {}, median: null }, "pass")).toBe("—");
+  });
+});
+
+describe("documentFigures", () => {
+  it("shares the ID checks reached into ended, passed (an Age Pass too) and left, never over 100 %", () => {
+    const stage = { opened: 40, outcomes: { pass: 20, age_pass: 4, fail: 5, reject: 1 } };
+    expect(documentFigures(stage)).toEqual({ finished: "75 %", passed: "60 %", left: "25 %" });
+    // Checks reached before the days shown but ended within them: capped, and nobody "left".
+    expect(documentFigures({ opened: 2, outcomes: { pass: 3 } })).toEqual({
+      finished: "100 %",
+      passed: "100 %",
+      left: "0 %",
+    });
+    expect(documentFigures({ opened: 0, outcomes: {} })).toEqual({ finished: "—", passed: "—", left: "—" });
   });
 });

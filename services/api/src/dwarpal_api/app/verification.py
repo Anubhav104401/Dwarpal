@@ -18,6 +18,7 @@ from dwarpal_api.adapters.inference import InferenceClient
 from dwarpal_api.adapters.signing import KeyRing, MasterKey
 from dwarpal_api.adapters.store import FlowStore
 from dwarpal_api.adapters.tables import (
+    DocumentStageStat,
     FaceStageStat,
     IssuedToken,
     Project,
@@ -149,6 +150,15 @@ async def record_face_stage(session: AsyncSession, row: VerificationSession, out
     await session.execute(count)
 
 
+async def record_document_stage(session: AsyncSession, row: VerificationSession, step: str, now: datetime) -> None:
+    """Count a session reaching the ID-document check ("opened"), or that check ending ("pass", "fail", "reject", or
+    "age_pass"), in the day's counts for the dashboard: together, the design's step-up conversion."""
+    key = {"project_id": row.project_id, "livemode": row.livemode, "day": now.date(), "step": step}
+    count = insert(DocumentStageStat).values(**key, sessions=1)
+    count = count.on_conflict_do_update(index_elements=list(key), set_={"sessions": DocumentStageStat.sessions + 1})
+    await session.execute(count)
+
+
 def document_only(svc: Services, livemode: bool) -> bool:
     """Decision D24: until an age model is certified for live use, a live check is decided by an ID document alone. The
     age estimate is never used for it, so the face check is skipped: the document check's own selfie, with the same
@@ -213,6 +223,8 @@ async def start_flow(svc: Services, session_text: str, client_secret: str) -> di
         if row.status == Status.CREATED:
             row.status = move(Status.CREATED, Status.IN_PROGRESS)
             row.started_at = svc.now()
+            if document_only(svc, row.livemode):  # D24: this check starts at the ID document
+                await record_document_stage(session, row, "opened", row.started_at)
         project = await session.get(Project, row.project_id)
         policy = await pinned(session, row)
         await session.commit()
@@ -361,6 +373,8 @@ async def submit_face_attempt(
             row.model_version = analysis.model_version
         if decision.outcome != Outcome.RETRY:
             await record_face_stage(session, row, decision.outcome, now)
+        if decision.outcome == Outcome.STEP_UP:  # sent on to the ID-document check
+            await record_document_stage(session, row, "opened", now)
         if row.status == Status.COMPLETED:
             row.completed_at = now
             await announce(svc, session, row, now)
@@ -444,6 +458,7 @@ async def submit_document_attempt(
             row.status = move(Status(row.status), Status.COMPLETED)
             row.outcome = decision.outcome
             row.completed_at = now
+            await record_document_stage(session, row, decision.outcome.value, now)
             await announce(svc, session, row, now)
         remaining = MAX_DOCUMENT_ATTEMPTS - len(earlier) - 1
         await session.commit()

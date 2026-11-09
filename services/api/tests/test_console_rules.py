@@ -8,6 +8,7 @@ import base64
 import pytest
 
 from dwarpal_api.adapters.passwords import hash_password, verify_password
+from dwarpal_api.app.console import lock_s
 from dwarpal_api.domain import totp
 from dwarpal_api.domain.roles import Action, Role, can
 
@@ -34,6 +35,12 @@ def test_every_role_may_do_exactly_what_the_matrix_says() -> None:
 
 def test_an_unknown_role_may_do_nothing() -> None:
     assert not any(can("superuser", action) for action in Action)
+
+
+def test_locks_start_after_the_free_tries_then_double_up_to_the_longest() -> None:
+    locks = [lock_s(failures, free=5, first_s=60, longest_s=3600) for failures in range(1, 15)]
+    assert locks == [0, 0, 0, 0, 0, 60, 120, 240, 480, 960, 1920, 3600, 3600, 3600], locks
+    assert lock_s(10**9, free=5, first_s=60, longest_s=3600) == 3600  # however many, at once and at most the longest
 
 
 # RFC 6238, appendix B: the SHA-1 key "12345678901234567890" and its 8-digit codes; ours are the last six digits.

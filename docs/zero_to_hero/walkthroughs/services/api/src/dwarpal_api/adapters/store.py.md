@@ -1,5 +1,5 @@
 ---
-fingerprint: 982c0da3901b1afe
+fingerprint: ca4908735aad02f7
 ---
 The API's **short-term memory**, kept in **Valkey** (§4.11). Some facts only need to exist for minutes: "this browser may work on session X for the next 15 minutes", "this challenge may be used once in the next 2 minutes". Putting them in PostgreSQL would fill the database with rows that need cleaning up. Valkey stores each value with a **time to live** and deletes it by itself when the time runs out.
 
@@ -143,32 +143,44 @@ Add one and compare with the limit. `incr` is atomic in Valkey, so two requests 
 @@ 80-83
 **`take_token`** — run the script for the bucket called `key` (`eval` sends a script with one key name and its arguments). Return 0 when allowed; otherwise the wait in milliseconds, at least 1 so that "refused" can never look like 0.
 
-@@ 85-88
+@@ 107-110
 **`claim`** — the first step of idempotency (`app/idempotency.py`): store a value **only if nothing is there yet** (`nx=True`) and, in the same command, get back what *was* there (`get=True`). One command, so two copies of a request arriving together can't both believe they came first. `None` means "it was empty, and is now ours".
 
-@@ 90-91
+@@ 112-113
 **`put`** — store a value, replacing whatever was there, for `ttl_s` seconds.
 
-@@ 93-94
+@@ 115-116
 **`drop`** — delete a key.
 
-@@ 110-113
+@@ 132-135
 **`fetch`** — read a value and, in the same command (`GETEX`), restart its time to live. This is a **sliding expiry**: a console session lasts 12 hours *from its last use*, so someone working all day stays signed in, and an abandoned session ends on its own.
 
-@@ 115
+@@ 137
 **`take_challenge`** — use a challenge up. It returns the stored `Challenge` only if it existed, hadn't expired, and belongs to this session; otherwise `None`.
 
-@@ 116
+@@ 138
 `GETDEL` reads the value **and deletes it in one atomic step**. If the same challenge arrives twice at the same instant, only one request can get it — the other finds nothing. Reading first and deleting later would leave a tiny gap in which both could succeed.
 
-@@ 117-122
+@@ 139-144
 Accept only if something was found *and* its session matches. The challenge is gone either way: a wrong guess burns it. Then rebuild the `Challenge` from what was stored — the *server's* copy, which is what the frames will be checked against, whatever the browser claims.
 
-@@ 96-99
+@@ 118-121
 **`take`** (Phase 9) — read a value and delete it in one step (`GETDEL`), as `take_challenge` below does for liveness challenges. Passkey challenges use it: whoever takes a challenge first has it, so a device's answer can be used once.
 
-@@ 101-104
+@@ 123-126
 **`counter`** — a counter's value: 0 if it was never moved on.
 
-@@ 106-108
+@@ 128-130
 **`bump`** — add one to a counter and return the new value, in one step (`INCR`). Counters never expire: one small number per person (the console's session generations, D31).
+
+@@ 85-93
+**`count_failure`** (9 Nov) — add one to a count of failures, and start its expiry again: it is forgotten `forget_s` seconds after the *latest* failure. Its name is hashed, like the token buckets', so neither the e-mail address nor the network address is stored as written. The two commands go in a **pipeline** with a transaction: queued, then sent together and run as one by Valkey (`MULTI` … `EXEC`), so a count is never left without its expiry — which would keep it for ever. The answer holds both commands' results; the count is first.
+
+@@ 95-97
+**`lock`** — set a lock: a key that exists for `seconds`, then vanishes by itself (`ex=`).
+
+@@ 99-101
+**`locked_for`** — how many milliseconds the lock has left: Valkey's `PTTL`. For a key that doesn't exist it answers a negative number, so anything below 0 becomes 0: not locked.
+
+@@ 103-105
+**`forget`** — delete the count and the lock together, after a right password.

@@ -1,5 +1,5 @@
 ---
-fingerprint: a76c1cb7d75ee96e
+fingerprint: aa4e4e6ea1601ee7
 ---
 The **delivery worker** (Phase 4, §5.4.3): a separate, long-running process that empties the **outbox**, the table of webhook deliveries waiting to be sent.
 
@@ -60,7 +60,7 @@ A switched-off endpoint isn't sent to. Otherwise send.
 Record the result. For a switched-off endpoint it is final: no retries.
 
 @@ 74-79
-**`_send`** — check the address **again**, now. A host name that was public when the endpoint was saved may point at a private address today (an attack called **DNS rebinding**). An unsafe address is a failure, with the reason cut to 200 characters to fit the column.
+**`_send`** — check the address **again**, now: a host name that was public when the endpoint was saved may point at a private address today. The check hands back the addresses it found, all public (9 Nov). An unsafe address is a failure, with the reason cut to 200 characters to fit the column.
 
 @@ 80
 Open the endpoint's secret. Its ID is the associated data it was sealed with, so a sealed secret copied onto another endpoint wouldn't open.
@@ -68,32 +68,32 @@ Open the endpoint's secret. Its ID is the associated data it was sealed with, so
 @@ 81
 The body: the event's public form as compact JSON — exactly the bytes that are signed.
 
-@@ 82-83
-Sign with the current time, and send.
+@@ 82-84
+Sign with the current time, and send — to the addresses just checked, never to the name again: asked twice, its owner could answer with a private address the second time (**DNS rebinding**, closed 9 Nov).
 
-@@ 85-88
+@@ 86-89
 **`_record`** — save the result, in a new unit of work, re-reading the row **locked**.
 
-@@ 89-90
+@@ 90-91
 If it was deleted meanwhile, stop.
 
-@@ 91-92
+@@ 92-93
 Count the attempt, and keep the receiver's status and the reason.
 
-@@ 93
+@@ 94
 How long until the next try: none for a final failure; otherwise the schedule's next step, or none once it is used up.
 
-@@ 94-95
+@@ 95-96
 Accepted: delivered, now.
 
-@@ 96-97
+@@ 97-98
 Failed with no tries left: **dead**. A person can replay it later (`app/webhooks.py`, `replay`).
 
-@@ 98-99
+@@ 99-100
 Failed, with tries left: due again after the wait.
 
-@@ 100
+@@ 101
 Save.
 
-@@ 102-109
+@@ 103-110
 **`run`** — the worker's whole life: one round after another. If a round found nothing, wait `poll_s` seconds before asking again, so an idle worker doesn't hammer the database. If a round was busy, go straight on. `once` (for the `--once` option) stops after one round.

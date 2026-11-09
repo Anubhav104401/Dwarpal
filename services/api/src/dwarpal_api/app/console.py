@@ -48,6 +48,7 @@ PASSWORD_LENGTHS = (12, 256)
 MAX_PROJECTS = 20
 PROJECT_NAME_LENGTHS = (1, 80)
 SIGN_IN_REFUSED = ApiError(401, "invalid_credentials", "the e-mail address or the password is wrong")
+FAILURES_FORGOTTEN_S = 86_400  # wrong tries count towards a lock until a day after the latest one
 
 
 @dataclass(frozen=True)
@@ -158,14 +159,39 @@ async def _join_invited(session: AsyncSession, user_id: uuid.UUID, email: str, n
         await audit.record(session, org_id, actor_of(user_id), "member.joined", ids.encode("usr", user_id), facts, now)
 
 
+def lock_s(failures: int, free: int, first_s: int, longest_s: int) -> int:
+    """How long an account stays locked to a network address after `failures` wrong tries in a row from it: not at all
+    for the first `free`, then `first_s`, twice as long after each further one, never longer than `longest_s` (the
+    design's lock-out back-off)."""
+    over = failures - free
+    return 0 if over <= 0 else min(first_s * 2 ** min(over - 1, 30), longest_s)
+
+
+def _too_many(wait_ms: int) -> ApiError:
+    retry = {"Retry-After": str(-(-wait_ms // 1000))}  # whole seconds, rounded up
+    return ApiError(429, "too_many_sign_ins", "too many sign-in attempts; wait and try again", retry)
+
+
 async def _spend_sign_in(svc: Services, email: str, address: str) -> None:
-    """Sign-in attempts are limited per account and per network address, so guessing passwords is slow."""
+    """Sign-in attempts are limited per account and per network address, so guessing passwords is slow — and refused
+    outright while wrong ones have locked the account to this address (`_wrong`)."""
     settings = svc.settings
+    locked_ms = await svc.store.locked_for(f"sign-in:{email}:{address}")
+    if locked_ms:
+        raise _too_many(locked_ms)
     for key in (f"sign-in:account:{email}", f"sign-in:address:{address}"):
         wait_ms = await svc.store.take_token(key, settings.login_per_minute / 60, settings.login_burst)
         if wait_ms:
-            retry = {"Retry-After": str(-(-wait_ms // 1000))}
-            raise ApiError(429, "too_many_sign_ins", "too many sign-in attempts; wait and try again", retry)
+            raise _too_many(wait_ms)
+
+
+async def _wrong(svc: Services, email: str, address: str) -> None:
+    """Count a wrong password or code for this account from this address; past the free ones, lock the pair."""
+    settings = svc.settings
+    failures = await svc.store.count_failure(f"sign-in:{email}:{address}", FAILURES_FORGOTTEN_S)
+    seconds = lock_s(failures, settings.login_free_failures, settings.login_first_lock_s, settings.login_longest_lock_s)
+    if seconds:
+        await svc.store.lock(f"sign-in:{email}:{address}", seconds)
 
 
 async def sign_in(
@@ -175,8 +201,10 @@ async def sign_in(
     await _spend_sign_in(svc, email, address)
     async with svc.sessions() as session:
         found = (await session.execute(FIND_USER, {"email": email})).first()
-    # The same answer, after the same amount of hashing, whether the account exists or the password is wrong.
+    # The same answer, after the same amount of hashing, whether the account exists or the password is wrong — and the
+    # same lock, so a lock doesn't tell that the account exists either.
     if not await verify_password(found.password_hash if found else None, password) or found is None:
+        await _wrong(svc, email, address)
         raise SIGN_IN_REFUSED
     now = svc.now()
     async with tenant(svc.sessions, user_id=found.id) as session:
@@ -194,6 +222,7 @@ async def sign_in(
                 left = {"recovery_codes_left": len(user.recovery_digests)}
                 await _record_for_all(session, user, "user.recovery_code_used", left, now)
             else:
+                await _wrong(svc, email, address)
                 raise ApiError(401, "invalid_totp", "that code is wrong or already used")
         user.last_login_at = now
         for org_id in await session.scalars(select(Membership.org_id).where(Membership.user_id == user.id)):
@@ -201,6 +230,7 @@ async def sign_in(
                 session, org_id, actor_of(user.id), "user.signed_in", ids.encode("usr", user.id), {}, now
             )
         await session.commit()
+    await svc.store.forget(f"sign-in:{email}:{address}")  # signed in: the wrong tries before don't count any more
     return await open_session(svc, found.id)
 
 
@@ -312,6 +342,7 @@ async def totp_disable(svc: Services, current: ConsoleSession, password: str, co
         secret = _master(svc).open(user.totp_secret_sealed, user.id.bytes).decode()
         step = totp.accepted_step(secret, code, now.timestamp(), user.totp_last_step)
         if not await verify_password(user.password_hash, password) or step is None:
+            await _wrong(svc, user.email, address)
             raise ApiError(403, "reauthentication_failed", "that password or code is wrong")
         user.totp_secret_sealed, user.totp_pending_sealed, user.totp_last_step = None, None, None
         user.recovery_digests = []
@@ -319,16 +350,22 @@ async def totp_disable(svc: Services, current: ConsoleSession, password: str, co
         await session.commit()
 
 
-async def _reauthenticate(svc: Services, user: User, password: str, code: str | None, now: datetime) -> None:
-    """The person, not just their signed-in browser: the password, and a current code if one-time codes are on."""
+async def _reauthenticate(
+    svc: Services, user: User, password: str, code: str | None, address: str, now: datetime
+) -> None:
+    """The person, not just their signed-in browser: the password, and a current code if one-time codes are on.
+    Attempts count against the same limits as signing in, and wrong ones towards the same lock."""
+    await _spend_sign_in(svc, user.email, address)
     password_ok = await verify_password(user.password_hash, password)
     if user.totp_secret_sealed is not None:
         secret = _master(svc).open(user.totp_secret_sealed, user.id.bytes).decode()
         step = totp.accepted_step(secret, code or "", now.timestamp(), user.totp_last_step)
         if not password_ok or step is None:
+            await _wrong(svc, user.email, address)
             raise ApiError(403, "reauthentication_failed", "that password or code is wrong")
         user.totp_last_step = step
     elif not password_ok:
+        await _wrong(svc, user.email, address)
         raise ApiError(403, "reauthentication_failed", "that password is wrong")
 
 
@@ -342,8 +379,7 @@ async def change_password(
         user = await session.get(User, current.user_id, with_for_update=True)
         if user is None:
             raise ApiError(401, "not_signed_in", "sign in again")
-        await _spend_sign_in(svc, user.email, address)
-        await _reauthenticate(svc, user, password, code, now)
+        await _reauthenticate(svc, user, password, code, address, now)
         check_password(new_password, user.email)
         user.password_hash = await hash_password(new_password)
         await _record_for_all(session, user, "user.password_changed", {}, now)
@@ -364,8 +400,7 @@ async def delete_account(svc: Services, current: ConsoleSession, password: str, 
         user = await session.get(User, current.user_id, with_for_update=True)
         if user is None:
             raise ApiError(401, "not_signed_in", "sign in again")
-        await _spend_sign_in(svc, user.email, address)
-        await _reauthenticate(svc, user, password, code, now)
+        await _reauthenticate(svc, user, password, code, address, now)
         memberships = list(await session.scalars(select(Membership).where(Membership.user_id == user.id)))
         closing: dict[uuid.UUID, bool] = {}
         for membership in memberships:

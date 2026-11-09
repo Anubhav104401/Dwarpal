@@ -17,7 +17,15 @@ from typing import TYPE_CHECKING, Any
 from dwarpal_api.adapters.db import session_tenant
 from dwarpal_api.adapters.tables import VerificationAttempt
 from dwarpal_api.app.policies import pinned
-from dwarpal_api.app.verification import announce, load_session, methods_of, public_id, spend_device_budgets
+from dwarpal_api.app.verification import (
+    announce,
+    document_only,
+    load_session,
+    methods_of,
+    public_id,
+    record_document_stage,
+    spend_device_budgets,
+)
 from dwarpal_api.domain import agepass
 from dwarpal_api.domain.decision import Outcome
 from dwarpal_api.domain.sessions import Status, move
@@ -145,6 +153,8 @@ async def present(svc: Services, session_id: uuid.UUID, text: str) -> dict[str, 
         row.status = move(Status.IN_PROGRESS, Status.COMPLETED)
         row.outcome = Outcome.PASS
         row.completed_at = now
+        if document_only(svc, row.livemode):  # the ID-document check this session started at ended with a pass
+            await record_document_stage(session, row, "age_pass", now)
         await announce(svc, session, row, now)
         await session.commit()
     return {"outcome": Outcome.PASS}

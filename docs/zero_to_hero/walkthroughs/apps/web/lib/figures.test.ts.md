@@ -1,5 +1,5 @@
 ---
-fingerprint: f109478a9d98c735
+fingerprint: f3f3f8f66811e9a5
 ---
 The tests for the dashboard's face-check figures (`figures.ts`).
 
@@ -7,7 +7,7 @@ The tests for the dashboard's face-check figures (`figures.ts`).
 The test functions from Vitest.
 
 @@ 3
-The functions under test.
+The functions under test. Since 9 Nov also `documentFigures`.
 
 @@ 5-6
 **`bandText`**: seconds up to a minute, minutes after, and "or more" for the last band.
@@ -38,3 +38,15 @@ Before anything is decided, a dash.
 
 @@ 36-37
 End of the test and the group.
+
+@@ 39-40
+**Test — the ID-document figures** (9 Nov).
+
+@@ 41-42
+Forty reached: twenty passed by the document and four by an Age Pass, five failed and one was rejected — so 75 % finished, 60 % passed (the Age Passes too), and 25 % left.
+
+@@ 43-48
+Two reached in the 30 days but three ended in them (one was reached the day before): every share stops at 100 %, and nobody left.
+
+@@ 49-51
+Nothing reached: a dash for each.

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import select
 
 from dwarpal_api.adapters.db import tenant
-from dwarpal_api.adapters.tables import FaceStageStat, SessionStat
+from dwarpal_api.adapters.tables import DocumentStageStat, FaceStageStat, SessionStat
 from dwarpal_api.domain.timing import median_band
 
 if TYPE_CHECKING:
@@ -29,9 +29,15 @@ async def session_counts(svc: Services, project_id: uuid.UUID, livemode: bool, d
     face_query = select(FaceStageStat).where(
         FaceStageStat.project_id == project_id, FaceStageStat.livemode == livemode, FaceStageStat.day >= since
     )
+    document_query = select(DocumentStageStat).where(
+        DocumentStageStat.project_id == project_id,
+        DocumentStageStat.livemode == livemode,
+        DocumentStageStat.day >= since,
+    )
     async with tenant(svc.sessions, project_id) as session:
         rows = list(await session.scalars(query))
         face_rows = list(await session.scalars(face_query))
+        document_rows = list(await session.scalars(document_query))
     totals: Counter[str] = Counter()
     for row in rows:
         totals[row.outcome] += row.sessions
@@ -45,6 +51,7 @@ async def session_counts(svc: Services, project_id: uuid.UUID, livemode: bool, d
         "data": data,
         "totals": dict(sorted(totals.items())),
         "face_stage": face_stage(face_rows),
+        "document_stage": document_stage(document_rows),
     }
 
 
@@ -63,3 +70,14 @@ def face_stage(rows: list[FaceStageStat]) -> dict[str, Any]:
         "outcomes": dict(sorted(outcomes.items())),
         "median_seconds": None if median is None else {"from": median[0], "to": median[1]},
     }
+
+
+def document_stage(rows: list[DocumentStageStat]) -> dict[str, Any]:
+    """How many sessions reached the ID-document check (sent there by a face check that couldn't decide, or starting
+    there, D24), and how many of those checks ended each way. The ones that reached it but have no ending left — or
+    are still on it: the design's step-up conversion is the share that ended."""
+    steps: Counter[str] = Counter()
+    for row in rows:
+        steps[row.step] += row.sessions
+    opened = steps.pop("opened", 0)
+    return {"opened": opened, "outcomes": dict(sorted(steps.items()))}

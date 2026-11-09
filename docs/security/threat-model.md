@@ -105,7 +105,7 @@ The browser and everything on the internet is untrusted. The inference service i
 2. **The API logs in as the database owner and switches role** — a fully attacker-controlled statement could `RESET ROLE`. Production must use a login that is only a member of `dwarpal_app` (Phase 8).
 3. **Untested presentation attacks** — virtual camera, deepfake, mask; one-person measurement (Phase 3 open items). The render detector's code is ready (3 Nov); its data is being made under ADR-0021.
 4. **No dependency or container scanning yet** — Semgrep, pip-audit, Trivy, ZAP pending (D9).
-5. **DNS rebinding window** between the webhook address check and the connection — worker egress filtering in Phase 8.
+5. ~~DNS rebinding window~~ between the webhook address check and the connection — **closed 9 Nov**: the request goes to an address that was checked (the name still in `Host` and TLS's SNI), on a connection of its own. Worker egress filtering would be a second defence; it isn't built.
 6. **Audit chain not anchored outside the database** — a consistent rewrite by someone controlling the database would go unnoticed.
 7. ~~No recovery codes for TOTP~~ — **added 29 Oct** (single-use, stored as HMACs). Still no e-mail verification of accounts, and no password reset.
 8. **Console sessions aren't bound to a device** — a stolen cookie works until it expires or the person signs out.

@@ -109,7 +109,13 @@ The client (`console-api.ts`) now keeps the daily rows, and its test checks them
 
 !walk apps/web/lib/figures.test.ts
 
-The tables (`tables.py`), the session use cases (`verification.py`, which notes the start and counts each decision), the analytics use case (`analytics.py`, which now also answers with `face_stage`), their tests (`test_domain.py`, `test_api.py`), the client and its test, and the project page changed too; each was re-explained. *Step-up conversion* — how many people sent to a stronger check then pass it — waits for the stronger checks themselves (Phase 6).
+The tables (`tables.py`), the session use cases (`verification.py`, which notes the start and counts each decision), the analytics use case (`analytics.py`, which now also answers with `face_stage`), their tests (`test_domain.py`, `test_api.py`), the client and its test, and the project page changed too; each was re-explained. *Step-up conversion* — how many people sent to a stronger check then finish it — waited for the stronger checks themselves (Phase 6).
+
+**The ID-document checks' figures** (added 9 Nov). With the ID-document check built, a third daily count, `document_stage_stats`, adds one when a session reaches that check — `opened`: sent there by a face check that couldn't decide, or starting there in a live check while no age model is certified (D24) — and one when the check ends, by how it ended: `pass`, `fail`, `reject`, or `age_pass` when a pass ended a live check that started there. The page shows, of the checks reached in the 30 days, the share that ended (the design's **step-up conversion**), the share that passed, and the share that left — or are still on it. The two counts can fall on different days, as a check reached just before the 30 days can end within them, so no share is ever shown over 100 %.
+
+!walk services/api/src/dwarpal_api/migrations/versions/v0013_document_stage_stats.py
+
+The tables, the session and Age Pass use cases (which count each reach and each ending), the analytics use case (which also answers with `document_stage`), the figures (`percent`, now shared, and `documentFigures`), the project page and their tests changed too; each was re-explained.
 
 **The age model's page** (added 29 Oct). The design asks the console for *model information* (FR-10). A new page, *Age model*, linked from the console's front page, shows anyone signed in which model is deciding, whether it may decide live checks, what it learnt from, and its lines for each age with the worst cases measured for them. It is the same for every organisation, so it needs no tenant and no role — only a signed-in person (`GET /console/v1/model`). The API keeps the manifest's whole file at start-up for this page; decisions never read it.
 

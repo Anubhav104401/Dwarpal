@@ -1,5 +1,5 @@
 ---
-fingerprint: a26fcb897d31888c
+fingerprint: d330c46a7ecbda13
 ---
 The **database tables**, described as Python classes. Each class is one table; each `Mapped[...]` line inside it is one **column**. SQLAlchemy's **ORM** (Object-Relational Mapper, §4.10) translates between the two worlds: code works with ordinary Python objects such as `row.status`, and SQLAlchemy writes the SQL.
 
@@ -332,40 +332,40 @@ The key is five columns together: project, mode (test and live are counted apart
 @@ 244
 The count.
 
-@@ 261-262
+@@ 275-276
 **`User`** — a person at one of Dwarpal's customers, who signs in to the console (Phase 4, step 2). The docstring repeats the privacy promise: the people whose age is checked are **never** stored as users.
 
-@@ 264
+@@ 278
 Its table: `users`.
 
-@@ 266-267
+@@ 280-281
 The ID, and the e-mail address — unique, and always stored in lower case, so `Ana@Shop.example` and `ana@shop.example` are one account.
 
-@@ 268
+@@ 282
 `password_hash` — never the password: its **Argon2id hash**, a long text that also carries the random salt and the settings it was made with (`adapters/passwords.py`).
 
-@@ 269-271
+@@ 283-285
 One-time codes (`domain/totp.py`): the secret, sealed under the master key, once they are switched on; a secret that has been offered but not yet confirmed; and the 30-second step of the last code used, so no code works twice.
 
-@@ 272
+@@ 286
 `recovery_digests` (Phase 5) — the HMACs of the person's unused recovery codes; never the codes themselves.
 
-@@ 273-274
+@@ 287-288
 When the account was made, and when it last signed in.
 
-@@ 277-278
+@@ 291-292
 **`Membership`** — a user's role in one organisation. A person can belong to several organisations, with a different role in each.
 
-@@ 280-283
+@@ 294-297
 Its table, `memberships`, with a **check constraint**: the database refuses any role but the four in `domain/roles.py`.
 
-@@ 285-286
+@@ 299-300
 The key is the pair: the organisation and the user (each deleted with its parent). The user column is indexed, for "which organisations does this person belong to?".
 
-@@ 287-288
+@@ 301-302
 The role, and when it was given.
 
-@@ 324
+@@ 338
 `METADATA` — a short public name for the catalogue of all these tables. The migration tool and the tests import it from here, which makes sure every table class above has been loaded first.
 
 @@ 247-249
@@ -377,7 +377,7 @@ The table's name.
 @@ 253-258
 Its key — the project, test or live, the day, the decision and the band (a small integer) — and the count.
 
-@@ 309-321
+@@ 323-335
 **`Passkey`** (Phase 9, migration `0010`) — a console user's passkey: its ID, its owner, the device's ID for it (unique), the public key as the device sent it, the device's signature counter, the person's name for it, and when it was added and last used. Never a private key: that stays on the device.
 
 @@ 98-100
@@ -386,11 +386,20 @@ Its key — the project, test or live, the day, the decision and the band (a sma
 @@ 116-119
 `accept_age_pass` (Phase 9, migration `0011`) — whether sessions under this version accept Age Passes, and give them out after a pass. `server_default=false()` fills it in the database itself for versions made before the column existed; `default=False` for new rows made in Python.
 
-@@ 291-293
+@@ 305-307
 **`Invitation`** (decision D44) — someone without an account yet, invited to an organisation by e-mail address: they join, with this role, when they sign up with that address. No e-mail is sent (D25).
 
-@@ 295-299
+@@ 309-313
 Its table, with the same check on roles as memberships, and one invitation per address in an organisation.
 
-@@ 301-306
+@@ 315-320
 Its ID, organisation, the address (in lower case, and indexed: sign-up looks it up), the role, who invited, and when.
+
+@@ 261-264
+**`DocumentStageStat`** (9 Nov, migration 0013) — the daily counts behind the dashboard's ID-document figures: one row per project, mode, day and `step`. The step is `opened` when a session reaches the ID-document check, or else how that check ended. Like the other counts, kept after the purge: it names nobody.
+
+@@ 266
+The table's name in the database.
+
+@@ 268-272
+The key — project (removed with it), test or live, day and step — and the count.

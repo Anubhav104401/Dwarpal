@@ -82,6 +82,28 @@ class FlowStore:
         allowed, wait = await self._client.eval(RATE_LIMIT_SCRIPT, 1, f"bucket:{_hashed(key)}", rate, burst)
         return 0 if int(allowed) else max(int(wait), 1)
 
+    async def count_failure(self, key: str, forget_s: int) -> int:
+        """Add one to the failures counted under `key`, forgotten `forget_s` seconds after the latest; return the
+        count."""
+        counter = f"failures:{_hashed(key)}"
+        async with self._client.pipeline(transaction=True) as both:  # one step: never a count without its expiry
+            both.incr(counter)  # queued, not sent: a pipeline sends its commands together, at execute()
+            both.expire(counter, forget_s)
+            count, _ = await both.execute()
+        return int(count)
+
+    async def lock(self, key: str, seconds: int) -> None:
+        """Lock `key` for `seconds`: see `locked_for`."""
+        await self._client.set(f"lock:{_hashed(key)}", 1, ex=seconds)
+
+    async def locked_for(self, key: str) -> int:
+        """Milliseconds until the lock on `key` opens: 0 when there is none (Valkey's PTTL is negative then)."""
+        return max(int(await self._client.pttl(f"lock:{_hashed(key)}")), 0)
+
+    async def forget(self, key: str) -> None:
+        """Forget the failures counted under `key`, and its lock."""
+        await self._client.delete(f"failures:{_hashed(key)}", f"lock:{_hashed(key)}")
+
     async def claim(self, key: str, value: bytes, ttl_s: int) -> bytes | None:
         """Store `value` under `key` unless something is already there; return what was there (None if we claimed)."""
         existing = await self._client.set(key, value, ex=ttl_s, nx=True, get=True)

@@ -1,5 +1,5 @@
 ---
-fingerprint: 15da47a6be5376be
+fingerprint: b3c186c7eeec3b0b
 ---
 The **use cases**: each step of a verification, written once as an ordinary function. This is where the pieces meet — the domain's rules, the database, Valkey, the inference service and the signing keys.
 
@@ -33,146 +33,146 @@ SQLAlchemy's `select` (build a query) and `func` (database functions such as `co
 @@ 16
 The two tenant helpers (`db.py`, Phase 4): `tenant` confines a unit of work to a project, and `session_tenant` to whichever project owns a verification session. Every database session in this file is opened through one of them, so each use case sees only its own customer's rows.
 
-@@ 17-40
-Our own pieces from every layer: the adapters (inference client, key ring and master key, Valkey store, tables — including both kinds of daily count), the webhook use cases and the policy look-ups (`app/webhooks.py`, `app/policies.py`), and the domain's identifiers, challenges, decisions, keys, policies, session states, the document check's rules (`domain/stepup.py`, §5.6.2) and the time bands; then our error class, the settings, and the shared contracts — including `DocumentAnalysis`. Since 8 Nov also the origins rule (`domain/origins.py`).
+@@ 17-41
+Our own pieces from every layer: the adapters (inference client, key ring and master key, Valkey store, tables — including both kinds of daily count), the webhook use cases and the policy look-ups (`app/webhooks.py`, `app/policies.py`), and the domain's identifiers, challenges, decisions, keys, policies, session states, the document check's rules (`domain/stepup.py`, §5.6.2) and the time bands; then our error class, the settings, and the shared contracts — including `DocumentAnalysis`. Since 8 Nov also the origins rule (`domain/origins.py`). Since 9 Nov the tables include `DocumentStageStat`, the ID-document check's daily count.
 
-@@ 42
+@@ 43
 `FLOW_STATUSES` — the statuses in which the verify page may (re)start a flow: in progress, awaiting a step-up, or completed. Including the finished states matters for real people: someone who reloads the page *after* finishing gets their result shown again and can still continue back to the website, instead of meeting an error.
 
-@@ 43-44
+@@ 44-45
 `SHOWN_STATUSES` — the statuses in which the verify page may still be *shown*: those of a flow, and a fresh `created` session (the page opens it). `|` joins two sets. Only these may be framed by a website (`frame_ancestor`, below).
 
-@@ 45
+@@ 46
 `MAX_PAGE` — the most sessions one page of the list may hold (Phase 4).
 
-@@ 46
+@@ 47
 `CHALLENGES_PER_ATTEMPT = 2` — each allowed attempt comes with two challenges, the spare covering a reload or a lost connection. With 3 attempts, a session gets at most 6 challenges (`adapters/store.py`).
 
-@@ 47
+@@ 48
 `HOUR_S` — an hour, in seconds: the window of the per-device budgets.
 
-@@ 52-59
+@@ 53-60
 **`Services`** — one object that carries everything a use case needs: the settings, the database session factory, the Valkey store, the inference client, the key ring and the model manifest. The app builds it once at start-up (`main.py`), and every request receives the same one.
 
 Passing one "toolbox" in, instead of having each function create its own connections, is called **dependency injection**. Tests build a toolbox around test containers, and the use cases never know the difference.
 
-@@ 60-61
+@@ 61-62
 `idempotency_secret` — the secret that seals stored idempotent replies (`app/idempotency.py`), derived from the master key at start-up. The default, empty bytes, is only for code that builds a toolbox without one.
 
-@@ 62-63
+@@ 63-64
 `master` — the master key, which seals webhook endpoints' secrets (`app/webhooks.py`). Optional only so that code building a toolbox without webhooks needn't supply one.
 
-@@ 65-66
+@@ 66-67
 **`now`** — the one place the use cases read the clock, always in UTC. Being a method of `Services`, it could be replaced in a test that needs to travel in time.
 
-@@ 68-69
+@@ 69-70
 **`new_id`** — a fresh UUIDv7 (`domain/ids.py`) for the current moment. `.timestamp()` gives seconds since 1970 as a decimal number; times 1000, then `int`, gives whole milliseconds.
 
-@@ 72-78
+@@ 73-79
 **`origin_of`** — the **origin** of an address: its scheme, host and port, such as `https://shop.example` or `http://localhost:3100`. Browsers use exactly this unit to decide what counts as "the same website" (§4.13). Since 8 Nov it is written the standard way (`domain/origins.py`: lower case, no default port), so `HTTPS://Shop.Example:443/x` matches an allowed `https://shop.example`; an address with no proper origin gives empty text, which matches no allowed origin.
 
-@@ 81-82
+@@ 82-83
 **`public_id`** — a session's ID as the outside world sees it: `vs_` plus 26 characters.
 
-@@ 85-86
+@@ 86-87
 **`policy_label`** — how a session names its policy in every answer: the preset's name, or the project policy's `name@version` (the same as `Policy.label`, worked out from the row alone).
 
-@@ 89
+@@ 90
 **`load_session`** — fetch a session's row by ID. The `*` in the parameter list makes everything after it **keyword-only**: callers must write `lock=True`, never just `True`, so a reader always knows what the `True` means.
 
-@@ 90
+@@ 91
 Build the query: `SELECT … FROM verification_sessions WHERE id = …`.
 
-@@ 91
+@@ 92
 Run it. With `lock=True`, `.with_for_update()` adds `FOR UPDATE`: PostgreSQL **locks the row** until this transaction ends, and any other transaction that wants to change the same row waits its turn (§4.10). That is how two simultaneous attempts on one session are processed one after the other, never interleaved.
 
-@@ 92-94
+@@ 93-95
 Not found? Refuse with `404`. Otherwise return the row.
 
-@@ 97-101
+@@ 98-102
 **`parse_session_id`** — turn `vs_…` text into a UUID. A malformed ID gets *exactly the same* `404` as an ID that doesn't exist, so a stranger poking at the API learns nothing from the difference.
 
-@@ 104-106
+@@ 105-107
 **`expire_if_due`** — if the session is open and past its expiry time, move it to `expired`. This is **lazy expiry**: nothing watches the clock in the background; a session's status is corrected the next time anyone looks at it. Every use case calls this before trusting a status.
 
 Since Phase 4 it is `async` and is given the toolbox and the database session: an expiry is news a website may want, so it is announced.
 
-@@ 107
+@@ 108
 Write the `expired` event, in the same transaction that saves the new status.
 
-@@ 110-111
+@@ 111-112
 **`announce`** — what a use case calls when its session has just completed or expired: `record_final`, with the toolbox's ID maker.
 
-@@ 114-119
+@@ 115-120
 **`record_final`** — the record of a finished session, written **inside the transaction** that saves the change. It takes only what it needs (a database session, an ID maker, the row and the time), so that the operator's sweep (`app/maintenance.py`) can call it too, without a toolbox. The docstring says why it is inside the transaction. Sent separately after the commit, the event could be lost in a crash between the two; sent before, a failed commit would announce an outcome that never happened. Saved together, both are kept or neither is.
 
-@@ 120-122
+@@ 121-123
 Choose the event type, and write the event (`app/webhooks.py`) with a summary of the session as its data — never a token.
 
-@@ 123-129
+@@ 124-130
 The day's count it belongs to: project, mode, today's date, the policy's label, and the outcome — `expired`, or the decision (`pass`, `fail`, `reject`).
 
-@@ 130-132
+@@ 131-133
 **Add one to that count**, in a single statement. `insert(…).on_conflict_do_update(…)` means: insert a row with `sessions=1`, but if a row with the same five key values already exists, add one to its `sessions` instead. Two sessions finishing at the same moment can't lose a count, because the database does the adding.
 
-@@ 167-169
+@@ 177-179
 **`create_session`** — step 1, called by a website's server with its API key. It receives the toolbox, the caller's project, the key's mode (live or test), the policy's name, and two optional values: where to send the person afterwards, and the website's own reference. It returns the new row *and* the client secret in plain form — the only moment it exists.
 
-@@ 170-172
+@@ 180-182
 Open a unit of work **confined to this project** (`tenant`), and find the policy: a preset, or the **newest** version of the project's own policy of that name (`latest`, which refuses an unknown name with `422 unknown_policy`). From now on the session follows that exact version, whatever is added later.
 
-@@ 173-176
+@@ 183-186
 Unless the check is document-only, the age model will decide it: it must have thresholds for this policy's age and risk budget. (Before D24, a live session with an uncalibrated model was refused here with `409 model_not_calibrated`; now it is created, and the document decides it.)
 
-@@ 177-178
+@@ 187-188
 If the model has no thresholds for the policy, the session is refused with `422 policy_not_supported`.
 
-@@ 179-180
+@@ 189-190
 If a return address was given, its **origin** must be one of the project's allowed origins. Otherwise refuse with `422`: a stolen key can't be used to send people to an attacker's site.
 
-@@ 181-182
+@@ 191-192
 Read the clock and make the session's ID once. Then make the client secret, built on the session's public ID.
 
-@@ 183-200
+@@ 193-210
 The row: its ID, project and mode; the policy's name **and version** (Phase 4); the starting status `created` and no outcome yet; only the secret's **digest**; the return address and the website's reference; no attempts and no model yet; created now, not yet started, expiring after the session lifetime from the settings (30 minutes by default); not completed.
 
-@@ 201-202
+@@ 211-212
 Add the row and commit. `async with` closes the database session afterwards, even if an error happens. Had the row carried another project's ID, the database itself would refuse it: the policy lets a tenant write only rows it is allowed to see.
 
-@@ 203
+@@ 213
 Return the row and the plain-text secret.
 
-@@ 206
+@@ 216
 **`start_flow`** — step 2, called by the verify page when the person opens the link. The page sends the client secret, which it found in the link.
 
-@@ 207-209
+@@ 217-219
 Turn the public ID into a UUID, then open a unit of work confined to the session's own project (`session_tenant`), and load the session **with a lock**, because its status may change.
 
-@@ 210-211
+@@ 220-221
 **Check the secret first, before revealing anything.** Without the right secret, the caller learns nothing — not even whether the session is finished.
 
-@@ 212
+@@ 222
 Correct the status if the session has expired, announcing the expiry if so.
 
-@@ 213-214
+@@ 223-224
 A fresh session moves from `created` to `in_progress`. For any other status, nothing changes.
 
-@@ 216
+@@ 228
 Load the session's project, for its display name.
 
-@@ 217
+@@ 229
 Look up the session's **pinned** policy version before the transaction ends: its minimum age and attempts appear in the answer.
 
-@@ 218
+@@ 230
 Commit: save the status change and release the lock.
 
-@@ 219-220
+@@ 231-232
 Only the statuses in `FLOW_STATUSES` may have a flow. An expired or canceled session gets `409`, with its status in the message.
 
-@@ 221
+@@ 233
 Open a flow token in Valkey, valid for 15 minutes. From now on, the page proves who it is with this token rather than the secret.
 
-@@ 222-235
+@@ 234-247
 The page's view of the session — exactly what the verify page needs to draw itself, and nothing more:
 
 - its ID, status and outcome (if any);
@@ -183,78 +183,78 @@ The page's view of the session — exactly what the verify page needs to draw it
 
 Since Phase 9 also whether the website's policy accepts **Age Passes**, and whether the session is live or a test: the page offers a kept pass only where one is accepted, and only a pass of the same mode (§5.9.3). And since D24, **`document_only`**: whether this check is decided by an ID document — the page then leads to the document check instead of the camera.
 
-@@ 236
+@@ 248
 Return the token and the view.
 
-@@ 239-242
+@@ 251-254
 **`frame_ancestor`** (decision D16) — which website, if any, may show this session's verify page inside a frame. *Frame ancestors* are the pages around a frame. The answer is the origin of the session's return address: the website gave it when it created the session, with its secret key, and it had to be one of the project's allowed origins (`create_session`). No session means no website.
 
-@@ 243-246
+@@ 255-258
 A malformed ID: no website — no error, because the answer only goes into a header (`proxy.ts`).
 
-@@ 247-248
+@@ 259-260
 Load the session in its own project's tenant. `session.get` finds a row by its key, and gives `None` when there is none, rather than a `404`.
 
-@@ 249-250
+@@ 261-262
 No session, no return address, or a session that is over (expired, cancelled): no website.
 
-@@ 251-252
+@@ 263-264
 The same for a session past its expiry time that nobody has marked expired yet.
 
-@@ 253
+@@ 265
 Otherwise, the return address's origin.
 
-@@ 256-258
+@@ 268-270
 **`issue_challenge`** — step 3, before each face attempt. It now also receives the browser's device ID and network address (either may be missing), for the per-device budgets.
 
-@@ 259-260
+@@ 271-272
 Load the session, inside its own project (no lock needed: nothing is changed in the database).
 
-@@ 261
+@@ 273
 Load the session's pinned policy too, for its attempts budget.
 
-@@ 262-263
+@@ 274-275
 Challenges only for sessions in progress or awaiting their step-up.
 
-@@ 264
+@@ 276
 Spend one challenge from this device's and this address's hourly budgets — before the session's own budget, so starting fresh sessions can't get around them.
 
-@@ 265
+@@ 277
 The challenge budget: two per attempt, for the face attempts **and** the document check's attempts (§5.6.2).
 
-@@ 266-269
+@@ 278-281
 Ask the store to save a fresh random challenge — `new_challenge()` picks its poses and colours — for this session. `settings = svc.settings` gives a short local name, only to keep the next line within the line-length limit.
 
-@@ 270-272
+@@ 282-284
 Budget used up? Refuse with `429 Too Many Requests`. Otherwise return the challenge.
 
-@@ 275
+@@ 287
 **`spend_device_budgets`** — the per-device budgets.
 
-@@ 276-277
+@@ 288-289
 The docstring gives the reason: stop endless trial and error. Someone testing photo after photo against the check could otherwise start session after session; these budgets count across all of a project's sessions.
 
-@@ 278-282
+@@ 290-294
 The two budgets as (key, limit) pairs: one for the device ID and one for the network address, each scoped to the project. A missing ID or address gives `None` instead of a pair.
 
-@@ 283-285
+@@ 295-297
 Spend one use from each budget that exists (`filter(None, …)` skips the `None`s). If either is spent, refuse with `429 too_many_attempts`; the verify page then tells the person to wait a while.
 
-@@ 288
+@@ 300
 **`attempt_scores`** — the numbers kept with each attempt, so any decision can be explained later. It is a plain function: no database, no waiting. The decision is optional since Phase 6: a document check keeps its selfie's scores too, but it has no age score or threshold.
 
-@@ 289-290
+@@ 301-302
 No analysis at all? Record just that.
 
-@@ 291
+@@ 303
 Every quality problem that occurred in any frame. The braces build a **set**, which drops duplicates; `sorted` turns it into a list in alphabetical order, so the stored value is always the same for the same problems.
 
-@@ 292-302
+@@ 304-314
 The scores: the model's version, how many frames were sent and how many were usable, the problems, the probability and the threshold used (none without a face decision), and how long the analysis took (rounded to a tenth of a millisecond). No picture, and no exact age.
 
 Phase 3 adds `liveness`: the full liveness result — which checks ran and what they found. As the comment says, it is kept for the people who run Dwarpal, and never shown to the person being checked.
 
-@@ 305-307
+@@ 317-319
 **`submit_face_attempt`** — step 4, the heart of the check. It receives the session (from the flow token), the challenge's ID, the frames' description and the frames themselves. It returns the decision and the number of attempts left.
 
 The function uses **two separate transactions**, with the AI call in between:
@@ -268,22 +268,22 @@ transaction 2: lock the row — check again — decide — record — commit
 
 Holding a database connection and a row lock while the AI works would make every other request for the same session wait, and could exhaust the connection pool under load.
 
-@@ 308-313
+@@ 320-325
 **A quick look first**, without a lock: if the session isn't accepting attempts, stop right away — before using up a challenge or the AI's time. A document-only session (D24) refuses face attempts too, with `409 document_required`: its age is never estimated.
 
-@@ 314-316
+@@ 326-328
 Use up the challenge. Unknown, expired, already used, or belonging to another session: `409`. On success `challenge` is the server's stored copy.
 
-@@ 317-318
+@@ 329-330
 Ask the inference service. Before sending, `model_copy(update=…)` makes a copy of the request description with its `challenge` **replaced by the stored one** (Phase 3). Whatever challenge the browser put there — perhaps an easier one — is thrown away, as the comment says. The result may be `None`, which the decision engine treats safely.
 
-@@ 319-320
+@@ 331-332
 Now the second transaction, again confined to the session's project: load the row again, this time **locked**.
 
-@@ 321-325
+@@ 333-337
 **Check again.** While the AI was working, the session may have expired, or a simultaneous attempt may have finished it. If it is no longer in progress, commit (to save an expiry and its event) and refuse.
 
-@@ 326-344
+@@ 338-356
 Decide. `model_ok` is true only if an analysis exists *and* came from a model the manifest covers. `row.attempts_count` is the index of this attempt: 0 for the first.
 
 Phase 3 adds two inputs:
@@ -293,46 +293,46 @@ Phase 3 adds two inputs:
 
 Since Phase 4, `policy` is the session's **pinned** version, loaded in the same transaction (`pinned`).
 
-@@ 345-355
+@@ 357-367
 Record the attempt: a new row with its ID, its session, the kind (`face`), the outcome, the reasons (as a list, because the column is an array) and the scores.
 
-@@ 356-357
+@@ 368-369
 Count the attempt, and move the session to the status the outcome requires (`STATUS_AFTER`). `move` refuses any illegal jump.
 
-@@ 358-359
+@@ 370-371
 Store the outcome on the session — except for a retry, which isn't an outcome of the session, only of this attempt.
 
-@@ 360-361
+@@ 372-373
 Remember which model produced the analysis.
 
-@@ 364-365
+@@ 378-379
 If the session is now finished, record when.
 
-@@ 366
+@@ 380
 A completed session is announced, in the same transaction.
 
-@@ 367
+@@ 381
 How many attempts are left. The HTTP layer never shows a negative number.
 
-@@ 368-369
+@@ 382-383
 Commit everything at once — the attempt, the new status, the outcome — and return.
 
-@@ 483
+@@ 498
 **`finish`** — step 5: where should the page send the person now?
 
-@@ 484-485
+@@ 499-500
 Load the session, inside its own project.
 
-@@ 486-487
+@@ 501-502
 Only a finished session (completed, or waiting for a step-up) can be left.
 
-@@ 488-489
+@@ 503-504
 No return address? Return `None`; the page then simply shows the result.
 
-@@ 490-491
+@@ 505-506
 Add `session_id=vs_…` to the return address, so the website knows which check just ended. If the address already has a query (`?…`), the new value joins it with `&` instead. `urlencode` makes sure the value is written safely. Only the session's ID travels through the browser — never the outcome, which the website must fetch itself, using its key.
 
-@@ 494-504
+@@ 509-519
 **`created_view`** — what the website receives after creating a session: the ID, an `object` label (a convention that tells programs what kind of thing a JSON object is), the status, mode and policy, the client secret, the expiry time in standard ISO 8601 form, and the **link** for the person:
 
 ```
@@ -343,70 +343,70 @@ The secret sits after the `#`, in the link's **fragment**. Browsers never send t
 
 `policy` is the label of the pinned version (`policy_label`).
 
-@@ 507
+@@ 522
 **`result_view`** — step 6: the website's server asks for the result, with its API key.
 
-@@ 508-509
+@@ 523-524
 Load the session in a unit of work confined to the **caller's** project — the one its API key belongs to. Another customer's session is simply invisible here: `load_session` finds nothing and answers `404`.
 
-@@ 510-511
+@@ 525-526
 **Only the project that created a session may read it**, and only with a key of the same mode. A test key can't read live sessions. The project comparison is now a second, redundant guard: the database has already hidden other projects' sessions. Keeping it costs nothing and protects against a mistake in a policy. Anything else gets the same `404` as a session that doesn't exist.
 
-@@ 512-513
+@@ 527-528
 Correct the status if the session has expired, announcing the expiry if so.
 
-@@ 514-517
+@@ 529-532
 Load the pinned policy (for the token's lifetime and the age in its claim name), and give a completed session a **freshly signed token**, saying how it was decided (`methods_of`). Others get none.
 
-@@ 518
+@@ 533
 Commit: save any expiry, and the record of the token just issued.
 
-@@ 519-524
+@@ 534-539
 **`summary_view`** — what a website may see of a session **without** a token being made: the list shows this for every session, and the result view adds to it. Making a token is an event (it is recorded in `issued_tokens`), so listing a hundred sessions must not make a hundred tokens. A session past its expiry time is shown as `expired`, even if no request has yet saved that change.
 
-@@ 525-537
+@@ 540-552
 The summary: the ID and `object` label; the status (corrected for expiry); the outcome, mode and policy label; the number of attempts; the website's own reference; and three times in ISO 8601 form (`completed_at` only once there is one).
 
-@@ 540-546
+@@ 555-561
 **`SessionFilter`** (Phase 5, §5.5.2) — which sessions to list: those with this **outcome**, and with this **reference** of the website's own (`external_ref`, such as an order number); `None` means any. There is deliberately no status filter: "expired" isn't stored but worked out when a session is read, so filtering on the stored status would miss expired sessions and list them under their old status. `frozen=True` makes it unchangeable.
 
-@@ 549-556
+@@ 564-571
 **`list_sessions`** — one page of a project's sessions, for one mode (Phase 4). It takes the page size, the cursor, and (since Phase 5) a filter — no filter by default. A function's default value is made once and shared by every call, which is a classic trap with changeable values; this one is frozen, so sharing it is safe, as the comment tells the linter (`B008`).
 
-@@ 557-559
+@@ 572-574
 The docstring explains the **cursor**. The obvious way to page through a list is "skip the first 40, give me 20" (an *offset*). But if three sessions are created while someone is reading page 2, everything moves along by three, and page 3 repeats rows. A cursor says instead "the 20 sessions older than this one". Because a UUIDv7 begins with the time it was made, "older" is just "has a smaller ID", and new sessions can't disturb pages already read.
 
-@@ 560-562
+@@ 575-577
 The query: sessions of this project, in this mode only. A test key never sees live sessions.
 
-@@ 563-564
+@@ 578-579
 With a cursor, only sessions **older** than it. `parse_session_id` turns `vs_…` back into a UUID, and refuses a malformed one with `404`.
 
-@@ 565-568
+@@ 580-583
 Keep only the sessions with the chosen outcome, and with the chosen reference — exactly equal.
 
-@@ 569
+@@ 584
 Newest first, and **one more** than the page size (never more than `MAX_PAGE` + 1). The extra row is a cheap way to find out whether another page exists, without counting every row.
 
-@@ 570-571
+@@ 585-586
 Run the query in a unit of work confined to the project.
 
-@@ 572-573
+@@ 587-588
 The page is the first `limit` rows; if the extra one came back, there is more.
 
-@@ 574-579
+@@ 589-594
 The answer: a list object with the page's summaries, whether there is more, and the cursor for the next page — the ID of the page's last session — or `None` at the end. A client simply repeats the request with `starting_after` set to `next_cursor` until `has_more` is false.
 
-@@ 582-589
+@@ 597-604
 **`mint_token`** — make the signed age token for a completed session. Since Phase 4 the caller passes in the session's pinned policy; since Phase 6, how the session was decided (`methods`), which defaults to the face alone.
 
-@@ 590-591
+@@ 605-606
 Make a new ID for the token (`jti`), write the project's public ID as the **audience**, and work out when the token expires: after the policy's token lifetime (10 minutes for the presets).
 
-@@ 592
+@@ 607
 Record that this token was issued — its facts, not the token itself.
 
-@@ 593-608
+@@ 608-623
 The **claims** — the facts inside the token. Most names are standard JWT claims (RFC 7519):
 
 | Claim | Meaning |
@@ -418,101 +418,113 @@ The **claims** — the facts inside the token. Most names are standard JWT claim
 
 The rest are Dwarpal's own: the session ID, the outcome, a yes/no claim named after the age (`age_over_18: true`), the **assurance** level and the **methods** used, the policy, the age model's version, and live or test mode. A document check is still `basic` assurance (§5.6.2): a browser can't read a passport's chip. No age, no birth date, no image — only the yes or no a website needs.
 
-@@ 609
+@@ 624
 Sign the claims with the active key, and return the token.
 
-@@ 612-615
+@@ 627-630
 **`introspect`** — check an age token on a website's behalf (Phase 4). Some websites would rather ask than verify signatures themselves: this is the idea of RFC 7662, "token introspection". The answer is `{"active": true, …claims}` the first time, and `{"active": false}` for everything else, with no reason given, so a forger learns nothing from trying.
 
-@@ 616-617
+@@ 631-632
 Read the clock once; prepare the one refusal.
 
-@@ 618-620
+@@ 633-635
 Verify the signature (`KeyRing.verify`). Then the token must be from this issuer, and addressed to **this** website's project: another website's token is just as inactive as a forged one.
 
-@@ 621-622
+@@ 636-637
 It must not have expired. (`isinstance` guards against a genuine but odd token without a whole-number `exp`.)
 
-@@ 623-626
+@@ 638-641
 Its ID (`jti`) must be a UUID.
 
-@@ 627-631
+@@ 642-646
 In the website's own tenant, find the record made when the token was issued, **locked**, so that two simultaneous introspections can't both be first. A token never issued, or already introspected, is inactive. Otherwise note the time and commit: from now on, this token is spent.
 
-@@ 632
+@@ 647
 The first, genuine introspection: active, with the token's claims.
 
-@@ 135-138
+@@ 136-139
 **`record_face_stage`** — count a face check that has reached a decision (anything but a retry), for the dashboard: its outcome, and the band of time from opening the verify page to the decision. Only the band is kept, never the exact time, and the count is not tied to the session.
 
-@@ 139
+@@ 140
 When the person began. A session opened before `started_at` existed has none, so its time is counted from when it was created.
 
-@@ 140-146
+@@ 141-147
 Which cell of the day's counts this check belongs in: the project, test or live, today, the outcome, and the band its time falls in (`band_of`).
 
-@@ 147-149
+@@ 148-150
 Add one to that cell, or create it with one — the same *upsert* as the outcome counts in `record_final`.
 
-@@ 215
+@@ 225
 The first time the verify page opens the session, note the moment: the face check's time is counted from here.
 
-@@ 362-363
+@@ 374-375
 Once the face check has decided — anything but a retry — count it. A step-up counts here at once, though the session itself isn't finished.
 
-@@ 48-49
+@@ 49-50
 **`CHALLENGE_STATUSES`** (§5.6.2) — where a challenge may be issued: a session in progress (for a face attempt), or one awaiting its step-up (for the selfie of the document check, which proves liveness the same way).
 
-@@ 372-376
+@@ 386-390
 **`document_scores`** (§5.6.2) — what is kept of a document check. Its docstring states the rule from the design (§9.1): the results, and of the document only its kind, issuer, the year and month of birth and its expiry. No analysis at all? Say so.
 
-@@ 377-389
+@@ 391-403
 Of the document, if one was read: its layout, type and issuer; the **year and month** of birth (formatted as `1990-01`), never the day; the expiry; and the repairs its reading needed. The name, the document number and the nationality were dropped inside the parser and never reach this point.
 
-@@ 390-394
+@@ 404-408
 And the check's other results: why no zone was read (if none was), how many faces the document showed, how alike the faces were (to three decimal places), the selfie's own scores — liveness included — and how long the analysis took.
 
-@@ 397-406
+@@ 411-420
 **`submit_document_attempt`** (§5.6.2) — the step-up with an ID document. It takes what a face attempt takes, plus the document's photo, and returns the decision and the attempts left. It is open only to a session that the face check sent there. Since D24 it is also open from the start in a document-only session.
 
-@@ 407-409
+@@ 421-423
 First a quick look, without a lock: may the document check be used now (`document_open`)? If not, `409` — before a challenge is used up or the inference service is asked anything.
 
-@@ 410-413
+@@ 424-427
 Use up the challenge (once only, as for faces), and put the server's own challenge into the frames' description: the selfie is judged against what the server asked for, never against what the browser says it was asked.
 
-@@ 414
+@@ 428
 Ask the inference service to read the document and compare the faces. `None` if it failed: the rules below turn that into a retry.
 
-@@ 415-421
+@@ 429-435
 Then the decision, in one transaction holding the session's row lock — the same pattern as a face attempt: reload with a lock, expire if due, and make sure the session is still awaiting its step-up (two uploads at once can't both decide). ("May still use" is `document_open` again: awaiting its step-up, or a document-only session still in progress.)
 
-@@ 422-429
+@@ 436-443
 Load the pinned policy, and the reasons of this session's earlier document checks.
 
-@@ 430-431
+@@ 444-445
 Count those that failed the pose challenge (a second failure is rejected, as for faces), and decide with `decide_document`, using today's date for the age and expiry.
 
-@@ 432-442
+@@ 446-456
 Record the attempt, of kind `document`, with its outcome, reasons and scores — the only trace the document leaves.
 
-@@ 443-447
-Anything but a retry ends the session: completed, with the step-up's outcome, the completion time, and the announcement (webhook event and daily count) in the same transaction. It comes from either state — awaiting a step-up, or in progress for a document-only session — and `move` checks the change is allowed.
+@@ 457-462
+Anything but a retry ends the session: completed, with the step-up's outcome, the completion time, and the announcement (webhook event and daily count) in the same transaction. It comes from either state — awaiting a step-up, or in progress for a document-only session — and `move` checks the change is allowed. Since 9 Nov the ending is counted for the dashboard too (`record_document_stage`).
 
-@@ 448-450
+@@ 463-465
 Work out the attempts left, save everything, and return.
 
-@@ 453-462
+@@ 468-477
 **`methods_of`** (§5.6.2) — how a completed session was decided, for its token's `methods` claim. First (Phase 9): a session answered with an Age Pass says just `age_pass` — no face was seen this time.
 
-@@ 463-471
+@@ 478-486
 Count the session's document checks that reached a decision (not retries)…
 
-@@ 472-480
+@@ 487-495
 …and if there is one, the session was decided by a document. If it also had a face attempt, by a document after a face estimate: `face_estimation`, `document_mrz` and `face_match`; a document-only session (D24) never had its age estimated: `document_mrz` and `face_match`. Otherwise it was decided by the face alone.
 
-@@ 152-156
+@@ 162-166
 **`document_only`** — decision D24 (8 Nov): while no age model is certified for live use (its manifest says `calibrated: false`), a **live** check is decided by an ID document alone. The age estimate is never used for it, so the face check is skipped; the document check's own selfie, taken with the same random challenge, still shows that a live person is there and that the document is theirs. Test checks are unchanged.
 
-@@ 159-164
+@@ 169-174
 **`document_open`** — whether the document check may be used now: when a face check sent the person there (`awaiting_step_up`), or, in a document-only session, from the start (`in_progress`).
+
+@@ 153-155
+**`record_document_stage`** (9 Nov) — count a session reaching the ID-document check (`opened`), or that check ending (`pass`, `fail`, `reject`, or `age_pass`): the dashboard compares the two, the design's **step-up conversion**.
+
+@@ 156-159
+As for the face checks' counts: the row's key, then one statement that inserts a count of 1 or, if that row exists, adds 1 to it (`on_conflict_do_update`) — safe when two checks end at once.
+
+@@ 226-227
+D24: a live check that starts at the ID document has reached it the moment the person opens the page, so it is counted as `opened` there — once, at the first opening.
+
+@@ 376-377
+A face check that sends the person on to the ID-document check counts as one reaching it (`opened`).

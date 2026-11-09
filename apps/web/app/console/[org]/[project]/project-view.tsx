@@ -17,7 +17,7 @@ import {
 } from "@/lib/console-api";
 
 import { everyDay, OUTCOME_ORDER } from "@/lib/daily";
-import { bandText, MEDIAN_TARGET_S, share, withinTarget } from "@/lib/figures";
+import { bandText, documentFigures, MEDIAN_TARGET_S, share, withinTarget } from "@/lib/figures";
 
 import { DailyChart } from "./daily-chart";
 import { KeysPanel } from "./keys-panel";
@@ -82,10 +82,36 @@ function FaceFigures({ stage }: { stage: Analytics["faceStage"] }) {
     { name: "Rejected as a likely attack", value: share(stage, "reject"), note: "Liveness or tampering" },
     { name: "Sent to a stronger check", value: share(stage, "step_up"), note: "The age estimate was unsure" },
   ];
+  return <Figures title="Face checks" count={`${stage.decided} decided`} figures={figures} />;
+}
+
+/** The ID-document checks' headline figures: of the people who reached one — sent there by the face check, or
+ * starting there in a live check while no age model is certified — how many finished it (the design's step-up
+ * conversion), how many passed, and how many left. */
+function DocumentFigures({ stage }: { stage: Analytics["documentStage"] }) {
+  const shares = documentFigures(stage);
+  const figures = [
+    { name: "Finished the check", value: shares.finished, note: "Step-up conversion" },
+    { name: "Passed", value: shares.passed, note: "By the document, or an Age Pass" },
+    { name: "Left before the end", value: shares.left, note: "Or still on it" },
+  ];
+  return <Figures title="ID-document checks" count={`${stage.opened} reached`} figures={figures} />;
+}
+
+/** A row of headline figures under a small heading: a name, a big value and a note for each. */
+function Figures({
+  title,
+  count,
+  figures,
+}: {
+  title: string;
+  count: string;
+  figures: Array<{ name: string; value: string; note: string }>;
+}) {
   return (
     <div className="mt-5">
       <h3 className="text-sm font-semibold">
-        Face checks <span className="font-normal text-ink-500">· {stage.decided} decided</span>
+        {title} <span className="font-normal text-ink-500">· {count}</span>
       </h3>
       <dl className="mt-2 grid gap-3 sm:grid-cols-3">
         {figures.map((figure) => (
@@ -226,6 +252,7 @@ export function ProjectView({ org, project }: { org: string; project: string }) 
           </ul>
         )}
         {analytics.faceStage.decided > 0 && <FaceFigures stage={analytics.faceStage} />}
+        {analytics.documentStage.opened > 0 && <DocumentFigures stage={analytics.documentStage} />}
         {outcomes.length > 0 && <DailyChart days={everyDay(analytics.since, 30, analytics.daily)} />}
       </section>
 

@@ -92,6 +92,9 @@ Dictionary (dict)
 DNS
 :   *Domain Name System.* The internet's phone book, turning names into IP addresses. (§0.6)
 
+DNS rebinding
+:   Making a name point to one address when a server checks it and another a moment later, when the server connects — to steer its request inside its own network. Stopped by connecting to the very address that was checked. (§5.4.3)
+
 Docker / image / volume
 :   Docker packs a program with everything it needs into an **image**. A **volume** is a folder that survives when containers are thrown away. (§0.14)
 
@@ -187,6 +190,9 @@ localhost
 
 Lockfile
 :   An automatically generated list of the exact version of every library a project uses. (§0.17)
+
+Lock-out back-off
+:   Making each wrong password wait longer than the last: Dwarpal locks an account to the address the wrong tries came from, for a minute and then twice as long each time, at most an hour. (§5.4.5)
 
 Markdown
 :   A simple way of writing formatted text with symbols like `#` for headings and `**` for bold. This book is written in it. (Part X)
@@ -287,6 +293,9 @@ Shell / terminal
 Signed token
 :   A small digital message sealed with a private key, so anyone with the public key can check that it is genuine and unchanged. (§3.3)
 
+SNI (Server Name Indication)
+:   The website's name, sent at the very start of a TLS connection, so a server that holds many websites presents the right certificate — which the client then checks is for that name. (§5.4.3)
+
 SSRF (server-side request forgery)
 :   Tricking a server into sending requests to places only it can reach, such as its own internal network. Webhook addresses are checked to prevent it. (§5.4.3)
 
@@ -295,6 +304,9 @@ Status code
 
 Step-up
 :   Moving to a stronger age-check method when the quick one is unsure. (§1.9)
+
+Step-up conversion
+:   Of the people sent to a stronger check, the share who finish it rather than leaving. Shown on the console's dashboard. (§5.5.2)
 
 Table (database)
 :   Rows (things) and columns (their properties), like a spreadsheet. (§0.12)

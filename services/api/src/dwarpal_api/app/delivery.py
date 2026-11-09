@@ -74,13 +74,14 @@ class Deliverer:
     async def _send(self, endpoint: WebhookEndpoint, event: Event) -> tuple[int | None, str | None]:
         try:
             # Checked again now, not only when the endpoint was saved: the name may point somewhere else today.
-            await check_url(endpoint.url, livemode=endpoint.livemode, allow_private=self._allow_private)
+            addresses = await check_url(endpoint.url, livemode=endpoint.livemode, allow_private=self._allow_private)
         except UnsafeUrlError as unsafe:
             return None, str(unsafe)[:200]
         secret = self._master.open(endpoint.secret_sealed, endpoint.id.bytes).decode()
         body = json.dumps(event_view(event), separators=(",", ":")).encode()
         timestamp = int(self._now().timestamp())
-        return await send(self._http, endpoint.url, secret, ids.encode("evt", event.id), body, timestamp)
+        # Sent to the addresses just checked, never to the name again: asked twice, it could answer differently.
+        return await send(self._http, endpoint.url, secret, ids.encode("evt", event.id), body, timestamp, addresses)
 
     async def _record(self, delivery_id: uuid.UUID, status: int | None, error: str | None, final: bool) -> None:
         now = self._now()

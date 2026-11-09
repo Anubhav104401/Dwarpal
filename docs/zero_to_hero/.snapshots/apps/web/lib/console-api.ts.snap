@@ -176,11 +176,18 @@ export interface FaceStage {
   median: { from: number; to: number | null } | null;
 }
 
+/** How many sessions reached the ID-document check, and how many of those checks ended each way (lib/figures.ts). */
+export interface DocumentStage {
+  opened: number;
+  outcomes: Record<string, number>;
+}
+
 export interface Analytics {
   since: string;
   totals: Record<string, number>;
   daily: DailyCount[];
   faceStage: FaceStage;
+  documentStage: DocumentStage;
 }
 
 export interface PolicyVersion {
@@ -233,12 +240,31 @@ export class ConsoleError extends Error {
   override readonly name = "ConsoleError";
   readonly status: number;
   readonly code: string;
+  /** Seconds to wait before trying again (the answer's Retry-After), when it said. */
+  readonly retryAfter: number | null;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, retryAfter: number | null = null) {
     super(message);
     this.status = status;
     this.code = code;
+    this.retryAfter = retryAfter;
   }
+}
+
+/** Retry-After in whole seconds; null when missing or not a number of seconds (it may also be a date: not ours). */
+function retryAfterOf(response: Response): number | null {
+  const value = response.headers.get("retry-after");
+  return value !== null && /^\d+$/.test(value) ? Number(value) : null;
+}
+
+/** "in 45 seconds", "in 4 minutes", "in an hour": how long until a refused sign-in may be tried again. */
+export function waitInWords(seconds: number | null): string {
+  if (seconds === null || seconds <= 0) return "in a moment";
+  if (seconds < 60) return `in ${seconds} second${seconds === 1 ? "" : "s"}`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `in ${minutes} minute${minutes === 1 ? "" : "s"}`;
+  const hours = Math.ceil(minutes / 60);
+  return hours === 1 ? "in an hour" : `in ${hours} hours`;
 }
 
 type Json = Record<string, unknown>;
@@ -333,6 +359,7 @@ export class ConsoleClient {
         response.status,
         asText(data.code) || "http_error",
         asText(data.detail) || "failed",
+        retryAfterOf(response),
       );
     }
     return data;
@@ -604,7 +631,11 @@ export class ConsoleClient {
       outcomes,
       median: median === null ? null : { from: asCount(median.from), to: orNumber(median.to) },
     };
-    return { since: asText(data.since), totals, daily, faceStage };
+    const document = asJson(data.document_stage);
+    const endings: Record<string, number> = {};
+    for (const [ending, count] of Object.entries(asJson(document.outcomes))) endings[ending] = asCount(count);
+    const documentStage = { opened: asCount(document.opened), outcomes: endings };
+    return { since: asText(data.since), totals, daily, faceStage, documentStage };
   }
 
   /** The age model now deciding, or null when signed out. */
