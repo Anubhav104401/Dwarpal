@@ -251,6 +251,31 @@ jobs:
           ./backup.sh
           report="$(./restore_drill.sh)"
           echo "::notice title=restore drill::$(tr '\n' '|' <<<"$report")"
+          # Alerts by email, switched on as README step 10 does — a made-up mail password, typed twice — then the
+          # collector, Prometheus and Alertmanager started with the files it wrote, and the API restarted to send counts.
+          cp ../observability/alerts.yaml .
+          printf 'not-a-real-password\nnot-a-real-password\n' | python3 alert_email.py --to owner@example.org \
+            --smtp-host smtp.example.org:587 --smtp-user sender@example.org
+          docker compose up -d --no-deps --wait --wait-timeout 120 collector alertmanager prometheus
+          docker compose up -d --no-deps --wait --wait-timeout 180 api
+          # Requests the API counts (health checks aren't), until Prometheus has the counts the alert rules read and the
+          # availability rule computes a share from them.
+          ask() { docker compose exec -T prometheus wget -qO- "http://127.0.0.1:9090/api/v1/$1"; }
+          for _ in $(seq 1 24); do
+            docker compose exec -T api python -c "import urllib.request; urllib.request.urlopen(
+              'http://127.0.0.1:8000/.well-known/dwarpal-configuration').read()"
+            counts="$(ask 'query?query=sum(http_server_duration_milliseconds_count)' || true)"
+            share="$(ask 'query?query=dwarpal:server_error_ratio:rate5m' || true)"
+            [[ "$counts" == *'"result":[{'* && "$share" == *'"result":[{'* ]] && break
+            sleep 10
+          done
+          [[ "$counts" == *'"result":[{'* ]] || { echo "the API's counts never reached Prometheus: $counts"; exit 1; }
+          [[ "$share" == *'"result":[{'* ]] || { echo "the availability rule computed nothing: $share"; exit 1; }
+          rules="$(ask rules)"
+          [[ "$rules" == *'"name":"dwarpal-slo"'* ]] || { echo "the alert rules aren't loaded: $rules"; exit 1; }
+          managers="$(ask alertmanagers)"
+          [[ "$managers" == *'alertmanager:9093'* ]] || { echo "Prometheus has no Alertmanager: $managers"; exit 1; }
+          echo "::notice title=alerts pipeline::the API's counts reach Prometheus, the rules compute, Alertmanager listens"
       - name: The rehearsal's last lines, as an annotation
         if: failure() && matrix.name == 'api'
         shell: bash

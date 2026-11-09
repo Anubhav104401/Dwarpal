@@ -1,5 +1,5 @@
 ---
-fingerprint: d80d6f9deb743d81
+fingerprint: 0f81a75df75c723e
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -278,5 +278,29 @@ restic's settings for the rehearsal: a repository inside its cache volume (`/cac
 @@ 252-253
 The real restore drill: the latest backup restored into a throwaway database, its report shown as a notice — the record Phase 8's exit asks for, rehearsed on every push.
 
-@@ 254-258
+@@ 279-283
 If the rehearsal failed, its last 3,000 characters become an error annotation, readable without a sign-in.
+
+@@ 254-258
+**Alerts by email, rehearsed** (9 Nov): switched on as README step 10 does — the alert rules copied beside the Compose file, as the deploy workflow copies them, and `alert_email.py` run with a made-up mail password typed twice (it reads it from the input, as there is no terminal here). It writes Alertmanager's settings and the password's file, and turns the `alerts` services on in `.env`.
+
+@@ 259-260
+The collector, Prometheus and Alertmanager started with those files; then the API again, which now sends its counts to the collector (`.env` gained its address, so Compose recreates it).
+
+@@ 261-263
+**`ask`** — a question to Prometheus's API, from inside its own container (its image has `wget`).
+
+@@ 264-266
+Up to 24 times: one request the API counts (health checks aren't counted) — the discovery document — then…
+
+@@ 267-271
+…ask Prometheus for the sum of the API's request counts — `http_server_duration_milliseconds_count`, the metric every availability rule reads — and for the availability rule's share. Both answered with a result: stop; otherwise wait 10 seconds (the API sends every 15, Prometheus collects every 15).
+
+@@ 272-273
+No counts, or no share: say which, show the answer, and fail — the rules would never fire on the server.
+
+@@ 274-277
+The rule group is loaded, and Prometheus knows the Alertmanager to hand firing alerts to.
+
+@@ 278
+All of it as a notice. Only the mail itself is left untested: there is no mail server here.
