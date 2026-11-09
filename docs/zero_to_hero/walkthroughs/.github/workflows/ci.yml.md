@@ -1,5 +1,5 @@
 ---
-fingerprint: 73ce6adc1526dcdc
+fingerprint: 0b1e9d2ae0105204
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -278,31 +278,31 @@ restic's settings for the rehearsal: a repository inside its cache volume (`/cac
 @@ 257-258
 The real restore drill: the latest backup restored into a throwaway database, its report shown as a notice — the record Phase 8's exit asks for, rehearsed on every push.
 
-@@ 284-288
+@@ 290-294
 If the rehearsal failed, its last 3,000 characters become an error annotation, readable without a sign-in.
 
-@@ 259-263
+@@ 265-269
 **Alerts by email, rehearsed** (9 Nov): switched on as README step 10 does — the alert rules copied beside the Compose file, as the deploy workflow copies them, and `alert_email.py` run with a made-up mail password typed twice (it reads it from the input, as there is no terminal here). It writes Alertmanager's settings and the password's file, and turns the `alerts` services on in `.env`.
 
-@@ 264-265
+@@ 270-271
 The collector, Prometheus and Alertmanager started with those files; then the API again, which now sends its counts to the collector (`.env` gained its address, so Compose recreates it).
 
-@@ 266-268
+@@ 272-274
 **`ask`** — a question to Prometheus's API, from inside its own container (its image has `wget`).
 
-@@ 269-271
+@@ 275-277
 Up to 24 times: one request the API counts (health checks aren't counted) — the discovery document — then…
 
-@@ 272-276
+@@ 278-282
 …ask Prometheus for the sum of the API's request counts — `http_server_duration_milliseconds_count`, the metric every availability rule reads — and for the availability rule's share. Both answered with a result: stop; otherwise wait 10 seconds (the API sends every 15, Prometheus collects every 15).
 
-@@ 277-278
+@@ 283-284
 No counts, or no share: say which, show the answer, and fail — the rules would never fire on the server.
 
-@@ 279-282
+@@ 285-288
 The rule group is loaded, and Prometheus knows the Alertmanager to hand firing alerts to.
 
-@@ 283
+@@ 289
 All of it as a notice. Only the mail itself is left untested: there is no mail server here.
 
 @@ 245-247
@@ -313,3 +313,9 @@ All of it as a notice. Only the mail itself is left untested: there is no mail s
 
 @@ 250-252
 The maintenance job and the webhook worker each run once with their own settings, and the audit report is shown as a notice.
+
+@@ 259-262
+**The secrets file, restored** (9 Nov), with the runbook's own command for a lost server (section 4): the latest snapshot tagged `secrets`, restored into a folder mounted from outside the container — restored inside it alone, it would vanish with the container. Here restic's cache volume is mounted too, as this rehearsal keeps its repository there.
+
+@@ 263-264
+The restored `.env` must be byte for byte the one backed up (`cmp`, as root: restic restores the file's owner); then a notice says so.

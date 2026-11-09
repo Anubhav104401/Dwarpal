@@ -46,6 +46,22 @@ grep DWARPAL_TAG .env            # the version running now
 Only when the live database is lost or damaged. (To *check* backups without touching anything, run
 `./restore_drill.sh` instead — monthly.)
 
+**If the server itself was lost**, make a new one first: README steps 1, 2 and 4 (not step 3 — the secrets come
+back from the backup), then write `backup.env` again (README step 8, with the restic password from your offline
+copy). Bring back `.env` — it holds the master key, without which the signing keys can't be read — start the
+databases, and make the two roles the backup's permissions name:
+
+```
+docker run --rm --env-file backup.env -v "$PWD/restored:/restored" restic/restic:0.19.1 \
+  restore latest --tag secrets --target /restored
+sudo install -m 600 -o ubuntu -g ubuntu restored/secrets/.env .env && sudo rm -rf restored
+docker compose up -d --wait postgres valkey
+docker compose exec -T postgres psql -q -U dwarpal -d dwarpal \
+  -c "CREATE ROLE dwarpal_app NOLOGIN; CREATE ROLE dwarpal_api LOGIN"
+```
+
+Then, on the old server or the new one:
+
 1. Stop everything that writes: `docker compose stop api webhooks maintenance web shop`.
 2. Find the snapshot: `docker run --rm --env-file backup.env restic/restic:0.19.1 snapshots --tag database`.
 3. Empty the database and restore into it:
@@ -57,10 +73,9 @@ Only when the live database is lost or damaged. (To *check* backups without touc
      | docker compose exec -T postgres pg_restore -U dwarpal -d dwarpal --exit-on-error
    ```
 
-4. If the server itself was lost, restore `.env` too (`restic restore <snapshot of tag secrets> --target /tmp/x`) —
-   it holds the master key without which the signing keys can't be read.
-5. `./deploy.sh <the tag that was running>` and check as in section 1.
-6. Sessions started after the snapshot are gone; websites get their state from their webhooks' outbox only from the
+4. `./deploy.sh <the tag that was running>` (it also gives `dwarpal_api` its password from `.env`) and check as in
+   section 1.
+5. Sessions started after the snapshot are gone; websites get their state from their webhooks' outbox only from the
    snapshot onward. Write down the time lost.
 
 ## 5. Incident

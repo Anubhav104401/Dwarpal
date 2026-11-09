@@ -256,6 +256,12 @@ jobs:
           ./backup.sh
           report="$(./restore_drill.sh)"
           echo "::notice title=restore drill::$(tr '\n' '|' <<<"$report")"
+          # The secrets file comes back as the runbook (section 4) brings it back for a lost server — here with the
+          # cache volume too, where this rehearsal keeps its repository — and is the very file that was backed up.
+          docker run --rm --env-file backup.env -v dwarpal-restic-cache:/cache -v "$PWD/restored:/restored" \
+            restic/restic:0.19.1 restore latest --tag secrets --target /restored
+          sudo cmp restored/secrets/.env .env
+          echo "::notice title=secrets restore::.env restored from the backup, identical to the original"
           # Alerts by email, switched on as README step 10 does — a made-up mail password, typed twice — then the
           # collector, Prometheus and Alertmanager started with the files it wrote, and the API restarted to send counts.
           cp ../observability/alerts.yaml .
