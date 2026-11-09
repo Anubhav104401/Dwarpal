@@ -3,25 +3,27 @@ import {
   createLocalJWKSet,
   exportJWK,
   generateKeyPair,
+  type JWK,
   type JWTPayload,
   SignJWT,
   UnsecuredJWT,
 } from "jose";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import { AgeTokenError, type VerifyAgeTokenOptions, verifyAgeToken } from "../src/index.js";
+import { AgeTokenError, remoteKeys, type VerifyAgeTokenOptions, verifyAgeToken } from "../src/index.js";
 
 const ISSUER = "http://localhost:8000";
 const AUDIENCE = "prj_01M51KEEZTFP6T69S2YP831NV9";
 const SESSION = "vs_01M51KF05CE4GSBH7F0G43G01V";
 
 let privateKey: CryptoKey;
+let publicJwk: JWK;
 let options: VerifyAgeTokenOptions;
 
 beforeAll(async () => {
   const pair = await generateKeyPair("Ed25519");
   privateKey = pair.privateKey;
-  const publicJwk = { ...(await exportJWK(pair.publicKey)), kid: "sig_test", alg: "Ed25519", use: "sig" };
+  publicJwk = { ...(await exportJWK(pair.publicKey)), kid: "sig_test", alg: "Ed25519", use: "sig" };
   options = {
     issuer: ISSUER,
     audience: AUDIENCE,
@@ -97,6 +99,26 @@ describe("verifyAgeToken", () => {
     const unsigned = new UnsecuredJWT(claims()).setIssuedAt().setExpirationTime("10m").encode();
     await expect(verifyAgeToken(shared, options)).rejects.toThrow(AgeTokenError);
     await expect(verifyAgeToken(unsigned, options)).rejects.toThrow(AgeTokenError);
+  });
+
+  it("fetches the keys from another address when asked, and still checks the issuer exactly", async () => {
+    const asked: string[] = [];
+    vi.stubGlobal("fetch", async (input: string | URL | Request) => {
+      asked.push(String(input));
+      const headers = { "content-type": "application/json" };
+      return new Response(JSON.stringify({ keys: [publicJwk] }), { status: 200, headers });
+    });
+    try {
+      const privately = { ...options, keys: remoteKeys("http://api:8000/") };
+      expect((await verifyAgeToken(await sign(claims()), privately)).allowed).toBe(true);
+      expect(asked).toEqual(["http://api:8000/.well-known/jwks.json"]);
+      expect(remoteKeys("http://api:8000")).toBe(privately.keys); // one cache per address
+      // A token naming the private address as its issuer is still refused: the issuer is the public one.
+      const misnamed = await sign(claims({ iss: "http://api:8000" }));
+      await expect(verifyAgeToken(misnamed, privately)).rejects.toThrow(AgeTokenError);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("insists on a whole number of years", async () => {

@@ -1,5 +1,5 @@
 ---
-fingerprint: d7421f35b63d5361
+fingerprint: 6ee0f28d1b356a25
 ---
 The SDK's **front door** — the file that `package.json`'s `exports` points to (after building, as `dist/index.js`). It contains no code of its own: it gathers the public parts of the other files, so a website writes one import:
 
@@ -17,8 +17,8 @@ The `.js` ending in `"./client.js"` looks odd in a TypeScript file, but it names
 @@ 10
 From `errors.ts`: the three error classes. They are real values (classes), so they have no `type` in front.
 
-@@ 11-18
-From `token.ts`: the verification function, the two constants it checks against (`ALGORITHM`, `TOKEN_TYPE`), and its types.
+@@ 11-19
+From `token.ts`: the verification function, the two constants it checks against (`ALGORITHM`, `TOKEN_TYPE`), its types, and since 9 Nov `remoteKeys`, for a server that fetches the keys by a private address.
 
-@@ 19-24
+@@ 20-25
 From `webhook.ts` (Phase 4): the event type and the options type, the `verifyWebhook` function, and the default tolerance of five minutes.

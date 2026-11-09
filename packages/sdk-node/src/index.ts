@@ -12,6 +12,7 @@ export {
   type AgeVerdict,
   ALGORITHM,
   type Outcome,
+  remoteKeys,
   TOKEN_TYPE,
   type VerifyAgeTokenOptions,
   verifyAgeToken,

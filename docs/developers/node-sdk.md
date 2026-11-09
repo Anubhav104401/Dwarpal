@@ -61,7 +61,7 @@ if (verdict.allowed) {
 }
 ```
 
-It fetches Dwarpal's public keys (JWKS) from the issuer, caches them, and checks the token's signature (Ed25519), type, issuer, audience, expiry and age claim. Anything wrong throws an **`AgeTokenError`**. `allowed` is true only for a `pass` whose age claim covers `minAge`.
+It fetches Dwarpal's public keys (JWKS) from the issuer, caches them, and checks the token's signature (Ed25519), type, issuer, audience, expiry and age claim. If your server reaches Dwarpal by another address than the issuer's — over a private network — pass `keys: remoteKeys("http://that-address")`: the issuer is still checked exactly. Anything wrong throws an **`AgeTokenError`**. `allowed` is true only for a `pass` whose age claim covers `minAge`.
 
 Check `livemode` too before going live: a test token must never open a real door.
 

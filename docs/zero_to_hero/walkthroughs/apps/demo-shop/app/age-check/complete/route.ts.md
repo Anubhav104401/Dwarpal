@@ -1,5 +1,5 @@
 ---
-fingerprint: d440b72b1be06739
+fingerprint: 3731109afdca706a
 ---
 **The moment of truth for the shop**: the address the verify page sends the visitor back to, `…/age-check/complete?session_id=vs_…`. This is a **route handler** (§4.17) — server code that answers a request directly, with no page to draw.
 
@@ -12,7 +12,7 @@ The address itself proves nothing: anyone can type `?session_id=` followed by an
 Only then does the visitor get the shop's signed pass. Any failure leads to a polite refusal page — never to the cellar.
 
 @@ 1
-The SDK's token checker.
+The SDK's token checker, and `remoteKeys` (9 Nov) — to fetch the keys from the address the shop reaches the API by.
 
 @@ 2
 From Next.js: the request type, and `NextResponse` for building answers.
@@ -47,23 +47,23 @@ Too close to call from photos: the visitor would need a stronger check. Explain 
 @@ 28-30
 Not finished, or no token: refuse.
 
-@@ 31-36
-**Check 3: verify the token** — its signature, issuer, audience (this shop's project), age (18) and session.
+@@ 31-39
+**Check 3: verify the token** — its signature, issuer, audience (this shop's project), age (18) and session. The keys come from the shop's own way to the API (`config.apiUrl`): on the server that is the private network (`http://api:8000`), while the issuer is the public address — fetching keys from that would mean leaving the server to come back to it, which a cloud's network doesn't always allow.
 
-@@ 37-39
+@@ 40-42
 The token is genuine, but doesn't allow entry: refuse, kindly.
 
-@@ 40
+@@ 43
 **All checks passed**: prepare the redirect into the cellar…
 
-@@ 41-47
+@@ 44-50
 …and give the browser the signed pass, in a cookie that the page's scripts can't read (`httpOnly`), sent back on normal navigation (`sameSite: "lax"`), over HTTPS when available (`secure`), for every page of the shop (`path: "/"`), for 30 minutes.
 
-@@ 48
+@@ 51
 Send it.
 
-@@ 49-52
+@@ 52-55
 **Any error** — the API unreachable, a forged or expired token, a malformed ID — is logged on the shop's server for its developers, and the visitor is sent to a polite "something went wrong" page. Errors can never lead into the cellar.
 
-@@ 53
+@@ 56
 The closing brace.

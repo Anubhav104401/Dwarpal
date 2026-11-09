@@ -1,5 +1,5 @@
 ---
-fingerprint: ea0f75a6fd552258
+fingerprint: 62fb7330c9c6382c
 ---
 The most important file of the SDK: **`verifyAgeToken`**, the function a website calls before letting anyone in. It answers one question — *does this token prove that this visitor passed my age check?* — and it answers "yes" only when every one of these is true:
 
@@ -60,30 +60,13 @@ The interface ends.
 @@ 25-33
 `interface AgeVerdict` — what the function returns. Most important is `allowed`: **the only field a website needs for its decision**. The others are for its records: the outcome, the session, the policy, whether it was a live check, and when the token expires — as a `Date` object.
 
-@@ 35
-`remoteKeys` — a **Map** (a dictionary that can hold any kind of key) from issuer address to its key fetcher. It lives as long as the website's server process, so the keys are fetched once and reused for every token, instead of once per visitor.
-
-@@ 37
-**`keysOf`** — the key fetcher for an issuer, created on first use. It isn't exported: it is the SDK's private business.
-
-@@ 38-39
-Look in the map. If there's nothing for this issuer yet…
-
-@@ 40
-…create a fetcher for `<issuer>/.well-known/jwks.json`. `issuer.replace(/\/+$/, "")` first removes any slash at the end, so `https://api.example/` and `https://api.example` give the same address. The text between `` ` `` backticks is a **template literal**: `${…}` puts a value into the text.
-
-jose's fetcher keeps the keys for up to 10 minutes. When a token names a key it doesn't know — right after the API created a new one — it fetches the set again, at most once every 30 seconds.
-
-@@ 41-44
-Remember the fetcher, and return it.
-
-@@ 46
+@@ 52
 **`verifiedClaims`** — check the token, and return its claims, or throw. `async` means it returns a **Promise** (§4.15): a value that arrives later, here once the keys are fetched and the signature checked.
 
-@@ 47-48
-`await jwtVerify(…)` — wait for jose's verdict. The keys: the ones passed in, or (`??` means "if that is missing, use this") the issuer's published ones. `const { payload } = …` takes just the `payload` property out of the result — this is called **destructuring**.
+@@ 53-54
+`await jwtVerify(…)` — wait for jose's verdict. The keys: the ones passed in, or (`??` means "if that is missing, use this") the issuer's published ones (`remoteKeys(issuer)`). `const { payload } = …` takes just the `payload` property out of the result — this is called **destructuring**.
 
-@@ 49-53
+@@ 55-59
 The rules jose must enforce, in addition to the signature:
 
 - `issuer` and `audience` — the `iss` and `aud` claims must match exactly;
@@ -93,41 +76,56 @@ The rules jose must enforce, in addition to the signature:
 
 jose also checks `exp` (not expired) and `nbf` (not too early) automatically.
 
-@@ 54-55
+@@ 60-61
 The checks passed: return the claims.
 
-@@ 56-59
+@@ 62-65
 If jose refused the token, throw our own `AgeTokenError` instead. The message includes jose's short error code — such as `ERR_JWT_EXPIRED` — and `{ cause: error }` keeps jose's full error attached, for whoever is debugging.
 
-@@ 60
+@@ 66
 Any *other* error — say, the network failed while fetching keys — is passed on unchanged. It is still an error, so the visitor still isn't let in.
 
-@@ 61-62
+@@ 67-68
 The closing braces.
 
-@@ 64-65
+@@ 70-71
 **`verifyAgeToken`** — the public function. It returns a `Promise<AgeVerdict>`: a verdict, once the checks are done.
 
-@@ 66-68
+@@ 72-74
 First check the website's own input: `minAge` must be a whole number of at least 1. A typo such as `18.5` throws a `RangeError` at once, instead of quietly never matching any token.
 
-@@ 69
+@@ 75
 Verify the token, and get its claims.
 
-@@ 70
+@@ 76
 Take three claims out by destructuring: `outcome`, `sid` (the session) and `exp` (the expiry).
 
-@@ 71-73
+@@ 77-79
 The outcome must be one of the three known values. jose only knows standard claims; this one is ours, so we check it ourselves.
 
-@@ 74-76
+@@ 80-82
 The session must be text — and, if the website said which session it expects, exactly that one.
 
-@@ 77-78
+@@ 83-84
 **The verdict.** `allowed` is true only if the outcome is `pass` **and** the claim named after the website's age — built by a template literal, such as `age_over_18` — is exactly `true`. `===` means "exactly equal, with no conversion": the text `"true"` or the number `1` would not count.
 
-@@ 79-84
+@@ 85-90
 The record-keeping fields. `typeof claims.policy === "string" ? … : ""` is the **conditional operator** (`condition ? if-true : if-false`): use the policy if it is text, otherwise empty text. Token times are seconds since 1970, while JavaScript's `Date` counts milliseconds — hence `* 1000`.
 
-@@ 85
+@@ 91
 The closing brace.
+
+@@ 35
+`keySets` — a **Map** (a dictionary that can hold any kind of key) from an API's address to its key fetcher. It lives as long as the website's server process, so the keys are fetched once and kept.
+
+@@ 37-41
+**`remoteKeys`** (exported since 9 Nov) — the comment says it: the public keys of the API at an address, fetched when first needed, kept, and fetched again for a key not seen yet. A token's keys come from its issuer by default; a server that reaches Dwarpal by another address — over a private network — passes these instead.
+
+@@ 42-44
+The address without any slash at its end (`replace(/\/+$/, "")`), so `http://api:8000/` and `http://api:8000` share one fetcher; then look in the map.
+
+@@ 49-50
+Return the fetcher.
+
+@@ 45-48
+Nothing for this address yet: create a fetcher for `<address>/.well-known/jwks.json` (jose's `createRemoteJWKSet`, which fetches and caches the key set) and remember it.

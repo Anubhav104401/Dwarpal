@@ -1,4 +1,4 @@
-import { verifyAgeToken } from "@dwarpal/node";
+import { remoteKeys, verifyAgeToken } from "@dwarpal/node";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { dwarpal, MIN_AGE, shopConfig } from "@/lib/config";
@@ -30,6 +30,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
     const verdict = await verifyAgeToken(session.ageToken, {
       issuer: config.issuer,
+      // The keys come from the address the shop reaches the API by — on the server, its private one — not from
+      // the issuer's public address, which would mean leaving the server to come back to it.
+      keys: remoteKeys(config.apiUrl),
       audience: config.projectId,
       minAge: MIN_AGE,
       sessionId,

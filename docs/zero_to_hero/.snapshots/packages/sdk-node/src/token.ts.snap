@@ -32,20 +32,26 @@ export interface AgeVerdict {
   expiresAt: Date;
 }
 
-const remoteKeys = new Map<string, JWTVerifyGetKey>();
+const keySets = new Map<string, JWTVerifyGetKey>();
 
-function keysOf(issuer: string): JWTVerifyGetKey {
-  let keys = remoteKeys.get(issuer);
+/**
+ * The public keys of the Dwarpal API at `baseUrl` (its `/.well-known/jwks.json`): fetched when first needed, kept,
+ * and fetched again for a key not seen yet. A token's keys come from its issuer by default; pass these as `keys`
+ * when your server reaches Dwarpal by another address — over a private network, say.
+ */
+export function remoteKeys(baseUrl: string): JWTVerifyGetKey {
+  const base = baseUrl.replace(/\/+$/, "");
+  let keys = keySets.get(base);
   if (keys === undefined) {
-    keys = createRemoteJWKSet(new URL(`${issuer.replace(/\/+$/, "")}/.well-known/jwks.json`));
-    remoteKeys.set(issuer, keys);
+    keys = createRemoteJWKSet(new URL(`${base}/.well-known/jwks.json`));
+    keySets.set(base, keys);
   }
   return keys;
 }
 
 async function verifiedClaims(token: string, options: VerifyAgeTokenOptions): Promise<JWTPayload> {
   try {
-    const { payload } = await jwtVerify(token, options.keys ?? keysOf(options.issuer), {
+    const { payload } = await jwtVerify(token, options.keys ?? remoteKeys(options.issuer), {
       issuer: options.issuer,
       audience: options.audience,
       algorithms: [ALGORITHM],
