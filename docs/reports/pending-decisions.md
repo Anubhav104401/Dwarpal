@@ -56,7 +56,7 @@ in order (details in [`infra/deploy/README.md`](../../infra/deploy/README.md)):
 Still open from before, not blocking the deploy: O11 (the two dataset requests), O12 (the consent form's review, then
 filming yourself), O5 (the legal review of the compliance map and practice statement).
 
-**Done overnight** (no decision needed; all pushed, CI green on `c0e9ac8`):
+**Done overnight** (no decision needed; all pushed, CI green on `92d2bb5`):
 
 - **Live checks by ID document** (D24, `3ac4b3a`): while no age model is certified, a live session opens on the passport
   check; the token's methods say `document_mrz` and `face_match`. Test sessions are unchanged. **`joserfc` 1.7.6**
