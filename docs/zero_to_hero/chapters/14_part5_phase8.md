@@ -111,7 +111,7 @@ Three more programs do it, all on the server and none reachable from outside it.
 The rules themselves are the laptop's (`infra/observability/alerts.yaml`, §5.7), with one more: if Prometheus can't reach the collector for five minutes, that is an alert too — otherwise a broken pipe would look like a quiet, healthy service.
 
 !!! honest "Honest limitation"
-    Everything here runs on the server it watches. If the whole server stops, no mail comes: the outside check (§5.8.5) covers that. The checks that the settings are valid run in CI, but no mail has been sent yet: that waits for the server.
+    Everything here runs on the server it watches. If the whole server stops, no mail comes: the outside check (§5.8.5) covers that. The checks that the settings are valid run in CI, and since 9 November CI also rehearses the whole chain: it switches alerts on as the README does, starts the three programs with the files `alert_email.py` wrote, and requires the API's counts to reach Prometheus, the availability rule to compute a share, the rules to be loaded and Alertmanager to be known. Only the mail itself hasn't been sent: there is no mail server in CI, so that waits for the server.
 
 ### 5.8.5 Watching from outside
 

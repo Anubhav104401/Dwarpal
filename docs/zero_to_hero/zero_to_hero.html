@@ -142,7 +142,7 @@ footer { margin-top: 4em; color: var(--text-3); font: 12px var(--mono); }
 <div class="topbar"><button id="top" type="button">Top</button><button id="theme" type="button">Theme</button></div>
 <div class="shell">
   <aside class="side">
-    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">559,400 words · 348 files · 31,271/31,271 lines explained (100.0%)</div></div>
+    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">559,520 words · 348 files · 31,271/31,271 lines explained (100.0%)</div></div>
     <input id="q" type="search" placeholder="Filter sections (Ctrl+K)" autocomplete="off" aria-label="Filter sections">
     <nav class="toc"><a class="h1" href="#dwarpal-zero-to-hero">Dwarpal — Zero to Hero</a>
 <a class="h2" href="#what-this-book-is">What this book is</a>
@@ -885,6 +885,10 @@ footer { margin-top: 4em; color: var(--text-3); font: 12px var(--mono); }
 <tr>
 <td style="text-align: left;">9 Nov 2026</td>
 <td style="text-align: left;"><strong>The first deploy, rehearsed</strong> (§5.8.2): the <abbr title="Application Programming Interface — a menu of requests one program offers to other programs">API</abbr>'s image runs the real secrets generator, Compose file, migrations, restricted login and <abbr title="Application Programming Interface — a menu of requests one program offers to other programs">API</abbr> in production mode in CI, then a real backup and the restore drill — which its first run found broken (it asked a fresh PostgreSQL's socket, and caught the image's temporary start-up server); the drill now waits for the server over TCP. Two re-explained. Coverage: 348 files, 31,246/31,246 lines</td>
+</tr>
+<tr>
+<td style="text-align: left;">9 Nov 2026</td>
+<td style="text-align: left;"><strong>Alerts by email, rehearsed</strong> (§5.8.4): CI switches alerts on as the README does and requires the <abbr title="Application Programming Interface — a menu of requests one program offers to other programs">API</abbr>'s counts to reach Prometheus, the availability rule to compute, the rules to be loaded and Alertmanager to be known — everything but the mail. One re-explained. Coverage: 348 files, 31,271/31,271 lines</td>
 </tr>
 </tbody>
 </table></div>
@@ -29793,7 +29797,7 @@ L898902C36UTO7408122F1204159ZE184226B&lt;&lt;&lt;&lt;&lt;10
 <p>The rules themselves are the laptop's (<code>infra/observability/alerts.yaml</code>, §5.7), with one more: if Prometheus can't reach the collector for five minutes, that is an alert too — otherwise a broken pipe would look like a quiet, healthy service.</p>
 <div class="admonition honest">
 <p class="admonition-title">Honest limitation</p>
-<p>Everything here runs on the server it watches. If the whole server stops, no mail comes: the outside check (§5.8.5) covers that. The checks that the settings are valid run in CI, but no mail has been sent yet: that waits for the server.</p>
+<p>Everything here runs on the server it watches. If the whole server stops, no mail comes: the outside check (§5.8.5) covers that. The checks that the settings are valid run in CI, and since 9 November CI also rehearses the whole chain: it switches alerts on as the README does, starts the three programs with the files <code>alert_email.py</code> wrote, and requires the <abbr title="Application Programming Interface — a menu of requests one program offers to other programs">API</abbr>'s counts to reach Prometheus, the availability rule to compute a share, the rules to be loaded and Alertmanager to be known. Only the mail itself hasn't been sent: there is no mail server in CI, so that waits for the server.</p>
 </div>
 <h3 id="585-watching-from-outside">5.8.5 Watching from outside</h3>
 <p>An alarm inside a house can't report that the house burned down. For that, the owner chose (decision D33) a check from somewhere else that costs nothing and needs no new account: a <strong>scheduled GitHub workflow</strong>. Every 15 minutes GitHub asks the <abbr title="Application Programming Interface — a menu of requests one program offers to other programs">API</abbr> whether it is ready, loads the home page, and reads both <abbr title="HTTP inside an encrypted, tamper-proof envelope (TLS)">HTTPS</abbr> certificates. When any of that fails, the run fails — and GitHub emails the repository's owner about failed runs by itself.</p>
@@ -34666,7 +34670,7 @@ These three lines ...
 <dt>X-Forwarded-For</dt>
 <dd>A header that a reverse proxy such as Caddy adds to each request it passes on, saying which address the request really came from: the service behind the proxy sees only the proxy's own address. (§5.8.2)</dd>
 </dl>
-    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-11-09 00:57 UTC</footer>
+    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-11-09 01:09 UTC</footer>
   </main>
 </div>
 <script>
