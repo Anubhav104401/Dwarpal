@@ -56,7 +56,7 @@ in order (details in [`infra/deploy/README.md`](../../infra/deploy/README.md)):
 Still open from before, not blocking the deploy: O11 (the two dataset requests), O12 (the consent form's review, then
 filming yourself), O5 (the legal review of the compliance map and practice statement).
 
-**Done overnight** (no decision needed; all pushed, CI green on `5ea6b69`):
+**Done overnight** (no decision needed; all pushed, CI green on `c0e9ac8`):
 
 - **Live checks by ID document** (D24, `3ac4b3a`): while no age model is certified, a live session opens on the passport
   check; the token's methods say `document_mrz` and `face_match`. Test sessions are unchanged. **`joserfc` 1.7.6**
@@ -75,11 +75,32 @@ filming yourself), O5 (the legal review of the compliance map and practice state
   item 6), and both SDKs take one.
 - **A document camera for computers** (D43, `4ed0d89`): the webcam with a passport-shaped guide, the photo looked at before it is
   used, the file chooser beside it; phones unchanged. Two new browser tests.
-- **The verify page's calls limited per address** (Phase 4, open item 5, `9b339be`): 10 a second, bursts of 300 — far above what people sharing a network need — so a flood from one address stops before the database; the page says to wait and reload.
-- **The production images are built in CI** on every push (`9b339be`, `5ea6b69`), on GitHub's Arm machines and never published (D17 allows exactly that), then started as far as each can be alone. **Its first run found two problems that would have stopped your first deploy**: the Python images didn't copy the Python SDK's `pyproject.toml`, and the deploy workflow ran the model fetcher without httpx. Both are fixed and guarded by tests; all four images now build and start. A third trap, found by reading `deploy.sh`: the first deploy would have waited for the demo shop, which can't start before step 7 gives it a key, and rolled back. The shop is now left out until its key is in `.env`. **And one that needs you to copy two more files**: the anti-spoofing networks are served as ONNX files that `dwarpal_ml.antispoof` made on your computer on 20 Oct, and the README's model step named only what the fetcher fetches — a server set up by it would have refused every live check. Step 4 now lists exactly which files to copy (the two `minifasnet_*.onnx` included), and every deploy says whether they are loaded.
-- **The first deploy, a backup and the restore drill are rehearsed in CI** on every push, with the API's image and the real scripts: migrations, the restricted database login, the API in production mode, `backup.sh` and `restore_drill.sh`. The first rehearsal found the drill broken (it could start restoring before PostgreSQL was really up — your step 9 would have failed); fixed, and the drill now restores a backup on every push. The rehearsal also switches **alerts by email** on as README step 10 does: the API's counts reach Prometheus, the availability rule computes and Alertmanager is connected — only the mail itself waits for your mail account on the server.
-- **A sixth trap, found by reading**: the webhook worker and the hourly maintenance would have logged in as the API's restricted database user, which row-level security binds — so on the server they would have quietly done nothing: no webhooks, no expired sessions, and no deletion after the retention period. They now log in as the database's owner, like the migrations; the runbooks' key commands use a new `operator` service. Rehearsed in CI.
-- **The demo shop fetches the token-signing keys privately** (`http://api:8000`), not through the server's own public address, which Oracle's network may not route back to the same machine.
+- **The verify page's calls limited per address** (Phase 4, open item 5, `9b339be`): 10 a second, bursts of 300 — far
+  above what people sharing a network need — so a flood from one address stops before the database; the page says to
+  wait and reload.
+
+**Your first deploy, rehearsed — and seven problems fixed before you could meet them.** CI now builds the four
+production images on GitHub's Arm machines on every push (never published: D17 allows exactly that), starts each as the
+server would, and rehearses the first deploy with the real files: secrets, Compose, migrations, the restricted database
+login, the API in production mode, a backup, the restore drill, and alerts by email up to Alertmanager (only the mail
+itself waits for your mail account). What that, and reading the deploy path line by line, found:
+
+1. The Python images didn't copy the Python SDK's `pyproject.toml`: the API and inference images would never have
+   been built.
+2. The deploy workflow ran the model fetcher without httpx: the web image would never have been built.
+3. The first deploy would have waited for the demo shop, which can't start before step 7 gives it a key, and rolled
+   back. The shop is now left out until its key is in `.env`.
+4. **This one needs you:** the README's model step didn't name the two anti-spoofing files (`minifasnet_*.onnx`, made
+   from PyTorch weights on your computer on 20 Oct). Without them the server starts but **refuses every live check**.
+   Step 4 now lists exactly what to copy, and every deploy says whether they are loaded.
+5. The restore drill could start restoring before PostgreSQL was really up: step 9 would have failed.
+6. The webhook worker and the hourly maintenance would have logged in as the API's restricted database user, which
+   row-level security binds: no webhooks sent, no abandoned sessions expired, **nothing deleted after the retention
+   period** — all silently. They now log in as the database's owner; the runbooks' key commands use a new `operator`
+   service.
+7. The demo shop fetched the token-signing keys through the server's own public address, which Oracle's network may
+   not route back to the same machine; it now uses the private network (`http://api:8000`).
+
 - **Browser tests**: the full suite passes in Chromium and WebKit (50 tests; the WebKit passkey test is skipped by design).
 - **Scans** (D34): `pip-audit` finds nothing; `pnpm audit` finds nothing in what ships — only the two old `extract-zip`
   advisories inside Lighthouse CI, a test tool, with no fixed version. Nothing to approve.
