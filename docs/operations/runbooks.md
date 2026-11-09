@@ -34,8 +34,8 @@ grep DWARPAL_TAG .env            # the version running now
 
 | What | How | Effect |
 | :-- | :-- | :-- |
-| **A website's API key** | `docker compose run --rm api python -m dwarpal_api.cli rotate-key --lookup <12 characters after dk_test_ or dk_live_>` | Prints the new key **once**; the old one keeps working for 24 h (`--grace-hours`). Give the new one to the website. |
-| **A leaked API key** | `… cli revoke-key --lookup <id>` | Stops it at once. |
+| **A website's API key** | `docker compose run --rm operator rotate-key --lookup <12 characters after dk_test_ or dk_live_>` | Prints the new key **once**; the old one keeps working for 24 h (`--grace-hours`). Give the new one to the website. |
+| **A leaked API key** | `docker compose run --rm operator revoke-key --lookup <id>` | Stops it at once. |
 | **Token-signing key** | Rotates itself (§5.4): the new key signs, the old one stays in `/.well-known/jwks.json` until its tokens expire. | Nothing to do. |
 | **Database or Valkey password** | Change the value in `.env`, then `./deploy.sh $(grep -oP '(?<=DWARPAL_TAG=).*' .env)` (the deploy resets `dwarpal_api`'s password from `.env`). For the owner or Valkey password, also change it inside the database / restart Valkey. | Seconds of reconnecting. |
 | **Master key** | **Never replaced in place**: it seals every signing key. If it may have leaked, treat it as an incident (section 5): new master key, new signing keys, websites told. | — |

@@ -1,5 +1,5 @@
 ---
-fingerprint: 2530a2f4762fd6b3
+fingerprint: 13b81a2bd95bf245
 ---
 Tests for the **deployment's files** (§5.8.2). Most of Phase 8 runs on a real server, where tests can't reach; these check what can be checked here: the secrets are random, private and never replaced, and the Compose file and the generator agree.
 
@@ -96,40 +96,40 @@ Eleven refusals, each naming `--domain`: a scheme, a path, a port, a wildcard, a
 @@ 87-91
 The command run with `https://` in front: it fails, says the domain must be a bare name, and writes no file.
 
-@@ 282-284
+@@ 300-302
 **Test — the outside check** (decision D33): every 15 minutes, never on the hour, with a token that may do nothing, only once the API's address is set, and asking `/readyz` — what the README promises.
 
-@@ 285-287
+@@ 303-305
 The workflow's text, and its schedule's minutes (the line `cron: "… * * * *"`); without one, the message says so.
 
-@@ 288-290
+@@ 306-308
 The minutes in order, and the gap after each — the last one's to the first of the next hour: four gaps of 15 minutes.
 
-@@ 291
+@@ 309
 None on the hour.
 
-@@ 292-294
+@@ 310-312
 A token that may do nothing, the condition on the address, and the readiness check.
 
-@@ 257-260
+@@ 275-278
 **Test — both Python images copy every workspace member's description** (9 Nov): uv reads the whole workspace to use the lockfile, so one missing `pyproject.toml` fails the build — as the Python SDK's did, found by CI's first image builds.
 
-@@ 261-264
+@@ 279-282
 The workspace's member patterns (`services/*`, `libs/*`, …), each expanded to the folders that have a `pyproject.toml`, written as paths from the repository's root.
 
-@@ 265
+@@ 283
 The SDK is among them — so the test can't pass by finding nothing.
 
-@@ 266-268
+@@ 284-286
 In each Python Dockerfile, the folders whose `pyproject.toml` it copies (each `COPY` line, read with a pattern) must be exactly the members; the message names both lists.
 
-@@ 271-273
+@@ 289-291
 **Test — the model fetcher gets its one dependency** (9 Nov): run without the project, `fetch_models.py` must be given httpx, at the lockfile's version.
 
-@@ 274-275
+@@ 292-293
 httpx's version in `uv.lock`: its `[[package]]` entry, a `name` line followed by a `version` line.
 
-@@ 276-279
+@@ 294-297
 Every workflow line that runs the fetcher without the project must give httpx at exactly that version.
 
 @@ 173-183
@@ -173,3 +173,15 @@ Why: the server starts without them but refuses every live check, as CI found wh
 
 @@ 251-254
 Each deploy succeeds; it warns exactly when the networks aren't loaded; and it prints what the service answered.
+
+@@ 257-260
+**Test — the jobs across every organisation log in as the tables' owner** (9 Nov), and the API never does.
+
+@@ 261-266
+The Compose file's owner settings exist, built from the API's, with the owner's name and password in the database address.
+
+@@ 267-271
+Each service's block (the lines under its name, indented further) uses the settings it should: the API its own, the three jobs the owner's.
+
+@@ 272
+And `deploy.sh` migrates through `operator`.

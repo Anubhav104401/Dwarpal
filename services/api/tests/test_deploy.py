@@ -254,6 +254,24 @@ def test_a_deploy_says_when_the_anti_spoofing_networks_are_missing(tmp_path: Pat
     assert f"inference: {readyz or 'no answer'}" in run.stdout
 
 
+def test_the_jobs_across_every_organisation_log_in_as_the_tables_owner() -> None:
+    """Row-level security hides every organisation's rows from the services' login, `dwarpal_api`: the webhook worker,
+    the hourly maintenance and the operator's tools would quietly find nothing to do — found on 9 Nov, before any
+    deploy. They log in as the tables' owner; the API, which faces the internet, never does."""
+    compose = (DEPLOY / "compose.yaml").read_text(encoding="utf-8")
+    owner = re.search(
+        r"^x-owner-env: &owner-env\n  <<: \*api-env\n  DWARPAL_DATABASE_URL: (\S+)$", compose, re.MULTILINE
+    )
+    assert owner is not None, "compose.yaml: no x-owner-env settings"
+    assert owner[1].startswith("postgresql+asyncpg://dwarpal:${DWARPAL_DB_OWNER_PASSWORD}@")
+    expected = {"api": "api-env", "webhooks": "owner-env", "maintenance": "owner-env", "operator": "owner-env"}
+    for service, settings in expected.items():
+        block = re.search(rf"^  {service}:\n((?:(?:    .*)?\n)*)", compose, re.MULTILINE)
+        assert block is not None, f"compose.yaml: no {service} service"
+        assert f"    environment: *{settings}\n" in block[1], f"{service} should use *{settings}"
+    assert "docker compose run --rm --no-deps operator migrate" in (DEPLOY / "deploy.sh").read_text(encoding="utf-8")
+
+
 def test_both_python_images_copy_every_workspace_member_s_description() -> None:
     """uv reads the whole workspace to use the lockfile, so each Python image copies every member's pyproject.toml —
     one missing (the Python SDK, added after the images were written) fails the build. CI's first image builds found

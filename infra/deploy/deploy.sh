@@ -8,9 +8,8 @@ set -euo pipefail
 tag="${1:?usage: deploy.sh <tag>}"
 cd "$(dirname "$0")"
 
-# The secrets file decides the passwords; read the two this script itself needs.
+# The secrets file decides the passwords; read the one this script itself needs.
 env_value() { grep -E "^$1=" .env | head -n1 | cut -d= -f2-; }
-owner_password="$(env_value DWARPAL_DB_OWNER_PASSWORD)"
 api_password="$(env_value DWARPAL_DB_API_PASSWORD)"
 previous="$(env_value DWARPAL_TAG)"
 
@@ -20,11 +19,10 @@ echo "deploying $tag (was $previous)"
 set_tag "$tag"
 docker compose pull --quiet
 
-# The databases first; then the migrations, as the database's owner (the services never log in as it).
+# The databases first; then the migrations, as the database's owner (`operator`, compose.yaml; the API never logs
+# in as it).
 docker compose up -d --wait postgres valkey
-docker compose run --rm --no-deps \
-  -e DWARPAL_DATABASE_URL="postgresql+asyncpg://dwarpal:${owner_password}@postgres:5432/dwarpal" \
-  api python -m dwarpal_api.cli migrate
+docker compose run --rm --no-deps operator migrate
 
 # The services' own login, `dwarpal_api`: a member of the restricted `dwarpal_app` role (made by the migrations) and
 # nothing else, so row-level security binds everything it does. Made once; its password follows .env every time.

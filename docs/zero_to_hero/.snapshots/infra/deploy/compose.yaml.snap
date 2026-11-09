@@ -22,6 +22,13 @@ x-api-env: &api-env
   # Empty (no metrics sent) until alert_email.py points it at the collector.
   DWARPAL_OTEL_ENDPOINT: ${DWARPAL_OTEL_ENDPOINT:-}
 
+# The jobs that work across every organisation — webhook delivery, the hourly maintenance, the operator's tools —
+# log in as the tables' owner: row-level security would hide every organisation's rows from `dwarpal_api`, and
+# they would quietly find nothing to do.
+x-owner-env: &owner-env
+  <<: *api-env
+  DWARPAL_DATABASE_URL: postgresql+asyncpg://dwarpal:${DWARPAL_DB_OWNER_PASSWORD}@postgres:5432/dwarpal
+
 services:
   caddy:
     image: caddy:2.11.6-alpine
@@ -92,7 +99,7 @@ services:
   webhooks:
     image: ghcr.io/${DWARPAL_GHCR_OWNER}/dwarpal-api:${DWARPAL_TAG}
     command: ["python", "-m", "dwarpal_api.cli", "deliver-webhooks"]
-    environment: *api-env
+    environment: *owner-env
     volumes:
       - ./models:/models:ro
     depends_on:
@@ -103,12 +110,22 @@ services:
   maintenance:
     image: ghcr.io/${DWARPAL_GHCR_OWNER}/dwarpal-api:${DWARPAL_TAG}
     entrypoint: ["sh", "-c", "while true; do python -m dwarpal_api.cli maintain; sleep 3600; done"]
-    environment: *api-env
+    environment: *owner-env
     volumes:
       - ./models:/models:ro
     depends_on:
       api: { condition: service_healthy }
     restart: unless-stopped
+
+  # The operator's tools, run by hand and never started by `up` (the `tools` profile): the migrations (deploy.sh)
+  # and the runbooks' commands, such as `docker compose run --rm operator rotate-key --lookup <id>`.
+  operator:
+    image: ghcr.io/${DWARPAL_GHCR_OWNER}/dwarpal-api:${DWARPAL_TAG}
+    profiles: [tools]
+    entrypoint: ["python", "-m", "dwarpal_api.cli"]
+    environment: *owner-env
+    volumes:
+      - ./models:/models:ro
 
   inference:
     image: ghcr.io/${DWARPAL_GHCR_OWNER}/dwarpal-inference:${DWARPAL_TAG}

@@ -1,5 +1,5 @@
 ---
-fingerprint: 0f81a75df75c723e
+fingerprint: 73ce6adc1526dcdc
 ---
 The **continuous-integration workflow** (§4.6). GitHub reads every file in `.github/workflows/`. Whenever this repository receives new code, GitHub starts fresh Linux machines and runs these three jobs on them. If any step fails, the change is marked with a red ✗.
 
@@ -257,50 +257,59 @@ Secrets made by the real generator, for a made-up domain; the image tag `ci`; an
 @@ 228-229
 The one model file the API reads at start-up: the age model's manifest, copied where the server keeps it.
 
-@@ 230-231
-The two passwords the next commands need, read from `.env` as `deploy.sh` reads them.
+@@ 230
+The services' password, which the next commands need, read from `.env` as `deploy.sh` reads it.
 
-@@ 232-236
-As `deploy.sh` does: the databases from the production Compose file, then the real migrations, run by the API's image as the database's owner.
+@@ 231-233
+As `deploy.sh` does: the databases from the production Compose file, then the real migrations through the `operator` service, as the tables' owner.
 
-@@ 237-242
+@@ 234-239
 The services' own login, `dwarpal_api` — a member of the restricted role and nothing else — made exactly as `deploy.sh` makes it.
 
-@@ 243-244
+@@ 240-241
 The API alone (`--no-deps`: its inference service isn't needed to be ready), in production mode, logged in as `dwarpal_api`: it must load its signing keys and pass its health check within 3 minutes.
 
-@@ 245-247
+@@ 242-244
 Its readiness answer, kept in a variable first (so a failure stops the script), then shown as a notice.
 
-@@ 248-251
+@@ 253-256
 restic's settings for the rehearsal: a repository inside its cache volume (`/cache`, which `backup.sh` mounts), instead of Object Storage, and a random password; then the real `backup.sh` — the database dump and the secrets file, encrypted.
 
-@@ 252-253
+@@ 257-258
 The real restore drill: the latest backup restored into a throwaway database, its report shown as a notice — the record Phase 8's exit asks for, rehearsed on every push.
 
-@@ 279-283
+@@ 284-288
 If the rehearsal failed, its last 3,000 characters become an error annotation, readable without a sign-in.
 
-@@ 254-258
+@@ 259-263
 **Alerts by email, rehearsed** (9 Nov): switched on as README step 10 does — the alert rules copied beside the Compose file, as the deploy workflow copies them, and `alert_email.py` run with a made-up mail password typed twice (it reads it from the input, as there is no terminal here). It writes Alertmanager's settings and the password's file, and turns the `alerts` services on in `.env`.
 
-@@ 259-260
+@@ 264-265
 The collector, Prometheus and Alertmanager started with those files; then the API again, which now sends its counts to the collector (`.env` gained its address, so Compose recreates it).
 
-@@ 261-263
+@@ 266-268
 **`ask`** — a question to Prometheus's API, from inside its own container (its image has `wget`).
 
-@@ 264-266
+@@ 269-271
 Up to 24 times: one request the API counts (health checks aren't counted) — the discovery document — then…
 
-@@ 267-271
+@@ 272-276
 …ask Prometheus for the sum of the API's request counts — `http_server_duration_milliseconds_count`, the metric every availability rule reads — and for the availability rule's share. Both answered with a result: stop; otherwise wait 10 seconds (the API sends every 15, Prometheus collects every 15).
 
-@@ 272-273
+@@ 277-278
 No counts, or no share: say which, show the answer, and fail — the rules would never fire on the server.
 
-@@ 274-277
+@@ 279-282
 The rule group is loaded, and Prometheus knows the Alertmanager to hand firing alerts to.
 
-@@ 278
+@@ 283
 All of it as a notice. Only the mail itself is left untested: there is no mail server here.
+
+@@ 245-247
+**The jobs that work across every organisation** (9 Nov): demo data made through `operator` (its output, which holds a test key, thrown away)…
+
+@@ 248-249
+…then the maintenance service's own settings check every organisation's audit chain: the report must not start *0 organisations* — what the services' restricted login would see.
+
+@@ 250-252
+The maintenance job and the webhook worker each run once with their own settings, and the audit report is shown as a notice.
