@@ -331,4 +331,5 @@ The storage is reached through its **S3-compatible** interface, the way Amazon's
     - **2 cores is unmeasured.** The load test met its target on 4 cores (§5.7.4); on this server it still needs measuring.
     - **No age model is certified yet.** Live checks are decided by an ID document until one is (decision D24); the demo shop uses a **test** key.
     - **The free name** depends on DuckDNS's volunteers (§6.7).
+    - **Oracle may stop an idle free server** (§5.8.1). Dwarpal with few visitors looks idle by Oracle's measures; whether the upgraded account is spared isn't confirmed.
     - **The refund** of Oracle's verification amount was still open when this was written.

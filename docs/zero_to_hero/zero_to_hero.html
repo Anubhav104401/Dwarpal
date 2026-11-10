@@ -142,7 +142,7 @@ footer { margin-top: 4em; color: var(--text-3); font: 12px var(--mono); }
 <div class="topbar"><button id="top" type="button">Top</button><button id="theme" type="button">Theme</button></div>
 <div class="shell">
   <aside class="side">
-    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">574,775 words · 349 files · 31,773/31,773 lines explained (100.0%)</div></div>
+    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">574,884 words · 349 files · 31,773/31,773 lines explained (100.0%)</div></div>
     <input id="q" type="search" placeholder="Filter sections (Ctrl+K)" autocomplete="off" aria-label="Filter sections">
     <nav class="toc"><a class="h1" href="#dwarpal-zero-to-hero">Dwarpal — Zero to Hero</a>
 <a class="h2" href="#what-this-book-is">What this book is</a>
@@ -29103,7 +29103,7 @@ L898902C36UTO7408122F1204159ZE184226B&lt;&lt;&lt;&lt;&lt;10
 <p class="admonition-title">Honest limitation</p>
 <ul>
 <li><strong>Capacity on 2 cores is unmeasured.</strong> The load test met its target — 50 people checking at once — on 4 cores (§5.7.4). On 2 it will be measured again once the server runs; until then, expect about half.</li>
-<li><strong>Oracle may reclaim an idle free server</strong> (for Arm machines, memory use under 20 % for a week). A running Dwarpal keeps well above that, but a stopped one could be taken back.</li>
+<li><strong>Oracle may reclaim an idle free server.</strong> It counts one as idle when, over 7 days, <abbr title="Central Processing Unit — the chip that follows a program's instructions">CPU</abbr> use (95th percentile), network use and, for Arm machines, memory use all stay under 20 %. This chapter first said a running Dwarpal keeps well above that. Measured on the live server (10 Nov), it doesn't: with few visitors it uses about 12 % of the memory and almost no <abbr title="Central Processing Unit — the chip that follows a program's instructions">CPU</abbr>. The account is now Pay As You Go; Oracle's page on reclamation names only <em>Always Free</em> instances and doesn't say whether upgraded accounts are spared. Until that is confirmed, the outside check (§5.8.5) would email the owner if the server stopped.</li>
 </ul>
 </div>
 <h3 id="582-everything-the-server-will-run">5.8.2 Everything the server will run</h3>
@@ -34389,6 +34389,7 @@ L898902C36UTO7408122F1204159ZE184226B&lt;&lt;&lt;&lt;&lt;10
 <li><strong>2 cores is unmeasured.</strong> The load test met its target on 4 cores (§5.7.4); on this server it still needs measuring.</li>
 <li><strong>No age model is certified yet.</strong> Live checks are decided by an ID document until one is (decision D24); the demo shop uses a <strong>test</strong> key.</li>
 <li><strong>The free name</strong> depends on DuckDNS's volunteers (§6.7).</li>
+<li><strong>Oracle may stop an idle free server</strong> (§5.8.1). Dwarpal with few visitors looks idle by Oracle's measures; whether the upgraded account is spared isn't confirmed.</li>
 <li><strong>The refund</strong> of Oracle's verification amount was still open when this was written.</li>
 </ul>
 </div>
@@ -35804,7 +35805,7 @@ These three lines ...
 <dt>X-Forwarded-For</dt>
 <dd>A header that a reverse proxy such as Caddy adds to each request it passes on, saying which address the request really came from: the service behind the proxy sees only the proxy's own address. (§5.8.2)</dd>
 </dl>
-    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-11-10 18:22 UTC</footer>
+    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-11-10 18:31 UTC</footer>
   </main>
 </div>
 <script>

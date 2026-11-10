@@ -22,7 +22,7 @@ On launch night Oracle's console refused this file as the initialization script,
 
 !!! honest "Honest limitation"
     - **Capacity on 2 cores is unmeasured.** The load test met its target — 50 people checking at once — on 4 cores (§5.7.4). On 2 it will be measured again once the server runs; until then, expect about half.
-    - **Oracle may reclaim an idle free server** (for Arm machines, memory use under 20 % for a week). A running Dwarpal keeps well above that, but a stopped one could be taken back.
+    - **Oracle may reclaim an idle free server.** It counts one as idle when, over 7 days, CPU use (95th percentile), network use and, for Arm machines, memory use all stay under 20 %. This chapter first said a running Dwarpal keeps well above that. Measured on the live server (10 Nov), it doesn't: with few visitors it uses about 12 % of the memory and almost no CPU. The account is now Pay As You Go; Oracle's page on reclamation names only *Always Free* instances and doesn't say whether upgraded accounts are spared. Until that is confirmed, the outside check (§5.8.5) would email the owner if the server stopped.
 
 ### 5.8.2 Everything the server will run
 
