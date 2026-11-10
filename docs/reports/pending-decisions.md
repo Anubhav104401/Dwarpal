@@ -4,6 +4,32 @@ Work that needs your answer — a download, a design choice, an account, or some
 
 **Started:** 26 Oct 2026, overnight run. **Phase 4 is complete** (commits `450bfba`, `7d730ee`, `95f3e91`).
 
+## Morning summary — 11 Nov (after launch night)
+
+**Dwarpal is live** at https://dwarpal-age.duckdns.org (console at `/console`, demo shop at `shop.`), with HTTPS,
+alert emails, nightly encrypted backups and a passing restore drill: Phase 8's exit is met. O2c, O8, O9 and O10 are
+done. The whole night is explained from zero in Part 6 of the book.
+
+Done overnight, without needing you:
+- Full local check on tonight's commits: lint, types, 349 + 76 tests, the book at 100 % — all green.
+- The live server looked over: 12 services healthy, no errors, memory 1.4 of 12 GB, disk 26 %.
+- Found and recorded: Oracle's idle-reclaim rule (Phase 8 report, item 15). The book had claimed Dwarpal stays above it; it doesn't, and that is corrected.
+- **The first automatic nightly backup passed**: the timer ran it at 02:04 IST (20:34 UTC), it finished in 7 seconds with result `success`, and restic's check of the repository (4 snapshots) found no errors. Nothing to do.
+
+**Only you can do these** (in order of importance):
+
+1. **Push the commits.** `762160f` and `cc78206` (and this summary's) are committed but not pushed; the push needs your
+   go-ahead. In a terminal in the project folder: `git push origin main`. CI then runs on them.
+2. **Keep the backup password offline.** It was shown in the terminal tab *backup password* last night. If you
+   haven't saved it in a password manager or on paper yet, do it: without it no backup can be read. Then close that tab.
+3. **Delete the Oracle secret from Notepad**, without saving the file. It now lives only in the server's `backup.env`.
+4. **Oracle Support, SR 4-0004261639**: reply to their question (posted or pending, any reversal) if you haven't yet.
+   While you're there, you could also ask whether a Pay As You Go account's Always Free instance can still be
+   reclaimed as idle (report item 15).
+5. **The load test on the real server** (report item 3) needs your approval: it would make a separate test key in your
+   console, create a few thousand test sessions in the live database for about 10 minutes, and could send alert
+   emails while it runs. Say yes and when.
+
 ## Decisions for the night of 8→9 Nov (recorded at its start, for your review at 10 am)
 
 The owner asked (8 Nov, evening) for every decision of the night to be recorded at once, at its start, and not to be
