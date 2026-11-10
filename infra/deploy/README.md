@@ -19,7 +19,12 @@ One server (Oracle Cloud's Always Free Ampere machine, decision O2b), Docker Com
 ## First-time setup
 
 Done once, after the server exists (the owner's steps: account, instance with `cloud-init.yaml`, ports 80/443 open in
-the network's security list, and a name for it).
+the network's security list, and a name for it). Done on 10 Nov 2026 for `dwarpal-age.duckdns.org`.
+
+**If Oracle refuses `cloud-init.yaml`** ("Incorrectly formatted request", as it did on 10 Nov), create the instance
+with the initialization script empty, then run the same steps over SSH as root: the `write_files` contents into their
+paths, the `packages` with `apt-get install`, and the `runcmd` lines in order (`iptables-persistent` asks two
+questions on install: answer them first with `debconf-set-selections`). The result is the same server.
 
 1. **A name for the server** — the *domain* in the steps below. Either:
    - **A free DuckDNS name** (decision D40). Sign in at [duckdns.org](https://www.duckdns.org) with an account you
@@ -95,7 +100,9 @@ the network's security list, and a name for it).
    leaves the shop out: without its key it can't serve a page, and every deploy would wait for it in vain.)
 8. **Backups.** Create an Object Storage bucket `dwarpal-backups` and a *customer secret key* (Oracle's S3-style key),
    write `/opt/dwarpal/backup.env` as described at the top of `backup.sh` (mode 600), store the restic password
-   offline as well, then schedule it daily:
+   offline as well, then schedule it daily. The scripts take the storage's region from its address (Oracle refuses
+   requests signed for another region with a bare "Access Denied"). A brand-new secret key may be refused now and
+   then for its first few minutes: run the backup again.
 
    ```
    sudo tee /etc/systemd/system/dwarpal-backup.service >/dev/null <<'EOF'

@@ -11,10 +11,15 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Oracle's S3-compatible storage refuses ("Access Denied") anything signed for another region, and restic doesn't
+# work the region out from the address by itself: take it from the address (…objectstorage.<region>.oraclecloud.com).
+region="$(sed -n 's/^RESTIC_REPOSITORY=.*objectstorage\.\([a-z0-9-]*\)\.oraclecloud\.com.*/\1/p' backup.env)"
+region_option=(${region:+-o "s3.region=$region"})
+
 restic() {
   docker run --rm -i --env-file backup.env -e RESTIC_CACHE_DIR=/cache \
     -v dwarpal-restic-cache:/cache -v "$PWD/.env:/secrets/.env:ro" \
-    restic/restic:0.19.1 "$@"
+    restic/restic:0.19.1 "${region_option[@]}" "$@"
 }
 
 # Create the repository on first use (restic says so, harmlessly, if it already exists).

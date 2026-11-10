@@ -6,9 +6,13 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# The storage's region, from its address — Oracle refuses requests signed for another one (see backup.sh).
+region="$(sed -n 's/^RESTIC_REPOSITORY=.*objectstorage\.\([a-z0-9-]*\)\.oraclecloud\.com.*/\1/p' backup.env)"
+region_option=(${region:+-o "s3.region=$region"})
+
 restic() {
   docker run --rm -i --env-file backup.env -e RESTIC_CACHE_DIR=/cache -v dwarpal-restic-cache:/cache \
-    restic/restic:0.19.1 "$@"
+    restic/restic:0.19.1 "${region_option[@]}" "$@"
 }
 
 drill=dwarpal-restore-drill

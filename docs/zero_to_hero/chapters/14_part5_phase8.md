@@ -4,9 +4,9 @@ Phases 1–7 run on one computer. Phase 8 puts Dwarpal on the internet: a server
 
 | Area | What | Status |
 | :-- | :-- | :-- |
-| Server | A cloud server, prepared by a script: hardened SSH, a firewall, automatic security updates | 🟡 the first-boot script (§5.8.1); the account exists, the server isn't made yet |
-| Running services | The production Compose file with Caddy; the domain and its DNS; images on GHCR; deployment over SSH, checked and reversible | 🟡 all written and checked here (§5.8.2); waits for the server, the domain, and approval to pull base images and publish (D17, D18) |
-| Data safety | Encrypted off-site backups, and a restore drill on record | 🟡 backup and drill scripts (§5.8.2); wait for a storage bucket (O8) and restic's image (D17) |
+| Server | A cloud server, prepared by a script: hardened SSH, a firewall, automatic security updates | ✅ live since 10 Nov 2026: the first-boot script's steps, run over SSH (Part 6) |
+| Running services | The production Compose file with Caddy; the domain and its DNS; images on GHCR; deployment over SSH, checked and reversible | ✅ deployed 10 Nov at `dwarpal-age.duckdns.org` (§5.8.2, Part 6) |
+| Data safety | Encrypted off-site backups, and a restore drill on record | ✅ nightly backups to Object Storage; the restore drill passed on the server, 10 Nov (Part 6, §6.12) |
 | Operations | Runbooks: deploy, roll back, rotate keys, restore, incidents | 🟢 `docs/operations/runbooks.md` |
 | Kubernetes | A Helm chart, checked in CI | 🟢 the chart (§5.8.3), linted and rendered by CI with Helm 4 (D19) |
 
@@ -17,6 +17,8 @@ The owner chose **Oracle Cloud's free tier** (decision O2), in its India South (
 A server must be safe before anything runs on it. Instead of typing commands into it, Dwarpal describes it in one file that the server reads on its first boot:
 
 !walk infra/vm/cloud-init.yaml
+
+On launch night Oracle's console refused this file as the initialization script, so its steps were run over SSH right after the server started, with the same result (§6.2, §6.4).
 
 !!! honest "Honest limitation"
     - **Capacity on 2 cores is unmeasured.** The load test met its target — 50 people checking at once — on 4 cores (§5.7.4). On 2 it will be measured again once the server runs; until then, expect about half.

@@ -1,6 +1,6 @@
 # Phase 8 report — deployment
 
-**Dates:** from 1 Nov 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Design:** [ADR-0015](../adr/0015-single-vm-compose-deployment.md) · **Status:** 🟡 in progress — everything the server will run is written and checked locally; the base images (D17), public packages (D18) and Helm (D19) were approved on 2 Nov; the server, the domain, backups' storage and the first deploy wait for the owner's steps ([pending decisions](pending-decisions.md): O2c, O10, O8, O9)
+**Dates:** from 1 Nov 2026 · **Roadmap:** [05_roadmap.md](../design/05_roadmap.md) · **Design:** [ADR-0015](../adr/0015-single-vm-compose-deployment.md) · **Status:** ✅ exit met on 10 Nov 2026 — live at https://dwarpal-age.duckdns.org (console, verify flow, demo shop), and the restore drill passed on the server (below). Open: capacity on 2 cores (item 3)
 
 **Exit (from the roadmap):** a public HTTPS address serving the demo shop, the verify flow and the console; a successful restore drill on record.
 
@@ -27,12 +27,36 @@
 | Compose vs generator | every `${NAME}` without a default is written by the generator (test) |
 | Shell scripts | parse (`bash -n`); all stop at the first error (`set -euo pipefail`, test) |
 
+## Launch — 10 Nov 2026
+
+Oracle Cloud, India South (Hyderabad): one `VM.Standard.A1.Flex` instance, 2 OCPU / 12 GB, Ubuntu 24.04 for Arm, in a VCN made with Oracle's *VCN with Internet Connectivity* wizard (ports 22, 80, 443). The account was upgraded to Pay As You Go after *Out of capacity* on the free tier; it stays inside the Always Free limits, with a ₹100 budget alert.
+
+- **Server setup**: Oracle refused `infra/vm/cloud-init.yaml` as the instance's initialization script (*Incorrectly formatted request*); the same steps ran over SSH instead, and the README now says so (item 14).
+- **Deploy**: GitHub settings (O9) and the `production` environment with approval; *deploy #1* built the four images on Arm and, once approved, deployed them. Every service healthy; Let's Encrypt certificate until 8 Feb 2027; inference `{"status":"ready","antispoof":"loaded"}`.
+- **Demo shop** (README step 7): project *Demo shop*, test key; its button created a verification session (`POST /v1/verification-sessions` → 201).
+- **Alerts** (step 10): a Gmail app password; a test alert through Alertmanager arrived (item 4).
+- **Backups** (step 8, O8): bucket `dwarpal-backups`, restic, nightly at 20:30 UTC (systemd timer). The first backup found item 14.
+
+**Restore drill on the server** (the exit criterion):
+
+```
+restore drill 2026-11-10T17:54Z: snapshot d1548c89 restored
+migration 0013
+  alembic_version: 1 rows      api_keys: 1 rows        audit_heads: 1 rows      audit_log: 3 rows
+  memberships: 1 rows          organizations: 1 rows   projects: 2 rows         signing_keys: 1 rows
+  users: 1 rows                verification_sessions: 1 rows
+  (the other 11 tables: 0 rows)
+restore drill: OK
+```
+
+The whole night, explained from zero, is Part 6 of the book.
+
 ## Open items
 
-1. **The server, domain and first deploy** — owner's steps (instance with cloud-init, security list, DNS, GitHub settings: O9) and approvals (base images D17, publishing D18). **The domain is decided**: a free DuckDNS name (D40, 8 Nov). On 9 Nov the README's step 1 was rewritten for it (`dwarpal` itself is taken; `dwarpal-age` and `getdwarpal` were free), after checking that DuckDNS answers every name under one and that duckdns.org is on the Public Suffix List; `gen_secrets.py` now refuses anything but a bare domain.
-2. **Backups and the restore drill** — need the storage bucket and key (O8); the drill's report is Phase 8's exit criterion.
+1. ~~The server, domain and first deploy~~ — **done 10 Nov** (Launch, above). Before that: owner's steps (instance with cloud-init, security list, DNS, GitHub settings: O9) and approvals (base images D17, publishing D18). **The domain is decided**: a free DuckDNS name (D40, 8 Nov). On 9 Nov the README's step 1 was rewritten for it (`dwarpal` itself is taken; `dwarpal-age` and `getdwarpal` were free), after checking that DuckDNS answers every name under one and that duckdns.org is on the Public Suffix List; `gen_secrets.py` now refuses anything but a bare domain.
+2. ~~Backups and the restore drill~~ — **done 10 Nov**: nightly backups to Object Storage, and the drill passed (Launch, above).
 3. **Capacity on 2 cores** — re-run the load test against the server (NFR-05 was met on 4 cores).
-4. ~~Alert delivery~~ — **built 2 Nov**: by email (the owner's choice) — the collector, Prometheus and Alertmanager in the production Compose file under the `alerts` profile, switched on by `alert_email.py` (README step 10); their settings are checked in CI. **Rehearsed in CI since 9 Nov**: `alert_email.py` switches them on, they start with its files, the API's counts reach Prometheus (`http_server_duration_milliseconds_count`, which the rules read), the availability rule computes, and Alertmanager is connected. Not yet sent a real mail (needs the server's mail account). **From outside** (D33, 9 Nov), the scheduled `uptime` workflow asks the API's `/readyz` and the home page every 15 minutes and checks that both certificates last another week; GitHub emails the owner when a check fails. It is skipped until `DWARPAL_PUBLIC_API_URL` is set (README step 11).
+4. ~~Alert delivery~~ — **built 2 Nov**: by email (the owner's choice) — the collector, Prometheus and Alertmanager in the production Compose file under the `alerts` profile, switched on by `alert_email.py` (README step 10); their settings are checked in CI. **Rehearsed in CI since 9 Nov**: `alert_email.py` switches them on, they start with its files, the API's counts reach Prometheus (`http_server_duration_milliseconds_count`, which the rules read), the availability rule computes, and Alertmanager is connected. **A real mail arrived on 10 Nov** (a test alert from the server). **From outside** (D33, 9 Nov), the scheduled `uptime` workflow asks the API's `/readyz` and the home page every 15 minutes and checks that both certificates last another week; GitHub emails the owner when a check fails. It is skipped until `DWARPAL_PUBLIC_API_URL` is set (README step 11).
 5. ~~Helm chart's check~~ — **done 2 Nov** (D19): CI downloads Helm 4.3.1, checks its SHA-256, lints the chart with `--strict` and renders its 14 objects on every push. The chart has never been installed on a real cluster.
 6. **Static INT8 and per-domain web builds** — the web image carries the API's address; a domain change means a rebuild.
 7. **The images in CI** — **added 9 Nov**: CI's `images` job builds all four production images on GitHub's Arm machines on every push (never published) and starts each as far as it can alone — the API loads its code; the inference image runs read-only with the models mounted, as on the server, and reports itself ready with Tesseract (its anti-spoofing networks are missing there: they are made on the owner's computer — item 9); the web app serves a verify page. A broken Dockerfile now shows up before the first deploy — and the first run found two that would have stopped it: the Python images lacked the Python SDK's `pyproject.toml` (a workspace member added later), and the model fetcher ran without httpx (in the deploy workflow too). Both fixed, each with a test.
@@ -42,3 +66,4 @@
 11. **The jobs across organisations** — **found and fixed 9 Nov**: the webhook worker and the hourly maintenance used the API's settings, so they logged in as `dwarpal_api`, which row-level security binds; naming no tenant, they would have seen no rows — no webhooks sent, no sessions swept, **no purge after the retention period** — silently. They now log in as the tables' owner (`x-owner-env`), and an `operator` service runs the migrations and the runbooks' tools the same way (the runbooks' `rotate-key`/`revoke-key` had the same flaw). A test checks the Compose file; the rehearsal checks the maintenance job sees every organisation.
 12. **The demo shop's keys** — **changed 9 Nov**: the shop fetched the token-signing keys from the issuer's public address, so on the server it would have left the machine to come back to it — which a cloud's network doesn't always route. The Node SDK now exports `remoteKeys(address)`, and the shop fetches the keys over the private network (`http://api:8000`) while still checking the public issuer exactly (tested; the shop's browser test passes).
 13. **Restoring a lost server** — **runbook fixed 9 Nov**: section 4 restored `.env` into a throwaway container's own folder (lost when it exits) and ran `pg_restore` before the roles the dump's permissions name existed on a new server. It now restores into a mounted folder and makes the roles first, as `restore_drill.sh` does; the CI rehearsal restores the secrets file with that command and compares it with the original.
+14. **Two first-night surprises** — **found and fixed 10 Nov**: (a) Oracle's console refused `cloud-init.yaml` as the initialization script, so README's first-time setup now says to create the instance without it and run its steps over SSH if Oracle refuses it; (b) the first backup failed with *Access Denied* although the key was right: Oracle's S3-compatible storage accepts only requests signed for its own region, and restic didn't derive it from the address. `backup.sh` and `restore_drill.sh` now read the region from `RESTIC_REPOSITORY` (`…objectstorage.<region>.oraclecloud.com`) and pass `-o s3.region=…`; other repositories (CI's rehearsal) get no option. A brand-new customer secret key was also accepted only intermittently for some minutes — retrying is enough.
