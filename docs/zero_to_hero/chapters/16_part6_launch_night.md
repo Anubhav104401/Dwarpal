@@ -328,8 +328,30 @@ The storage is reached through its **S3-compatible** interface, the way Amazon's
 
 !!! honest "Honest limitation"
     - **One server, one region.** If Oracle's Hyderabad building has an outage, Dwarpal is down until it's back. The Helm chart (§5.8.3) is ready for a bigger setup when it's needed.
-    - **2 cores is unmeasured.** The load test met its target on 4 cores (§5.7.4); on this server it still needs measuring.
+    - **2 cores is only partly measured.** The load test met its target on 4 cores (§5.7.4). On this server a first, short run on 11 Nov (§6.14) timed everything except the real age model, and was cut short by Dwarpal's own per-address limit.
     - **No age model is certified yet.** Live checks are decided by an ID document until one is (decision D24); the demo shop uses a **test** key.
     - **The free name** depends on DuckDNS's volunteers (§6.7).
     - **Oracle may stop an idle free server** (§5.8.1). Dwarpal with few visitors looks idle by Oracle's measures; whether the upgraded account is spared isn't confirmed.
     - **The refund** of Oracle's verification amount was still open when this was written.
+
+## 6.14 The morning after: three things the first real use found
+
+The morning after launch, the owner used Dwarpal as a visitor would — and that found what no automatic check had.
+
+**1. The check passed, but the shop wouldn't let them in.** The camera check finished with "You're all set", then the shop showed "Something went wrong". The shop's log said why: *unexpected "aud" claim value*. When a check passes, Dwarpal gives the shop a signed **pass token**, like a stamped ticket. The ticket names who it's for — its **audience** (`aud`) — so a ticket made for one website can't be used at another. The shop compares that name with its own project ID, and refuses a ticket made for anyone else.
+
+Both names were the same project, written two ways. A database stores the ID as a UUID (`01a1c66b-…`); everything outside it — the console, the tokens — shows the shorter, public form (`prj_01M736PB…`), the same number in a different alphabet. On launch night the assistant copied the UUID into the server's settings (`DWARPAL_SHOP_PROJECT_ID`). So every check passed and every visitor was then turned away. It was fixed in a minute — the right form in `.env`, the shop restarted — and the shop now refuses to **start** with an ID in the wrong form (`apps/demo-shop/lib/config.ts`, with a test), so this mistake would stop a deploy instead of every customer.
+
+!walk apps/demo-shop/lib/config.test.ts
+
+**2. A forgotten console password.** The console has no "forgot password" page yet. The password itself can't be looked up: only its **hash** is stored (Argon2id, §5.4.5) — a fingerprint that can check a password but never turn back into one. So the owner set a new one with a small script run on the server, typing it into their own terminal: the script hashed it and saved the hash, and the assistant never saw the password. The change is recorded in the audit log.
+
+**3. The first load test on the real server.** The test (§5.7.4) plays 50 people taking checks, each every 15–25 seconds, from the assistant's laptop, with a separate test key, revoked afterwards. Two things got in its way, and both are Dwarpal working as designed:
+
+- **The stand-in age model** on the server accepts only the ready-made policies, so the test's own policy was refused; the test can now use an existing one (`DWARPAL_LOAD_POLICY`).
+- **A safety limit**: one network address may take only 120 challenges an hour, to stop someone retrying endlessly. All 50 simulated people shared one address, so after a minute every further challenge was refused (`429`). Lifting it for the test was left for another day.
+
+What the minute did measure, on 2 cores: creating a session, starting it and getting a challenge each took under 0.15 s (95th percentile); a face attempt took about 1.2 s typically and 2.5 s at worst — without the real age model, which on the laptop added about 0.4 s. In that first minute all 50 people sent their first attempt within about 10 seconds; the inference service, with its 2 workers, turned away 70 of 120 as busy (always safely: "try again", never a pass) while its CPU sat near 180 % of 200 %.
+
+!!! honest "Honest limitation"
+    The capacity target (50 people in a check, p95 under 1.5 s) is still unproven on this server: the run was short, from one address, without the real age model, and started everyone at once. A fair run needs the per-address limit raised for its few minutes, or many addresses.

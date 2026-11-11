@@ -28,6 +28,9 @@ FRAMES = 8
 # The policy every check follows: 18+, at the risk budget the current age model is calibrated for (0.075). The presets
 # ask for 0.02, which this model can't yet promise, so the API would refuse them.
 POLICY = {"name": "loadtest_18", "min_age": 18, "risk_budget": 0.075}
+# Or a policy that already exists (DWARPAL_LOAD_POLICY), such as a preset: a server with only the stand-in age model
+# (the live one, D24) has thresholds for the presets' budget alone, and refuses the policy above.
+EXISTING_POLICY = os.environ.get("DWARPAL_LOAD_POLICY")
 # Seconds each person waits between checks, as "low-high" (DWARPAL_LOAD_PAUSE_S). The default, 1 to 3, is a stress test:
 # far busier than real people, who spend 20 seconds or more on the verify page before sending an attempt.
 PAUSE = tuple(float(part) for part in os.environ.get("DWARPAL_LOAD_PAUSE_S", "1-3").split("-"))
@@ -36,6 +39,8 @@ PAUSE = tuple(float(part) for part in os.environ.get("DWARPAL_LOAD_PAUSE_S", "1-
 @events.test_start.add_listener
 def add_the_policy(environment: Environment, **_: object) -> None:
     """Once, before anyone starts: add (a new version of) the test's policy, as the website would."""
+    if EXISTING_POLICY:
+        return
     response = requests.post(
         f"{environment.host}/v1/policies", json=POLICY, headers={"Authorization": f"Bearer {KEY}"}, timeout=10
     )
@@ -51,7 +56,10 @@ class Person(HttpUser):
     def take_the_check(self) -> None:
         website = {"Authorization": f"Bearer {KEY}"}
         created = self.client.post(
-            "/v1/verification-sessions", json={"policy": POLICY["name"]}, headers=website, name="1 create session"
+            "/v1/verification-sessions",
+            json={"policy": EXISTING_POLICY or POLICY["name"]},
+            headers=website,
+            name="1 create session",
         ).json()
         session = created["id"]
         # A fresh device ID per check, as a new visitor would have: the per-device budget is not what is tested here.

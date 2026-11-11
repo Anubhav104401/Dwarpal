@@ -4,6 +4,8 @@ import { DwarpalClient } from "@dwarpal/node";
 export const POLICY = "uk_osa_18";
 export const MIN_AGE = 18;
 
+const PROJECT_ID = /^prj_[0-9A-Za-z]+$/;
+
 export interface ShopConfig {
   apiUrl: string;
   issuer: string;
@@ -26,7 +28,9 @@ export function shopConfig(env: NodeJS.ProcessEnv = process.env): ShopConfig {
   };
   const missing = [
     config.apiKey === "" ? "DWARPAL_API_KEY" : null,
-    config.projectId === "" ? "DWARPAL_PROJECT_ID" : null,
+    // The ID as the console shows it, and as pass tokens name their audience (prj_…): a raw UUID, the database's form
+    // of the same ID, would let every check pass and then refuse every visitor at the door.
+    PROJECT_ID.test(config.projectId) ? null : "DWARPAL_PROJECT_ID (the console's prj_… form)",
     config.secret.length < 32 ? "SHOP_SECRET (at least 32 characters)" : null,
   ].filter((name) => name !== null);
   if (missing.length > 0) {
