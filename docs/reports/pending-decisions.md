@@ -23,9 +23,9 @@ Done overnight, without needing you:
 2. **Keep the backup password offline.** It was shown in the terminal tab *backup password* last night. If you
    haven't saved it in a password manager or on paper yet, do it: without it no backup can be read. Then close that tab.
 3. **Delete the Oracle secret from Notepad**, without saving the file. It now lives only in the server's `backup.env`.
-4. **Oracle Support, SR 4-0004261639**: reply to their question (posted or pending, any reversal) if you haven't yet.
-   While you're there, you could also ask whether a Pay As You Go account's Always Free instance can still be
-   reclaimed as idle (report item 15).
+4. **Oracle Support, SR 4-0004261639**: ✅ answered on 10 Nov (posted, no reversal). The agent took the case at 23:50 IST;
+   status "Operations Working": nothing to do but wait. Their shift is Sun–Wed, 20:00–06:00 IST, so expect answers then.
+   Ask about idle reclamation (report item 15) in a **separate** request, so the refund case stays about the refund.
 5. **The load test on the real server** (report item 3) needs your approval: it would make a separate test key in your
    console, create a few thousand test sessions in the live database for about 10 minutes, and could send alert
    emails while it runs. Say yes and when.
@@ -237,7 +237,7 @@ The owner answered every waiting decision at once, and asked for the decided wor
 | O6 | Placeholder stays; publishing the practice statement stays blocked |
 | O5 | The DPIA, practice statement and compliance map are labelled **draft, not legally reviewed** |
 | O2 | **Oracle free tier** for Phase 8 when it starts (the owner creates the account and domain) |
-| O2b | **Decided 1 Nov: stay on Always Free.** Oracle tenancy in India South (Hyderabad); the server is sized to the Always Free allowance, **2 Ampere cores / 12 GB** (1,500 OCPU-h, 9,000 GB-h a month), from the start, so nothing is disabled when the 30-day trial (16 cores / 96 GB) ends. Consequences: NFR-05 (50 people in a check) was met on 4 cores, so the capacity on 2 must be measured again in Phase 8; Always Free servers idle for 7 days (A1: memory under 20 %) can be reclaimed, which the running stack's memory use keeps clear of |
+| O2b | **Decided 1 Nov: stay on Always Free.** Oracle tenancy in India South (Hyderabad); the server is sized to the Always Free allowance, **2 Ampere cores / 12 GB** (1,500 OCPU-h, 9,000 GB-h a month), from the start, so nothing is disabled when the 30-day trial (16 cores / 96 GB) ends. Consequences: NFR-05 (50 people in a check) was met on 4 cores, so the capacity on 2 must be measured again in Phase 8; Always Free servers idle for 7 days (A1: memory under 20 %) can be reclaimed, which the running stack's memory use keeps clear of (*corrected 10 Nov: measured live, it doesn't — about 12 % memory; Phase 8 report item 15*) |
 | D2b | *Optional, not blocking*: a Devanagari typeface for the Hindi pages (e.g. Noto Sans Devanagari, SIL OFL), which Geist lacks; today the visitor's system font is used. Not downloaded; ask when convenient |
 | D2c | *Not a download*: a native Hindi speaker to review `apps/web/messages/hi.json`, machine-drafted on 1 Nov |
 | D1b | *Optional, not blocking*: `@types/three` (TypeScript types for three.js, npm, 0.186.x) would replace the hand-written `apps/web/types/three.d.ts`. Not downloaded; ask when convenient |
