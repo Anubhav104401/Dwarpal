@@ -142,7 +142,7 @@ footer { margin-top: 4em; color: var(--text-3); font: 12px var(--mono); }
 <div class="topbar"><button id="top" type="button">Top</button><button id="theme" type="button">Theme</button></div>
 <div class="shell">
   <aside class="side">
-    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">576,182 words · 350 files · 31,804/31,804 lines explained (100.0%)</div></div>
+    <div class="side-head"><div class="name">Dwarpal — Zero to Hero</div><div class="meta">579,360 words · 350 files · 31,804/31,804 lines explained (100.0%)</div></div>
     <input id="q" type="search" placeholder="Filter sections (Ctrl+K)" autocomplete="off" aria-label="Filter sections">
     <nav class="toc"><a class="h1" href="#dwarpal-zero-to-hero">Dwarpal — Zero to Hero</a>
 <a class="h2" href="#what-this-book-is">What this book is</a>
@@ -433,6 +433,13 @@ footer { margin-top: 4em; color: var(--text-3); font: 12px var(--mono); }
 <a class="h2" href="#612-backups-a-copy-in-another-building">6.12 Backups: a copy in another building</a>
 <a class="h2" href="#613-the-night-in-order">6.13 The night in order</a>
 <a class="h2" href="#614-the-morning-after-three-things-the-first-real-use-found">6.14 The morning after: three things the first real use found</a>
+<a class="h2" href="#615-two-days-later-the-trained-age-model-goes-onto-the-server">6.15 Two days later: the trained age model goes onto the server</a>
+<a class="h2" href="#616-one-visit-start-to-finish-how-the-services-work-together">6.16 One visit, start to finish: how the services work together</a>
+<a class="h3" href="#the-story-of-a-visit">The story of a visit</a>
+<a class="h3" href="#the-story-of-a-deploy">The story of a deploy</a>
+<a class="h3" href="#the-four-ways-into-the-server-and-who-holds-each-key">The four ways into the server, and who holds each key</a>
+<a class="h2" href="#617-where-every-key-and-secret-lives">6.17 Where every key and secret lives</a>
+<a class="h2" href="#618-if-an-interviewer-asks">6.18 If an interviewer asks</a>
 <a class="h1" href="#part-x-how-this-book-is-built">Part X — How this book is built</a>
 <a class="h2" href="#x1-why-a-program-builds-this-book">X.1 Why a program builds this book</a>
 <a class="h2" href="#x2-the-pieces">X.2 The pieces</a>
@@ -33728,7 +33735,7 @@ L898902C36UTO7408122F1204159ZE184226B&lt;&lt;&lt;&lt;&lt;10
 </div>
 <h1 id="part-6-launch-night-putting-dwarpal-on-the-internet">Part 6 — Launch night: putting Dwarpal on the internet</h1>
 <p>On the evening of <strong>10 November 2026</strong>, Dwarpal left the laptop and went live at <strong><code>https://dwarpal-age.duckdns.org</code></strong>. The owner had never used a cloud service or a server before. They clicked through Oracle's console, GitHub's settings, DuckDNS and Google's account pages, one instruction at a time, without knowing what most of the screens were for. This part explains <strong>everything that happened that night, from zero</strong>: every service, every key, every click, and how all of it fits together into one working website.</p>
-<p>If you read only one part of this book to understand "how a website gets onto the internet", read this one.</p>
+<p>If you read only one part of this book to understand "how a website gets onto the internet", read this one. Its last four sections were added afterwards: the trained age model's move to the server (§6.15), how all the services work together on one visit (§6.16), where every key lives (§6.17), and short answers for an interview (§6.18).</p>
 <div class="admonition kid">
 <p class="admonition-title">Explain like I'm six</p>
 <p>Imagine you baked a wonderful cake at home (that's Dwarpal on the laptop). Tonight you <strong>rented a shop on a busy street</strong> (Oracle's server), <strong>got a lock and a key for its back door</strong> (SSH keys), <strong>put up a sign with the shop's name</strong> (DuckDNS), had <strong>a bakery factory make sealed boxes of your cake</strong> (GitHub building images), <strong>carried the boxes to the shop and opened it</strong> (the deploy), <strong>hired a guard who checks everyone at the front door</strong> (Caddy and <abbr title="HTTP inside an encrypted, tamper-proof envelope (TLS)">HTTPS</abbr>), <strong>asked a friend to phone you if anything breaks</strong> (alert emails) and <strong>put a copy of the recipe book in a bank locker every night</strong> (backups). Each section below is one of those steps.</p>
@@ -34037,7 +34044,7 @@ L898902C36UTO7408122F1204159ZE184226B&lt;&lt;&lt;&lt;&lt;10
 <ol>
 <li><strong>The deploy files</strong> were copied with <code>scp</code> into <code>/opt/dwarpal</code>: <code>compose.yaml</code> (which containers to run, §5.8.2), <code>Caddyfile</code> (which address goes to which container), the scripts, and the alert rules.</li>
 <li><strong>The secrets</strong> were <em>made on the server</em> by <code>gen_secrets.py</code>, and never left it: the database passwords, Valkey's password, the shop's secret, and the <strong>master key</strong> that locks the keys Dwarpal signs its age tokens with. They live in <code>/opt/dwarpal/.env</code>, readable by its owner only. Nobody, not even the assistant, ever saw them.</li>
-<li><strong>The AI models</strong> (six files, about 25 MB): face finding, face landmarks, hand landmarks, face recognition, and the two <strong>anti-spoofing</strong> networks that spot a photo or a screen held up to the camera. They were copied from the laptop with <code>scp</code>. Without the anti-spoofing pair, every live check would be refused, so the first thing checked after the deploy was <code>"antispoof":"loaded"</code>.</li>
+<li><strong>The AI models</strong> (six files, about 25 MB): face finding, face landmarks, hand landmarks, face recognition, and the two <strong>anti-spoofing</strong> networks that spot a photo or a screen held up to the camera. They were copied from the laptop with <code>scp</code>. Without the anti-spoofing pair, every live check would be refused, so the first thing checked after the deploy was <code>"antispoof":"loaded"</code>. The seventh model, the trained age model, followed two days later (§6.15).</li>
 </ol>
 <h2 id="66-github-the-factory-that-builds-and-delivers">6.6 GitHub: the factory that builds and delivers</h2>
 <h3 id="images-built-far-away">Images, built far away</h3>
@@ -34398,7 +34405,7 @@ L898902C36UTO7408122F1204159ZE184226B&lt;&lt;&lt;&lt;&lt;10
 <ul>
 <li><strong>One server, one region.</strong> If Oracle's Hyderabad building has an outage, Dwarpal is down until it's back. The Helm chart (§5.8.3) is ready for a bigger setup when it's needed.</li>
 <li><strong>2 cores is only partly measured.</strong> The load test met its target on 4 cores (§5.7.4). On this server a first, short run on 11 Nov (§6.14) timed everything except the real age model, and was cut short by Dwarpal's own per-address limit.</li>
-<li><strong>No age model is certified yet.</strong> Live checks are decided by an ID document until one is (decision D24); the demo shop uses a <strong>test</strong> key.</li>
+<li><strong>No age model is certified yet.</strong> Live checks are decided by an ID document until one is (decision D24); the demo shop uses a <strong>test</strong> key. Since 12 November the trained model decides those test checks (§6.15).</li>
 <li><strong>The free name</strong> depends on DuckDNS's volunteers (§6.7).</li>
 <li><strong>Oracle may stop an idle free server</strong> (§5.8.1). Dwarpal with few visitors looks idle by Oracle's measures; whether the upgraded account is spared isn't confirmed.</li>
 <li><strong>The refund</strong> of Oracle's verification amount was still open when this was written.</li>
@@ -34431,6 +34438,316 @@ L898902C36UTO7408122F1204159ZE184226B&lt;&lt;&lt;&lt;&lt;10
 <div class="admonition honest">
 <p class="admonition-title">Honest limitation</p>
 <p>The capacity target (50 people in a check, p95 under 1.5 s) is still unproven on this server: the run was short, from one address, without the real age model, and started everyone at once. A fair run needs the per-address limit raised for its few minutes, or many addresses.</p>
+</div>
+<h2 id="615-two-days-later-the-trained-age-model-goes-onto-the-server">6.15 Two days later: the trained age model goes onto the server</h2>
+<p>On launch night the server ran a <strong>stand-in</strong> age model: a tiny piece of code that pretends to estimate an age, so everything around it could be tested. The real, trained model stayed on the laptop. On <strong>12 November 2026</strong> it was put on the server too. This section is the whole of that change, because it is a good small example of "changing a live server by hand, safely".</p>
+<p><strong>What the model is.</strong> <code>age-convnext-tiny-2026.10.17</code> is one file, <code>model.onnx</code>, of 112 MB. It takes face pictures of 224 × 224 pixels and answers with 101 numbers per face: the chance that the person is 0, 1, 2 … 100 years old. It learnt from the FairFace photos and its pass marks were set on the UTKFace photos. Beside it sits <code>manifest.json</code>, the model's <strong>label</strong>: its name, its fingerprint, what it learnt from, its pass marks for each age line, and what it is allowed to decide.</p>
+<p><strong>Why it wasn't there already.</strong> Git is told to ignore every <code>.onnx</code> file (<code>.gitignore</code>), because Git is made for text, not for 112 MB of numbers. So the model is not on GitHub, and the deploy robot can't deliver it. It has to be carried by hand, like the six small models on launch night (§6.5).</p>
+<p><strong>The four steps, all over SSH from the laptop:</strong></p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th style="text-align: left;">#</th>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">The command, in words</th>
+<th style="text-align: left;">Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">Carry the two files</td>
+<td style="text-align: left;"><code>scp</code> copied <code>manifest.json</code> and <code>model.onnx</code> into <code>/opt/dwarpal/models/registry/age/age-convnext-tiny-2026.10.17/</code></td>
+<td style="text-align: left;">The containers read their models from <code>/opt/dwarpal/models</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">Check nothing broke on the way</td>
+<td style="text-align: left;"><code>sha256sum model.onnx</code> on the server gave <code>fd92579c…</code>, the same fingerprint the manifest names</td>
+<td style="text-align: left;">A file damaged in the copy would give a different fingerprint (§0.9)</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">Tell the server to use it</td>
+<td style="text-align: left;">A dated copy of <code>.env</code> was kept, then two lines were added to it: <code>DWARPAL_AGE_MANIFEST=registry/age/age-convnext-tiny-2026.10.17/manifest.json</code> and <code>DWARPAL_INFERENCE_AGE_BACKEND=onnx</code></td>
+<td style="text-align: left;">Containers read their settings from <code>.env</code> only when they start. The first line tells the <abbr title="Application Programming Interface — a menu of requests one program offers to other programs">API</abbr> which label to follow; the second tells the AI service to load a real model instead of the stand-in</td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: left;">Restart what reads those settings</td>
+<td style="text-align: left;"><code>docker compose up -d</code> recreated <code>inference</code>, <code>api</code>, <code>webhooks</code> and <code>maintenance</code>, and waited until each said <em>healthy</em></td>
+<td style="text-align: left;">The database, the website, the shop and Caddy were not touched, so the site stayed up</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>How we know it worked.</strong> Three checks, from the outside in:</p>
+<ol>
+<li>Anyone can open <code>https://api.dwarpal-age.duckdns.org/.well-known/dwarpal-configuration</code>. It now says <code>"age_model":"age-convnext-tiny-2026.10.17"</code>, <code>"age_model_calibrated":false</code> and <code>"live_checks":"document"</code>.</li>
+<li>The AI service's own health answer says <code>"age_model":"age-convnext-tiny-2026.10.17","antispoof":"loaded","ocr":"ready"</code>.</li>
+<li>Inside the AI container, the whole face pipeline was built and the model was run once: 3 faces took about 1.1 seconds on one processor thread.</li>
+</ol>
+<div class="admonition key">
+<p class="admonition-title">Key idea — the label decides what the model may do, not the person who installs it</p>
+<p>The manifest says <code>"calibrated": false</code>: this model has not met the release standard of at most 2 % wrong passes for every age and group. The <abbr title="Application Programming Interface — a menu of requests one program offers to other programs">API</abbr> reads that one word. While it is <code>false</code>, a <strong>live</strong> check (a <code>dk_live_…</code> key) still starts at the ID document (decision D24), and only <strong>test</strong> checks (a <code>dk_test_…</code> key, such as the demo shop's) are decided by the model from the camera. Nobody has to remember this rule; putting the file on the server can't switch it off.</p>
+</div>
+<div class="admonition honest">
+<p class="admonition-title">Honest limitation</p>
+<ul>
+<li><strong>Non-commercial only.</strong> The manifest says <code>"permitted_use": "non-commercial research only"</code>, because of the photos it was calibrated on and the starting weights it was trained from. A free demo for learning and interviews is inside that. Charging websites is not: that needs a model trained and calibrated on data that allows it.</li>
+<li><strong>A rebuilt server needs this step again.</strong> <code>infra/deploy/README.md</code> (step 4) now lists it, so a server restored from backups gets the trained model and not the stand-in.</li>
+<li><strong>Not yet measured under load.</strong> The 1.1 seconds is one quiet run. The load test of §6.14 has not been repeated with the real model.</li>
+</ul>
+</div>
+<p><strong>To go back to the stand-in</strong>, on the server: delete those two lines from <code>/opt/dwarpal/.env</code> and run <code>docker compose up -d api inference webhooks maintenance</code> in <code>/opt/dwarpal</code>.</p>
+<div class="admonition warn">
+<p class="admonition-title">Careful — every command belongs to one computer and one shell</p>
+<p>That last command was first pasted into <strong>Windows PowerShell on the laptop</strong>, and failed with <em>"The token '&amp;&amp;' is not a valid statement separator"</em>. Two things were wrong, and both are worth knowing. First, the command was for the <strong>server</strong>: <code>/opt/dwarpal</code> and Docker Compose exist there, not on the laptop. To run it, you first log in with <code>ssh</code> (§6.3), and then you are typing in the server's shell. Second, <code>&amp;&amp;</code> ("do the next thing only if the first worked") is a word of <strong>Bash</strong>, the shell on Linux. Windows PowerShell 5.1 doesn't know it. Nothing was harmed: PowerShell refused the whole line before running any of it. Before pasting a command, ask: <em>which computer is this for, and which shell is in front of me?</em> The prompt tells you: <code>PS C:\Users\anubh&gt;</code> is PowerShell on the laptop; <code>ubuntu@dwarpal:~$</code> is Bash on the server.</p>
+</div>
+<h2 id="616-one-visit-start-to-finish-how-the-services-work-together">6.16 One visit, start to finish: how the services work together</h2>
+<p>DuckDNS, Oracle, GitHub and Let's Encrypt never talk to each other. Each does one small job, and they only meet in two stories: <strong>a visit</strong> and <strong>a deploy</strong>. Follow each once and the whole thing fits in your head.</p>
+<h3 id="the-story-of-a-visit">The story of a visit</h3>
+<p>Someone types <code>https://shop.dwarpal-age.duckdns.org</code> on a phone.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th style="text-align: left;">#</th>
+<th style="text-align: left;">What happens</th>
+<th style="text-align: left;">Who does it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">The phone asks "what number has this name?" The question travels to DuckDNS's name servers, which answer <code>140.245.234.110</code> — the number typed into DuckDNS's page on launch night</td>
+<td style="text-align: left;"><strong><abbr title="Domain Name System — the internet's phone book, turning names into IP addresses">DNS</abbr> / DuckDNS</strong>. Its job ends here: no page, no picture, no byte of the visit ever passes through DuckDNS</td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">The phone opens a connection to that number, at door <strong>443</strong></td>
+<td style="text-align: left;">The internet. That number belongs to Oracle, who gave it to our instance</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">The connection passes two walls: Oracle's <strong>security list</strong> outside the computer, then <code>iptables</code> inside it. Both let 443 through</td>
+<td style="text-align: left;"><strong>Oracle's network</strong>, then <strong>Ubuntu</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: left;">Docker hands whatever arrives at doors 80 and 443 to the <strong>Caddy</strong> container, the only container with doors to the outside</td>
+<td style="text-align: left;"><strong>Docker</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">5</td>
+<td style="text-align: left;">Before any page is sent, the phone says which name it wants, and Caddy shows its <strong>certificate</strong> for that name. The phone checks that Let's Encrypt signed it and that the name matches. Then the two agree on a secret key for this visit, and everything after is encrypted</td>
+<td style="text-align: left;"><strong><abbr title="Transport Layer Security — the technology behind the browser padlock">TLS</abbr></strong>, the "S" in <abbr title="HTTP inside an encrypted, tamper-proof envelope (TLS)">HTTPS</abbr>. Let's Encrypt isn't asked during a visit: its signature on the certificate is enough</td>
+</tr>
+<tr>
+<td style="text-align: left;">6</td>
+<td style="text-align: left;">Caddy reads the name: <code>shop.</code> goes to the <code>shop</code> container, <code>api.</code> to <code>api</code>, the bare name to <code>web</code>. It passes the request along the server's private network</td>
+<td style="text-align: left;"><strong>Caddy</strong> as a <em>reverse proxy</em></td>
+</tr>
+<tr>
+<td style="text-align: left;">7</td>
+<td style="text-align: left;">The container answers; if it needs to, it asks others (<code>api</code> asks <code>postgres</code>, <code>valkey</code> and <code>inference</code>). The answer returns the way it came</td>
+<td style="text-align: left;"><strong>The containers</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>So the name is only a <strong>signpost</strong> to the number. If the server ever got a new number, one field on DuckDNS's page would change and nothing else.</p>
+<h3 id="the-story-of-a-deploy">The story of a deploy</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th style="text-align: left;">#</th>
+<th style="text-align: left;">What happens</th>
+<th style="text-align: left;">Who does it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">You push code to GitHub, open <em>Actions → deploy</em> and press <em>Run workflow</em></td>
+<td style="text-align: left;"><strong>You</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">GitHub lends Arm computers that build the four images and put them on GHCR</td>
+<td style="text-align: left;"><strong>GitHub Actions</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">The deploy step waits at the <code>production</code> gate until you approve</td>
+<td style="text-align: left;"><strong>GitHub</strong>, then <strong>you</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: left;">GitHub's robot logs in to the server over SSH: it finds the server by <code>DEPLOY_HOST</code> (the number, not the name), checks it is the real one with <code>DEPLOY_KNOWN_HOSTS</code>, and proves itself with <code>DEPLOY_SSH_KEY</code></td>
+<td style="text-align: left;"><strong>GitHub Actions → the server</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">5</td>
+<td style="text-align: left;">On the server, <code>deploy.sh</code> downloads the new images from GHCR and restarts the containers, waiting for <em>healthy</em></td>
+<td style="text-align: left;"><strong>The server ← GHCR</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Notice the directions. GitHub <strong>reaches in</strong> to the server once, by SSH, to start the deploy. The server <strong>reaches out</strong> to GHCR to fetch images. Oracle only provides the computer both happen on. DuckDNS plays no part in a deploy at all.</p>
+<h3 id="the-four-ways-into-the-server-and-who-holds-each-key">The four ways into the server, and who holds each key</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Way in</th>
+<th style="text-align: left;">Door</th>
+<th style="text-align: left;">Who can use it</th>
+<th style="text-align: left;">What they can do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A browser</td>
+<td style="text-align: left;">443 (and 80, which only redirects to 443)</td>
+<td style="text-align: left;">Everyone</td>
+<td style="text-align: left;">See pages; call the <abbr title="Application Programming Interface — a menu of requests one program offers to other programs">API</abbr> with a key</td>
+</tr>
+<tr>
+<td style="text-align: left;">Your SSH key</td>
+<td style="text-align: left;">22</td>
+<td style="text-align: left;">Whoever holds <code>C:\Users\anubh\.ssh\dwarpal</code></td>
+<td style="text-align: left;">Everything on the server</td>
+</tr>
+<tr>
+<td style="text-align: left;">The deploy SSH key</td>
+<td style="text-align: left;">22</td>
+<td style="text-align: left;">GitHub's deploy robot, after your approval</td>
+<td style="text-align: left;">Everything the <code>ubuntu</code> user can, though it only runs <code>deploy.sh</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Oracle's website</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">Whoever can sign in to your Oracle account</td>
+<td style="text-align: left;">Stop, restart or delete the whole computer</td>
+</tr>
+</tbody>
+</table></div>
+<p>That table is the whole <strong>attack surface</strong>: the complete list of what must be kept safe.</p>
+<h2 id="617-where-every-key-and-secret-lives">6.17 Where every key and secret lives</h2>
+<p>There is no single place called "the SSH key". There are several keys, each in exactly one or two places.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Thing</th>
+<th style="text-align: left;">Where it is</th>
+<th style="text-align: left;">Secret?</th>
+<th style="text-align: left;">If it's lost</th>
+<th style="text-align: left;">If it's stolen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Your private SSH key</td>
+<td style="text-align: left;">Laptop: <code>C:\Users\anubh\.ssh\dwarpal</code></td>
+<td style="text-align: left;"><strong>Yes</strong></td>
+<td style="text-align: left;">You can't log in. Oracle's console can still reach the instance, and a new public key can be added there</td>
+<td style="text-align: left;">Remove its line from <code>authorized_keys</code> on the server, make a new pair</td>
+</tr>
+<tr>
+<td style="text-align: left;">Your public SSH key</td>
+<td style="text-align: left;">Laptop: <code>C:\Users\anubh\.ssh\dwarpal.pub</code>; server: a line in <code>/home/ubuntu/.ssh/authorized_keys</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Made again from the private key (<code>ssh-keygen -y</code>)</td>
+<td style="text-align: left;">Nothing to fear</td>
+</tr>
+<tr>
+<td style="text-align: left;">The deploy private key</td>
+<td style="text-align: left;">Laptop: <code>C:\Users\anubh\.ssh\dwarpal_deploy</code>; GitHub: the secret <code>DEPLOY_SSH_KEY</code></td>
+<td style="text-align: left;"><strong>Yes</strong></td>
+<td style="text-align: left;">Deploys stop; make a new pair</td>
+<td style="text-align: left;">Remove its line from <code>authorized_keys</code>; your own key still works</td>
+</tr>
+<tr>
+<td style="text-align: left;">The deploy public key</td>
+<td style="text-align: left;">Laptop: <code>dwarpal_deploy.pub</code>; server: a second line in <code>authorized_keys</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">The server's host key</td>
+<td style="text-align: left;">Server: <code>/etc/ssh/</code> (made by Ubuntu on first start); its public half on the laptop in <code>C:\Users\anubh\.ssh\known_hosts</code> and on GitHub in <code>DEPLOY_KNOWN_HOSTS</code></td>
+<td style="text-align: left;">Private half: yes</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">Someone could pretend to be the server</td>
+</tr>
+<tr>
+<td style="text-align: left;">The app's secrets (database passwords, master key, shop key)</td>
+<td style="text-align: left;">Server only: <code>/opt/dwarpal/.env</code>; an encrypted copy in each nightly backup</td>
+<td style="text-align: left;"><strong>Yes</strong></td>
+<td style="text-align: left;">Restored from a backup</td>
+<td style="text-align: left;">Change them all (the runbooks say how)</td>
+</tr>
+<tr>
+<td style="text-align: left;">The token-signing keys (Ed25519)</td>
+<td style="text-align: left;">In the database, locked with the master key from <code>.env</code>; their <strong>public</strong> halves at <code>/.well-known/jwks.json</code> for any website to check tokens with</td>
+<td style="text-align: left;">Private halves: yes</td>
+<td style="text-align: left;">New ones are made</td>
+<td style="text-align: left;">Rotate them (the runbooks say how)</td>
+</tr>
+<tr>
+<td style="text-align: left;">The backup password</td>
+<td style="text-align: left;">Server: <code>/opt/dwarpal/backup.env</code>; your offline copy</td>
+<td style="text-align: left;"><strong>Yes</strong></td>
+<td style="text-align: left;"><strong>No backup can ever be read again</strong></td>
+<td style="text-align: left;">Backups could be read by the thief</td>
+</tr>
+<tr>
+<td style="text-align: left;">The <abbr title="HTTP inside an encrypted, tamper-proof envelope (TLS)">HTTPS</abbr> certificate and its key</td>
+<td style="text-align: left;">Inside Caddy's storage on the server</td>
+<td style="text-align: left;">Key: yes</td>
+<td style="text-align: left;">Caddy asks Let's Encrypt for a new one by itself</td>
+<td style="text-align: left;">Ask Let's Encrypt to revoke it</td>
+</tr>
+<tr>
+<td style="text-align: left;">GitHub, Oracle, DuckDNS and Gmail sign-ins</td>
+<td style="text-align: left;">In your head or password manager</td>
+<td style="text-align: left;"><strong>Yes</strong></td>
+<td style="text-align: left;">Each site's "forgot password"</td>
+<td style="text-align: left;">Change the password; turn on 2-step verification</td>
+</tr>
+</tbody>
+</table></div>
+<div class="admonition key">
+<p class="admonition-title">Key idea — two unrelated things are both called Ed25519 here</p>
+<p><strong>Ed25519</strong> is a method for signing, and Dwarpal uses it in two places that have nothing to do with each other. Your <strong>SSH keys</strong> are Ed25519 keys: they prove <em>you</em> to the <em>server</em>. Dwarpal's <strong>token-signing keys</strong> are also Ed25519 keys: they prove to a <em>website</em> that an "old enough" answer really came from <em>Dwarpal</em>. Same maths, different keys, different jobs.</p>
+</div>
+<div class="admonition try">
+<p class="admonition-title">Try it yourself</p>
+<p>In PowerShell on the laptop: <code>Get-ChildItem $HOME\.ssh</code> lists the key files. <code>Get-Content $HOME\.ssh\dwarpal.pub</code> shows your public key: one line starting <code>ssh-ed25519</code>. It is safe to look at. <strong>Don't</strong> print the file without <code>.pub</code>. Then log in — <code>ssh -i $HOME\.ssh\dwarpal ubuntu@140.245.234.110</code> — and on the server run <code>cat ~/.ssh/authorized_keys</code>: two lines, and the first is the very line you just saw on the laptop. Type <code>exit</code> to come back.</p>
+</div>
+<h2 id="618-if-an-interviewer-asks">6.18 If an interviewer asks</h2>
+<p>Short, true answers to the questions this deployment invites. Say them in your own words; the section in brackets is where the long answer is.</p>
+<p><strong>"Walk me through your deployment."</strong> One Arm virtual machine on Oracle Cloud's free tier, running Ubuntu. Twelve Docker containers started by Docker Compose. Caddy in front as the reverse proxy, ending <abbr title="HTTP inside an encrypted, tamper-proof envelope (TLS)">HTTPS</abbr> with a Let's Encrypt certificate. A free DuckDNS name points at the machine's public address. GitHub Actions builds the images, pushes them to GitHub's registry, and deploys over SSH behind a manual approval. Alerts by email, and encrypted backups every night to object storage, with a tested restore. (§6.1)</p>
+<p><strong>"Why Oracle and not AWS?"</strong> Its free tier gives an Arm machine with 12 GB of memory that never expires, enough to run the AI service. The free machines elsewhere are far smaller. (§6.2)</p>
+<p><strong>"What is SSH, and how does key login work?"</strong> An encrypted way to run commands on a remote computer. I hold a private key; the server holds the matching public key. The server sends a challenge, my computer signs it, the server checks the signature. The private key never leaves my laptop, and there is no password to guess. (§6.3)</p>
+<p><strong>"Why two SSH keys?"</strong> One for me, one for the deploy robot. If GitHub's secret ever leaked, I'd remove one line on the server and my own access would be untouched. That is <em>separation of duties</em>. (§6.3, §6.17)</p>
+<p><strong>"What is <code>known_hosts</code> for?"</strong> It stops a man in the middle. My laptop remembers the server's public host key from the first visit and refuses if it ever changes. (§6.3)</p>
+<p><strong>"What is <abbr title="Domain Name System — the internet's phone book, turning names into IP addresses">DNS</abbr>? What does DuckDNS do?"</strong> <abbr title="Domain Name System — the internet's phone book, turning names into IP addresses">DNS</abbr> turns names into addresses. DuckDNS is a free <abbr title="Domain Name System — the internet's phone book, turning names into IP addresses">DNS</abbr> provider: I own a name under <code>duckdns.org</code> and set which address it answers with. It only answers that one question; no traffic passes through it. (§6.7, §6.16)</p>
+<p><strong>"How do three sites run on one machine with one address?"</strong> Name-based routing. The browser sends the name it wants; Caddy reads it and forwards to the right container. DuckDNS answers every name under mine with the same address. (§6.8)</p>
+<p><strong>"How does <abbr title="HTTP inside an encrypted, tamper-proof envelope (TLS)">HTTPS</abbr> get set up?"</strong> Caddy asks Let's Encrypt for a certificate using the ACME protocol. Let's Encrypt checks that the server asking really controls the name, then signs a certificate for 90 days. Caddy renews it automatically. (§6.8)</p>
+<p><strong>"What is a reverse proxy, and why have one?"</strong> One front door for many services. It ends <abbr title="Transport Layer Security — the technology behind the browser padlock">TLS</abbr> in one place, routes by name, and keeps every other container off the internet. Only ports 22, 80 and 443 are open. (§6.4, §6.8)</p>
+<p><strong>"Docker image against container?"</strong> An image is the sealed, unchanging package of a program. A container is one running copy of it. I can throw a container away and start another from the same image and get the same program. (§0.14)</p>
+<p><strong>"Why build the images on GitHub and not on your laptop?"</strong> The server is Arm and my laptop isn't. GitHub has Arm build machines, so the image is built for the processor it will run on, the same way every time, from the exact commit. (§6.6)</p>
+<p><strong>"How does a deploy fail safely?"</strong> <code>deploy.sh</code> waits for every container's health check. If they aren't healthy in five minutes it goes back to the previous version. Database changes run as migrations before the new code starts. (§6.6)</p>
+<p><strong>"Where are your secrets?"</strong> Generated on the server, kept in one file readable by one user, never in Git. GitHub holds only the deploy key, as an encrypted secret. <abbr title="Application Programming Interface — a menu of requests one program offers to other programs">API</abbr> keys are stored as fingerprints, passwords as Argon2id hashes. (§6.5, §6.10, §6.17)</p>
+<p><strong>"How do you know when it breaks?"</strong> From inside: Prometheus rules and Alertmanager emails. From outside: a scheduled GitHub workflow that checks the site every 15 minutes, which catches the whole server being down. (§6.11)</p>
+<p><strong>"Have you ever restored a backup?"</strong> Yes, as a drill, into a throwaway database, with every table counted. A backup that has never been restored is only a hope. (§6.12)</p>
+<p><strong>"How did the AI model get to production?"</strong> By hand, over <code>scp</code>, because model files are too big for Git. I checked its <abbr title="Secure Hash Algorithm, 256-bit — turns any data into a fixed-size fingerprint">SHA-256</abbr> fingerprint against its manifest, switched two settings, and restarted only the containers that read them. (§6.15)</p>
+<p><strong>"Is your model production-ready?"</strong> No, and the system knows it. It is uncalibrated against the release standard and licensed for non-commercial research. The manifest says so, and the <abbr title="Application Programming Interface — a menu of requests one program offers to other programs">API</abbr> reads the manifest: live checks fall back to an ID document, and only test checks use the model. (§6.15)</p>
+<p><strong>"What would you change for real traffic?"</strong> A bought domain. More than one machine, in more than one region — the Helm chart for Kubernetes is already checked in CI. A model trained on data licensed for commercial use, calibrated to the release standard. And a load test that passes on the real hardware. (§6.13)</p>
+<p><strong>"What went wrong, and what did you learn?"</strong> Pick one and tell it straight; interviewers remember these more than successes. The shop turned away every visitor who had passed, because a project ID was in the database's form and not the public form — fixed, and the shop now refuses to start that way (§6.14). An app password was pasted into the wrong prompt, so it was thrown away and replaced (§6.11). "Access Denied" from the backup storage was really a wrong region (§6.12).</p>
+<p><strong>"Did you do all this yourself?"</strong> The honest answer is the strong one: <em>"I built it with an AI coding assistant. I did every step in the cloud consoles myself, the assistant ran the server commands over SSH, and afterwards I made sure I understood each piece — I can explain any of it."</em> Then prove it with any answer above.</p>
+<div class="admonition try">
+<p class="admonition-title">Try it yourself</p>
+<p>Cover the answers and say each one aloud. Then draw §6.1's picture from memory on paper. Where you get stuck is the section to read again.</p>
 </div>
 <h1 id="part-x-how-this-book-is-built">Part X — How this book is built</h1>
 <p>This part is placed near the end, but you can read it any time. It shows the <em>line-by-line format</em> used for the whole project. And it is the first real code in the project, so it is explained exactly like everything else will be.</p>
@@ -35844,7 +36161,7 @@ These three lines ...
 <dt>X-Forwarded-For</dt>
 <dd>A header that a reverse proxy such as Caddy adds to each request it passes on, saying which address the request really came from: the service behind the proxy sees only the proxy's own address. (§5.8.2)</dd>
 </dl>
-    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-11-11 11:07 UTC</footer>
+    <footer>Building a privacy-first AI age-assurance system, starting from absolutely nothing · built 2026-11-12 12:13 UTC</footer>
   </main>
 </div>
 <script>

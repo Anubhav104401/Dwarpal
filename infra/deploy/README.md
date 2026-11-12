@@ -82,6 +82,26 @@ questions on install: answer them first with `debconf-set-selections`). The resu
    session is never decided without the anti-spoofing verdict. `deploy.sh` says after each deploy whether they are
    loaded. While no age model is certified, live checks are decided by an ID document (decision D24) and the age
    estimate decides test checks only.
+
+   **The trained age model** (optional; on the live server since 12 Nov). Without it the server runs the stand-in.
+   `model.onnx` is not in Git (112 MB), so it is copied by hand, then switched on in `.env`:
+
+   ```
+   ssh ubuntu@<ip> mkdir -p /opt/dwarpal/models/registry/age/age-convnext-tiny-2026.10.17
+   scp registry/age/age-convnext-tiny-2026.10.17/manifest.json registry/age/age-convnext-tiny-2026.10.17/model.onnx \
+     ubuntu@<ip>:/opt/dwarpal/models/registry/age/age-convnext-tiny-2026.10.17/
+   ```
+
+   On the server, check `sha256sum model.onnx` against the manifest's `sha256`, add these two lines to
+   `/opt/dwarpal/.env`, and run `docker compose up -d api inference webhooks maintenance`:
+
+   ```
+   DWARPAL_AGE_MANIFEST=registry/age/age-convnext-tiny-2026.10.17/manifest.json
+   DWARPAL_INFERENCE_AGE_BACKEND=onnx
+   ```
+
+   The manifest says `calibrated: false` and `non-commercial research only`: the model decides test checks, and
+   live checks stay with the ID document.
 5. **GitHub settings** (repository → Settings):
    - *Variables*: `DWARPAL_PUBLIC_API_URL` = `https://api.<domain>`, `DEPLOY_HOST` = the server's IP,
      `DEPLOY_KNOWN_HOSTS` = the output of `ssh-keyscan <ip>` (so the deploy knows it's talking to the real server);

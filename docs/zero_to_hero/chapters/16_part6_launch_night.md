@@ -2,7 +2,7 @@
 
 On the evening of **10 November 2026**, Dwarpal left the laptop and went live at **`https://dwarpal-age.duckdns.org`**. The owner had never used a cloud service or a server before. They clicked through Oracle's console, GitHub's settings, DuckDNS and Google's account pages, one instruction at a time, without knowing what most of the screens were for. This part explains **everything that happened that night, from zero**: every service, every key, every click, and how all of it fits together into one working website.
 
-If you read only one part of this book to understand "how a website gets onto the internet", read this one.
+If you read only one part of this book to understand "how a website gets onto the internet", read this one. Its last four sections were added afterwards: the trained age model's move to the server (§6.15), how all the services work together on one visit (§6.16), where every key lives (§6.17), and short answers for an interview (§6.18).
 
 !!! kid "Explain like I'm six"
     Imagine you baked a wonderful cake at home (that's Dwarpal on the laptop). Tonight you **rented a shop on a busy street** (Oracle's server), **got a lock and a key for its back door** (SSH keys), **put up a sign with the shop's name** (DuckDNS), had **a bakery factory make sealed boxes of your cake** (GitHub building images), **carried the boxes to the shop and opened it** (the deploy), **hired a guard who checks everyone at the front door** (Caddy and HTTPS), **asked a friend to phone you if anything breaks** (alert emails) and **put a copy of the recipe book in a bank locker every night** (backups). Each section below is one of those steps.
@@ -165,7 +165,7 @@ A new Ubuntu computer on the internet is like a new house with the doors unlocke
 
 1. **The deploy files** were copied with `scp` into `/opt/dwarpal`: `compose.yaml` (which containers to run, §5.8.2), `Caddyfile` (which address goes to which container), the scripts, and the alert rules.
 2. **The secrets** were *made on the server* by `gen_secrets.py`, and never left it: the database passwords, Valkey's password, the shop's secret, and the **master key** that locks the keys Dwarpal signs its age tokens with. They live in `/opt/dwarpal/.env`, readable by its owner only. Nobody, not even the assistant, ever saw them.
-3. **The AI models** (six files, about 25 MB): face finding, face landmarks, hand landmarks, face recognition, and the two **anti-spoofing** networks that spot a photo or a screen held up to the camera. They were copied from the laptop with `scp`. Without the anti-spoofing pair, every live check would be refused, so the first thing checked after the deploy was `"antispoof":"loaded"`.
+3. **The AI models** (six files, about 25 MB): face finding, face landmarks, hand landmarks, face recognition, and the two **anti-spoofing** networks that spot a photo or a screen held up to the camera. They were copied from the laptop with `scp`. Without the anti-spoofing pair, every live check would be refused, so the first thing checked after the deploy was `"antispoof":"loaded"`. The seventh model, the trained age model, followed two days later (§6.15).
 
 ## 6.6 GitHub: the factory that builds and delivers
 
@@ -329,7 +329,7 @@ The storage is reached through its **S3-compatible** interface, the way Amazon's
 !!! honest "Honest limitation"
     - **One server, one region.** If Oracle's Hyderabad building has an outage, Dwarpal is down until it's back. The Helm chart (§5.8.3) is ready for a bigger setup when it's needed.
     - **2 cores is only partly measured.** The load test met its target on 4 cores (§5.7.4). On this server a first, short run on 11 Nov (§6.14) timed everything except the real age model, and was cut short by Dwarpal's own per-address limit.
-    - **No age model is certified yet.** Live checks are decided by an ID document until one is (decision D24); the demo shop uses a **test** key.
+    - **No age model is certified yet.** Live checks are decided by an ID document until one is (decision D24); the demo shop uses a **test** key. Since 12 November the trained model decides those test checks (§6.15).
     - **The free name** depends on DuckDNS's volunteers (§6.7).
     - **Oracle may stop an idle free server** (§5.8.1). Dwarpal with few visitors looks idle by Oracle's measures; whether the upgraded account is spared isn't confirmed.
     - **The refund** of Oracle's verification amount was still open when this was written.
@@ -355,3 +355,152 @@ What the minute did measure, on 2 cores: creating a session, starting it and get
 
 !!! honest "Honest limitation"
     The capacity target (50 people in a check, p95 under 1.5 s) is still unproven on this server: the run was short, from one address, without the real age model, and started everyone at once. A fair run needs the per-address limit raised for its few minutes, or many addresses.
+
+## 6.15 Two days later: the trained age model goes onto the server
+
+On launch night the server ran a **stand-in** age model: a tiny piece of code that pretends to estimate an age, so everything around it could be tested. The real, trained model stayed on the laptop. On **12 November 2026** it was put on the server too. This section is the whole of that change, because it is a good small example of "changing a live server by hand, safely".
+
+**What the model is.** `age-convnext-tiny-2026.10.17` is one file, `model.onnx`, of 112 MB. It takes face pictures of 224 × 224 pixels and answers with 101 numbers per face: the chance that the person is 0, 1, 2 … 100 years old. It learnt from the FairFace photos and its pass marks were set on the UTKFace photos. Beside it sits `manifest.json`, the model's **label**: its name, its fingerprint, what it learnt from, its pass marks for each age line, and what it is allowed to decide.
+
+**Why it wasn't there already.** Git is told to ignore every `.onnx` file (`.gitignore`), because Git is made for text, not for 112 MB of numbers. So the model is not on GitHub, and the deploy robot can't deliver it. It has to be carried by hand, like the six small models on launch night (§6.5).
+
+**The four steps, all over SSH from the laptop:**
+
+| # | Step | The command, in words | Why |
+| :-- | :-- | :-- | :-- |
+| 1 | Carry the two files | `scp` copied `manifest.json` and `model.onnx` into `/opt/dwarpal/models/registry/age/age-convnext-tiny-2026.10.17/` | The containers read their models from `/opt/dwarpal/models` |
+| 2 | Check nothing broke on the way | `sha256sum model.onnx` on the server gave `fd92579c…`, the same fingerprint the manifest names | A file damaged in the copy would give a different fingerprint (§0.9) |
+| 3 | Tell the server to use it | A dated copy of `.env` was kept, then two lines were added to it: `DWARPAL_AGE_MANIFEST=registry/age/age-convnext-tiny-2026.10.17/manifest.json` and `DWARPAL_INFERENCE_AGE_BACKEND=onnx` | Containers read their settings from `.env` only when they start. The first line tells the API which label to follow; the second tells the AI service to load a real model instead of the stand-in |
+| 4 | Restart what reads those settings | `docker compose up -d` recreated `inference`, `api`, `webhooks` and `maintenance`, and waited until each said *healthy* | The database, the website, the shop and Caddy were not touched, so the site stayed up |
+
+**How we know it worked.** Three checks, from the outside in:
+
+1. Anyone can open `https://api.dwarpal-age.duckdns.org/.well-known/dwarpal-configuration`. It now says `"age_model":"age-convnext-tiny-2026.10.17"`, `"age_model_calibrated":false` and `"live_checks":"document"`.
+2. The AI service's own health answer says `"age_model":"age-convnext-tiny-2026.10.17","antispoof":"loaded","ocr":"ready"`.
+3. Inside the AI container, the whole face pipeline was built and the model was run once: 3 faces took about 1.1 seconds on one processor thread.
+
+!!! key "Key idea — the label decides what the model may do, not the person who installs it"
+    The manifest says `"calibrated": false`: this model has not met the release standard of at most 2 % wrong passes for every age and group. The API reads that one word. While it is `false`, a **live** check (a `dk_live_…` key) still starts at the ID document (decision D24), and only **test** checks (a `dk_test_…` key, such as the demo shop's) are decided by the model from the camera. Nobody has to remember this rule; putting the file on the server can't switch it off.
+
+!!! honest "Honest limitation"
+    - **Non-commercial only.** The manifest says `"permitted_use": "non-commercial research only"`, because of the photos it was calibrated on and the starting weights it was trained from. A free demo for learning and interviews is inside that. Charging websites is not: that needs a model trained and calibrated on data that allows it.
+    - **A rebuilt server needs this step again.** `infra/deploy/README.md` (step 4) now lists it, so a server restored from backups gets the trained model and not the stand-in.
+    - **Not yet measured under load.** The 1.1 seconds is one quiet run. The load test of §6.14 has not been repeated with the real model.
+
+**To go back to the stand-in**, on the server: delete those two lines from `/opt/dwarpal/.env` and run `docker compose up -d api inference webhooks maintenance` in `/opt/dwarpal`.
+
+!!! warn "Careful — every command belongs to one computer and one shell"
+    That last command was first pasted into **Windows PowerShell on the laptop**, and failed with *"The token '&&' is not a valid statement separator"*. Two things were wrong, and both are worth knowing. First, the command was for the **server**: `/opt/dwarpal` and Docker Compose exist there, not on the laptop. To run it, you first log in with `ssh` (§6.3), and then you are typing in the server's shell. Second, `&&` ("do the next thing only if the first worked") is a word of **Bash**, the shell on Linux. Windows PowerShell 5.1 doesn't know it. Nothing was harmed: PowerShell refused the whole line before running any of it. Before pasting a command, ask: *which computer is this for, and which shell is in front of me?* The prompt tells you: `PS C:\Users\anubh>` is PowerShell on the laptop; `ubuntu@dwarpal:~$` is Bash on the server.
+
+## 6.16 One visit, start to finish: how the services work together
+
+DuckDNS, Oracle, GitHub and Let's Encrypt never talk to each other. Each does one small job, and they only meet in two stories: **a visit** and **a deploy**. Follow each once and the whole thing fits in your head.
+
+### The story of a visit
+
+Someone types `https://shop.dwarpal-age.duckdns.org` on a phone.
+
+| # | What happens | Who does it |
+| :-- | :-- | :-- |
+| 1 | The phone asks "what number has this name?" The question travels to DuckDNS's name servers, which answer `140.245.234.110` — the number typed into DuckDNS's page on launch night | **DNS / DuckDNS**. Its job ends here: no page, no picture, no byte of the visit ever passes through DuckDNS |
+| 2 | The phone opens a connection to that number, at door **443** | The internet. That number belongs to Oracle, who gave it to our instance |
+| 3 | The connection passes two walls: Oracle's **security list** outside the computer, then `iptables` inside it. Both let 443 through | **Oracle's network**, then **Ubuntu** |
+| 4 | Docker hands whatever arrives at doors 80 and 443 to the **Caddy** container, the only container with doors to the outside | **Docker** |
+| 5 | Before any page is sent, the phone says which name it wants, and Caddy shows its **certificate** for that name. The phone checks that Let's Encrypt signed it and that the name matches. Then the two agree on a secret key for this visit, and everything after is encrypted | **TLS**, the "S" in HTTPS. Let's Encrypt isn't asked during a visit: its signature on the certificate is enough |
+| 6 | Caddy reads the name: `shop.` goes to the `shop` container, `api.` to `api`, the bare name to `web`. It passes the request along the server's private network | **Caddy** as a *reverse proxy* |
+| 7 | The container answers; if it needs to, it asks others (`api` asks `postgres`, `valkey` and `inference`). The answer returns the way it came | **The containers** |
+
+So the name is only a **signpost** to the number. If the server ever got a new number, one field on DuckDNS's page would change and nothing else.
+
+### The story of a deploy
+
+| # | What happens | Who does it |
+| :-- | :-- | :-- |
+| 1 | You push code to GitHub, open *Actions → deploy* and press *Run workflow* | **You** |
+| 2 | GitHub lends Arm computers that build the four images and put them on GHCR | **GitHub Actions** |
+| 3 | The deploy step waits at the `production` gate until you approve | **GitHub**, then **you** |
+| 4 | GitHub's robot logs in to the server over SSH: it finds the server by `DEPLOY_HOST` (the number, not the name), checks it is the real one with `DEPLOY_KNOWN_HOSTS`, and proves itself with `DEPLOY_SSH_KEY` | **GitHub Actions → the server** |
+| 5 | On the server, `deploy.sh` downloads the new images from GHCR and restarts the containers, waiting for *healthy* | **The server ← GHCR** |
+
+Notice the directions. GitHub **reaches in** to the server once, by SSH, to start the deploy. The server **reaches out** to GHCR to fetch images. Oracle only provides the computer both happen on. DuckDNS plays no part in a deploy at all.
+
+### The four ways into the server, and who holds each key
+
+| Way in | Door | Who can use it | What they can do |
+| :-- | :-- | :-- | :-- |
+| A browser | 443 (and 80, which only redirects to 443) | Everyone | See pages; call the API with a key |
+| Your SSH key | 22 | Whoever holds `C:\Users\anubh\.ssh\dwarpal` | Everything on the server |
+| The deploy SSH key | 22 | GitHub's deploy robot, after your approval | Everything the `ubuntu` user can, though it only runs `deploy.sh` |
+| Oracle's website | — | Whoever can sign in to your Oracle account | Stop, restart or delete the whole computer |
+
+That table is the whole **attack surface**: the complete list of what must be kept safe.
+
+## 6.17 Where every key and secret lives
+
+There is no single place called "the SSH key". There are several keys, each in exactly one or two places.
+
+| Thing | Where it is | Secret? | If it's lost | If it's stolen |
+| :-- | :-- | :-- | :-- | :-- |
+| Your private SSH key | Laptop: `C:\Users\anubh\.ssh\dwarpal` | **Yes** | You can't log in. Oracle's console can still reach the instance, and a new public key can be added there | Remove its line from `authorized_keys` on the server, make a new pair |
+| Your public SSH key | Laptop: `C:\Users\anubh\.ssh\dwarpal.pub`; server: a line in `/home/ubuntu/.ssh/authorized_keys` | No | Made again from the private key (`ssh-keygen -y`) | Nothing to fear |
+| The deploy private key | Laptop: `C:\Users\anubh\.ssh\dwarpal_deploy`; GitHub: the secret `DEPLOY_SSH_KEY` | **Yes** | Deploys stop; make a new pair | Remove its line from `authorized_keys`; your own key still works |
+| The deploy public key | Laptop: `dwarpal_deploy.pub`; server: a second line in `authorized_keys` | No | — | — |
+| The server's host key | Server: `/etc/ssh/` (made by Ubuntu on first start); its public half on the laptop in `C:\Users\anubh\.ssh\known_hosts` and on GitHub in `DEPLOY_KNOWN_HOSTS` | Private half: yes | — | Someone could pretend to be the server |
+| The app's secrets (database passwords, master key, shop key) | Server only: `/opt/dwarpal/.env`; an encrypted copy in each nightly backup | **Yes** | Restored from a backup | Change them all (the runbooks say how) |
+| The token-signing keys (Ed25519) | In the database, locked with the master key from `.env`; their **public** halves at `/.well-known/jwks.json` for any website to check tokens with | Private halves: yes | New ones are made | Rotate them (the runbooks say how) |
+| The backup password | Server: `/opt/dwarpal/backup.env`; your offline copy | **Yes** | **No backup can ever be read again** | Backups could be read by the thief |
+| The HTTPS certificate and its key | Inside Caddy's storage on the server | Key: yes | Caddy asks Let's Encrypt for a new one by itself | Ask Let's Encrypt to revoke it |
+| GitHub, Oracle, DuckDNS and Gmail sign-ins | In your head or password manager | **Yes** | Each site's "forgot password" | Change the password; turn on 2-step verification |
+
+!!! key "Key idea — two unrelated things are both called Ed25519 here"
+    **Ed25519** is a method for signing, and Dwarpal uses it in two places that have nothing to do with each other. Your **SSH keys** are Ed25519 keys: they prove *you* to the *server*. Dwarpal's **token-signing keys** are also Ed25519 keys: they prove to a *website* that an "old enough" answer really came from *Dwarpal*. Same maths, different keys, different jobs.
+
+!!! try "Try it yourself"
+    In PowerShell on the laptop: `Get-ChildItem $HOME\.ssh` lists the key files. `Get-Content $HOME\.ssh\dwarpal.pub` shows your public key: one line starting `ssh-ed25519`. It is safe to look at. **Don't** print the file without `.pub`. Then log in — `ssh -i $HOME\.ssh\dwarpal ubuntu@140.245.234.110` — and on the server run `cat ~/.ssh/authorized_keys`: two lines, and the first is the very line you just saw on the laptop. Type `exit` to come back.
+
+## 6.18 If an interviewer asks
+
+Short, true answers to the questions this deployment invites. Say them in your own words; the section in brackets is where the long answer is.
+
+**"Walk me through your deployment."** One Arm virtual machine on Oracle Cloud's free tier, running Ubuntu. Twelve Docker containers started by Docker Compose. Caddy in front as the reverse proxy, ending HTTPS with a Let's Encrypt certificate. A free DuckDNS name points at the machine's public address. GitHub Actions builds the images, pushes them to GitHub's registry, and deploys over SSH behind a manual approval. Alerts by email, and encrypted backups every night to object storage, with a tested restore. (§6.1)
+
+**"Why Oracle and not AWS?"** Its free tier gives an Arm machine with 12 GB of memory that never expires, enough to run the AI service. The free machines elsewhere are far smaller. (§6.2)
+
+**"What is SSH, and how does key login work?"** An encrypted way to run commands on a remote computer. I hold a private key; the server holds the matching public key. The server sends a challenge, my computer signs it, the server checks the signature. The private key never leaves my laptop, and there is no password to guess. (§6.3)
+
+**"Why two SSH keys?"** One for me, one for the deploy robot. If GitHub's secret ever leaked, I'd remove one line on the server and my own access would be untouched. That is *separation of duties*. (§6.3, §6.17)
+
+**"What is `known_hosts` for?"** It stops a man in the middle. My laptop remembers the server's public host key from the first visit and refuses if it ever changes. (§6.3)
+
+**"What is DNS? What does DuckDNS do?"** DNS turns names into addresses. DuckDNS is a free DNS provider: I own a name under `duckdns.org` and set which address it answers with. It only answers that one question; no traffic passes through it. (§6.7, §6.16)
+
+**"How do three sites run on one machine with one address?"** Name-based routing. The browser sends the name it wants; Caddy reads it and forwards to the right container. DuckDNS answers every name under mine with the same address. (§6.8)
+
+**"How does HTTPS get set up?"** Caddy asks Let's Encrypt for a certificate using the ACME protocol. Let's Encrypt checks that the server asking really controls the name, then signs a certificate for 90 days. Caddy renews it automatically. (§6.8)
+
+**"What is a reverse proxy, and why have one?"** One front door for many services. It ends TLS in one place, routes by name, and keeps every other container off the internet. Only ports 22, 80 and 443 are open. (§6.4, §6.8)
+
+**"Docker image against container?"** An image is the sealed, unchanging package of a program. A container is one running copy of it. I can throw a container away and start another from the same image and get the same program. (§0.14)
+
+**"Why build the images on GitHub and not on your laptop?"** The server is Arm and my laptop isn't. GitHub has Arm build machines, so the image is built for the processor it will run on, the same way every time, from the exact commit. (§6.6)
+
+**"How does a deploy fail safely?"** `deploy.sh` waits for every container's health check. If they aren't healthy in five minutes it goes back to the previous version. Database changes run as migrations before the new code starts. (§6.6)
+
+**"Where are your secrets?"** Generated on the server, kept in one file readable by one user, never in Git. GitHub holds only the deploy key, as an encrypted secret. API keys are stored as fingerprints, passwords as Argon2id hashes. (§6.5, §6.10, §6.17)
+
+**"How do you know when it breaks?"** From inside: Prometheus rules and Alertmanager emails. From outside: a scheduled GitHub workflow that checks the site every 15 minutes, which catches the whole server being down. (§6.11)
+
+**"Have you ever restored a backup?"** Yes, as a drill, into a throwaway database, with every table counted. A backup that has never been restored is only a hope. (§6.12)
+
+**"How did the AI model get to production?"** By hand, over `scp`, because model files are too big for Git. I checked its SHA-256 fingerprint against its manifest, switched two settings, and restarted only the containers that read them. (§6.15)
+
+**"Is your model production-ready?"** No, and the system knows it. It is uncalibrated against the release standard and licensed for non-commercial research. The manifest says so, and the API reads the manifest: live checks fall back to an ID document, and only test checks use the model. (§6.15)
+
+**"What would you change for real traffic?"** A bought domain. More than one machine, in more than one region — the Helm chart for Kubernetes is already checked in CI. A model trained on data licensed for commercial use, calibrated to the release standard. And a load test that passes on the real hardware. (§6.13)
+
+**"What went wrong, and what did you learn?"** Pick one and tell it straight; interviewers remember these more than successes. The shop turned away every visitor who had passed, because a project ID was in the database's form and not the public form — fixed, and the shop now refuses to start that way (§6.14). An app password was pasted into the wrong prompt, so it was thrown away and replaced (§6.11). "Access Denied" from the backup storage was really a wrong region (§6.12).
+
+**"Did you do all this yourself?"** The honest answer is the strong one: *"I built it with an AI coding assistant. I did every step in the cloud consoles myself, the assistant ran the server commands over SSH, and afterwards I made sure I understood each piece — I can explain any of it."* Then prove it with any answer above.
+
+!!! try "Try it yourself"
+    Cover the answers and say each one aloud. Then draw §6.1's picture from memory on paper. Where you get stuck is the section to read again.
