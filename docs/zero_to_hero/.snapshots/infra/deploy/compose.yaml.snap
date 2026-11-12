@@ -68,6 +68,9 @@ services:
       DWARPAL_ISSUER: https://api.${DWARPAL_DOMAIN}
       DWARPAL_PROJECT_ID: ${DWARPAL_SHOP_PROJECT_ID}
       DWARPAL_API_KEY: ${DWARPAL_SHOP_API_KEY}
+      # The policy its checks follow. A preset unless .env names one of the shop's own (README, step 4): the
+      # trained age model has no pass marks for the presets' risk budget, so the API refuses them all.
+      DWARPAL_POLICY: ${DWARPAL_SHOP_POLICY:-uk_osa_18}
       SHOP_URL: https://shop.${DWARPAL_DOMAIN}
       SHOP_SECRET: ${DWARPAL_SHOP_SECRET}
     healthcheck:

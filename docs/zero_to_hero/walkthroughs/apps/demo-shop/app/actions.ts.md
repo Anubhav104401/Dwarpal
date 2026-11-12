@@ -1,5 +1,5 @@
 ---
-fingerprint: 468dc1f0484bcb58
+fingerprint: 6fa7c43a79b7ee05
 ---
 What happens when a visitor presses **"Verify my age to enter"**. It is a **server action** (§4.17): a function that runs on the shop's *server*, although it is triggered by a button in the visitor's browser. That is essential here — it uses the shop's secret API key, which must never reach a browser.
 
@@ -10,7 +10,7 @@ What happens when a visitor presses **"Verify my age to enter"**. It is a **serv
 From Next.js: `cookies` (read and write the visitor's cookies) and `redirect` (send the visitor elsewhere).
 
 @@ 6-7
-The shop's settings helpers, and the cookie names and lifetime — `PASS_COOKIE`, the pass itself, is needed by `leaveCellar` below.
+The shop's settings helpers, and the cookie names and lifetime — `PASS_COOKIE`, the pass itself, is needed by `leaveCellar` below. Since 13 Nov the policy's name is no longer imported from here: it comes with the settings.
 
 @@ 9-11
 **`createAgeCheck`** — the action. Since decision D16 it doesn't send the visitor anywhere: it returns the session's verify link to the page, whose button (`age-check-button.tsx`) opens it in a modal with Dwarpal's browser SDK. The link carries the session's one-time secret, so only the browser that asked gets it.
@@ -19,7 +19,7 @@ The shop's settings helpers, and the cookie names and lifetime — `PASS_COOKIE`
 Read the settings.
 
 @@ 13-16
-Ask Dwarpal for a new session, through the SDK: the shop's policy, and the address to come back to afterwards.
+Ask Dwarpal for a new session, through the SDK: the shop's policy, and the address to come back to afterwards. Since 13 Nov the policy is the one the settings name (`config.policy`), not a fixed preset — the fix for the day the shop refused every visitor (§6.19).
 
 @@ 17-23
 Before handing over the link, **remember which session this browser started**, in the `amber_pending` cookie:

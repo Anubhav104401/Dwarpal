@@ -2,7 +2,7 @@
 
 On the evening of **10 November 2026**, Dwarpal left the laptop and went live at **`https://dwarpal-age.duckdns.org`**. The owner had never used a cloud service or a server before. They clicked through Oracle's console, GitHub's settings, DuckDNS and Google's account pages, one instruction at a time, without knowing what most of the screens were for. This part explains **everything that happened that night, from zero**: every service, every key, every click, and how all of it fits together into one working website.
 
-If you read only one part of this book to understand "how a website gets onto the internet", read this one. Its last four sections were added afterwards: the trained age model's move to the server (§6.15), how all the services work together on one visit (§6.16), where every key lives (§6.17), and short answers for an interview (§6.18).
+If you read only one part of this book to understand "how a website gets onto the internet", read this one. Its last sections were added afterwards: the trained age model's move to the server (§6.15), how all the services work together on one visit (§6.16), where every key lives (§6.17), short answers for an interview (§6.18), and the day that move broke the demo shop (§6.19).
 
 !!! kid "Explain like I'm six"
     Imagine you baked a wonderful cake at home (that's Dwarpal on the laptop). Tonight you **rented a shop on a busy street** (Oracle's server), **got a lock and a key for its back door** (SSH keys), **put up a sign with the shop's name** (DuckDNS), had **a bakery factory make sealed boxes of your cake** (GitHub building images), **carried the boxes to the shop and opened it** (the deploy), **hired a guard who checks everyone at the front door** (Caddy and HTTPS), **asked a friend to phone you if anything breaks** (alert emails) and **put a copy of the recipe book in a bank locker every night** (backups). Each section below is one of those steps.
@@ -386,6 +386,7 @@ On launch night the server ran a **stand-in** age model: a tiny piece of code th
     - **Non-commercial only.** The manifest says `"permitted_use": "non-commercial research only"`, because of the photos it was calibrated on and the starting weights it was trained from. A free demo for learning and interviews is inside that. Charging websites is not: that needs a model trained and calibrated on data that allows it.
     - **A rebuilt server needs this step again.** `infra/deploy/README.md` (step 4) now lists it, so a server restored from backups gets the trained model and not the stand-in.
     - **Not yet measured under load.** The 1.1 seconds is one quiet run. The load test of §6.14 has not been repeated with the real model.
+    - **It broke the demo shop**, and nobody noticed for a day: the three checks above all passed, and none of them was *a visitor starting a check*. §6.19 tells that story; the model was taken off the server again on 13 November until the shop could name its own policy.
 
 **To go back to the stand-in**, on the server: delete those two lines from `/opt/dwarpal/.env` and run `docker compose up -d api inference webhooks maintenance` in `/opt/dwarpal`.
 
@@ -504,3 +505,39 @@ Short, true answers to the questions this deployment invites. Say them in your o
 
 !!! try "Try it yourself"
     Cover the answers and say each one aloud. Then draw §6.1's picture from memory on paper. Where you get stuck is the section to read again.
+
+## 6.19 The day the trained model broke the shop
+
+On the night of 12–13 November the owner tried the demo, again and again, and got the same page every time: **"Something went wrong — we couldn't complete the age check on our side."** The model had been "working" on the server for a day (§6.15). This section is about how both of those were true at once.
+
+**What the logs said.** The shop's log held the answer in one line, repeated for every try:
+
+```text
+DwarpalApiError: model age-convnext-tiny-2026.10.17 has no thresholds for age 18 at risk 0.02
+  status: 422, code: 'policy_not_supported'
+```
+
+**What it means.** A website's **policy** says which age to check and how strict to be. The strictness is a **risk budget**: the largest share of under-age people that may wrongly pass. Every ready-made policy (`uk_osa_18` and the five others) asks for **2 %**. An age model's manifest lists **pass marks** (thresholds) for each pair of age and budget it has been calibrated for (§5.2). The stand-in model's manifest lists the presets' pairs. The trained model's lists what its calibration could honestly support:
+
+| Age line | Risk budget the trained model has pass marks for |
+| :-- | :-- |
+| 13 and 16 | 15 % |
+| 18 and 21 | 7.5 % |
+| any, at the presets' 2 % | **none** |
+
+So from the moment the trained model was switched on, the API refused **every preset policy** — correctly: it will not start a check it has no pass mark for. The shop's code named its policy as a fixed word, `uk_osa_18`. Every visitor was turned away before the camera opened.
+
+!!! key "Key idea — "it's up" is not "it works""
+    After the switch, three things were checked (§6.15): the public settings page named the new model, the AI service said it had loaded it, and the model ran on three faces. All three were about **parts**. Nobody did what a visitor does: press *Verify my age to enter*. A check of the parts is a **health check**; pressing the button is a **smoke test**. A change to a live system isn't done until the smoke test passes. The same lesson came the morning after launch (§6.14), in a different costume — which is the honest reason to write it down twice.
+
+!!! honest "Honest limitation"
+    This was known and forgotten. The load test's own file says, in a comment written weeks earlier, that the presets ask for a budget "this model can't yet promise, so the API would refuse them". The knowledge was in the repository; it was not in the checklist for switching models. It is now: the deploy guide's model step says to make a policy and test the shop.
+
+**What was done, in order.**
+
+1. **First, make it work again** (13 November, 00:40 IST). The two lines of §6.15 were commented out in `.env` — after a dated copy — and the four services restarted. The server was back on the stand-in model, and the shop's next request answered `201 Created`. Putting things back the way they last worked comes before understanding everything, and long before a better fix.
+2. **Then, the real fix.** The shop's policy became a **setting**, `DWARPAL_POLICY` (in Compose: `DWARPAL_SHOP_POLICY` in `.env`), with the preset as its default. A name of the wrong shape stops the shop at start-up.
+3. **To switch the trained model on again** (the deploy guide, step 4): deploy the new shop; switch the model on; in the console make a policy for the shop's project — `shop_18`, age 18, risk budget 7.5 % — which the API accepts only while the trained model is active; name it in `.env`; restart the shop; **and press the button**.
+
+!!! real "Real world — what a 7.5 % budget feels like"
+    With the trained model and that policy, the pass mark for "18 or over" is high: on the calibration photos, only about 13 % of real 18–20-year-olds and 30 % of 21–24-year-olds passed on the face alone; most were sent to the **document check** (§5.6). That is the design working — when the face can't settle it, a document does — and it is also the road to the Aadhaar demonstration of Part 7.

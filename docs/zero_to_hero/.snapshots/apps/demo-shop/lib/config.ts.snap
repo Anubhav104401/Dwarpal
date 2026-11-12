@@ -1,16 +1,20 @@
 import { DwarpalClient } from "@dwarpal/node";
 
-/** The shop sells alcohol, so it checks 18+ under the UK Online Safety Act preset. */
+/** The shop sells alcohol, so it checks 18+: under the UK Online Safety Act preset, unless DWARPAL_POLICY names
+ * another policy of the shop's project. That is needed when the age model has no pass marks for the presets' risk
+ * budget (2 %): the API then refuses every preset, and a custom policy at a budget the model does have is used. */
 export const POLICY = "uk_osa_18";
 export const MIN_AGE = 18;
 
 const PROJECT_ID = /^prj_[0-9A-Za-z]+$/;
+const POLICY_NAME = /^[a-z0-9_]{3,40}$/;
 
 export interface ShopConfig {
   apiUrl: string;
   issuer: string;
   apiKey: string;
   projectId: string;
+  policy: string;
   shopUrl: string;
   secret: string;
 }
@@ -23,6 +27,8 @@ export function shopConfig(env: NodeJS.ProcessEnv = process.env): ShopConfig {
     issuer: env.DWARPAL_ISSUER ?? apiUrl,
     apiKey: env.DWARPAL_API_KEY ?? "",
     projectId: env.DWARPAL_PROJECT_ID ?? "",
+    // `||`, not `??`: Compose passes an unset setting on as an empty one, and empty means the preset too.
+    policy: env.DWARPAL_POLICY || POLICY,
     shopUrl: (env.SHOP_URL ?? "http://localhost:3100").replace(/\/+$/, ""),
     secret: env.SHOP_SECRET ?? "",
   };
@@ -31,6 +37,9 @@ export function shopConfig(env: NodeJS.ProcessEnv = process.env): ShopConfig {
     // The ID as the console shows it, and as pass tokens name their audience (prj_…): a raw UUID, the database's form
     // of the same ID, would let every check pass and then refuse every visitor at the door.
     PROJECT_ID.test(config.projectId) ? null : "DWARPAL_PROJECT_ID (the console's prj_… form)",
+    POLICY_NAME.test(config.policy)
+      ? null
+      : "DWARPAL_POLICY (a policy's name: lower-case letters, digits or _)",
     config.secret.length < 32 ? "SHOP_SECRET (at least 32 characters)" : null,
   ].filter((name) => name !== null);
   if (missing.length > 0) {

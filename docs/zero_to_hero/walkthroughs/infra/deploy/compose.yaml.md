@@ -1,5 +1,5 @@
 ---
-fingerprint: becaa78d0ac8ec96
+fingerprint: cfbfcef655c108cf
 ---
 **Dwarpal in production** (Phase 8, §5.8.2): every service, on one server, as Docker Compose runs them. It differs from the development compose file (`infra/compose/compose.yaml`) in three ways: the services themselves run here as containers; nothing but Caddy can be reached from outside; and every secret comes from the server's `.env`, never from this file.
 
@@ -45,76 +45,76 @@ Start after the services it passes requests to — the web app and the API, but 
 @@ 55-61
 A **health check**: Docker asks the service every 15 seconds whether it is working (5 seconds to answer, 5 failures in a row before it counts as unhealthy, the first 20 seconds forgiven while it starts). `deploy.sh` waits for these to pass. Here Node fetches the home page and exits with 0 (healthy) only if it answers well.
 
-@@ 63-72
-**The demo shop.** It reaches the API inside the server, but checks tokens against the API's public name, which tokens carry. Its project, test key and signing secret come from `.env`.
+@@ 63-75
+**The demo shop.** It reaches the API inside the server, but checks tokens against the API's public name, which tokens carry. Its project, test key and signing secret come from `.env`. Since 13 Nov also the **policy** its checks follow: `DWARPAL_SHOP_POLICY` from `.env`, or the preset `uk_osa_18` when `.env` doesn't name one (`${…:-uk_osa_18}`). The comment gives the reason: the trained age model has no pass marks for the presets' risk budget.
 
-@@ 73-79
+@@ 76-82
 A **health check**: Docker asks the service every 15 seconds whether it is working (5 seconds to answer, 5 failures in a row before it counts as unhealthy, the first 20 seconds forgiven while it starts). `deploy.sh` waits for these to pass.
 
-@@ 81-85
+@@ 84-88
 **The API**, with the shared settings and the models mounted read-only (`:ro`).
 
-@@ 86-89
+@@ 89-92
 It starts only once PostgreSQL, Valkey and the inference service are healthy.
 
-@@ 90-96
+@@ 93-99
 A **health check**: Docker asks the service every 15 seconds whether it is working (5 seconds to answer, 5 failures in a row before it counts as unhealthy, the first 20 seconds forgiven while it starts). `deploy.sh` waits for these to pass. Python fetches `/readyz`, which answers only when the API can reach its databases.
 
-@@ 98-107
+@@ 101-110
 **The webhook worker** (Phase 4) — the same image, running the `deliver-webhooks` command instead of the API, with the API's settings but the owner's login (`*owner-env`), once the API is healthy.
 
-@@ 109-118
+@@ 112-121
 **Maintenance** — the same image again, running `cli maintain` (expire abandoned sessions, tidy the counts) once an hour, for ever: `sh -c` runs the little loop. Since 9 Nov it logs in as the tables' owner (`*owner-env`), so it sees every organisation's sessions.
 
-@@ 130-134
+@@ 133-137
 **The inference service** — the stand-in age model unless `.env` chooses the ONNX model, and two workers: one per core of the Always Free server.
 
-@@ 135-139
+@@ 138-142
 Models read-only; and the whole container **read-only** except a small `/tmp` held in memory (`tmpfs`): frames can't be written to disk even by mistake.
 
-@@ 140-146
+@@ 143-149
 A **health check**: Docker asks the service every 15 seconds whether it is working (5 seconds to answer, 5 failures in a row before it counts as unhealthy, the first 20 seconds forgiven while it starts). `deploy.sh` waits for these to pass. The first 30 seconds are forgiven: loading the models takes a while.
 
-@@ 148-153
+@@ 151-156
 **PostgreSQL 18**, the same image as in development. Its owner, `dwarpal`, has its own password, used only for migrations (`deploy.sh`) and backups.
 
-@@ 154-161
+@@ 157-164
 Its data in a named volume, and its health check: `pg_isready` must answer.
 
-@@ 163-167
+@@ 166-170
 **Valkey**, keeping its data on disk (`--appendonly`) in a named volume, and asking every client for its password.
 
-@@ 168-175
+@@ 171-178
 Its health check pings it with the password, which it gets through its environment (`$$` writes a literal `$`, for the shell inside the container, not for Compose).
 
-@@ 215-219
+@@ 218-222
 The named volumes: Docker keeps them across restarts and upgrades. `pgdata` is what the backups copy.
 
 @@ 22-23
 Where the services send their metrics. Empty — nothing sent — until `alert_email.py` sets it to the collector; the empty default also keeps the deploy test's rule that every setting without a default is one `gen_secrets.py` writes.
 
-@@ 177-179
+@@ 180-182
 **Alerts by email** (§5.8.4): three services, each marked with the profile `alerts`, so Compose skips them until `.env` says `COMPOSE_PROFILES=alerts`. None publishes a port: only the other containers can reach them.
 
-@@ 180-186
+@@ 183-189
 The **collector**, the version the laptop already uses, with the server's own settings (`collector.yaml`).
 
-@@ 188-194
+@@ 191-197
 **Prometheus**, also the laptop's version. Its data lives in `/prometheus`, kept to 2 GB at most (and 15 days, its default), so it can't fill the disk.
 
-@@ 195-200
+@@ 198-203
 Its settings, the shared alert rules and its data volume; it starts after the collector and Alertmanager.
 
-@@ 202-206
+@@ 205-209
 **Alertmanager** v0.34.1 (approved 2 Nov). It runs as the user `alert_email.py` recorded — the owner of the password's file, which only that owner may read; without it, as *nobody*.
 
-@@ 207-210
+@@ 210-213
 Its settings file, and the password's file at the path the settings name.
 
-@@ 211-213
+@@ 214-216
 Its memory of silences and of mails already sent is kept in memory only (`tmpfs`): after a restart, an alert still firing may be mailed once more — better than a mail lost.
 
-@@ 220
+@@ 223
 The volume holding Prometheus's data.
 
 @@ 25-27
@@ -123,8 +123,8 @@ The volume holding Prometheus's data.
 @@ 28-30
 `x-owner-env` is the API's settings (`<<: *api-env` copies every entry of that anchor in) with one entry replaced: the database address, with the owner's name and password.
 
-@@ 120-121
+@@ 123-124
 **`operator`** (9 Nov) — the operator's tools, run by hand: the migrations (`deploy.sh`) and the runbooks' commands, such as rotating or stopping a website's key.
 
-@@ 122-128
+@@ 125-131
 The API's image with the command line as its entrypoint, so `docker compose run --rm operator migrate` runs `python -m dwarpal_api.cli migrate`; the owner's login; and the models. Its profile, `tools`, is never switched on, so `up` never starts it — `run` names it, which is enough.

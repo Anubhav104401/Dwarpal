@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { shopConfig } from "./config";
+import { POLICY, shopConfig } from "./config";
 
 const SETTINGS: NodeJS.ProcessEnv = {
   NODE_ENV: "test",
@@ -17,6 +17,13 @@ describe("the shop's settings", () => {
   it("refuse a project ID in the database's UUID form", () => {
     const env = { ...SETTINGS, DWARPAL_PROJECT_ID: "01a1c66b-2f7b-7bcb-9910-699d857dee77" };
     expect(() => shopConfig(env)).toThrow("DWARPAL_PROJECT_ID (the console's prj_… form)");
+  });
+
+  it("use the preset policy unless another is named", () => {
+    expect(shopConfig(SETTINGS).policy).toBe(POLICY);
+    expect(shopConfig({ ...SETTINGS, DWARPAL_POLICY: "" }).policy).toBe(POLICY);
+    expect(shopConfig({ ...SETTINGS, DWARPAL_POLICY: "shop_18" }).policy).toBe("shop_18");
+    expect(() => shopConfig({ ...SETTINGS, DWARPAL_POLICY: "Shop 18!" })).toThrow("DWARPAL_POLICY");
   });
 
   it("refuse missing settings, naming each", () => {

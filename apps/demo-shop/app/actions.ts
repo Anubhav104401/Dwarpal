@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { dwarpal, POLICY, shopConfig } from "@/lib/config";
+import { dwarpal, shopConfig } from "@/lib/config";
 import { PASS_COOKIE, PASS_LIFETIME_S, PENDING_COOKIE } from "@/lib/pass";
 
 /** Ask Dwarpal for a verification session, remember it in this browser, and hand its verify link to the page,
@@ -11,7 +11,7 @@ import { PASS_COOKIE, PASS_LIFETIME_S, PENDING_COOKIE } from "@/lib/pass";
 export async function createAgeCheck(): Promise<string> {
   const config = shopConfig();
   const session = await dwarpal(config).createSession({
-    policy: POLICY,
+    policy: config.policy,
     returnUrl: `${config.shopUrl}/age-check/complete`,
   });
   (await cookies()).set(PENDING_COOKIE, session.id, {

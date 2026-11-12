@@ -4,6 +4,25 @@ Work that needs your answer — a download, a design choice, an account, or some
 
 **Started:** 26 Oct 2026, overnight run. **Phase 4 is complete** (commits `450bfba`, `7d730ee`, `95f3e91`).
 
+## 13 Nov — the demo shop refused every visitor; the trained model is off the server again
+
+**What happened.** With the trained age model on the server (12 Nov), the API refused every preset policy: the
+presets ask for a 2 % risk budget, and the model has pass marks only for 7.5 % and 15 %. The demo shop names the
+preset `uk_osa_18`, so every check ended in "Something went wrong". It was not noticed on 12 Nov because nobody
+started a check on the shop after the switch. Book §6.19.
+
+**Done:** the server is back on the stand-in model (00:40 IST; the two `.env` lines are commented out, a dated
+copy kept), and the shop answers `201` again. The shop's policy is now a setting (`DWARPAL_SHOP_POLICY`), and the
+deploy guide's model step says what to do.
+
+**To have the trained model — and with it the Aadhaar demo's step-up — back on the live site, in this order:**
+
+1. **Deploy** (Actions → deploy → Run workflow, approve): the shop then reads its policy from `.env`.
+2. Ask the assistant to **switch the trained model on** (the two `.env` lines).
+3. **In the console**, open the *Demo shop* project → policies, and make `shop_18`: age 18, risk budget 7.5 %.
+   (Only you can: it needs your sign-in. The API accepts it only while the trained model is on.)
+4. Ask the assistant to set `DWARPAL_SHOP_POLICY=shop_18`, restart the shop, **and start a check on it**.
+
 ## 12 Nov — the trained model goes live; an Aadhaar demo (Part 7 of the book)
 
 **Done on 12 Nov, at your request:**

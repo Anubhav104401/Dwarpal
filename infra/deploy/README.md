@@ -102,6 +102,13 @@ questions on install: answer them first with `debconf-set-selections`). The resu
 
    The manifest says `calibrated: false` and `non-commercial research only`: the model decides test checks, and
    live checks stay with the ID document.
+
+   **Every preset policy stops working with this model** (found on 13 Nov, when the demo shop refused every
+   visitor): the presets ask for a 2 % risk budget, and this model has pass marks only for 7.5 % (ages 18 and
+   21) and 15 % (13 and 16). So, with the model switched on and **before** sending visitors to the shop: in
+   the console, open the shop's project and make a policy — for example `shop_18`, age 18, risk budget 7.5 % —
+   then add `DWARPAL_SHOP_POLICY=shop_18` to `/opt/dwarpal/.env` and run `docker compose up -d shop`. Check it
+   by starting a check on the shop. To go back to the stand-in model, remove that line as well as the two above.
 5. **GitHub settings** (repository → Settings):
    - *Variables*: `DWARPAL_PUBLIC_API_URL` = `https://api.<domain>`, `DEPLOY_HOST` = the server's IP,
      `DEPLOY_KNOWN_HOSTS` = the output of `ssh-keyscan <ip>` (so the deploy knows it's talking to the real server);
