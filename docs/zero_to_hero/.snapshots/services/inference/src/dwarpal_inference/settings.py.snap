@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # container: DWARPAL_INFERENCE_TESSERACT_COMMAND='["docker", "exec", "-i", "dwarpal-ocr-1", "tesseract"]'.
     tesseract_command: list[str] = ["tesseract"]
     tesseract_timeout_s: float = 10.0
+    # Read Aadhaar Secure QR codes in the document check (Part 7), trusting the certificates in this folder; empty: the
+    # ones UIDAI publishes, which are part of this service.
+    aadhaar_qr: bool = True
+    aadhaar_keys_dir: str = ""
     age_backend: Literal["stub", "onnx"] = "stub"
     stub_age: float = 30.0
     stub_spread: float = 2.5

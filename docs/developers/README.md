@@ -188,6 +188,7 @@ No age model is yet certified for live checks, so **a live check is decided by a
 
 - the verify page opens on the document check instead of the camera's age estimate;
 - the token's `methods` claim is `["document_mrz", "face_match"]`, and its `model` claim is `null` (no age model decided);
+- in **test** sessions only, a picture of an Aadhaar Secure QR code is accepted as the document too (a demonstration: see Part 7 of the book). The `methods` claim then says `document_aadhaar_qr` in place of `document_mrz`. A live session answers `aadhaar_test_only` and asks for a passport or ID card;
 - an Age Pass, where your policy accepts them, still answers the check in place of the document;
 - `GET /.well-known/dwarpal-configuration` says `"live_checks": "document"` now, and `"face_estimation"` once a model is certified.
 

@@ -4,6 +4,46 @@ Work that needs your answer — a download, a design choice, an account, or some
 
 **Started:** 26 Oct 2026, overnight run. **Phase 4 is complete** (commits `450bfba`, `7d730ee`, `95f3e91`).
 
+## 12 Nov — the trained model goes live; an Aadhaar demo (Part 7 of the book)
+
+**Done on 12 Nov, at your request:**
+
+- **The trained age model is on the live server** (`age-convnext-tiny-2026.10.17`), deciding **test** checks; live checks
+  stay with the ID document, because its manifest says `calibrated: false`. This revisits D41. Book §6.15; the deploy
+  README's step 4 lists the copy and the two settings.
+- **Aadhaar Secure QR as a document, in test checks only** — built, tested with made-up codes, and explained from zero in
+  **Part 7** of the book. **Not deployed yet**: it needs a deploy run (below).
+
+| # | Decision | Taken |
+| :-: | :-- | :-- |
+| **D46** | Downloads for the Aadhaar demo (asked and approved, 12 Nov) | **Five certificates from UIDAI**, nothing else. From `uidai.gov.in` → Build with us → Developer resources → Data and downloads ("Paperless Offline e-KYC and Secure QR Code"), served from `backend.uidai.gov.in/get/files/media/document/2026-07/`. Kept in `services/inference/src/dwarpal_inference/uidai_keys/`. No package was downloaded: OpenCV reads the code, and `cryptography` 50.0.2 (already used by the API) checks the signature |
+| D47 | Where Aadhaar is accepted | **Test sessions only.** A live session answers `aadhaar_test_only`. Not registered with UIDAI; a legal question is open (book §7.10) |
+| D48 | What is taken from the code | The date of birth, the photo (for the face match, then dropped) and the signature. The name, address and reference number are never read; kept afterwards: the signing key's name and the year and month of birth |
+| D49 | Expired UIDAI certificates | Kept on the key ring: old cards carry old signatures. Which key signed is recorded |
+| D50 | A year-only date of birth | Counts as 31 December of that year: nobody is taken for older than they may be |
+| D51 | The specification PDF | **Not found** on UIDAI's reorganised website. The layout is the long-published one; a real code's signature checking is its confirmation |
+
+The five files (SHA-256 of each, as downloaded):
+
+| File | Bytes | SHA-256 |
+| :-- | --: | :-- |
+| `uidai_offline_publickey_26022019.cer` | 2,632 | `b6696efb937378db01a1f3306cc9aa6e309d6e9337921d5ba207274f798bb857` |
+| `uidai_offline_publickey_29032019.cer` | 2,798 | `89208e69e3da86679e0d7e0cc6e31cfc2f0d6b6d6ac996694ef631044bcd180d` |
+| `uidai_offline_publickey_26022021.cer` | 2,796 | `288475ef50ac1e73550f487062ef6a8a9580310dd1e312d069faaa1331e4847f` |
+| `uidai_offline_publickey_17022026.cer` | 2,538 | `68607e079d81ecbf7368b07b1ab5317f1f006934016feef9393cbbb7b9dd49f7` |
+| `uidai_offline_publickey_2026.cer` | 2,806 | `1ea1c3468af581964056203264d470c14b890f928aea72eff611637d88f36a26` |
+
+**Only you can do these:**
+
+1. **Deploy it.** On GitHub: Actions → deploy → Run workflow (with "Also deploy" ticked), then approve. The inference
+   image now includes the certificates; after the deploy its `/readyz` should say `"aadhaar_keys":"5"`.
+2. **Try it with your own Aadhaar** (book §7.11): a sharp screenshot of the large QR code in your e-Aadhaar PDF. This is
+   the first real code the reader will see, and the first real face match. Don't paste the code or the PDF into a chat.
+3. **Before anyone else uses a real Aadhaar on the public site: ask a lawyer** the question in book §7.10 — whether
+   comparing a selfie with the photo from the code is "using biometric information", or a face verification that only
+   registered verifiers may do.
+4. **Hindi**: the new paragraph and three messages are machine-drafted (D36), for the native review.
+
 ## Morning summary — 11 Nov (after launch night)
 
 **Dwarpal is live** at https://dwarpal-age.duckdns.org (console at `/console`, demo shop at `shop.`), with HTTPS,

@@ -1,6 +1,6 @@
 """Data models shared across Dwarpal services, so their messages can never drift apart."""
 
-from dwarpal_contracts.document import MAX_DOCUMENT_BYTES, DocumentAnalysis
+from dwarpal_contracts.document import MAX_DOCUMENT_BYTES, AadhaarReading, DocumentAnalysis
 from dwarpal_contracts.face import (
     MAX_FRAME_BYTES,
     MAX_FRAMES,
@@ -26,6 +26,7 @@ __all__ = [
     "MAX_FRAME_BYTES",
     "POLICY_AGES",
     "POSES",
+    "AadhaarReading",
     "AgeEstimate",
     "Challenge",
     "ClientSignals",

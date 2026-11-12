@@ -26,9 +26,16 @@ describe("problemFor", () => {
 
 describe("the words", () => {
   const codes = [
-    ...["too_dark", "liveness_check_failed", "mrz_not_found", "face_mismatch", "analysis_unavailable"].map(
-      (reason) => tipFor([reason]),
-    ),
+    ...[
+      "too_dark",
+      "liveness_check_failed",
+      "mrz_not_found",
+      "face_mismatch",
+      "analysis_unavailable",
+      "aadhaar_qr_unreadable",
+      "aadhaar_signature_invalid",
+      "aadhaar_test_only",
+    ].map((reason) => tipFor([reason])),
     DEFAULT,
   ];
 

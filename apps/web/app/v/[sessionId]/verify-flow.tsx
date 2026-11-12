@@ -499,6 +499,12 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
               </li>
             ))}
           </ol>
+          {/* Test sessions also take an Aadhaar Secure QR as the document (Part 7); said with what is read from it. */}
+          {session.livemode ? null : (
+            <p className="mt-4 rounded-xl bg-ink-500/10 px-4 py-3 text-sm leading-relaxed text-ink-700 dark:text-ink-300">
+              {t("documentAadhaar")}
+            </p>
+          )}
           {/* On a computer, its webcam first (D43); the file chooser stays, as the way for everyone else. */}
           {computer ? (
             <button

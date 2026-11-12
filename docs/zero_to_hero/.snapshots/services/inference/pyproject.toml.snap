@@ -5,6 +5,7 @@ description = "Dwarpal inference service: face analysis, liveness signals and ag
 requires-python = ">=3.13,<3.14"
 dependencies = [
   "anyio==4.15.1",
+  "cryptography==50.0.2",
   "dwarpal-contracts",
   "dwarpal-vision",
   "fastapi==0.143.0",

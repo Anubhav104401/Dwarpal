@@ -1,5 +1,5 @@
 ---
-fingerprint: 3fe1065708e177f5
+fingerprint: 3236db45832028c7
 ---
 The public pages' words in **Hindi** (decision D2, §5.5.11), with exactly the keys of the English file — a test (`advice.test.ts`) checks that no key is missing in either.
 
@@ -59,23 +59,23 @@ The end of `Home`.
 @@ 178-195
 The four endings, each a title and a body; `{project}` and `{age}` are filled in.
 
-@@ 196-218
-The step-up's choices and the leaving buttons, then the document check: its title, three steps, photo button, and the selfie's line. Since Phase 9, the **Age Pass**'s words: the offer before the camera (its title, what the pass shows and the button), the notice when a pass is refused, and after a passed check the offer to save passes, the button while saving, the confirmation with how many and until when, and the failure. Since 9 Nov (decision D43), on a computer: the button for its webcam, and the file chooser's words beside it.
+@@ 196-219
+The step-up's choices and the leaving buttons, then the document check: its title, three steps, photo button, and the selfie's line. Since Phase 9, the **Age Pass**'s words: the offer before the camera (its title, what the pass shows and the button), the notice when a pass is refused, and after a passed check the offer to save passes, the button while saving, the confirmation with how many and until when, and the failure. Since 9 Nov (decision D43), on a computer: the button for its webcam, and the file chooser's words beside it. Since Part 7, `documentAadhaar`: the same paragraph as the English file's, in Hindi — machine-drafted like all the Hindi (D2) and waiting for the native review.
 
-@@ 219-231
+@@ 220-232
 **`Camera`** — the camera screen: the landmarker's guidance, the starting message, the progress and colour messages, and the button.
 
-@@ 250-273
-**`Tips`** — one tip per reason code the API can give (`advice.ts` chooses), plus the general one (`default`) and the unusable-file tip of the document check. Since 9 Nov also a camera that couldn't be opened for the document.
+@@ 251-277
+**`Tips`** — one tip per reason code the API can give (`advice.ts` chooses), plus the general one (`default`) and the unusable-file tip of the document check. Since 9 Nov also a camera that couldn't be opened for the document. Since Part 7, three for an Aadhaar Secure QR: unreadable, not signed by UIDAI, and not accepted in a live check.
 
-@@ 274-315
+@@ 278-319
 **`Problems`** — one message per problem that stops the check, each a title and a detail, plus the general one. Since 9 Nov also `rate_limited`: too many requests from one network, so wait a minute and reload.
 
-@@ 316
+@@ 320
 The end of the file.
 
-@@ 232-237
+@@ 233-238
 The three pose instructions, by the pose's code.
 
-@@ 238-249
+@@ 239-250
 **`DocumentCamera`** (decision D43, 9 Nov) — the document camera's words: starting; the picture's name for screen readers; where to hold the document; that the picture isn't mirrored; the button that takes the photo; the question to ask of it; its description; and the buttons to use it, take it again, or choose a file instead.

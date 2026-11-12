@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import anyio
 from fastapi import FastAPI, HTTPException, Request
@@ -18,6 +19,7 @@ from dwarpal_contracts import (
     FaceAnalysis,
     FaceRequestMeta,
 )
+from dwarpal_inference.aadhaar import UIDAI_KEYS, KeyRing
 from dwarpal_inference.backends import AgeBackend, OnnxAgeBackend, StubAgeBackend
 from dwarpal_inference.document import DocumentReader
 from dwarpal_inference.pipeline import FacePipeline
@@ -60,7 +62,10 @@ def build_pipeline(settings: Settings) -> FacePipeline:
 def build_reader(settings: Settings, pipeline: FacePipeline) -> DocumentReader:
     matcher = FaceMatcher(settings.models_dir / settings.matcher_file)
     ocr = Tesseract(settings.tesseract_command, settings.tesseract_timeout_s)
-    return DocumentReader(pipeline, pipeline.detector, matcher, ocr)
+    keys = None
+    if settings.aadhaar_qr:
+        keys = KeyRing(Path(settings.aadhaar_keys_dir) if settings.aadhaar_keys_dir else UIDAI_KEYS)
+    return DocumentReader(pipeline, pipeline.detector, matcher, ocr, keys)
 
 
 async def read_frames(form: object, meta: FaceRequestMeta) -> list[bytes]:
@@ -98,6 +103,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/readyz")
     async def readyz(request: Request) -> dict[str, str]:
         pipeline: FacePipeline = request.app.state.pipeline
+        reader: DocumentReader = request.app.state.reader
         # Whether the anti-spoofing networks are loaded: without them, live sessions can't be decided (the API refuses).
         antispoof = "loaded" if pipeline.spoof is not None else "missing"
         return {
@@ -105,6 +111,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "age_model": pipeline.age.version,
             "antispoof": antispoof,
             "ocr": request.app.state.ocr,
+            # How many of UIDAI's keys are on the ring for Aadhaar Secure QR codes ("0": such codes aren't read).
+            "aadhaar_keys": str(len(reader.keys.keys) if reader.keys is not None else 0),
         }
 
     @app.post("/internal/v1/analyze/face")

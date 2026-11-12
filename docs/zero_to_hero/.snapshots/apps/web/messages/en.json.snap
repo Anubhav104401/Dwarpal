@@ -201,6 +201,7 @@
     "documentStep1": "A photo of your passport's photo page, or the side of your ID card with lines of letters and '<<<' at the bottom.",
     "documentStep2": "A short selfie, turning your head as asked, so we know the document is yours.",
     "documentStep3": "We read your date of birth and compare the faces. Your name and document number are never kept, and both photos are deleted straight after the check.",
+    "documentAadhaar": "Test checks only: a sharp picture of the large QR code on your Aadhaar letter, card or e-Aadhaar works too. Let the code fill the picture. Dwarpal checks UIDAI's signature on it, reads only your date of birth, and compares your selfie with the photo inside the code. Your Aadhaar number, name and address are never read out or kept. Using Aadhaar here is your choice: a passport or ID card works as well.",
     "documentButton": "Take or choose a photo of your document",
     "selfieLead": "Your document's photo is ready. Now a short selfie, so we know it's yours.",
     "agePassTitle": "Use your Age Pass",
@@ -268,6 +269,9 @@
     "document_face_not_found": "We couldn't see the photo on your document. Show the whole photo page.",
     "face_not_found": "We couldn't see your face in the selfie. Look straight into the camera.",
     "face_mismatch": "Your selfie didn't match the photo on the document. Use your own document, in good light.",
+    "aadhaar_qr_unreadable": "We found a QR code but couldn't read it as an Aadhaar Secure QR. Use the large code, sharp and flat, filling the picture.",
+    "aadhaar_signature_invalid": "This QR code isn't signed by UIDAI, so it can't be used. Use the code from your own Aadhaar letter, card or e-Aadhaar.",
+    "aadhaar_test_only": "Aadhaar QR codes are accepted in test checks only. Please use a passport or ID card.",
     "document_unusable": "That file couldn't be used. Take a photo instead.",
     "camera_unavailable": "The camera couldn't be opened. Choose a photo of your document instead."
   },

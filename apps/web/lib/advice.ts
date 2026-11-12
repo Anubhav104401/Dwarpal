@@ -24,6 +24,10 @@ const TIPS = new Set([
   "document_face_not_found",
   "face_not_found",
   "face_mismatch",
+  // An Aadhaar Secure QR as the document (Part 7).
+  "aadhaar_qr_unreadable",
+  "aadhaar_signature_invalid",
+  "aadhaar_test_only",
 ]);
 
 const PROBLEMS = new Set([

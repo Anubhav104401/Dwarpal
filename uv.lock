@@ -434,6 +434,7 @@ version = "0.1.0"
 source = { editable = "services/inference" }
 dependencies = [
     { name = "anyio" },
+    { name = "cryptography" },
     { name = "dwarpal-contracts" },
     { name = "dwarpal-vision" },
     { name = "fastapi" },
@@ -446,6 +447,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", specifier = "==4.15.1" },
+    { name = "cryptography", specifier = "==50.0.2" },
     { name = "dwarpal-contracts", editable = "libs/contracts" },
     { name = "dwarpal-vision", editable = "libs/vision" },
     { name = "fastapi", specifier = "==0.143.0" },

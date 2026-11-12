@@ -32,6 +32,10 @@ import uvicorn
 from age_pass_holder import Holder
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.x509.oid import NameOID
 from hypothesis import HealthCheck, settings
 from joserfc import jwt
 from joserfc.jwk import KeySet
@@ -77,6 +81,7 @@ from dwarpal_api.settings import Settings
 from dwarpal_contracts import Challenge, ClientSignals, FaceRequestMeta, FrameMeta
 from dwarpal_inference.main import create_app as create_inference
 from dwarpal_inference.settings import Settings as InferenceSettings
+from dwarpal_vision.aadhaar import pack, specimen_data, specimen_photo, specimen_png
 from dwarpal_vision.document import Tesseract
 from dwarpal_vision.specimen import specimen_jpeg
 
@@ -144,11 +149,16 @@ async def harness(
     liveness: Literal["images", "labels"] = "labels",
     scopes: list[str] | None = None,
     inference_via: Callable[[httpx.AsyncBaseTransport], httpx.AsyncBaseTransport] | None = None,
+    aadhaar_keys_dir: str = "",
     **overrides: Any,
 ) -> AsyncIterator[Harness]:
     database_url, valkey_url = databases
     ocr = TESSERACT or ["tesseract"]
-    inference = create_inference(InferenceSettings(stub_age=stub_age, liveness=liveness, tesseract_command=ocr))
+    inference = create_inference(
+        InferenceSettings(
+            stub_age=stub_age, liveness=liveness, tesseract_command=ocr, aadhaar_keys_dir=aadhaar_keys_dir
+        )
+    )
     inference_transport: httpx.AsyncBaseTransport = httpx.ASGITransport(app=inference)
     if inference_via is not None:
         inference_transport = inference_via(inference_transport)
@@ -325,6 +335,29 @@ def specimen(birth: str) -> bytes:
     return specimen_jpeg(portrait, birth, "360101")
 
 
+def aadhaar_specimen(folder: Path, born: str) -> bytes:
+    """A picture of a made-up Aadhaar Secure QR with the test portrait inside, signed by a key made here; the key's
+    certificate is put in `folder`, to be the inference service's key ring in place of UIDAI's."""
+    issuer = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Dwarpal test issuer")])
+    now = datetime.now(UTC)
+    certificate = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(issuer.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(days=1))
+        .not_valid_after(now + timedelta(days=1))
+        .sign(issuer, hashes.SHA256())
+    )
+    (folder / "test_issuer.cer").write_bytes(certificate.public_bytes(serialization.Encoding.PEM))
+    portrait = np.asarray(cv2.imdecode(np.frombuffer(PORTRAIT, np.uint8), cv2.IMREAD_COLOR), dtype=np.uint8)
+    photo = specimen_photo(portrait[20:245, 133:313])  # cut close round the face, as an ID photo is
+    data = specimen_data(born, photo, lambda signed: issuer.sign(signed, padding.PKCS1v15(), hashes.SHA256()))
+    return specimen_png(pack(data))
+
+
 async def document_attempt(h: Harness, session: str, flow: dict[str, str], document: bytes) -> httpx.Response:
     """The step-up's document check: a new challenge, the selfie frames following it, and the document's photo."""
     challenge = (await h.client.post(f"/v1/flow/sessions/{session}/challenge", headers=flow)).json()
@@ -334,6 +367,59 @@ async def document_attempt(h: Harness, session: str, flow: dict[str, str], docum
     files["document"] = ("document.jpg", document, "image/jpeg")
     data = {"meta": meta.model_dump_json(), "challenge_id": challenge["challenge_id"]}
     return await h.client.post(f"/v1/flow/sessions/{session}/stepup/mrz", data=data, files=files, headers=flow)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("born", "outcome", "age_over_18", "month"),
+    [("01-01-1990", "pass", True, "1990-01"), ("02-03-2014", "fail", False, "2014-03")],
+)
+async def test_after_a_step_up_an_aadhaar_secure_qr_decides_and_only_its_birth_month_is_kept(
+    databases: tuple[str, str], tmp_path: Path, born: str, outcome: str, age_over_18: bool, month: str
+) -> None:
+    """Part 7: in a test session, a picture of an Aadhaar Secure QR is a document too. Its signature, the date of
+    birth inside it, and the person's face matching the photo inside it decide. The token says how; of the code, only
+    the signing key's name and the year and month of birth are kept."""
+    code = aadhaar_specimen(tmp_path, born)
+    async with harness(databases, stub_age=16.0, aadhaar_keys_dir=str(tmp_path)) as h:
+        created = (await create(h)).json()
+        flow = await start(h, created)
+        await attempt(h, created["id"], flow, [PORTRAIT] * 6)
+        result = (await document_attempt(h, created["id"], flow, code)).json()
+        auth = {"Authorization": f"Bearer {h.key}"}
+        session = (await h.client.get(f"/v1/verification-sessions/{created['id']}", headers=auth)).json()
+        jwks = (await h.client.get("/.well-known/jwks.json")).json()
+        engine = make_engine(databases[0])
+        async with tenant(make_sessions(engine), ids.decode("prj", h.project)) as db:
+            kept = await db.scalar(
+                select(VerificationAttempt.scores).where(
+                    VerificationAttempt.session_id == ids.decode("vs", created["id"]),
+                    VerificationAttempt.kind == "document",
+                )
+            )
+        await engine.dispose()
+    assert result["outcome"] == outcome, result
+    assert "aadhaar_qr" in result["reasons"]
+    assert (session["status"], session["outcome"]) == ("completed", outcome)
+    token = jwt.decode(session["age_token"], KeySet.import_key_set(jwks), algorithms=["Ed25519"])
+    assert token.claims["age_over_18"] is age_over_18
+    assert token.claims["methods"] == ["face_estimation", "document_aadhaar_qr", "face_match"]
+    assert kept is not None and kept["document"] is None
+    assert kept["aadhaar"] == {"signed_by": "test_issuer", "birth_year_month": month}
+    assert "Specimen" not in json.dumps(kept) and "0000202601" not in json.dumps(kept)
+
+
+@pytest.mark.anyio
+async def test_a_secure_qr_that_uidai_did_not_sign_never_passes(databases: tuple[str, str], tmp_path: Path) -> None:
+    """The same made-up code, shown to a service that trusts only UIDAI's own keys: read, and refused."""
+    code = aadhaar_specimen(tmp_path, "01-01-1960")
+    async with harness(databases, stub_age=16.0) as h:
+        created = (await create(h)).json()
+        flow = await start(h, created)
+        await attempt(h, created["id"], flow, [PORTRAIT] * 6)
+        results = [(await document_attempt(h, created["id"], flow, code)).json() for _ in range(3)]
+    assert [result["outcome"] for result in results] == ["retry", "retry", "fail"]
+    assert all(result["reasons"] == ["aadhaar_signature_invalid"] for result in results)
 
 
 @pytest.mark.anyio

@@ -1,5 +1,5 @@
 ---
-fingerprint: b3c186c7eeec3b0b
+fingerprint: 378ff40edd02b23a
 ---
 The **use cases**: each step of a verification, written once as an ordinary function. This is where the pieces meet — the domain's rules, the database, Valkey, the inference service and the signing keys.
 
@@ -317,22 +317,28 @@ How many attempts are left. The HTTP layer never shows a negative number.
 @@ 382-383
 Commit everything at once — the attempt, the new status, the outcome — and return.
 
-@@ 498
+@@ 393-403
+What is kept starts with why no zone was read, if so. Then, of an **Aadhaar Secure QR**: the name of the UIDAI certificate whose key signed it, and the **year and month** of birth — or the year alone, if that is all the code holds. Nothing else from the code ever reached the API (the contract has no field for it), so nothing else can be kept.
+
+@@ 404-413
+Of a passport or ID card, if one was read: its layout, type and issuer; the **year and month** of birth (formatted as `1990-01`), never the day; the expiry; and the repairs its reading needed. The name, the document number and the nationality were dropped inside the parser and never reach this point.
+
+@@ 510
 **`finish`** — step 5: where should the page send the person now?
 
-@@ 499-500
+@@ 511-512
 Load the session, inside its own project.
 
-@@ 501-502
+@@ 513-514
 Only a finished session (completed, or waiting for a step-up) can be left.
 
-@@ 503-504
+@@ 515-516
 No return address? Return `None`; the page then simply shows the result.
 
-@@ 505-506
+@@ 517-518
 Add `session_id=vs_…` to the return address, so the website knows which check just ended. If the address already has a query (`?…`), the new value joins it with `&` instead. `urlencode` makes sure the value is written safely. Only the session's ID travels through the browser — never the outcome, which the website must fetch itself, using its key.
 
-@@ 509-519
+@@ 521-531
 **`created_view`** — what the website receives after creating a session: the ID, an `object` label (a convention that tells programs what kind of thing a JSON object is), the status, mode and policy, the client secret, the expiry time in standard ISO 8601 form, and the **link** for the person:
 
 ```
@@ -343,70 +349,70 @@ The secret sits after the `#`, in the link's **fragment**. Browsers never send t
 
 `policy` is the label of the pinned version (`policy_label`).
 
-@@ 522
+@@ 534
 **`result_view`** — step 6: the website's server asks for the result, with its API key.
 
-@@ 523-524
+@@ 535-536
 Load the session in a unit of work confined to the **caller's** project — the one its API key belongs to. Another customer's session is simply invisible here: `load_session` finds nothing and answers `404`.
 
-@@ 525-526
+@@ 537-538
 **Only the project that created a session may read it**, and only with a key of the same mode. A test key can't read live sessions. The project comparison is now a second, redundant guard: the database has already hidden other projects' sessions. Keeping it costs nothing and protects against a mistake in a policy. Anything else gets the same `404` as a session that doesn't exist.
 
-@@ 527-528
+@@ 539-540
 Correct the status if the session has expired, announcing the expiry if so.
 
-@@ 529-532
+@@ 541-544
 Load the pinned policy (for the token's lifetime and the age in its claim name), and give a completed session a **freshly signed token**, saying how it was decided (`methods_of`). Others get none.
 
-@@ 533
+@@ 545
 Commit: save any expiry, and the record of the token just issued.
 
-@@ 534-539
+@@ 546-551
 **`summary_view`** — what a website may see of a session **without** a token being made: the list shows this for every session, and the result view adds to it. Making a token is an event (it is recorded in `issued_tokens`), so listing a hundred sessions must not make a hundred tokens. A session past its expiry time is shown as `expired`, even if no request has yet saved that change.
 
-@@ 540-552
+@@ 552-564
 The summary: the ID and `object` label; the status (corrected for expiry); the outcome, mode and policy label; the number of attempts; the website's own reference; and three times in ISO 8601 form (`completed_at` only once there is one).
 
-@@ 555-561
+@@ 567-573
 **`SessionFilter`** (Phase 5, §5.5.2) — which sessions to list: those with this **outcome**, and with this **reference** of the website's own (`external_ref`, such as an order number); `None` means any. There is deliberately no status filter: "expired" isn't stored but worked out when a session is read, so filtering on the stored status would miss expired sessions and list them under their old status. `frozen=True` makes it unchangeable.
 
-@@ 564-571
+@@ 576-583
 **`list_sessions`** — one page of a project's sessions, for one mode (Phase 4). It takes the page size, the cursor, and (since Phase 5) a filter — no filter by default. A function's default value is made once and shared by every call, which is a classic trap with changeable values; this one is frozen, so sharing it is safe, as the comment tells the linter (`B008`).
 
-@@ 572-574
+@@ 584-586
 The docstring explains the **cursor**. The obvious way to page through a list is "skip the first 40, give me 20" (an *offset*). But if three sessions are created while someone is reading page 2, everything moves along by three, and page 3 repeats rows. A cursor says instead "the 20 sessions older than this one". Because a UUIDv7 begins with the time it was made, "older" is just "has a smaller ID", and new sessions can't disturb pages already read.
 
-@@ 575-577
+@@ 587-589
 The query: sessions of this project, in this mode only. A test key never sees live sessions.
 
-@@ 578-579
+@@ 590-591
 With a cursor, only sessions **older** than it. `parse_session_id` turns `vs_…` back into a UUID, and refuses a malformed one with `404`.
 
-@@ 580-583
+@@ 592-595
 Keep only the sessions with the chosen outcome, and with the chosen reference — exactly equal.
 
-@@ 584
+@@ 596
 Newest first, and **one more** than the page size (never more than `MAX_PAGE` + 1). The extra row is a cheap way to find out whether another page exists, without counting every row.
 
-@@ 585-586
+@@ 597-598
 Run the query in a unit of work confined to the project.
 
-@@ 587-588
+@@ 599-600
 The page is the first `limit` rows; if the extra one came back, there is more.
 
-@@ 589-594
+@@ 601-606
 The answer: a list object with the page's summaries, whether there is more, and the cursor for the next page — the ID of the page's last session — or `None` at the end. A client simply repeats the request with `starting_after` set to `next_cursor` until `has_more` is false.
 
-@@ 597-604
+@@ 609-616
 **`mint_token`** — make the signed age token for a completed session. Since Phase 4 the caller passes in the session's pinned policy; since Phase 6, how the session was decided (`methods`), which defaults to the face alone.
 
-@@ 605-606
+@@ 617-618
 Make a new ID for the token (`jti`), write the project's public ID as the **audience**, and work out when the token expires: after the policy's token lifetime (10 minutes for the presets).
 
-@@ 607
+@@ 619
 Record that this token was issued — its facts, not the token itself.
 
-@@ 608-623
+@@ 620-635
 The **claims** — the facts inside the token. Most names are standard JWT claims (RFC 7519):
 
 | Claim | Meaning |
@@ -418,28 +424,28 @@ The **claims** — the facts inside the token. Most names are standard JWT claim
 
 The rest are Dwarpal's own: the session ID, the outcome, a yes/no claim named after the age (`age_over_18: true`), the **assurance** level and the **methods** used, the policy, the age model's version, and live or test mode. A document check is still `basic` assurance (§5.6.2): a browser can't read a passport's chip. No age, no birth date, no image — only the yes or no a website needs.
 
-@@ 624
+@@ 636
 Sign the claims with the active key, and return the token.
 
-@@ 627-630
+@@ 639-642
 **`introspect`** — check an age token on a website's behalf (Phase 4). Some websites would rather ask than verify signatures themselves: this is the idea of RFC 7662, "token introspection". The answer is `{"active": true, …claims}` the first time, and `{"active": false}` for everything else, with no reason given, so a forger learns nothing from trying.
 
-@@ 631-632
+@@ 643-644
 Read the clock once; prepare the one refusal.
 
-@@ 633-635
+@@ 645-647
 Verify the signature (`KeyRing.verify`). Then the token must be from this issuer, and addressed to **this** website's project: another website's token is just as inactive as a forged one.
 
-@@ 636-637
+@@ 648-649
 It must not have expired. (`isinstance` guards against a genuine but odd token without a whole-number `exp`.)
 
-@@ 638-641
+@@ 650-653
 Its ID (`jti`) must be a UUID.
 
-@@ 642-646
+@@ 654-658
 In the website's own tenant, find the record made when the token was issued, **locked**, so that two simultaneous introspections can't both be first. A token never issued, or already introspected, is inactive. Otherwise note the time and commit: from now on, this token is spent.
 
-@@ 647
+@@ 659
 The first, genuine introspection: active, with the token's claims.
 
 @@ 136-139
@@ -466,50 +472,50 @@ Once the face check has decided — anything but a retry — count it. A step-up
 @@ 386-390
 **`document_scores`** (§5.6.2) — what is kept of a document check. Its docstring states the rule from the design (§9.1): the results, and of the document only its kind, issuer, the year and month of birth and its expiry. No analysis at all? Say so.
 
-@@ 391-403
-Of the document, if one was read: its layout, type and issuer; the **year and month** of birth (formatted as `1990-01`), never the day; the expiry; and the repairs its reading needed. The name, the document number and the nationality were dropped inside the parser and never reach this point.
+@@ 391-392
+The two things a decision may carry: a passport or ID card as read from its MRZ, or — since Part 7 — an Aadhaar Secure QR. At most one of them is set.
 
-@@ 404-408
+@@ 414-418
 And the check's other results: why no zone was read (if none was), how many faces the document showed, how alike the faces were (to three decimal places), the selfie's own scores — liveness included — and how long the analysis took.
 
-@@ 411-420
+@@ 421-430
 **`submit_document_attempt`** (§5.6.2) — the step-up with an ID document. It takes what a face attempt takes, plus the document's photo, and returns the decision and the attempts left. It is open only to a session that the face check sent there. Since D24 it is also open from the start in a document-only session.
 
-@@ 421-423
+@@ 431-433
 First a quick look, without a lock: may the document check be used now (`document_open`)? If not, `409` — before a challenge is used up or the inference service is asked anything.
 
-@@ 424-427
+@@ 434-437
 Use up the challenge (once only, as for faces), and put the server's own challenge into the frames' description: the selfie is judged against what the server asked for, never against what the browser says it was asked.
 
-@@ 428
+@@ 438
 Ask the inference service to read the document and compare the faces. `None` if it failed: the rules below turn that into a retry.
 
-@@ 429-435
+@@ 439-445
 Then the decision, in one transaction holding the session's row lock — the same pattern as a face attempt: reload with a lock, expire if due, and make sure the session is still awaiting its step-up (two uploads at once can't both decide). ("May still use" is `document_open` again: awaiting its step-up, or a document-only session still in progress.)
 
-@@ 436-443
+@@ 446-453
 Load the pinned policy, and the reasons of this session's earlier document checks.
 
-@@ 444-445
+@@ 454-455
 Count those that failed the pose challenge (a second failure is rejected, as for faces), and decide with `decide_document`, using today's date for the age and expiry.
 
-@@ 446-456
+@@ 456-466
 Record the attempt, of kind `document`, with its outcome, reasons and scores — the only trace the document leaves.
 
-@@ 457-462
+@@ 467-472
 Anything but a retry ends the session: completed, with the step-up's outcome, the completion time, and the announcement (webhook event and daily count) in the same transaction. It comes from either state — awaiting a step-up, or in progress for a document-only session — and `move` checks the change is allowed. Since 9 Nov the ending is counted for the dashboard too (`record_document_stage`).
 
-@@ 463-465
+@@ 473-475
 Work out the attempts left, save everything, and return.
 
-@@ 468-477
+@@ 478-487
 **`methods_of`** (§5.6.2) — how a completed session was decided, for its token's `methods` claim. First (Phase 9): a session answered with an Age Pass says just `age_pass` — no face was seen this time.
 
-@@ 478-486
-Count the session's document checks that reached a decision (not retries)…
+@@ 488-496
+Fetch the **reasons** of the session's document check that reached a decision (not a retry), if there is one: `.first()` gives that list, or `None`. Before Part 7 this only counted such checks; now the reasons are needed, to tell which kind of document it was.
 
-@@ 487-495
-…and if there is one, the session was decided by a document. If it also had a face attempt, by a document after a face estimate: `face_estimation`, `document_mrz` and `face_match`; a document-only session (D24) never had its age estimated: `document_mrz` and `face_match`. Otherwise it was decided by the face alone.
+@@ 497-507
+If there is one, the session was decided by a document. Which kind: an Aadhaar Secure QR leaves the reason `aadhaar_qr` (§7.6), so the token says `document_aadhaar_qr`; otherwise `document_mrz`. If the session also had a face attempt, it was decided by a document after a face estimate: `face_estimation`, the document's kind, and `face_match`; a document-only session (D24) never had its age estimated, so only the last two. Otherwise it was decided by the face alone.
 
 @@ 162-166
 **`document_only`** — decision D24 (8 Nov): while no age model is certified for live use (its manifest says `calibrated: false`), a **live** check is decided by an ID document alone. The age estimate is never used for it, so the face check is skipped; the document check's own selfie, taken with the same random challenge, still shows that a live person is there and that the document is theirs. Test checks are unchanged.

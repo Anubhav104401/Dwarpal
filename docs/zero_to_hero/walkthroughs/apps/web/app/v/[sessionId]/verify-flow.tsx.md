@@ -1,5 +1,5 @@
 ---
-fingerprint: 94183891a4adddd6
+fingerprint: c1595639d2cb2d38
 ---
 **The verify flow** — every screen a person sees during an age check, and the logic that moves between them. It is a **state machine** like the API's session (§5.1.2), but for the screen: at any moment the page is in exactly one **stage**, and each stage draws one screen.
 
@@ -186,19 +186,22 @@ The closing tags.
 @@ 471-477
 Below it, the attempts left — "Last try" when one remains.
 
-@@ 567-581
+@@ 502-507
+Since Part 7, one more paragraph under the three steps — shown in **test** sessions only (`session.livemode ? null : …`): an Aadhaar Secure QR works as the document too, with what is read from it and what is not, and that using Aadhaar is the person's own choice. A live session never shows it, because the API refuses an Aadhaar code there (`aadhaar_test_only`).
+
+@@ 573-587
 **Checking**: a spinning ring (`animate-spin` on a circle whose top border alone is saffron; it holds still for reduced-motion visitors) and two lines of text. `role="status"` makes screen readers announce "Checking your photos…".
 
-@@ 583
+@@ 589
 **An ending** — the only stage left. Look its screen up in `ENDINGS`.
 
-@@ 584-589
+@@ 590-595
 The icon, in the ending's colours, drawing the ending's symbol with rounded line ends.
 
-@@ 590-593
+@@ 596-599
 The title and body text in the page's language (§5.5.11), with the website's name and the age filled in.
 
-@@ 646-649
+@@ 652-655
 The closing tags.
 
 @@ 263-268
@@ -219,10 +222,10 @@ Any error — the network, the API — becomes a problem screen, as everywhere o
 @@ 492-501
 The three steps, as numbered circles, styled like the intro's promises.
 
-@@ 512-525
+@@ 518-531
 The photo button. On a phone, a file input with `capture="environment"` opens the **rear camera**; on a computer, it opens a file picker. The input itself is hidden visually (`sr-only`, still there for screen readers and the keyboard), and its `<label>` wears the button's look — clicking a label clicks its input. `has-focus-visible:` gives the label the focus ring whenever the hidden input has keyboard focus, as the comment says. Only JPEG, PNG and WebP pictures are offered. Since 9 Nov, on a computer it comes second, in the quiet style, as *Choose a photo file instead*.
 
-@@ 550-565
+@@ 556-571
 **The selfie stage**: a line saying the document's photo is ready and why a selfie follows, then the very same camera screen as a face check — its challenge, poses and colours — whose capture goes to `onSelfieCaptured` with the document.
 
 @@ 4
@@ -300,19 +303,19 @@ After a refused pass, a notice saying so, in a region screen readers announce.
 @@ 428-442
 **The Age Pass's offer**, when a kept pass can answer this check: a panel with a title, what the pass will show — this website, this line, only that, no camera — and the loud button, **Use my Age Pass**.
 
-@@ 594-607
+@@ 600-613
 At the end: after a step-up, two choices — **"Use a passport or ID card"**, the loud one, which starts the document stage; and **"Not now — return to …"**, the quiet one, for someone who would rather not. "Returning…" while it works.
 
-@@ 608-610
+@@ 614-616
 **Saving passes** (Phase 9) is offered only after a pass earned just now, where the website takes passes, and on this page's own tab: a panel.
 
-@@ 611-617
+@@ 617-623
 Saved: how many uses, and until when, as a date written the page's way ("January 31, 2027"; in Hindi, the Hindi way), in a region screen readers announce.
 
-@@ 618-637
+@@ 624-643
 Not yet saved: the title, what an Age Pass is and isn't — no photo, name or date of birth; twenty uses in ninety days; nothing websites can recognise someone by — a failure message if saving failed, and the quiet **Save an Age Pass** button, which says "Saving…" while it works.
 
-@@ 638-645
+@@ 644-651
 Every ending but the step-up then has its one loud button, "Continue to …", and "Returning…" while it works.
 
 @@ 25
@@ -330,23 +333,23 @@ Once in the browser, find out (`canFilmDocument`: a mouse or trackpad, and a cam
 @@ 254-261
 **`onDocumentCameraUnavailable`** (D43) — the webcam couldn't be opened: back to the document stage, with a tip to choose a file instead. It reads the current stage (`setStage` given a function) instead of being given the session, so it can stay the same function forever (`useCallback` with no dependencies): the camera component opens the camera again whenever it gets a new one.
 
-@@ 502-511
+@@ 508-517
 On a computer (D43), a button for its webcam comes first, in the accent style; it opens the `documentCamera` stage.
 
-@@ 526
+@@ 532
 The tries left, or "Last try".
 
-@@ 527-530
+@@ 533-536
 The end of the document stage's card and page.
 
-@@ 532-536
+@@ 538-542
 **The document camera's stage** (D43): the same title, in the same card…
 
-@@ 537-543
+@@ 543-549
 …and the camera (`document-camera.tsx`). A photo taken and accepted goes the way a chosen file does (`onDocumentChosen`); *Choose a file instead* goes back to the document stage; a camera that can't be opened goes back too, with a tip.
 
-@@ 544
+@@ 550
 The tries left.
 
-@@ 545-548
+@@ 551-554
 The end of the document camera's card and page.

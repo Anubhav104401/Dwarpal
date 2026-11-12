@@ -389,8 +389,18 @@ def document_scores(analysis: DocumentAnalysis | None, decision: DocumentDecisio
     if analysis is None:
         return {"analysis": "unavailable"}
     document = decision.document
+    aadhaar = decision.aadhaar
     return {
         "zone_problem": analysis.zone_problem,
+        # Of an Aadhaar Secure QR: which of UIDAI's keys signed it, and the year (and month, if given) of birth.
+        "aadhaar": None
+        if aadhaar is None
+        else {
+            "signed_by": aadhaar.signed_by,
+            "birth_year_month": f"{aadhaar.born.year:04d}"
+            if aadhaar.year_only
+            else f"{aadhaar.born.year:04d}-{aadhaar.born.month:02d}",
+        },
         "document": None
         if document is None
         else {
@@ -475,23 +485,25 @@ async def methods_of(session: AsyncSession, row: VerificationSession) -> list[st
     )
     if decided_by_pass:
         return ["age_pass"]
-    decided_by_document = await session.scalar(
-        select(func.count())
-        .select_from(VerificationAttempt)
-        .where(
-            VerificationAttempt.session_id == row.id,
-            VerificationAttempt.kind == "document",
-            VerificationAttempt.outcome != Outcome.RETRY,
+    decided_by_document = (
+        await session.scalars(
+            select(VerificationAttempt.reasons).where(
+                VerificationAttempt.session_id == row.id,
+                VerificationAttempt.kind == "document",
+                VerificationAttempt.outcome != Outcome.RETRY,
+            )
         )
-    )
-    if decided_by_document:
+    ).first()
+    if decided_by_document is not None:
+        # Which kind of document decided: a passport or ID card's printed zone, or an Aadhaar Secure QR (Part 7).
+        document = "document_aadhaar_qr" if "aadhaar_qr" in decided_by_document else "document_mrz"
         # A document-only session (D24) never had its age estimated.
         faced = await session.scalar(
             select(func.count())
             .select_from(VerificationAttempt)
             .where(VerificationAttempt.session_id == row.id, VerificationAttempt.kind == "face")
         )
-        return ["face_estimation", "document_mrz", "face_match"] if faced else ["document_mrz", "face_match"]
+        return ["face_estimation", document, "face_match"] if faced else [document, "face_match"]
     return ["face_estimation"]
 
 

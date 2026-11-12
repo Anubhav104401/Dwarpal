@@ -1,5 +1,5 @@
 ---
-fingerprint: 4671d763c02ace75
+fingerprint: 40213b32deedfd80
 ---
 `book.toml` holds the book's **settings**. Keeping settings in a separate file, rather than inside `build.py`, means you can add a chapter or change the title **without touching any program code**. "Separate the *what* from the *how*" is one of the oldest good habits in software.
 
@@ -30,7 +30,7 @@ Python reads TOML with its built-in `tomllib`.
 @@ 4
 `abbreviations = "abbreviations.md"` is the file of hover definitions, which is attached to every chapter and walkthrough note when it is converted.
 
-@@ 5-26
+@@ 5-27
 `chapters = [ … ]` is the **reading order** of the book. Each line inside the brackets is one chapter file, and the order here is the order in the book. The numbers at the start of the file names only keep the folder tidy.
 
 The list grows as the project does:
@@ -51,10 +51,10 @@ Phases 6 and 7 began out of order (some of their work needs nothing waiting for 
 
 And `11_part5_phase5.md` (front-end excellence, §5.5), in the place kept for it.
 
-@@ 28
+@@ 29
 `[coverage]` starts the group of settings for the **coverage check** — which project files must have a line-by-line explanation. In Python this group is read as `config["coverage"]`.
 
-@@ 29-34
+@@ 30-35
 `include = [ … ]` lists **glob patterns** for files that count as code. In a glob, `*` means "any characters within one name", and `**` means "any number of folders, including none". The patterns cover:
 
 - Python (`.py`);
@@ -69,7 +69,7 @@ And `11_part5_phase5.md` (front-end excellence, §5.5), in the place kept for it
 
 Markdown (`.md`) is deliberately not included: it is prose, not code.
 
-@@ 35
+@@ 36
 `exclude = [ … ]` lists patterns that are removed even if they matched `include`:
 
 - the generated book itself — explaining the explainer's output would loop forever;
@@ -80,7 +80,7 @@ Markdown (`.md`) is deliberately not included: it is prose, not code.
 
 `docs/api/openapi.json` (Phase 4) — the API's published OpenAPI document: almost 5,000 lines that `cli openapi` writes from the code itself. The code that produces it is explained line by line instead (`http/problems.py`, `cli.py`), and a test fails if the file and the code ever disagree.
 
-@@ 36-40
+@@ 37-41
 `prune = [ … ]` lists **folder names the scanner never enters**, because they hold things we didn't write:
 
 - Git's own history (`.git`);

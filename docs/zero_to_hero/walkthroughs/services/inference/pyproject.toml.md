@@ -1,5 +1,5 @@
 ---
-fingerprint: 287ccae760091a70
+fingerprint: 26cc1fc7b2bf1d03
 ---
 The `pyproject.toml` of the **inference service** — the "clean room" where faces are analysed in memory and never stored (§3.8). Its structure is identical to the API's (see §5.0.2, `services/api/pyproject.toml`); only the name and description differ.
 
@@ -18,7 +18,7 @@ The `pyproject.toml` of the **inference service** — the "clean room" where fac
 @@ 5
 `requires-python = ">=3.13,<3.14"` — tested and deployed on Python 3.13 only.
 
-@@ 6-15
+@@ 6-16
 `dependencies = [ … ]` — the libraries the service needs at run time, filled in during Phase 1. Each outside library is pinned with `==`:
 
 | Library | Why the inference service needs it |
@@ -32,10 +32,10 @@ The `pyproject.toml` of the **inference service** — the "clean room" where fac
 | `python-multipart` 0.0.32 | Lets FastAPI read `multipart/form-data` uploads — how the frames arrive |
 | `uvicorn` 0.54.0 | The server program that actually listens on a port and hands requests to FastAPI |
 
-Our own packages carry no version pin, because they are part of the same workspace and always move together. Their source is declared on the next lines.
+Our own packages carry no version pin, because they are part of the same workspace and always move together. Their source is declared on the next lines. Since Part 7 also **`cryptography`**, the library that checks UIDAI's RSA signature on an Aadhaar Secure QR. The API already used the same version, so nothing new was downloaded.
 
-@@ 17-19
+@@ 18-20
 `[tool.uv.sources]` — tells uv *where* to find two of the dependencies: `{ workspace = true }` means "use the copy that is a member of this workspace", not a package from the internet. A change to `dwarpal-vision` is therefore immediately visible to the inference service, with no publishing step in between.
 
-@@ 21-23
+@@ 22-24
 **The build system**: `uv_build`, within the 0.13 series, called through the `uv_build` module — exactly as for the API package.

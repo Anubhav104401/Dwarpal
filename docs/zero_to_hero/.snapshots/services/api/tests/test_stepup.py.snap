@@ -10,7 +10,15 @@ from dwarpal_api.domain.decision import Outcome
 from dwarpal_api.domain.mrz import check_digit
 from dwarpal_api.domain.policy import get_policy
 from dwarpal_api.domain.stepup import MAX_DOCUMENT_ATTEMPTS, SAME_PERSON, decide_document
-from dwarpal_contracts import DocumentAnalysis, FaceAnalysis, FrameReport, LightCheck, Liveness, PoseCheck
+from dwarpal_contracts import (
+    AadhaarReading,
+    DocumentAnalysis,
+    FaceAnalysis,
+    FrameReport,
+    LightCheck,
+    Liveness,
+    PoseCheck,
+)
 
 TODAY = date(2026, 11, 1)
 POLICY = get_policy("uk_osa_18")
@@ -48,10 +56,12 @@ def analysis(
     faces: int = 1,
     liveness: Liveness | None = LIVE,
     problem: str | None = None,
+    aadhaar: AadhaarReading | None = None,
 ) -> DocumentAnalysis:
     return DocumentAnalysis(
         zone=zone("900101") if lines is None else lines,
         zone_problem=problem,
+        aadhaar=aadhaar,
         document_faces=faces,
         similarity=similarity,
         face=selfie(liveness),
@@ -111,3 +121,69 @@ def test_doubtful_liveness_cannot_step_up_again() -> None:
     doubtful = Liveness(pose=PoseCheck(passed=True, problems=[]), light=None, injection=["virtual_camera"])
     decision = decide_document(POLICY, analysis(liveness=doubtful), 0, TODAY)
     assert (decision.outcome, decision.reasons) == (Outcome.RETRY, ("liveness_uncertain",))
+
+
+def secure_qr(
+    born: str | None = "1990-01-01", signed_by: str | None = "uidai_offline_publickey_2026"
+) -> AadhaarReading:
+    """What the inference service passes on from an Aadhaar Secure QR."""
+    return AadhaarReading(signed_by=signed_by, born=born, problem=None if born else "aadhaar_qr_unreadable")
+
+
+def test_a_signed_secure_qr_of_an_adult_whose_face_matches_passes() -> None:
+    decision = decide_document(POLICY, analysis(lines=[], aadhaar=secure_qr()), 0, TODAY)
+    assert decision.outcome == Outcome.PASS
+    assert decision.reasons == ("document_over_age", "aadhaar_qr")
+    assert decision.document is None and decision.aadhaar is not None
+    assert (decision.aadhaar.born, decision.aadhaar.year_only) == (date(1990, 1, 1), False)
+
+
+def test_a_signed_secure_qr_of_a_minor_fails_at_once() -> None:
+    decision = decide_document(POLICY, analysis(lines=[], aadhaar=secure_qr("2010-06-01")), 0, TODAY)
+    assert (decision.outcome, decision.reasons) == (Outcome.FAIL, ("under_age", "aadhaar_qr"))
+
+
+@pytest.mark.parametrize(
+    ("born", "outcome"),
+    [("2008", Outcome.FAIL), ("2007", Outcome.PASS)],  # on 1 Nov 2026: 18 only if born before 2 Nov 2008
+)
+def test_a_year_alone_counts_as_its_last_day(born: str, outcome: Outcome) -> None:
+    decision = decide_document(POLICY, analysis(lines=[], aadhaar=secure_qr(born)), 0, TODAY)
+    assert decision.outcome == outcome
+    assert decision.aadhaar is not None and decision.aadhaar.year_only
+    assert decision.aadhaar.born == date(int(born), 12, 31)
+
+
+@pytest.mark.parametrize(
+    ("evidence", "reason"),
+    [
+        (analysis(lines=[], aadhaar=secure_qr(signed_by=None)), "aadhaar_signature_invalid"),
+        (analysis(lines=[], aadhaar=secure_qr(born=None)), "aadhaar_qr_unreadable"),
+        (analysis(lines=[], aadhaar=secure_qr("1990-02-30")), "aadhaar_qr_unreadable"),  # no such day
+        (analysis(lines=[], aadhaar=secure_qr("2027-01-01")), "aadhaar_qr_unreadable"),  # not born yet
+        (analysis(lines=[], aadhaar=secure_qr("1850")), "aadhaar_qr_unreadable"),
+        (analysis(lines=[], aadhaar=secure_qr(), faces=0), "document_face_not_found"),
+        (analysis(lines=[], aadhaar=secure_qr(), similarity=None), "face_not_found"),
+        (analysis(lines=[], aadhaar=secure_qr(), similarity=SAME_PERSON - 0.01), "face_mismatch"),
+        (analysis(lines=[], aadhaar=secure_qr(), liveness=None), "liveness_unavailable"),
+    ],
+)
+def test_a_doubtful_secure_qr_is_retried_and_never_passes(evidence: DocumentAnalysis, reason: str) -> None:
+    first = decide_document(POLICY, evidence, 0, TODAY)
+    last = decide_document(POLICY, evidence, MAX_DOCUMENT_ATTEMPTS - 1, TODAY)
+    assert first.outcome == Outcome.RETRY and reason in first.reasons
+    assert last.outcome == Outcome.FAIL
+
+
+def test_an_unsigned_code_fails_however_old_it_claims_to_be() -> None:
+    forged = analysis(lines=[], aadhaar=secure_qr("1950-01-01", signed_by=None))
+    assert decide_document(POLICY, forged, MAX_DOCUMENT_ATTEMPTS - 1, TODAY).outcome == Outcome.FAIL
+
+
+def test_a_live_session_does_not_take_a_secure_qr() -> None:
+    decision = decide_document(POLICY, analysis(lines=[], aadhaar=secure_qr()), 0, TODAY, livemode=True)
+    assert (decision.outcome, decision.reasons) == (Outcome.RETRY, ("aadhaar_test_only",))
+    last = decide_document(
+        POLICY, analysis(lines=[], aadhaar=secure_qr()), MAX_DOCUMENT_ATTEMPTS - 1, TODAY, livemode=True
+    )
+    assert last.outcome == Outcome.FAIL
