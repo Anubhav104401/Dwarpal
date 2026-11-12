@@ -1,5 +1,5 @@
 ---
-fingerprint: 21cc3733298c5a59
+fingerprint: 743215275e31afd3
 ---
 `build.py` is the **book binder**. It reads the settings, chapters, walkthroughs and template, and writes one finished HTML file. It also checks that every code line in the project has an explanation that is still up to date, and it keeps explanations attached to the right lines when code changes.
 
@@ -664,34 +664,34 @@ Read the template.
 @@ 348
 **Insert the body last — on purpose.** The book *contains* text like `{{TITLE}}` (in the template's walkthrough, for example). If the body went in first, the loop above would wrongly replace those mentions too.
 
-@@ 350-353
-**`report` — the summary printed in the terminal**: the totals, then one indented line per problem. The `·` dot is swapped for `|` because some Windows terminals can't print it.
+@@ 350-359
+**`report` — the summary printed in the terminal**: the totals, then one indented line per problem. The `·` dot is swapped for `|` because some Windows terminals can't print it. Since 12 Nov it also names every file that is **incomplete** without being a "problem" — explained once, then changed — with how many of its lines are explained. Before, a strict build could fail on such a file and print only the totals, which is how CI's book check came to fail on GitHub's computer without saying why.
 
-@@ 356-357
+@@ 362-363
 **`new_walkthrough` — the `--new` helper.** Find where the file's walkthrough should go.
 
-@@ 358-360
+@@ 364-366
 **Never overwrite.** If a walkthrough already exists, refuse and return `1` (failure). One mistyped command must never destroy hours of written explanations.
 
-@@ 361
+@@ 367
 Read the source file.
 
-@@ 362
+@@ 368
 **One `TODO` note per non-blank line**: a marker with the line number, then `TODO`. The author replaces each `TODO`, merging neighbouring lines into ranges where that reads better.
 
-@@ 363
+@@ 369
 **The header**: the file's current fingerprint between dashes, and a `TODO` for the introduction.
 
-@@ 364
+@@ 370
 Write the walkthrough: the header followed by all the notes.
 
-@@ 365
+@@ 371
 Save the first **snapshot** of the source, so `--reanchor` works from day one.
 
-@@ 366-367
+@@ 372-373
 Report where the file was created, and return `0` (success).
 
-@@ 370-376
+@@ 376-382
 **`stamp_walkthrough` — the `--stamp` helper**, run after the explanations have been checked against the current code:
 
 1. find the walkthrough and read the current source;
@@ -701,7 +701,7 @@ Report where the file was created, and return `0` (success).
 
 Stamping is deliberately manual: the builder can *notice* that code changed, but only a person can confirm the explanation still matches.
 
-@@ 379-390
+@@ 385-396
 **`reanchor_walkthrough` — the `--reanchor` helper.**
 
 1. Find the snapshot and the walkthrough. If either is missing, explain what's needed and return `1`.
@@ -715,46 +715,46 @@ It never stamps: the fingerprint still belongs to the last *approved* version, s
 !!! real "Real world — a bug this step fixed"
     The first version did not do step 4. Re-anchoring twice before a stamp then went wrong: the second run compared the *stamped* version with the newest one, and moved notes that had already been moved once. The builder's own tests now include exactly that case.
 
-@@ 393
+@@ 399
 **`main` — what happens when you run `build.py`.** It returns an exit code.
 
-@@ 394
+@@ 400
 Create the argument parser, with a description for the help text.
 
-@@ 395
+@@ 401
 `--strict` is an on/off switch (`store_true`).
 
-@@ 396-398
+@@ 402-404
 `--new`, `--stamp` and `--reanchor` each take a path (shown as `PATH` in the help text).
 
-@@ 399
+@@ 405
 **Read what was actually typed.** Unknown options stop the program with a helpful message.
 
-@@ 400
+@@ 406
 **A dict from option name to the function that handles it.** Functions are values in Python, so they can be stored in a dict like anything else.
 
-@@ 401-403
+@@ 407-409
 **Dispatch.** For each helper command: if its option was given (`getattr(args, name)` reads the attribute whose name is in `name`), convert the path to project-relative form, run the function, and return its exit code. Nothing else runs.
 
 The first version used three separate `if` blocks. The dict makes adding a fourth command a one-line change.
 
-@@ 404
+@@ 410
 **Normal build.** Read `book.toml` and parse it.
 
-@@ 405
+@@ 411
 Create the `Book`.
 
-@@ 406
+@@ 412
 **Build and save** the page, at the path named by `output` in the settings.
 
-@@ 407
+@@ 413
 Print the report.
 
-@@ 408
+@@ 414
 **Is anything incomplete?** `True` if at least one file isn't fully explained, or is stale.
 
-@@ 409
+@@ 415
 **The exit code.** In `--strict` mode any problem or incomplete file means failure (`1`); otherwise success (`0`). Robots such as CI read this number (§4.6).
 
-@@ 412-413
+@@ 418-419
 **The entry point.** When a file is run directly, Python sets `__name__` to `"__main__"`; when it is imported, `__name__` is the module's name. So `main()` runs only when you run the file — the tests can `import build` without building the book.

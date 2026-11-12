@@ -37,7 +37,17 @@ jobs:
         timeout-minutes: 15
         shell: bash
         run: uv run python -m pytest ml -v --durations=15 2>&1 | tee ml-tests.log
-      - run: uv run tasks.py book
+      - name: The book
+        shell: bash
+        run: uv run tasks.py book 2>&1 | tee book.log
+      # As with the tests below: what the book's check found wrong, where it can be read without a sign-in.
+      - name: The book's problems, as an annotation
+        if: failure()
+        shell: bash
+        run: |
+          [ -f book.log ] || exit 0
+          found=$(grep -E '^  (problem|incomplete):' book.log | head -30 | tr '\n' '|')
+          echo "::error title=book::${found:-no problem lines; last line: $(tail -1 book.log)}"
       # CI's logs need a GitHub sign-in; annotations don't. Post the slowest tests, and the last lines reached (the
       # test that was running if a step ran out of time), as annotations.
       - name: Test timings, as annotations

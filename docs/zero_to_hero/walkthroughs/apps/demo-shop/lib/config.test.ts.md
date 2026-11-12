@@ -1,3 +1,6 @@
+---
+fingerprint: acda124454e29e59
+---
 Tests for the shop's settings (added on 11 Nov 2026, §6.14): they are read from the environment, a project ID in the database's UUID form is refused, and every missing setting is named at once.
 
 @@ 1

@@ -350,6 +350,12 @@ class Book:
     def report(self) -> str:
         lines = [f"book: {self.totals()}".replace("·", "|")]
         lines += [f"  problem: {p}" for p in self.problems]
+        # A file can also be incomplete without a "problem": explained once, then changed. Name those too.
+        named = "\n".join(self.problems)
+        for cov in self.coverage.values():
+            if not cov.complete and cov.path not in named:
+                changed = ", code changed since explained" if cov.stale else ""
+                lines.append(f"  incomplete: {cov.path} ({cov.explained}/{cov.required} lines explained{changed})")
         return "\n".join(lines)
 
 
