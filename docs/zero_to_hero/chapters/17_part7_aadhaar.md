@@ -331,3 +331,70 @@ All of it is covered by tests that use **no real Aadhaar**: 15 for the reader, 7
 **"Why not call UIDAI's API?"** That is online authentication, open only to licensed agencies. Offline verification also has a privacy advantage: UIDAI never learns where the person used their Aadhaar. (§7.2)
 
 **"How did you test without real Aadhaar data?"** With specimens: the real layout, fictional contents, signed by a throwaway key made in the test. UIDAI's key ring must refuse them — one test asserts that — and a ring holding the throwaway certificate accepts them, which exercises the accepting path. (§7.12)
+
+## 7.14 Aadhaar first, passport second (14 Nov)
+
+After the trained age model went live, the owner tried the demo shop with several children. The younger ones were stopped. A teenage sister was sent to the **stronger check** — exactly what the model should do when a face is too close to call. But that stronger check then asked her for a **passport**, which most Indian teenagers and many adults don't have. Nearly everyone in India has an Aadhaar.
+
+So in a **test** check, the stronger check now asks for Aadhaar first:
+
+- the step-up's button says *Use my Aadhaar*, and its message says so;
+- the document screen is titled *Confirm your age with Aadhaar*, and its three steps describe the QR code's picture, the selfie, and what is checked, read and never kept;
+- one line below, the passport stays: *Using Aadhaar is your choice. A passport or ID card works just as well* — the law expects a person to be told that other documents are accepted (§7.10);
+- the file chooser comes first, even on a computer, because a webcam rarely shows Aadhaar's dense QR code sharply enough (§7.3); the webcam is offered below it.
+
+Nothing changed on the server side: the document check already looked for an Aadhaar code and a passport's lines in whatever picture arrived (§7.6), so a passport chosen from the Aadhaar screen still works — and one browser test proves exactly that. If neither is found, the page names both in its tip rather than only the passport.
+
+A **live** check is unchanged: it still asks for a passport, because Aadhaar may not be used commercially until Dwarpal is registered with UIDAI (§7.10). The code that decides is one line in the verify page: `const aadhaar = !session.livemode;`.
+
+!!! honest "Honest limitation"
+    Aadhaar first applies to test checks only, so the demo shop shows it, but no paying customer's visitors can use it yet. Turning it on for live checks is a legal step (registration with UIDAI as an offline verifier), not a code change.
+
+## 7.15 Ten languages (14 Nov)
+
+The pages spoke English and Hindi (decision D2). India has 22 official languages; on 14 Nov the eight with the most speakers after Hindi were added: **Bengali** (বাংলা), **Marathi** (मराठी), **Telugu** (తెలుగు), **Tamil** (தமிழ்), **Gujarati** (ગુજરાતી), **Kannada** (ಕನ್ನಡ), **Malayalam** (മലയാളം) and **Punjabi** (ਪੰਜਾਬੀ). Together with Hindi and English they cover the large majority of people in India.
+
+### How a page speaks a language
+
+Recall §5.5.11: the code never contains the words themselves. It names each piece of text by a **key**, such as `Verify.aadhaarTitle`, and a **words file** per language — `messages/ta.json` for Tamil — gives that key's text. Adding a language is therefore three things:
+
+1. a new words file with all 233 texts;
+2. its code in the list of languages (`i18n/locales.ts`) — `ta`, the two letters browsers send when someone's phone is set to Tamil, so a Tamil phone gets Tamil pages without choosing;
+3. a way to choose it: the **language menu**.
+
+Each words file has exactly the same keys on exactly the same lines as the English one, so every line of each file means the same as the English file's line; their walkthroughs say so once.
+
+!walk apps/web/messages/bn.json
+
+!walk apps/web/messages/mr.json
+
+!walk apps/web/messages/te.json
+
+!walk apps/web/messages/ta.json
+
+!walk apps/web/messages/gu.json
+
+!walk apps/web/messages/kn.json
+
+!walk apps/web/messages/ml.json
+
+!walk apps/web/messages/pa.json
+
+### The menu
+
+Two buttons, English and हिन्दी, fit in a header; ten don't, on a phone. So the switch became a **menu**: the current language's name with a small arrow, which opens a list of all ten, each written in its own script — someone who reads only Kannada can't find "Kannada", but can find "ಕನ್ನಡ". It is built from an HTML `<details>` element, which opens and closes without any script, so it works before the page's JavaScript has loaded. It was checked in a browser at desktop and phone widths: the list fits a 375-pixel phone screen, and choosing Tamil turns the page Tamil and closes the menu (which, at first, stayed open — a React detail, explained in the walkthrough of `language-switch.tsx`).
+
+### Letters on screen
+
+A **font** is the set of drawings for letters. Geist, the site's font, draws only Latin letters. Hindi and Marathi share the Devanagari script, which the site ships itself (Noto Sans Devanagari, decision D2b). For the six other scripts the site ships nothing: every Windows, Android and iOS device already has fonts for them, and the stylesheet's last resort — `system-ui, sans-serif` — lets the device use its own. That keeps the pages from downloading six more fonts, and needed no new package (packages wait seven days before they may be used).
+
+### Checking 2,000 translated texts
+
+Eight files of 233 texts is almost 1,900 texts, and one broken one shows a visitor a raw `{project}` or breaks the page. A new test reads every file and checks, for each language: the same keys as English, none empty, every placeholder (`{project}`, `{count, plural, …}`) and every tag kept, and the menu's ten names the same in every file.
+
+!walk apps/web/i18n/messages.test.ts
+
+!!! honest "Honest limitation"
+    - **Machine-drafted.** Every new translation was written by the AI that wrote this code, not by a native speaker. They are complete and checked for structure, but not for tone or exact meaning — which matters most in the privacy promises, the Aadhaar notice and the compliance map. Each language needs a native speaker's review before real visitors rely on it.
+    - **Fourteen official languages are still missing**, among them Odia, Assamese and Urdu. Urdu also reads right to left, which the pages' layout would need to support first.
+    - **The console stays in English**, as before: it is for businesses' developers, not the people being checked.

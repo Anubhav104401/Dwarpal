@@ -1,6 +1,9 @@
-/** The languages of the public pages (decision D2): English, and Hindi. The console stays in English. */
-
-export const LOCALES = ["en", "hi"] as const;
+/**
+ * The languages of the public pages: English and Hindi (decision D2), and since 14 Nov 2026 eight more of India's
+ * major languages — Bengali, Marathi, Telugu, Tamil, Gujarati, Kannada, Malayalam and Punjabi. Each is its ISO 639-1
+ * code, which is also what browsers send in `Accept-Language`. The console stays in English.
+ */
+export const LOCALES = ["en", "hi", "bn", "mr", "te", "ta", "gu", "kn", "ml", "pa"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 /** The cookie that remembers a person's own choice: next-intl's usual name for it. */

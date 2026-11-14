@@ -83,8 +83,11 @@
   color-scheme: light dark;
 }
 
-/* Hindi pages only: Geist has no Devanagari letters, so they come from Noto Sans Devanagari (decision D2b). English
-   pages leave it out, so the one Hindi word they show (the language switch's) doesn't make them fetch the font. */
-html:lang(hi) {
+/* Hindi and Marathi pages only: Geist has no Devanagari letters, so they come from Noto Sans Devanagari (decision
+   D2b). Other pages leave it out, so the language menu's one Hindi word doesn't make them fetch the font. The other
+   Indian scripts (Bengali, Telugu, Tamil, Gujarati, Kannada, Malayalam, Gurmukhi) come from the device's own fonts,
+   through `system-ui` and `sans-serif`: Windows, Android and iOS all ship them. */
+html:lang(hi),
+html:lang(mr) {
   --font-sans: var(--font-geist-sans), "Noto Sans Devanagari Variable", ui-sans-serif, system-ui, sans-serif;
 }

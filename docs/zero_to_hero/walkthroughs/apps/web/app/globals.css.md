@@ -1,5 +1,5 @@
 ---
-fingerprint: a27cd98abfc22293
+fingerprint: b1df859227ff6b60
 ---
 The web app's global stylesheet, which since Phase 5 holds **Dwarpal's design tokens**: the named colours, type sizes and motion settings every page is built from (§5.5.6). Tailwind turns each token into a CSS variable and into classes.
 
@@ -65,5 +65,5 @@ The end of the theme.
 @@ 82-84
 `color-scheme: light dark` — tells the browser that the page supports both light and dark modes, so its own parts (scroll bars, form controls) follow the visitor's choice.
 
-@@ 86-90
-**Hindi pages only** (`html:lang(hi)`: the page's `lang` is `hi`): the same list with **Noto Sans Devanagari** (decision D2b) after Geist, which has no Devanagari letters. It was first on every page, but then English pages fetched the font (121 KB) for the single word *हिन्दी* in the language switch, and the home page's Lighthouse performance score dipped under 90 in CI (3 Nov). Now that word uses the system's Devanagari font, as before. This rule wins over Tailwind's own `:root` rule because `html:lang(hi)` is more specific.
+@@ 86-93
+**Hindi and Marathi pages only** (`html:lang(hi)`, `html:lang(mr)`: the page's `lang` is one of them — both are written in Devanagari): the same list with **Noto Sans Devanagari** (decision D2b) after Geist, which has no Devanagari letters. It was first on every page, but then English pages fetched the font (121 KB) for the single word *हिन्दी* in the language switch, and the home page's Lighthouse performance score dipped under 90 in CI (3 Nov). Now that word uses the system's Devanagari font, as before. The six other Indian scripts added on 14 Nov get no font of ours: they come from the device, through `system-ui` and `sans-serif` at the end of the list — Windows (Nirmala UI), Android and iOS (Noto and their own) all ship them, so nothing extra is downloaded. This rule wins over Tailwind's own `:root` rule because `html:lang(hi)` is more specific.

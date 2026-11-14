@@ -42,6 +42,11 @@ test("the hero's face turns 3D where the browser can draw it, and stays still fo
 test("the home page speaks Hindi to anyone who chooses it, and remembers the choice", async ({ page }) => {
   await page.goto("http://localhost:3000/");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  // The language menu lists all ten languages, each in its own script.
+  await page.locator('summary[aria-label="Language: English"]').click();
+  for (const name of ["বাংলা", "मराठी", "తెలుగు", "தமிழ்", "ગુજરાતી", "ಕನ್ನಡ", "മലയാളം", "ਪੰਜਾਬੀ"]) {
+    await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
+  }
   await page.getByRole("button", { name: "हिन्दी" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("देखो। तय करो। भूल जाओ।");
   await expect(page.locator("html")).toHaveAttribute("lang", "hi");
@@ -53,6 +58,7 @@ test("the home page speaks Hindi to anyone who chooses it, and remembers the cho
 
   // Remembered on the next visit; and English is one press away.
   await page.reload();
+  await page.locator('summary[aria-label="भाषा: हिन्दी"]').click();
   await expect(page.getByRole("button", { name: "हिन्दी" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "English" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Look. Decide. Forget.");
@@ -69,5 +75,15 @@ test("a browser that asks for Hindi gets it without choosing, and the console st
   // The console is written in English only, and says so for screen readers.
   await page.goto("http://localhost:3000/console");
   await expect(page.locator("div[lang=en]").first()).toContainText("Sign in");
+  await context.close();
+});
+
+test("a browser that asks for Tamil gets the home page in Tamil", async ({ browser }) => {
+  const context = await browser.newContext({ locale: "ta-IN" });
+  const page = await context.newPage();
+  await page.goto("http://localhost:3000/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ta");
+  await expect(page.locator('summary[aria-label^="மொழி"]')).toBeVisible();
+  expect(await violations(page)).toEqual([]);
   await context.close();
 });

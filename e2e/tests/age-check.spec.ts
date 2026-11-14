@@ -168,7 +168,7 @@ async function steppedUp(request: APIRequestContext): Promise<{ id: string; secr
   return { id, secret };
 }
 
-test("a person the face check can't decide confirms their age with a passport and a selfie", async ({
+test("a person the face check can't decide is offered Aadhaar first in a test check, and a passport too", async ({
   page,
   request,
 }, info) => {
@@ -177,16 +177,22 @@ test("a person the face check can't decide confirms their age with a passport an
   const { id, secret } = await steppedUp(request);
   await page.goto(`${VERIFY}/v/${id}#cs=${secret}`);
   await expect(page.getByRole("heading", { name: "We need a stronger check" })).toBeVisible();
-  await page.getByRole("button", { name: "Use a passport or ID card" }).click();
+  await page.getByRole("button", { name: "Use my Aadhaar" }).click();
 
-  // What happens, said before anything is chosen; then the photo of the passport's page.
-  await expect(page.getByRole("heading", { name: "Confirm your age with an ID document" })).toBeVisible();
-  await expect(page.getByText("Your name and document number are never kept")).toBeVisible();
+  // What happens, said before anything is chosen: Aadhaar's QR code first (Part 7), and the passport as the other way.
+  await expect(page.getByRole("heading", { name: "Confirm your age with Aadhaar" })).toBeVisible();
+  await expect(
+    page.getByText("Your Aadhaar number, name and address are never read out or kept"),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Using Aadhaar is your choice. A passport or ID card works just as well"),
+  ).toBeVisible();
   expect(await violations(page)).toEqual([]);
   await page.screenshot({ path: info.outputPath("1-document.png"), animations: "disabled" });
-  // On a computer the webcam comes first (D43); the file chooser is still there, under its own words.
+  // For Aadhaar the file chooser comes first — a webcam rarely shows its QR code sharply — and the webcam stays below.
+  // A passport's picture goes through the same chooser: the document check reads whichever it finds.
   await expect(page.getByRole("button", { name: "Use this computer's camera" })).toBeVisible();
-  await page.getByLabel("Choose a photo file instead").setInputFiles(SPECIMEN);
+  await page.getByLabel("Take or choose a picture of the QR code").setInputFiles(SPECIMEN);
 
   // Then a selfie, with the same challenge as a face check: the fake camera plays the passport's face.
   await expect(page.getByText("Now a short selfie")).toBeVisible();
@@ -233,7 +239,7 @@ test("on a computer, the document is photographed with the webcam, looked at, th
 }, info) => {
   const { id, secret } = await steppedUp(request);
   await page.goto(`${VERIFY}/v/${id}#cs=${secret}`);
-  await page.getByRole("button", { name: "Use a passport or ID card" }).click();
+  await page.getByRole("button", { name: "Use my Aadhaar" }).click();
   await page.getByRole("button", { name: "Use this computer's camera" }).click();
 
   // The camera's picture with the guide, and what to do, said first.
@@ -259,10 +265,10 @@ test("on a computer, the document is photographed with the webcam, looked at, th
 test("the document camera can be left for the file chooser (D43)", async ({ page, request }) => {
   const { id, secret } = await steppedUp(request);
   await page.goto(`${VERIFY}/v/${id}#cs=${secret}`);
-  await page.getByRole("button", { name: "Use a passport or ID card" }).click();
+  await page.getByRole("button", { name: "Use my Aadhaar" }).click();
   await page.getByRole("button", { name: "Use this computer's camera" }).click();
   await page.getByRole("button", { name: "Choose a file instead" }).click();
-  await expect(page.getByLabel("Choose a photo file instead")).toBeAttached();
+  await expect(page.getByLabel("Take or choose a picture of the QR code")).toBeAttached();
   await expect(page.getByRole("button", { name: "Use this computer's camera" })).toBeVisible();
 });
 

@@ -1,5 +1,5 @@
 ---
-fingerprint: a7ec7339fdbc6d93
+fingerprint: 245571d994cff2d3
 ---
 **The end-to-end tests**: short stories, acted out by **Playwright** in a real Chromium browser (§4.20). The first one is the whole slice working together — the shop, the SDKs, the verify page in its modal, the camera, the API, the inference service, the decision engine, the signed token and the shop's pass:
 
@@ -121,48 +121,48 @@ Three face attempts, each with a fresh challenge…
 Post each attempt; after the third, the outcome must be `step_up`. Return the session's ID and secret.
 
 @@ 171-178
-**Test — a person the face check can't decide confirms their age with a passport and a selfie.** It gets three minutes rather than the usual ninety seconds: on CI's machines, with no graphics card, reading the document and matching two faces is slow, and it once ran out of time there. Then open the verify page with the stepped-up session's link: the secret travels in the `#` fragment, as a real link carries it.
+**Test — a person the face check can't decide is offered Aadhaar first in a test check, and a passport too** (since 14 Nov; before, it was asked for a passport). It gets three minutes rather than the usual ninety seconds: on CI's machines, with no graphics card, reading the document and matching two faces is slow, and it once ran out of time there. Then open the verify page with the stepped-up session's link: the secret travels in the `#` fragment, as a real link carries it.
 
 @@ 179-180
-The step-up ending, and its new button.
+The step-up ending, and its button — in a test check, *Use my Aadhaar*.
 
-@@ 182-189
-The document stage says what will happen — including that the name and document number are never kept — before anything is chosen, and breaks no accessibility rule. On a computer its webcam is offered first (D43); the specimen passport is chosen through the file chooser beside it, as a person would choose a photo (`setInputFiles` fills the hidden file input).
+@@ 182-195
+The document stage says what will happen before anything is chosen — Aadhaar's title, that the Aadhaar number, name and address are never read out or kept, and that a passport works just as well — and breaks no accessibility rule. For Aadhaar the file chooser comes first, with the webcam below it; the specimen **passport** is chosen through that same chooser (`setInputFiles` fills the hidden file input) — which also proves the promise on the page: the document check reads a passport even when an Aadhaar code was asked for.
 
-@@ 220-224
+@@ 226-230
 The website's view, with the same test key: the session…
 
-@@ 191-196
+@@ 197-202
 The selfie stage: the same camera screen as a face check, playing the fake camera's portrait — the same face as on the specimen. Its result, within two minutes: "You're all set".
 
-@@ 218
+@@ 224
 A screenshot of the result.
 
-@@ 269-273
+@@ 275-279
 **Test — an Age Pass saved after one check answers the next, with no camera** (Phase 9, §5.9.3). Three minutes: it runs two checks.
 
-@@ 274-280
+@@ 280-286
 A policy of the website's own that accepts passes — no preset does.
 
-@@ 281-288
+@@ 287-294
 **`session`** — a new session under that policy, and its verify link.
 
-@@ 290-294
+@@ 296-300
 The first check: no pass is offered yet.
 
-@@ 295-298
+@@ 301-304
 The camera, as in the first test.
 
-@@ 299-301
+@@ 305-307
 After the pass, **Save an Age Pass**: twenty uses, until a date.
 
-@@ 303-308
+@@ 309-314
 The next check, in the same browser: the pass is offered, and the page is still accessible (axe).
 
-@@ 309-312
+@@ 315-318
 **Use my Age Pass**: passed, with no camera — and no offer to save passes, since a pass can't renew itself.
 
-@@ 314-321
+@@ 320-327
 The website's view: completed, passed, and the token's `methods` say `age_pass`.
 
 @@ 1
@@ -186,32 +186,32 @@ Otherwise, what it found: the time it took (and its own measure of it), how many
 @@ 37-40
 No answer at all — refused, or over a minute — is reported too, with how long it waited.
 
-@@ 210-217
+@@ 216-223
 And what the inference service says about the passport right now (the probe above), all in the one message; the original error stays attached as its cause.
 
-@@ 197-209
+@@ 203-215
 If that heading never comes, the test fails with a message saying **what the page showed instead** and **what the API recorded** for the session (its status and outcome). The test once failed on GitHub, where only signed-in people can read the full log; a failing test's message, though, anyone can read.
 
-@@ 225-228
+@@ 231-234
 …is completed with a pass, and its token's claims (the middle part of the JWT, decoded) say how: a face estimate, the document's MRZ and a face match.
 
-@@ 230-237
-**Test — the document camera** (decision D43): a session sent to the stronger check, opened, and the computer's camera chosen.
+@@ 236-243
+**Test — the document camera** (decision D43): a session sent to the stronger check, opened, *Use my Aadhaar* pressed, and the computer's camera chosen — offered below the file chooser for Aadhaar.
 
-@@ 239-244
+@@ 245-250
 The *Take the photo* button works once the fake camera's picture shows (`take` names it once, for reuse), what to do is said, no accessibility rule is broken, and a screenshot is kept.
 
-@@ 246-249
+@@ 252-255
 Taking the photo shows it, with the question to ask of it…
 
-@@ 250-253
+@@ 256-259
 …taking it again turns the camera back on; then a photo is taken and used.
 
-@@ 255-257
+@@ 261-263
 The verify flow goes on to the selfie, as it does with a chosen file. (The fake camera shows a portrait, not a passport, so the check itself isn't tried: the passport test above does that with a file.)
 
-@@ 259-263
+@@ 265-269
 **Test — leaving the document camera** (D43): from the camera…
 
-@@ 264-267
-…*Choose a file instead* goes back to the document stage, with its file chooser and the camera's button.
+@@ 270-273
+…*Choose a file instead* goes back to the document stage, with its file chooser — for Aadhaar, *Take or choose a picture of the QR code* — and the camera's button.

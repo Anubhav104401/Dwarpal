@@ -1,5 +1,5 @@
 ---
-fingerprint: 8a8403559295f6dd
+fingerprint: 8c4962010f650f40
 ---
 **The home page's browser test** (§5.5.9).
 
@@ -39,17 +39,20 @@ The end of the test.
 @@ 3
 The shared axe check (`axe.ts`).
 
-@@ 42-48
-**Test — the home page speaks Hindi to anyone who chooses it** (§5.5.11). It starts in English (`lang="en"`); pressing "हिन्दी" brings the heading, the page's language and its title in Hindi.
+@@ 42-53
+**Test — the home page speaks Hindi to anyone who chooses it** (§5.5.11). It starts in English (`lang="en"`). Opening the language menu (its summary, named "Language: English") shows all ten languages, each by its own name in its own script (`exact: true`, so no name matches inside another). Pressing "हिन्दी" brings the heading, the page's language and its title in Hindi.
 
-@@ 49-52
+@@ 54-57
 Open every question, and check the Hindi page with axe: no rule broken.
 
-@@ 54-59
-Reload: the choice is remembered (the Hindi button is pressed). And pressing "English" brings English back.
+@@ 59-65
+Reload: the choice is remembered — the menu, now named "भाषा: हिन्दी", opens on Hindi pressed. And pressing "English" brings English back.
 
-@@ 61-68
+@@ 67-74
 **Test — a browser that asks for Hindi gets it without choosing**: a browser set to Hindi (`hi-IN`, which Playwright turns into its `Accept-Language` header) is answered in Hindi at once.
 
-@@ 69-73
+@@ 75-79
 And the console, written in English only, says so in its content (`lang="en"`), whatever the page's language.
+
+@@ 81-89
+**Test — a browser that asks for Tamil gets the home page in Tamil** (14 Nov, §7.15): the page's language is `ta`, the menu's name is Tamil (மொழி, "language"), and the page — in a script none of our fonts carry — breaks no accessibility rule.

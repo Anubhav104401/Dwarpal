@@ -107,6 +107,9 @@ const PROMISES = ["promise1", "promise2", "promise3"] as const;
 /** What the document check does, said before the person chooses a photo of their document (Phase 6). */
 const DOCUMENT_STEPS = ["documentStep1", "documentStep2", "documentStep3"] as const;
 
+/** The same, for a test session, where the document asked for first is an Aadhaar Secure QR (Part 7, §7.14). */
+const AADHAAR_STEPS = ["aadhaarStep1", "aadhaarStep2", "aadhaarStep3"] as const;
+
 /** How many tries the document check allows (the API's MAX_DOCUMENT_ATTEMPTS). */
 const DOCUMENT_TRIES = 3;
 
@@ -394,6 +397,8 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
   const { session } = stage;
   const label = t("label", { project: session.projectName, age: session.minAge });
   const tries = (count: number) => t("tries", { count });
+  // A test session asks for an Aadhaar Secure QR as its document (Part 7); a live one never takes it (§7.7).
+  const aadhaar = !session.livemode;
 
   if (stage.kind === "intro") {
     // A document-only check (D24) says what the document check does, and leads to it instead of the camera.
@@ -477,20 +482,24 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
   }
 
   if (stage.kind === "document") {
+    const cameraFirst = computer && !aadhaar;
     return (
       <Shell label={label}>
         <section className={card}>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("documentTitle")}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t(aadhaar ? "aadhaarTitle" : "documentTitle")}
+          </h1>
           {stage.tip === null ? null : (
             <p
               className="mt-3 rounded-xl bg-amber-500/15 px-4 py-3 text-sm text-amber-800 dark:text-amber-200"
               role="alert"
             >
-              {tips(stage.tip)}
+              {/* Nothing readable in the picture: a test session asked for a QR code first, so its tip names both. */}
+              {tips(aadhaar && stage.tip === "mrz_not_found" ? "aadhaar_or_mrz_not_found" : stage.tip)}
             </p>
           )}
           <ol className="mt-6 space-y-3">
-            {DOCUMENT_STEPS.map((step, index) => (
+            {(aadhaar ? AADHAAR_STEPS : DOCUMENT_STEPS).map((step, index) => (
               <li key={step} className="flex gap-3 text-[15px] leading-relaxed">
                 <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-500/20 text-xs font-semibold text-brand-700 dark:text-brand-300">
                   {index + 1}
@@ -499,14 +508,16 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
               </li>
             ))}
           </ol>
-          {/* Test sessions also take an Aadhaar Secure QR as the document (Part 7); said with what is read from it. */}
-          {session.livemode ? null : (
+          {/* Aadhaar is asked for first, never demanded: the law wants the person told that other documents are
+              taken too (§7.10), so the passport stays, one line down. */}
+          {aadhaar ? (
             <p className="mt-4 rounded-xl bg-ink-500/10 px-4 py-3 text-sm leading-relaxed text-ink-700 dark:text-ink-300">
-              {t("documentAadhaar")}
+              {t("aadhaarChoice")}
             </p>
-          )}
-          {/* On a computer, its webcam first (D43); the file chooser stays, as the way for everyone else. */}
-          {computer ? (
+          ) : null}
+          {/* On a computer, its webcam first for a passport (D43); the file chooser stays, as the way for everyone
+              else — and comes first for an Aadhaar code, which a webcam rarely shows sharply enough (§7.3). */}
+          {cameraFirst ? (
             <button
               type="button"
               className={`${accentButton} mt-8`}
@@ -518,9 +529,9 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
           {/* The real control is the hidden file input inside; the label wears the button's look, and its focus ring
               when the input has keyboard focus. */}
           <label
-            className={`${computer ? `${quietButton} mt-3` : `${accentButton} mt-8`} cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-brand-500`}
+            className={`${cameraFirst ? `${quietButton} mt-3` : `${accentButton} mt-8`} cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-brand-500`}
           >
-            {t(computer ? "documentFileButton" : "documentButton")}
+            {t(cameraFirst ? "documentFileButton" : aadhaar ? "aadhaarButton" : "documentButton")}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
@@ -529,6 +540,15 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
               onChange={(event) => onDocumentChosen(session, event.target.files?.[0])}
             />
           </label>
+          {computer && !cameraFirst ? (
+            <button
+              type="button"
+              className={`${quietButton} mt-3`}
+              onClick={() => setStage({ kind: "documentCamera", session })}
+            >
+              {t("documentCameraButton")}
+            </button>
+          ) : null}
           <p className="mt-4 text-center text-xs text-ink-600 dark:text-ink-400">{tries(documentTries)}</p>
         </section>
       </Shell>
@@ -539,7 +559,9 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     return (
       <Shell label={label}>
         <section className={card}>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("documentTitle")}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t(aadhaar ? "aadhaarTitle" : "documentTitle")}
+          </h1>
           <div className="mt-6">
             <DocumentCamera
               onTaken={(photo) => onDocumentChosen(session, photo)}
@@ -558,7 +580,9 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
     return (
       <Shell label={label}>
         <section className={card}>
-          <p className="mb-4 text-sm text-ink-600 dark:text-ink-400">{t("selfieLead")}</p>
+          <p className="mb-4 text-sm text-ink-600 dark:text-ink-400">
+            {t(aadhaar ? "aadhaarSelfieLead" : "selfieLead")}
+          </p>
           <CameraView
             tip={null}
             getChallenge={getChallenge}
@@ -595,7 +619,15 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
         </Icon>
         <h1 className="mt-5 text-2xl font-semibold tracking-tight">{t(`ending.${stage.ending}.title`)}</h1>
         <p className="mt-2 leading-relaxed text-ink-600 dark:text-ink-400">
-          {t(`ending.${stage.ending}.body`, { project: session.projectName, age: session.minAge })}
+          {t(
+            stage.ending === "step_up" && aadhaar
+              ? "ending.step_up.bodyAadhaar"
+              : `ending.${stage.ending}.body`,
+            {
+              project: session.projectName,
+              age: session.minAge,
+            },
+          )}
         </p>
         {stage.ending === "step_up" ? (
           <>
@@ -604,7 +636,7 @@ export function VerifyFlow({ sessionId, apiUrl }: { sessionId: string; apiUrl: s
               className={`${accentButton} mt-8`}
               onClick={() => setStage({ kind: "document", session, tip: null })}
             >
-              {t("useDocument")}
+              {t(aadhaar ? "useAadhaar" : "useDocument")}
             </button>
             <button type="button" className={`${quietButton} mt-3`} disabled={leaving} onClick={leave}>
               {leaving ? t("returning") : t("notNow", { project: session.projectName })}

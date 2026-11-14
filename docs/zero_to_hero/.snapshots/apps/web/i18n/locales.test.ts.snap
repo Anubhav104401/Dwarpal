@@ -15,6 +15,13 @@ describe("pickLocale", () => {
     expect(pickLocale(undefined, "en;q=0.4,hi;q=0.8")).toBe("hi");
   });
 
+  it("knows India's ten page languages, by the codes browsers send", () => {
+    expect(pickLocale(undefined, "ta-IN,ta;q=0.9,en;q=0.8")).toBe("ta");
+    expect(pickLocale(undefined, "bn-IN")).toBe("bn");
+    expect(pickLocale(undefined, "fr-FR,pa;q=0.7,hi;q=0.6")).toBe("pa");
+    expect(pickLocale("ml", "kn-IN")).toBe("ml");
+  });
+
   it("falls back to English for anything else", () => {
     expect(pickLocale(undefined, null)).toBe("en");
     expect(pickLocale(undefined, "fr-FR,de;q=0.9")).toBe("en");
@@ -25,13 +32,7 @@ describe("pickLocale", () => {
 
 describe("isLocale", () => {
   it("knows only the pages' languages", () => {
-    expect(["en", "hi", "HI", "fr", 7, undefined].map(isLocale)).toEqual([
-      true,
-      true,
-      false,
-      false,
-      false,
-      false,
-    ]);
+    expect(["en", "hi", "mr", "te", "gu", "kn", "pa"].every(isLocale)).toBe(true);
+    expect(["HI", "fr", "ur", "or", 7, undefined].some(isLocale)).toBe(false);
   });
 });
